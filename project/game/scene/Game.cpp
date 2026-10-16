@@ -227,7 +227,7 @@ bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions)
     char asyncFlag[8]{};
     titleFirst_ = resolvedStartupScene_ == "TITLE" &&
                   !(GetEnvironmentVariableA("MYENGINE_ASYNC_STARTUP", asyncFlag, sizeof(asyncFlag)) == 1 && asyncFlag[0] == '0');
-    // File decoding needs no device, so it overlaps D3D12 device and pipeline creation.
+    // ファイルのデコードはデバイスを必要としないため、D3D12のデバイスやパイプラインの作成と並行して行う。
     if (resolvedStartupScene_ == "TITLE") {
         TitleScene::StartAssetPreloads();
     }
@@ -334,8 +334,8 @@ void Game::InitializeEngine()
     timed("Engine.Sprite", [&] {
         myEngine::SpriteCommon::GetInstance()->Initialize(dxCommon_.get());
     });
-    // Sprite shares the Object shader. Its unlit path still needs valid root
-    // bindings before any 3D world has supplied camera/light/wake constants.
+    // スプライトはObjectシェーダーを共有する。3Dワールドがカメラ・ライト・航跡の定数を
+    // 設定する前でも、ライティングなしの経路には有効なルートのバインドが必要。
     startupConstants_ = dxCommon_->CreateBufferResource(1024);
     void* startupData = nullptr;
     startupConstants_->Map(0, nullptr, &startupData);
@@ -412,8 +412,8 @@ void Game::InitializeImGui()
 
 void Game::LoadResources()
 {
-    // Keep startup focused on the title scene. Models are now loaded on demand
-    // from Object3d::SetModel() or explicitly by the scene that needs them.
+    // 起動時はタイトルシーンに集中させる。モデルは必要になったときに
+    // Object3d::SetModel()から、または必要とするシーンが明示的に読み込む。
 }
 
 int Game::Run()
@@ -427,8 +427,8 @@ int Game::MainLoop()
         char flag[8]{};
         return GetEnvironmentVariableA(name, flag, sizeof(flag)) == 1 && flag[0] == '1';
     };
-    // Hidden deterministic verification must not pause when the user switches
-    // applications. Ordinary interactive play still suspends on lost focus.
+    // 非表示で行う決定的な検証は、ユーザーが別のアプリに切り替えても一時停止してはならない。
+    // 通常の操作プレイでは、フォーカスを失うと一時停止する。
     const bool startupValidation = testEnabled("MYENGINE_STARTUP_AUTOTEST");
     char experienceMode[8]{};
     const bool experienceValidation =
@@ -467,16 +467,16 @@ int Game::MainLoop()
 
         const auto messageStart = std::chrono::steady_clock::now();
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-            // Preserve the quit status before a later queued message can replace it.
+            // 後からキューに入ったメッセージで上書きされる前に、終了ステータスを保存しておく。
             if (msg.message == WM_QUIT) {
                 break;
             }
             if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN) {
-                // DIK scan codes use bit 7 for extended keys (arrows, numpad Enter).
+                // DIKのスキャンコードでは、拡張キー（矢印キー、テンキーのEnter）にビット7を使う。
                 unsigned int rawScan = static_cast<unsigned int>((msg.lParam >> 16) & 0xff);
                 bool extended = (msg.lParam & (1LL << 24)) != 0;
-                // Software keyboards can supply only a virtual key. Preserve
-                // the same menu behavior when the hardware scan code is absent.
+                // ソフトウェアキーボードは仮想キーしか渡さないことがある。
+                // ハードウェアのスキャンコードが無い場合も、同じメニュー動作を保つ。
                 if (!rawScan) {
                     rawScan = MapVirtualKeyW(static_cast<UINT>(msg.wParam), MAPVK_VK_TO_VSC_EX);
                     extended = (rawScan & 0xff00u) == 0xe000u;
@@ -489,8 +489,8 @@ int Game::MainLoop()
             }
             TranslateMessage(&msg);
             DispatchMessage(&msg);
-            // Clear stale keys at the focus event itself, before any subsequent
-            // key-down in the same message batch can be recorded.
+            // 同じメッセージのまとまりの中で後続のキー押下が記録される前に、
+            // フォーカスイベントの時点で古いキー状態を消す。
             if (myEngine::WinApp::GetInstance()->ConsumeActivationChanged()) {
                 myEngine::Input::GetInstance()->OnFocusChanged(myEngine::WinApp::GetInstance()->IsActive());
                 dxCommon_->ResetFixFPS();
@@ -513,7 +513,7 @@ int Game::MainLoop()
         const auto inputImGuiStart = std::chrono::steady_clock::now();
         // 前のフレームのキー状態を保存
         input->BeforeFrameData();
-        // Device switch: re-render operation prompts now, outside of draw command recording.
+        // デバイスが切り替わったら、描画コマンドの記録の外で今すぐ操作案内を描き直す。
         myEngine::TextLabel::RefreshAllInputPrompts();
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
         if (GameplayScenarioSession::Get().IsActive()) {
@@ -522,11 +522,11 @@ int Game::MainLoop()
 #endif
         auto* scenes = SceneManager::GetInstance();
         if (!engineReady_ || scenes->UsesSimpleRendering()) {
-            // Always present one title frame before doing deferred work. This
-            // branch also pumps messages/input every frame during scene loading.
+            // 後回しにした処理を行う前に、必ずタイトルを1フレーム表示する。
+            // この分岐では、シーン読み込み中も毎フレームメッセージと入力を処理する。
             if (!engineReady_ && !lastPresentedScene.empty()) {
-                // The title stays black until its demo is ready, so run the
-                // remaining engine steps in ~100 ms slices instead of one per vsync.
+                // タイトルはデモの準備ができるまで黒いままなので、残りのエンジン処理は
+                // vsyncごとに1つずつではなく、約100msずつまとめて実行する。
                 const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
                 while (!engineReady_ && std::chrono::steady_clock::now() < deadline) {
                     if (!dxCommon_->ArePipelinesReady()) {
@@ -776,9 +776,8 @@ void Game::Finalize()
     myEngine::BackgroundLoader::Get().Shutdown();
     presentationTask_ = {};
     myEngine::SkinnedModel::ClearPreloadedAssets();
-    // The current scene owns RenderTextures and other GPU resources that keep
-    // non-owning pointers to SrvManager.  Release the scene before the Game
-    // members (and therefore SrvManager) begin their destruction.
+    // 現在のシーンは、SrvManagerを所有せずに指すRenderTextureなどのGPUリソースを持っている。
+    // Gameのメンバー（つまりSrvManager）の破棄が始まる前に、シーンを解放する。
     if (dxCommon_) {
         dxCommon_->ExecuteCommandListAndWait();
     }

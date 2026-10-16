@@ -47,13 +47,13 @@ cbuffer OceanParameters : register(b0)
     float2 gProjectedGridResolution;
     float gProjectedGridDebug;
     float gProjectedWireframe;
-    // x/top/bottom overscan and an NDC margin for TAA jitter.
+    // x/上/下の描画範囲の拡張と、TAAのジッター用のNDCの余白。
     float4 gProjectedOverscan;
-    // near fade enabled, fade width, minimum safe distance, outer wireframe.
+    // 近距離フェードの有効化、フェード幅、最小の安全距離、外側のワイヤーフレーム。
     float4 gProjectedDisplacementGuard;
-    // threshold, bias, smooth width and preview intensity.
+    // しきい値、バイアス、平滑化の幅、プレビューの強度。
     float4 gBreakingParameters;
-    // normal mode, breaking preview enabled and reserved values.
+    // 法線モード、砕波プレビューの有効化、予約値。
     float4 gDerivativeControls;
 };
 

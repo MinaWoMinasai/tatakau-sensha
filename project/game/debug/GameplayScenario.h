@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-// Pure scenario policy has no Windows, actor, renderer or JSON dependencies.
-// Only its Developer adapter can apply these instructions to the live game.
+// シナリオの判定処理そのものはWindows、アクター、描画、JSONに依存しない。
+// 実際のゲームにこの指示を適用できるのはDeveloper用のアダプタだけ。
 namespace gameplaytest {
 enum class Scenario {
     Shooter,
@@ -108,7 +108,7 @@ struct ScriptedInput {
 };
 
 struct InputSegment {
-    unsigned firstFrame = 0, endFrame = 0; // Half-open range, in simulation frames.
+    unsigned firstFrame = 0, endFrame = 0; // 半開区間（シミュレーションのフレーム単位）。
     ScriptedInput input;
 };
 
@@ -134,7 +134,7 @@ inline bool IsSafeIdentifier(const std::string& value)
     });
 }
 
-// Independently bounded continuous recording; sparse capture limits stay32/64.
+// 独立して上限を設けた連続記録。間引きキャプチャの上限は32/64のまま。
 struct RecordingSettings {
     bool enabled = false;
     unsigned firstFrame = 1, frameCount = 0, encodedFps = 60;
@@ -146,15 +146,15 @@ struct Settings {
     uint32_t seed = 20261005u;
     float fixedDeltaTime = 1.0f / 60.0f;
     unsigned frames = 480;
-    int playerStyle = -1; // -1 selects the scenario's usual combat style.
-    // A live room reset starts invulnerable. Use player_restart to exercise real
-    // lethal damage; explicit initial HP must be positive and fit actual max HP.
+    int playerStyle = -1; // -1ならシナリオの通常の戦闘スタイルを選ぶ。
+    // 部屋をその場でリセットすると無敵状態から始まる。実際の致死ダメージを確かめるには
+    // player_restartを使う。初期HPを明示する場合は正の値で、実際の最大HP以下にすること。
     int playerHp = -1, bossHp = 10000;
     unsigned enemyCount = 3, initialProjectiles = 0;
     std::vector<std::string> upgrades;
     std::string room = "arena";
-    // Explicit records replace the count-generated wave. The live adapter
-    // resolves these IDs against the existing authored content catalog.
+    // 明示した記録は、数から生成したウェーブの代わりに使われる。
+    // 実行時のアダプタがこれらのIDを既存のコンテンツカタログと照合する。
     std::vector<EnemyWaveEntry> enemyWave;
     std::vector<InputSegment> input;
     std::vector<unsigned> captureFrames{120, 360};
@@ -332,7 +332,7 @@ inline ScriptedInput InputAtFrame(const Settings& settings, unsigned frame)
         result.shoot = false;
     }
     if (!boss && settings.scenario != Scenario::PlayerRestart && settings.scenario != Scenario::PreviewLifecycle) {
-        // Repeated square route exercises real movement, firing and wall resolution.
+        // 四角形のルートを繰り返し、実際の移動・射撃・壁との衝突解決を確かめる。
         const unsigned leg = (frame / 90u) % 4u;
         result.movement = leg == 0   ? std::array<float, 2>{0.4f, 0.0f}
                           : leg == 1 ? std::array<float, 2>{0.0f, 0.4f}
@@ -343,8 +343,8 @@ inline ScriptedInput InputAtFrame(const Settings& settings, unsigned frame)
     return result;
 }
 
-// Developer adapters call these only with validated fixed base time. Keep the
-// existing 60 Hz operation at its exact float boundary for default scenarios.
+// Developer用アダプタは、検証済みの固定基準時間でのみこれを呼ぶ。既定のシナリオでは
+// 既存の60Hz動作をfloatの境界値どおりに保つ。
 inline bool ScenarioShouldSnapTimeScale(float combatDt, float baseDt)
 {
     if (baseDt == 1.0f / 60.0f) {
@@ -377,8 +377,8 @@ struct Snapshot {
     std::string classId, roomId, nodeId;
 };
 
-// Bounded observable state validation, deliberately excluding wall-clock/GPU timings
-// from determinism. Scene-epoch changes are explicit restart boundaries.
+// 上限付きで観測可能な状態の検証。実時間やGPU時間はあえて決定性の判定から除く。
+// シーンの世代が変わったら、明示的な再開の区切りとして扱う。
 class InvariantValidator {
 public:
     void Observe(const Snapshot& snapshot)

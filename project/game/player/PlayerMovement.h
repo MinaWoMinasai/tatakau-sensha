@@ -3,8 +3,8 @@
 #include <cmath>
 #include "Calculation.h"
 
-// Stage collision and input sampling remain outside this calculation. Speeds
-// are the established 60 FPS reference-frame values; deltaTime is seconds.
+// Stageとの衝突と入力の読み取りはこの計算の外で行う。速度は
+// 確立済みの60FPS基準フレームの値で、deltaTimeは秒単位。
 struct PlayerMovementInput {
     myEngine::Vector3 direction{}, velocity{};
     float moveSpeed = 0.2f, acceleration = 2.5f, deceleration = 3.5f;

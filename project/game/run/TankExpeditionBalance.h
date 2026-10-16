@@ -179,8 +179,8 @@ inline nlohmann::json SanitizeBalance(const nlohmann::json& source)
     number("playerUpgrades", "reloadSpeed", 0, 0.9);
     number("playerUpgrades", "minReloadSpeed", 1, 60);
     result["combatStyles"] = CombatStylesToJson(ReadCombatStyleBalances(source));
-    // Migrate only the former shipped values. Authored values are retained and
-    // now take effect instead of being silently limited by the old starter caps.
+    // 以前に出荷した値だけを移行する。作成した値はそのまま保持し、
+    // 古い初期装備の上限で黙って制限されることなく反映されるようになる。
     const bool oldSchema =
         !source.contains("schemaVersion") || !source["schemaVersion"].is_number_integer() || source["schemaVersion"].get<int>() < 2;
     if (oldSchema) {
@@ -204,8 +204,8 @@ inline nlohmann::json SanitizeBalance(const nlohmann::json& source)
     number("bossAttackDefault", "damage", 1, 999);
     number("bossAttackDefault", "bulletHp", 0, 100);
     number("bossAttackDefault", "bulletPenetration", 0, 100);
-    // Player healing is an explicit transient editor action, never saved as a
-    // permanent on-load heal toggle. Runtime room changes preserve current HP.
+    // プレイヤーの回復はエディタで明示的に行う一時的な操作で、読み込み時に回復するスイッチとして
+    // 保存されることはない。実行中の部屋の変更では現在のHPを保つ。
     return result;
 }
 

@@ -97,7 +97,7 @@ private:
     Vector2 anchorPoint_ = {0.0f, 0.0f};
     float alpha_ = 1.0f;
     unsigned long long builtFontRevision_ = 0;
-    // Input device the operation prompts were rendered for (keyboard/mouse or gamepad wording).
+    // 操作案内を描画した入力デバイス（キーボード/マウス表記かゲームパッド表記か）。
     uint32_t builtPromptRevision_ = 0;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     static ProfileStats profileStats_;

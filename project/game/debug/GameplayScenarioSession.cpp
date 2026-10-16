@@ -46,7 +46,7 @@ std::string Utf8(const fs::path& path)
 
 fs::path Utf8Path(const std::string& value)
 {
-    // C++20 equivalent of u8path without its MSVC deprecation warning.
+    // MSVCの非推奨警告が出ないu8pathのC++20版。
     return fs::path(std::u8string(value.begin(), value.end()));
 }
 
@@ -59,8 +59,8 @@ fs::path OutputDirectory(const json& manifest, const fs::path& workspace, const 
     if (!directory.is_absolute()) {
         directory = workspace / directory;
     }
-    // The output may not exist yet. Normalize and verify the absolute workspace
-    // prefix before creation, without probing missing OneDrive/sandbox paths.
+    // 出力先はまだ存在しないことがある。作成前に絶対パスのワークスペース接頭辞を正規化して確認し、
+    // 存在しないOneDriveやサンドボックスのパスは調べに行かない。
     directory = directory.lexically_normal();
     const auto relative = directory.lexically_relative(workspace.lexically_normal());
     Require(!relative.empty() && !relative.is_absolute(), "Scenario output must be inside workspace generated directories.");
@@ -227,8 +227,8 @@ gameplaytest::Settings ReadSettings(const json& manifest)
         Require(gameplaytest::IsDepthScenario(settings.scenario), "Depth object is not allowed in a legacy fixture.");
     }
     std::string error;
-    // Validate before taking c_str(): argument evaluation order must not leave
-    // Require with a pointer into the string that validation just replaced.
+    // c_str()を取る前に検証する。引数の評価順によっては、検証で置き換えたばかりの文字列を
+    // 指すポインタをRequireに渡してしまうため。
     const bool valid = gameplaytest::ValidateSettings(settings, error);
     Require(valid, error.c_str());
     return settings;
@@ -302,8 +302,8 @@ bool FiniteJson(const json& value, unsigned depth = 0)
 void WriteJson(const fs::path& file, const json& value)
 {
     std::ofstream output(file, std::ios::binary);
-    // Some Windows filesystem exceptions contain ACP text in what(). Preserve
-    // a valid failure report even when that diagnostic is not UTF-8.
+    // Windowsのファイルシステム例外の中にはwhat()にACPの文字列を含むものがある。
+    // その診断文字列がUTF-8でなくても、有効な失敗レポートを残す。
     if (!output || !(output << value.dump(2, ' ', false, json::error_handler_t::replace) << '\n')) {
         throw std::runtime_error("Could not write scenario evidence.");
     }
@@ -362,7 +362,7 @@ GameplayScenarioSession::GameplayScenarioSession()
 {
     const DWORD required = GetEnvironmentVariableW(L"MYENGINE_GAMEPLAY_SCENARIO", nullptr, 0);
     if (required <= 1) {
-        return; // An unset or empty environment value is inactive.
+        return; // 未設定または空の環境変数は無効として扱う。
     }
     try {
         const auto workspace = WorkspaceDirectory();
@@ -446,7 +446,7 @@ bool GameplayScenarioSession::BeginRecording(unsigned width, unsigned height)
         const auto recording = directory / "recording";
         Require(!fs::exists(recording), "Recording requires a fresh directory; existing evidence is never overwritten.");
         fs::create_directories(directory);
-        // RGBA8 worst-case PNG plus bounded JSON/PNG framing allowance per frame.
+        // RGBA8のPNGの最悪サイズに、フレームごとのJSON/PNG枠の上限分を足したもの。
         const uint64_t frameBytes = uint64_t(width) * height * 4 + 256 * 1024;
         recordingPreflightBytes_ = frameBytes * settings_.recording.frameCount;
         Require(recordingPreflightBytes_ <= settings_.recording.maxOutputBytes, "Native recording exceeds its source-byte budget.");
@@ -572,7 +572,7 @@ bool GameplayScenarioSession::NotifyDepthSceneEntered(const std::string& name)
         } else {
             depthTitleEntered_ = true;
         }
-        Finish(); // Reports must be saved before the Game observer posts quit.
+        Finish(); // Gameの監視側が終了を通知する前にレポートを保存しておく必要がある。
         return true;
     }
     return false;

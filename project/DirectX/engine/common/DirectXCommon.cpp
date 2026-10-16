@@ -40,7 +40,7 @@ void DirectXCommon::Initialize(WinApp* winApp, bool titleFirst)
 
     pipelineTask_ = BuildPipelines();
     if (titleFirst) {
-        InitializePipelinesStep(); // Only the three sprite pipelines.
+        InitializePipelinesStep(); // スプライト用の3つのパイプラインだけ。
     } else {
         CreateShader();
     }
@@ -1374,7 +1374,7 @@ void DirectXCommon::UpdateFixFPS()
 
 void DirectXCommon::Release()
 {
-    pipelineTask_ = {}; // A title can close before every PSO exists.
+    pipelineTask_ = {}; // すべてのPSOが揃う前にタイトルが閉じられることがある。
     const auto releaseIfCreated = [](IUnknown* object) {
         if (object) {
             object->Release();

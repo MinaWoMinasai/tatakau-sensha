@@ -26,8 +26,8 @@ namespace gameplay::detail {
 
 inline void ApplyGameplayNeonBloomPreset(myEngine::BloomParam& param, float gain = 1.2f)
 {
-    // Match the projectile halo while composing the unchanged sharp source separately.
-    // Legacy intensity is independent: the pyramid applies this linear gain once.
+    // 弾のハローに合わせつつ、変更していない鮮明な元画像は別に合成する。
+    // Legacyの強度とは独立しており、ピラミッドはこの線形の係数を1回だけ掛ける。
     param.bloomMode = 2;
     param.threshold = 0.0f;
     param.bloomSoftKnee = 0.5f;

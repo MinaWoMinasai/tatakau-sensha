@@ -334,8 +334,8 @@ myEngine::Vector3 ResourceNeonRenderer::GetFloorVisibilityCenter() const
         return world_.presentation.developerStageBaseCamera_;
     }
 #endif
-    // A tilted camera's eye is outside the room in XY. Floor culling follows
-    // its displayed focus; facing/depth calculations still use the real eye.
+    // 傾いたカメラの視点は、XY平面上では部屋の外にある。床のカリングは
+    // 表示上の注視点に従い、向きや深度の計算には実際の視点を使う。
     return world_.resources.neonDepthCameraScoped_
                ? world_.resources.neonDepthFloorViewCenter_
                : GetActiveCameraPosition(world_.resources.camera.get(), world_.resources.debugCamera.get());

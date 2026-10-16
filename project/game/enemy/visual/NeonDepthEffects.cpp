@@ -57,16 +57,16 @@ bool NeonDepthEffects::Update(const neondepth::EffectsInput& input)
         ++stats_.duplicateUpdates;
         return false;
     }
-    // Exactly one BeginFrame and one population of this separate upload buffer.
-    // Draw never clears, repopulates or grows it, including two render passes.
+    // BeginFrameは1回だけ呼び、この専用アップロードバッファへの書き込みも1回だけ行う。
+    // Drawは2回の描画パスを含め、これをクリア・再書き込み・拡張しない。
     renderer_->BeginFrame();
     lastFrameId_ = input.frameId;
     framePrepared_ = true;
     airStart_ = airCount_ = floorStart_ = floorCount_ = 0;
     stats_.vertices = stats_.airVertices = stats_.floorVertices = stats_.lineCommands = stats_.fillCommands = 0;
     ++stats_.updates;
-    // Always replace the public CPU frame, even when VP is rejected, so an
-    // invalid frame cannot expose the previous frame's diagnostic geometry.
+    // VPが却下された場合でも公開用のCPUフレームは必ず置き換え、
+    // 不正なフレームで前フレームの診断用形状が見えないようにする。
     const bool geometryValid = builder_.Build(input);
     stats_.launchLatches = builder_.GetLaunchCount();
     if (!neondepth::Finite(input.viewProjection) || !geometryValid) {
@@ -89,7 +89,7 @@ bool NeonDepthEffects::Update(const neondepth::EffectsInput& input)
     }
     airCount_ = renderer_->GetVertexCount() - airStart_;
     floorStart_ = renderer_->GetVertexCount();
-    // Weak fill first, then fixed shape edges and core target, in the same range.
+    // 同じ範囲内で、まず薄い塗り、次に固定形状の縁と中心の標的を描く。
     for (unsigned index = 0; index < geometry.fillCount; ++index) {
         const auto& fill = geometry.fills[index];
         if (fill.rectangle) {
@@ -101,7 +101,7 @@ bool NeonDepthEffects::Update(const neondepth::EffectsInput& input)
             renderer_->QueueBillboardDisc(fill.center, fill.radius, fill.color, fill.right, fill.up, neondepth::kEffectCircleSteps);
         }
     }
-    // Core is queued after warning/active lines to remain readable on overlaps.
+    // 重なっても読み取れるよう、中心は警告・発動中の線の後に積む。
     for (unsigned pass = 0; pass < 2; ++pass) {
         for (unsigned index = 0; index < geometry.floorCount; ++index) {
             const auto& line = geometry.floor[index];

@@ -17,7 +17,7 @@ struct BossCinematicState {
     int burstsFired = 0;
     bool finaleFired = false;
     float letterbox = 0.0f;
-    int titleMode = 0; // 0: none, 1: entrance, 2: defeat
+    int titleMode = 0; // 0: なし、1: 登場、2: 撃破
     float titleAlpha = 0.0f;
     float titleAge = 0.0f;
 };
@@ -25,8 +25,8 @@ struct BossCinematicState {
 /// @brief NeonPresentationStateに属する資源と実行状態を保持する。
 struct NeonPresentationState {
     BossCinematicState bossCinematic_;
-    // Bloom explanation for presentations: [B] cycles the view, [V] freezes the frame.
-    // 0: full, 1: off, 2..6: one pyramid level (1/2 .. 1/32), 7: the bloom term only.
+    // 演出確認用のBloom解説: [B]で表示を切り替え、[V]でフレームを止める。
+    // 0: すべて、1: オフ、2..6: ピラミッドの1レベル（1/2 .. 1/32）、7: Bloom成分のみ。
     int bloomView_ = 0;
     bool bloomViewFreeze_ = false;
     float bloomViewLabelTimer_ = 0.0f;

@@ -56,7 +56,7 @@ struct RunSessionState {
 
     std::unordered_map<std::string, int> expeditionPurchases_;
 
-    // Retain purchased effects if their source is renamed/deleted while authoring.
+    // 作成中に元データの名前変更や削除があっても、購入済みの効果は保持する。
     std::unordered_map<std::string, tankcontent::Upgrade> expeditionPurchasedModules_;
 
     int expeditionServicePage_ = 0, expeditionBlueprint_ = 0;

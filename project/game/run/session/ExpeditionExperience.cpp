@@ -74,7 +74,7 @@ void ExpeditionExperience::SpawnExpeditionCredits(const myEngine::Vector3& posit
     if (!world_.run.expeditionMapEnabled_ || amount <= 0) {
         return;
     }
-    // A bounded number of visible balls preserves the exact sum for large rewards.
+    // 見える玉の数に上限を設けつつ、大きな報酬でも合計値をちょうど保つ。
     const int count = (std::min)(5, (std::max)(1, amount / 3));
     for (int i = 0; i < count; ++i) {
         const int value = amount / count + (i < amount % count ? 1 : 0);
@@ -199,8 +199,8 @@ void ExpeditionExperience::DrawExpeditionPointer(myEngine::Vector2 target, bool 
             auto& halo = world_.run.expeditionPointerGlow_[world_.run.expeditionPointerCursor_++];
             line->SetPosition({target.x - sign * (24 + i * 14 - motion) + (side ? sign * 13.0f : 0), target.y + (side ? 0 : -11)});
             line->SetRotation(side ? (right ? 2.44f : 0.70f) : (right ? 0.70f : 2.44f));
-            // UI is drawn after post processing. Reuse the cached soft neon orb as
-            // an additive halo, without allocating a render target for each arrow.
+            // UIはポストプロセスの後に描かれる。矢印ごとにレンダーターゲットを確保せず、
+            // キャッシュ済みの柔らかいネオンの玉を加算のハローとして再利用する。
             const auto p = line->GetPosition();
             const float angle = side ? (right ? 2.44f : 0.70f) : (right ? 0.70f : 2.44f);
             halo->SetPosition({p.x + std::cos(angle) * 8.5f, p.y + std::sin(angle) * 8.5f});
@@ -250,7 +250,7 @@ void ExpeditionExperience::QueueExpeditionImpact(const myEngine::Vector3& positi
     world_.presentation.cameraShakeDuration_ = finisher ? 0.15f : 0.10f;
     world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
     world_.presentation.cameraShakePower_ = finisher ? 0.20f : 0.11f;
-    // Only committed melee/body hits get a short, bounded impact hold.
+    // 短く上限付きのヒットストップを入れるのは、確定した近接攻撃・体当たりの命中だけ。
     world_.run.expeditionImpactHold_ = (std::max)(world_.run.expeditionImpactHold_, finisher ? 0.065f : 0.04f);
     world_.run.tankExpeditionAudio_.Slam(finisher);
 }
@@ -309,7 +309,7 @@ void ExpeditionExperience::UpdateGuidedExpedition(float dt)
         }
         world_.run.expeditionGuideDamageCount_ = world_.resources.player_->GetDamageTakenCount();
         world_.run.expeditionGuide_.ObserveDash(world_.resources.player_->IsDashing(), world_.resources.player_->GetHp());
-        // A destroyed practice turret is replaced until the dodge is actually completed.
+        // 回避が実際に完了するまで、壊された練習用砲台は置き直される。
         if (world_.run.expeditionGuide_.GetStage() == S::Dash && world_.run.expeditionGuideShooterSpawned_) {
             bool alive = false;
             for (auto* e : world_.resources.enemyManager_->GetEnemyPtrs()) {

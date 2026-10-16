@@ -9,22 +9,22 @@
 
 namespace myEngine {
 
-// Direction and all distances are in the frozen, skinned model space, before World.
-// scanMin/Max bound the directional projection; noise adds +/- noiseStrength/2.
+// 方向と距離はすべて、World変換前のスキン適用済みモデル空間（固定時点）で表す。
+// scanMin/Maxは方向への射影範囲を表し、ノイズは±noiseStrength/2を加える。
 struct NeonDissolveParams {
     Vector3 direction{0.70710678f, -0.70710678f, 0.0f};
     float scanMin = 0.0f;
     float scanMax = 1.0f;
     float progress = 0.0f;
-    float noiseStrength = 0.08f; // model units, full noise range
-    float noiseScale = 12.0f;    // lattice cells per model unit
+    float noiseStrength = 0.08f; // モデル単位、ノイズの全幅
+    float noiseScale = 12.0f;    // モデル1単位あたりの格子セル数
     uint32_t enabled = 0;
     uint32_t edgeEnabled = 1;
     uint32_t seed = 1337;
     uint32_t padding = 0;
     Vector3 edgeColor{1.0f, 0.025f, 0.35f};
     float edgeIntensity = 4.0f;
-    float edgeWidth = 0.008f; // surviving-side width, in projected model units
+    float edgeWidth = 0.008f; // 残る側の幅（射影後のモデル単位）
     float edgePadding[3]{};
 };
 
@@ -68,7 +68,7 @@ inline NeonDissolveParams SanitizeNeonDissolveParams(NeonDissolveParams value)
     };
     value.enabled = value.enabled ? 1u : 0u;
     value.edgeEnabled = value.edgeEnabled ? 1u : 0u;
-    // Invalid scan data falls back to intact rendering rather than disappearing unpredictably.
+    // スキャンデータが不正な場合は、予期せず消えるのではなく通常描画に戻す。
     if (!NormalizeNeonDirection(value.direction) || !std::isfinite(value.scanMin) || !std::isfinite(value.scanMax) ||
         value.scanMax < value.scanMin || std::abs(value.scanMin) > 1.0e6f || std::abs(value.scanMax) > 1.0e6f) {
         value.enabled = 0;
@@ -87,9 +87,9 @@ inline NeonDissolveParams SanitizeNeonDissolveParams(NeonDissolveParams value)
     return value;
 }
 
-// Row-vector positions: pWorld = pModel * World. A plane is a covector, so its
-// model coefficient is World_linear * nWorld, not the vector transform nWorld * World.
-// World translation is constant for all points and cancels when computing scan bounds.
+// 行ベクトル表記で pWorld = pModel * World。平面は余ベクトルなので、モデル空間の係数は
+// ベクトル変換の nWorld * World ではなく World_linear * nWorld になる。
+// Worldの平行移動成分はすべての点で一定なので、スキャン範囲の計算では打ち消し合う。
 inline bool MakeNeonDissolveDirection(const Matrix4x4& world, const Matrix4x4& cameraWorld, NeonDissolveDirection preset, Vector3& output,
                                       std::string* error = nullptr)
 {
@@ -154,8 +154,8 @@ inline bool MakeNeonDissolveDirection(const Matrix4x4& world, const Matrix4x4& c
     return true;
 }
 
-// Start-time CPU scan only. Positions match the GPU's four raw influences and row-vector
-// palette multiplication, including source position.w. No GPU resource or skeleton is mutated.
+// 開始時にだけ行うCPUスキャン。座標はGPUと同じ4つの生のウェイトと行ベクトルの
+// パレット乗算（元のposition.wを含む）で求める。GPUリソースやスケルトンは変更しない。
 inline bool ComputeNeonSkinnedProjectionBounds(const SkinnedModel& model, const Vector3& direction, float& scanMin, float& scanMax)
 {
     Vector3 unitDirection = direction;
@@ -199,7 +199,7 @@ inline bool ComputeNeonSkinnedProjectionBounds(const SkinnedModel& model, const 
     return std::isfinite(scanMin) && std::isfinite(scanMax);
 }
 
-// CPU reference of the stable trilinear value noise used by NeonDissolve.hlsli.
+// NeonDissolve.hlsliで使う安定した3線形バリューノイズのCPU版。
 inline uint32_t NeonDissolveHash(uint32_t x, uint32_t y, uint32_t z, uint32_t seed)
 {
     uint32_t h = x * 0x8da6b343u ^ y * 0xd8163841u ^ z * 0xcb1ab31fu ^ seed;

@@ -12,9 +12,9 @@
 #include <utility>
 #include <vector>
 
-// CPU wall-clock loading diagnostics, available in Release without the frame
-// profiler. Nested inclusive times must not be added together; selfMs excludes
-// nested scopes. No disk I/O occurs per frame. Diagnostics never prevent loading.
+// 読み込みにかかったCPU実時間の診断。フレームプロファイラなしでReleaseでも使える。
+// 入れ子になった区間の時間は足し合わせないこと（selfMsは入れ子の区間を除く）。
+// 毎フレームのディスクI/Oは行わず、診断が読み込みを妨げることはない。
 namespace myEngine {
 
 /// @brief 起動処理の区間名と経過時間を記録し、起動遅延の調査に使う。

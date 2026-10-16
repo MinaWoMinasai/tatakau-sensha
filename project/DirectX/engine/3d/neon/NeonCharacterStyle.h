@@ -4,8 +4,8 @@
 
 namespace myEngine {
 
-// Existing Preview Recommended Line Art values, shared with gameplay. Texture
-// mask candidates remain opt-in; no Scene-wide Bloom settings are changed.
+// プレビューで推奨とした線画の既存値をゲームプレイと共有する。テクスチャマスク候補は
+// 明示的に有効化したときだけ使い、シーン全体のBloom設定は変更しない。
 inline void ApplyRecommendedNeonCharacterStyle(NeonSkinnedParams& params, const SkinnedModel* model,
                                                std::vector<NeonSkinnedSubmeshParams>& surfaces)
 {

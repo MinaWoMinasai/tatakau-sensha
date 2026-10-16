@@ -172,7 +172,7 @@ public:
             return;
         }
         dashAttempt_ = false;
-        // Practice counts completed movements, never asks beginners to survive hits.
+        // 練習では完了した動作を数え、初心者に被弾を耐えることは求めない。
         if (++completedDashes_ >= 3) {
             stage_ = Stage::Upgrade;
         }

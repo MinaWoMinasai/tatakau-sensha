@@ -27,9 +27,9 @@ void RenderTexture::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, 
     srvManager_ = srvManager;
     rtvManager_ = rtvManager;
 
-    // Empty render targets have no upload work. Start in the state expected by
-    // BeginRender instead of submitting and waiting for a one-off transition.
-    // Keep the original path available for like-for-like startup measurements.
+    // 空のレンダーターゲットにはアップロード処理がない。一度きりの状態遷移を送って待つ代わりに、
+    // BeginRenderが期待する状態で作成する。
+    // 同条件で起動時間を比較できるよう、元の経路も残しておく。
     char cacheSetting[8]{};
     const DWORD cacheLength = GetEnvironmentVariableA("MYENGINE_STARTUP_CACHE", cacheSetting, sizeof(cacheSetting));
     const bool directInitialState = cacheLength != 1 || cacheSetting[0] != '0';

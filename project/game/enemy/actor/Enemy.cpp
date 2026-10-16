@@ -683,7 +683,7 @@ void Enemy::Update(float deltaTime)
     if (!runEncounterEnabled_) {
         return;
     }
-    // Gameplay death is immediate; only the retained presentation advances afterward.
+    // ゲームプレイ上の死亡は即座に起こる。その後に進むのは残している演出だけ。
     if (hp_ <= 0) {
         Die();
     }
@@ -898,7 +898,7 @@ void Enemy::TakeDamage(uint32_t amount)
     if (!runEncounterEnabled_ || isDead_ || hp_ <= 0 || amount == 0) {
         return;
     }
-    // Compare unsigned damage before narrowing, including amounts above INT_MAX.
+    // INT_MAXを超える量も含め、縮小変換の前に符号なしのままダメージを比較する。
     hp_ = amount >= static_cast<uint32_t>(hp_) ? 0 : hp_ - static_cast<int>(amount);
     TriggerDamageFeedback();
     if (hp_ == 0) {
@@ -908,7 +908,7 @@ void Enemy::TakeDamage(uint32_t amount)
 
 void Enemy::ApplyKnockback(const myEngine::Vector3& direction, float power)
 {
-    // A projection core keeps the committed plan fixed; offensive dash damage still applies.
+    // 投影像のコアは確定した計画を固定のまま保つ。攻撃的なダッシュのダメージは引き続き適用される。
     if (neonDepthEnabled_) {
         return;
     }

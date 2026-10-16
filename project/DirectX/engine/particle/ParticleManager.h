@@ -55,7 +55,7 @@ struct ParticleEmitterConfig {
     EasingType easingType = EasingType::Linear;
     bool isBillboard = false;
     bool alignToVelocity = false;
-    // Opt in to the emissive contour and its single, CPU/GPU-matched lifetime fade.
+    // 発光する輪郭と、CPU/GPUで一致させた単一の寿命フェードを明示的に有効にする。
     bool neonRadiance = false;
     NeonParticleShape neonShape = NeonParticleShape::Triangle;
 
@@ -258,7 +258,7 @@ public:
         return useGpuUpdate_;
     }
 
-    // Keep particle count / silhouette changes from consuming gameplay RNG.
+    // パーティクル数やシルエットの変更でゲームプレイ用の乱数を消費しないようにする。
     void SetPresentationSeed(uint32_t seed)
     {
         presentationRandom_.seed(seed);
@@ -333,7 +333,7 @@ private:
     std::vector<NeonTriangleEvent> neonTriangleEvents_;
     NeonTriangleEffectMode neonTriangleEffectMode_ = NeonTriangleEffectMode::Outline;
     Model* model_ = nullptr;
-    // The procedural contour owns a padded quad; shared OBJ assets stay unchanged.
+    // 手続き的な輪郭は余白付きの四角形を自前で持つ。共有のOBJ素材は変更しない。
     std::unique_ptr<ModelCommon> contourModelCommon_;
     std::unique_ptr<Model> contourModel_;
     std::vector<ActiveParticle> activeParticles_;

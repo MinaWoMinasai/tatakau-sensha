@@ -60,7 +60,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         return authored > 0.0f ? (std::max)(authored, minimumGridWidth) : authored;
     };
     auto gridColor = [&](myEngine::Vector4 authored, float width) {
-        // Preserve emitted energy when widening subpixel lines in distant/tilted views.
+        // 遠景や傾いた視点でサブピクセルの線を太くするときも、発光エネルギーを保つ。
         if (width > 0.0f) {
             authored.w *= width / gridWidth(width);
         }
@@ -125,8 +125,8 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         (world_.presentation.showStageBlockNeonOutlines_ || world_.presentation.showStageDamageBlockNeonOutlines_)) {
         QueueStageBlockNeonOutlines();
     }
-    // Draw the floor, then dark actor faces, then the rims and combat glyphs.
-    // Filling after the glow pass hid the stems / inner marks of combat roles.
+    // 床、暗いアクターの面、縁と戦闘用の記号の順に描く。
+    // 発光パスの後に塗りつぶすと、戦闘役割の軸や内側の印が隠れてしまっていた。
     uint32_t foregroundStart = 0;
     if (world_.presentation.fillActorNeonBodies_ &&
         (world_.presentation.playerNeonRenderMode_ == 1 || world_.presentation.bossNeonRenderMode_ == 1 ||
@@ -219,8 +219,8 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
     const auto& surface = world_.presentation.stageSurface_;
     const bool surfaceBlocks = world_.run.prototypeRun_ && surface.enabled && surface.blocksEnabled;
     if (surfaceBlocks && surface.wallStyle == 1) {
-        // Join cell grids without a separately bloomed frame around every tile.
-        // A deduplicated segment set also removes shared rectangle seams.
+        // タイルごとに別のBloom付きの枠を付けずに、セルのグリッドをつなげる。
+        // 重複を除いた線分の集合で、隣り合う矩形の継ぎ目も消える。
         std::set<std::array<int, 6>> emitted;
         for (const auto& wall : world_.resources.stage_->GetSurfaceWalls(surface)) {
             const bool damage = wall.type == MapChipType::kDamageBlock;
@@ -271,13 +271,13 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 style.haloIntensity = .20f;
                 style.haloAlpha = .04f;
                 auto c = color;
-                // Every face keeps a readable lattice; rims stay slightly brighter.
+                // どの面も読み取れる格子を保ち、縁はわずかに明るくする。
                 const float gain = (rim ? 1.0f : .72f) * (std::abs(normal.z) > .5f ? 1.0f : .85f);
                 c.x *= gain;
                 c.y *= gain;
                 c.z *= gain;
-                // Orient the ribbon toward the eye per segment. With the wide perspective camera, lines that run
-                // along Z (wall height) are nearly parallel to the camera axis and collapse with a global forward.
+                // 線分ごとに帯を視点の方へ向ける。広角の透視カメラでは、Z方向（壁の高さ）に
+                // 伸びる線はカメラの軸とほぼ平行になり、全体共通の前方向を使うと潰れてしまう。
                 const auto toSegment = (a + b) * .5f - cameraPos;
                 const auto viewDirection = myEngine::Length(toSegment) > .0001f ? myEngine::Normalize(toSegment) : cameraForward;
                 world_.resources.neonGridRenderer_->QueueContourLine(a, b, surface.wallLineWidth, c, viewDirection, style);
@@ -401,7 +401,7 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 faceColor.x *= light;
                 faceColor.y *= light;
                 faceColor.z *= light;
-                contour.roundCaps = false; // Subdivision endpoints already meet neighboring block edges.
+                contour.roundCaps = false; // 細分化した端点は、既に隣のブロックの辺と接している。
                 world_.resources.neonGridRenderer_->QueueContourLine(
                     worldStart, worldEnd, world_.presentation.stageBlockNeonLineWidth_ * (boundary ? 0.82f : 0.48f), faceColor,
                     cameraForward, contour);

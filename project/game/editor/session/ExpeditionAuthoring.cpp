@@ -132,9 +132,9 @@ void ExpeditionAuthoring::UpdateExpeditionAuthoringHub()
             if (!post.is_object() || !visual.is_object()) {
                 throw std::runtime_error("設定形式が不正です");
             }
-            // Match InitializeTankRunVisuals: unmarked older files contain
-            // pre-expedition neon defaults. Reload only their independent
-            // stage surfaces, rather than changing the rest of the live look.
+            // InitializeTankRunVisualsと合わせる。目印のない古いファイルには遠征導入前の
+            // ネオンの既定値が入っている。現在の見た目の他の部分は変えず、
+            // 独立したステージ表面の設定だけを読み直す。
             if (world_.run.expeditionRun_) {
                 if (!post.value("expeditionAuthored", false)) {
                     post = world_.gameplaySettings->BuildGamePostEffectConfig();

@@ -1,5 +1,5 @@
 #pragma once
-// Generated Depth clips and all-bind validation for the existing Skeleton API.
+// 生成したDepthクリップと、既存のSkeleton API向けの全ボーンのバインド検証。
 #include "Calculation.h"
 #include "Skeleton.h"
 #include <array>
@@ -22,8 +22,8 @@ enum class Motion {
 inline constexpr std::array<const char*, 8> kMotionNames = {"Depth_Hover",    "Depth_VolleyCharge", "Depth_VolleyRelease", "Depth_DivePull",
                                                             "Depth_DiveDrop", "Depth_DiveLand",     "Depth_BeamTwist",     "Depth_Defeat"};
 
-// Names and hierarchies were read from the actual AvatarSample_B GLB. The asset
-// contains no embedded animation. Preview_Idle/Attack remain a separate profile.
+// 名前と階層は実際のAvatarSample_BのGLBから読み取った。この素材には
+// 埋め込みアニメーションが無い。Preview_Idle/Attackは別のプロファイルのまま。
 inline constexpr std::array<const char*, 10> kMotionJoints = {
     "J_Bip_C_Chest",    "J_Bip_C_Neck",     "J_Bip_L_UpperArm", "J_Bip_R_UpperArm", "J_Bip_L_LowerArm",
     "J_Bip_R_LowerArm", "J_Bip_L_UpperLeg", "J_Bip_R_UpperLeg", "J_Bip_L_LowerLeg", "J_Bip_R_LowerLeg"};
@@ -35,13 +35,13 @@ struct MotionBuildResult {
     bool safeToRegister = false;
     bool rootOnlyFallback = false;
     std::string bindError;
-    // Owner records this diagnosis once at model load; never logs every frame.
+    // 所有者はモデル読み込み時にこの診断を1回だけ記録する。毎フレームのログ出力はしない。
 };
 
-// Missing expected motion names are safe only inside an otherwise valid bind
-// skeleton. ApplyAnimation restores every unanimated joint's original bind;
-// skipping a corrupt quaternion cannot repair that fallback. Validate BEFORE
-// clip registration, visual model Update or any Draw submission.
+// 期待するモーション名が欠けていても安全なのは、それ以外が正しいバインドスケルトンの
+// 場合だけ。ApplyAnimationはアニメーションしない関節を元のバインドに戻すが、
+// 壊れたクォータニオンを飛ばしてもその代替は修復できない。クリップの登録、
+// 表示モデルのUpdate、Drawの送信より前に検証すること。
 inline bool ValidateDepthBindSkeleton(const myEngine::Skeleton& skeleton, std::string* error = nullptr)
 {
     auto fail = [error](const char* message) {
@@ -120,7 +120,7 @@ inline myEngine::Quaternion BindRelativeRotation(const myEngine::Quaternion& bin
     const auto x = myEngine::MakeRotateAxisAngleQuaternion({1, 0, 0}, angles.x);
     const auto y = myEngine::MakeRotateAxisAngleQuaternion({0, 1, 0}, angles.y);
     const auto z = myEngine::MakeRotateAxisAngleQuaternion({0, 0, 1}, angles.z);
-    // Row-vector rule: R(qA*qB)=R(qB)*R(qA). Same composition as Preview.
+    // 行ベクトルの規則: R(qA*qB)=R(qB)*R(qA)。プレビューと同じ合成順。
     return myEngine::NormalizeQuaternion(QuaternionProduct(bind, QuaternionProduct(z, QuaternionProduct(y, x))));
 }
 
@@ -176,7 +176,7 @@ inline MotionBuildResult CreateDepthAnimations(const myEngine::Skeleton& skeleto
                 q = {-q.x, -q.y, -q.z, -q.w};
             }
             node.rotate.keyframes.push_back({time, q});
-            // Empty translation/scale curves use the fresh bind fallback. No root motion.
+            // 移動・拡縮のカーブが空ならバインドの初期値を使う。ルートモーションは無い。
         }
     };
     auto makeClip = [&](Motion motion, const MotionAngles& pose, bool holdEnd) {

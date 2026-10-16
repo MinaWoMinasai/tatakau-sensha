@@ -583,7 +583,7 @@ void GameplaySettings::ApplyGameVisualConfig(const nlohmann::json& configJson)
     if (configJson.contains("stageSurface") && configJson["stageSurface"].is_object()) {
         const auto& data = configJson["stageSurface"];
         auto& surface = world_.presentation.stageSurface_;
-        // Version 2 settings retain Phase 1 unless the new wall style is explicit.
+        // バージョン2の設定は、新しい壁スタイルを明示しない限りPhase 1のままにする。
         surface.wallStyle = ReadCustomInt(data, "wallStyle", 0);
         surface.exteriorEnabled = ReadCustomBool(data, "exteriorEnabled", false);
         surface.exteriorHeight = ReadCustomFloat(data, "exteriorHeight", surface.exteriorHeight);

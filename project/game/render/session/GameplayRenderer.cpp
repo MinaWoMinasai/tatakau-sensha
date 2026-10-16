@@ -133,7 +133,7 @@ void GameplayRenderer::DrawPostEffect3D()
     if (!depthOverlay && world_.presentation.fillActorNeonBodies_ &&
         (world_.presentation.playerNeonRenderMode_ == 1 || world_.presentation.bossNeonRenderMode_ == 1)) {
         profile("Actor Bodies", true, [&]() {
-            // Black glossy spheres over the bloomed lines, then their rings again on top.
+            // Bloomをかけた線の上に黒い光沢の球を描き、その上にもう一度リングを描く。
             world_.actorNeonRenderer->DrawActorNeonBodyFillPass(true, ActorNeonRenderer::BodySet::RoundActors);
             myEngine::Object3dCommon::GetInstance()->PreDraw(myEngine::kNormal);
         });
@@ -209,7 +209,7 @@ void GameplayRenderer::DrawPostEffect3D()
                                      world_.resources.bulletManager_->HasDrawableTrails() ||
                                      (world_.presentation.enablePlayerMeleeRibbonTrail_ && world_.resources.playerMeleeTrailManager_ &&
                                       world_.resources.playerMeleeTrailManager_->HasDrawableInstances());
-        // Prepare one immutable head batch for this frame, before either capture branch.
+        // どちらのキャプチャ分岐よりも前に、このフレーム用の不変な先端バッチを1つ用意する。
         const auto view = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera() ? world_.resources.debugCamera->GetViewMatrix()
                                                                                       : world_.resources.camera->GetViewMatrix();
         const auto cameraWorld = myEngine::Inverse(view);
@@ -335,8 +335,8 @@ void GameplayRenderer::DrawAfterPostEffect3D()
         defeatParam.dissolveThreshold = progress;
         defeatParam.dissolveEdgeWidth = 0.075f;
         defeatParam.dissolveEdgeColor = {1.0f, 0.22f, 0.08f};
-        // Keep the dissolving silhouette readable; the delayed full-screen pulse
-        // supplies the later impact flash without washing out the dissolve edge.
+        // 消えていくシルエットを読み取れるように保つ。遅れて来る全画面の明滅が、
+        // ディゾルブの縁を白飛びさせずに後の衝撃の閃光を担う。
         defeatParam.intensity = savedBossParam.intensity * 0.70f;
         world_.resources.enemyPostEffect_->SetParam(defeatParam);
         world_.resources.enemyPostEffect_->BeginCapture();

@@ -42,14 +42,14 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float2 slopeX = iHeight * waveVector.x;
     float2 slopeZ = iHeight * waveVector.y;
 
-    // Intrinsic derivatives of the potential displacement. Choppiness is
-    // applied once, alongside the rendered horizontal displacement.
+    // ポテンシャル変位の本来の微分。チョッピネスは、
+    // 描画する水平変位と一緒に1回だけ掛ける。
     float2 dDxDx = heightSpectrum * (waveVector.x * waveVector.x * inverseWaveNumber);
     float2 dDxDz = heightSpectrum * (waveVector.x * waveVector.y * inverseWaveNumber);
     float2 dDzDz = heightSpectrum * (waveVector.y * waveVector.y * inverseWaveNumber);
 
-    // IFFT input is ifftshifted and bit-reversed here. Both axes are
-    // reversed up front; horizontal and vertical DIT stages can then share CS.
+    // IFFTの入力はここでifftshiftとビット反転を行う。両軸とも先に反転するため、
+    // 水平と垂直のDIT段で同じCSを共有できる。
     uint2 unshiftedCoordinate =
         (coordinate + uint2(gFFTSize / 2u, gFFTSize / 2u)) % gFFTSize;
     uint2 fftCoordinate = uint2(

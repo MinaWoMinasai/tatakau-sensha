@@ -1,7 +1,7 @@
 #pragma once
 
-// MSBuild: /p:MyEngineDeveloperTools=true|false. Release defaults to false.
-// Keep a safe default for standalone tools that do not use the main project.
+// MSBuild: /p:MyEngineDeveloperTools=true|false。Releaseの既定はfalse。
+// メインプロジェクトを使わない単体ツール向けに、安全な既定値を残しておく。
 #ifndef MYENGINE_DEVELOPER_TOOLS
 #ifdef NDEBUG
 #define MYENGINE_DEVELOPER_TOOLS 0

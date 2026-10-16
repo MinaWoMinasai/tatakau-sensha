@@ -46,8 +46,8 @@ void BossPresentation::UpdateNeonBossVisual(float deltaTime)
     bridgeInput.prototypeEnabled = world_.resources.enemy_->IsPrototypeCombatEnabled();
     bridgeInput.prototypePhase = world_.resources.enemy_->GetPrototypeCombatPhase();
     const auto decision = world_.resources.bossVisualBridge_.Update(bridgeInput, deltaTime);
-    // Reset remains before this encounter's first visual Update. The bridge
-    // only maps observable values and owns presentation history, never combat.
+    // Resetはこの戦闘の最初の表示Updateより前のまま。橋渡し役は
+    // 観測できる値を対応付けて演出の履歴を持つだけで、戦闘は扱わない。
     if (decision.resetEncounter) {
         world_.resources.neonBossVisual_->ResetEncounter();
     }
@@ -64,7 +64,7 @@ void BossPresentation::UpdateNeonBossVisual(float deltaTime)
 bool BossPresentation::UseNeonBossVisual() const
 {
     if (world_.resources.enemy_ && world_.resources.enemy_->IsNeonDepthEncounterEnabled()) {
-        return true; // Floor core owns gameplay; no legacy decorative tank.
+        return true; // 床のコアがゲームプレイを担当する。旧来の装飾用の戦車は使わない。
     }
     return world_.resources.neonBossVisualEnabled_ && world_.resources.neonBossVisual_ && world_.gameplayQueries->IsRunRivalActive() &&
            (world_.resources.neonBossVisual_->HasResources() || world_.resources.neonBossVisual_->IsFinished());
@@ -112,8 +112,8 @@ void BossPresentation::StartNeonBossDeveloperEncounter()
             "Developer encounter requires a living player; restart from the result screen.");
         return;
     }
-    // Copy an authored boss room into a one-node in-memory run. Use the ordinary
-    // room entry/spawn path; never save over the player's map or room definitions.
+    // 作成済みのボス部屋を、メモリ上の1ノードだけのランへコピーする。通常の
+    // 部屋への入場・出現の経路を使い、プレイヤーのマップや部屋定義は上書き保存しない。
     const auto& definition = world_.run.expeditionMapRun_.GetDefinition();
     const auto found = std::find_if(definition.nodes.begin(), definition.nodes.end(), [](const auto& node) {
         return node.kind == tankexp::NodeKind::Boss;
@@ -134,9 +134,9 @@ void BossPresentation::StartNeonBossDeveloperEncounter()
         world_.resources.neonBossValidationErrors_.push_back(error);
         return;
     }
-    // Map UI owns one visual per definition node/edge. Retain one existing node
-    // slot and drop stale edges before ordinary UI refresh can dereference them.
-    // This entry runs after the previous frame fence completed.
+    // マップUIは定義のノード/辺ごとに表示を1つ持つ。既存のノードのスロットを1つ残し、
+    // 通常のUI更新が参照する前に古い辺を取り除く。
+    // この処理は前フレームのフェンスが完了した後に実行される。
     world_.run.expeditionMapVisuals_.resize(1);
     world_.run.expeditionMapEdges_.clear();
     world_.run.expeditionMapSelection_ = node.id;
@@ -163,7 +163,7 @@ void BossPresentation::StartNeonBossDeveloperEncounter()
         world_.run.tankExpeditionMusicEnabled_ = world_.run.tankExpeditionEffectsEnabled_ = false;
         world_.run.tankExpeditionAudio_.SetMusicVolume(0);
         world_.run.tankExpeditionAudio_.SetEffectsVolume(0);
-        // Keep the existing camera while ensuring both actors are in its viewport.
+        // 既存のカメラは保ったまま、両方のアクターがビューポート内に入るようにする。
         const auto position = world_.resources.enemy_->GetWorldPosition() + myEngine::Vector3{-14, 0, 0};
         world_.resources.player_->ResetRunRoomState(position);
         world_.resources.player_->SetDemoInput(true, {}, world_.resources.enemy_->GetWorldPosition(), false, false);
@@ -297,7 +297,7 @@ void BossPresentation::UpdateNeonBossDeveloperValidation()
         ++world_.resources.neonBossProbe_;
         WriteNeonBossValidation(false);
         if (world_.resources.neonBossProbe_ == 1 && myEngine::RuntimeProfiler::Get().IsAllowed()) {
-            // Same camera, pose, effects and collider for this A/B cost sample.
+            // このA/Bの負荷計測では、カメラ・ポーズ・エフェクト・コライダーを同じにする。
             world_.resources.neonBossDeveloperFreeze_ = true;
             world_.resources.neonBossVisualEnabled_ = false;
             world_.resources.neonBossVisual_->SetEnabled(false);
@@ -336,7 +336,7 @@ void BossPresentation::UpdateNeonBossDeveloperValidation()
     std::string name;
     switch (world_.resources.neonBossProbe_) {
     case 0:
-        // Let the existing bind-to-idle blend finish and entry flash settle.
+        // 既存のバインドから待機へのブレンドが終わり、登場時の閃光が収まるまで待つ。
         if (world_.resources.neonBossVisual_->HasResources() && world_.resources.neonBossVisual_->GetAnimationTime() >= 0.45f) {
             name = "idle";
         }
@@ -372,7 +372,7 @@ void BossPresentation::UpdateNeonBossDeveloperValidation()
             world_.resources.neonBossDeadShots_ = world_.resources.enemy_->GetShotsFired();
             world_.resources.neonBossDeadDashCount_ = rival.dashCount;
             world_.resources.neonBossDeadPosition_ = world_.resources.enemy_->GetWorldPosition();
-            UpdateNeonBossVisual(0); // Record the exact zero endpoint before advancing time.
+            UpdateNeonBossVisual(0); // 時間を進める前に、ちょうど0の端点を記録する。
         }
         name = "dissolve_000";
         break;

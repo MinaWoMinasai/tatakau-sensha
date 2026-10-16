@@ -206,8 +206,8 @@ void Player::RotateToMouse(myEngine::Camera* viewProjection)
         return;
     }
     if (input_ && input_->IsGamepadActive()) {
-        // Twin-stick aim: the right stick sets the barrel direction; released, the last direction is kept.
-        // The OS cursor is ignored so a resting mouse cannot pull the aim.
+        // ツインスティックの照準: 右スティックで砲身の向きを決め、離すと最後の向きを保つ。
+        // 置いたままのマウスで照準が引っ張られないよう、OSのカーソルは無視する。
         myEngine::Vector2 aim{};
         if (input_->TryGetGamepadAim(aim)) {
             dir_ = myEngine::Normalize(myEngine::Vector3{aim.x, aim.y, 0.0f});
@@ -343,8 +343,8 @@ void Player::Initialize(myEngine::Object3d* object, const myEngine::Vector3& pos
         playerHud_->PrepareUpgradeHudSegmentBars();
         playerHud_->PrepareUpgradeHudTextTextures();
     } else {
-        // Keep authored progression rules available for combat/evolution logic.
-        // Only the legacy arena's invisible UI is omitted, never deferred.
+        // 作成済みの成長ルールは戦闘や進化の処理で使えるように残す。
+        // 旧来のアリーナの見えないUIだけを省き、後回しにはしない。
         playerEvolution_->LoadEvolutionCircuitTree();
         myEngine::StartupTrace::Count("player.unusedArenaUiSkipped");
     }
@@ -455,8 +455,8 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
 
     // 右クリックは機体ごとの特殊行動スロットとして扱う。
     if (runModifiers_.enabled) {
-        // Read the current direction before a dash; a newly pressed movement
-        // key should redirect the boost immediately, not on the following frame.
+        // ダッシュの前に現在の方向を読む。新たに押した移動キーで
+        // 次のフレームではなく即座に加速の向きを変えるため。
         inputDir_ = {};
         if (input_->IsPress(input_->GetKey()[DIK_A])) {
             inputDir_.x -= 1.0f;
@@ -519,7 +519,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
         inputDir_.y -= 1.0f;
     }
     if (input_->IsGamepadActive()) {
-        // Analog stick: direction and tilt (the movement step limits the length).
+        // アナログスティック: 方向と傾き（長さは移動の1ステップで制限する）。
         const myEngine::Vector2 move = input_->GetGamepadMove();
         inputDir_ = {move.x, move.y, 0};
     }
@@ -543,7 +543,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     velocity_ = movementStep.velocity;
     const int subStepCount = movementStep.subStepCount;
     const myEngine::Vector3 stepMove = movementStep.stepMove;
-    // Preserve collision resolution order: each substep applies X, then Y.
+    // 衝突解決の順番を保つ: 各サブステップでX、次にYを適用する。
     for (int i = 0; i < subStepCount; ++i) {
         myEngine::Vector3 pos = GetWorldPosition();
         pos.x += stepMove.x;

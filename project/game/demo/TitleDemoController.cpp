@@ -84,7 +84,7 @@ void TitleDemoController::InitializeTitleDemo()
     }
     world_.run.tankRunAutoTest_ = false;
     world_.combat.tutorialConfig_.enabled = false;
-    world_.presentation.debugPlayerNoDamage_ = true; // Attract mode cannot terminate on player death.
+    world_.presentation.debugPlayerNoDamage_ = true; // アトラクトモードはプレイヤーの死亡では終了しない。
     world_.run.tankExpeditionMusicEnabled_ = false;
     world_.run.tankExpeditionEffectsEnabled_ = false;
     world_.run.tankExpeditionAudio_.SetMusicVolume(0);
@@ -113,8 +113,8 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
         myEngine::StartupTrace::Scope scope("TitleDemo.ScreenEffects");
         world_.combat.screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json");
     }
-    // A normal expedition has four room rewards plus at most one event card.
-    // Do not let a late showcase collect a sixth, unattainable modification.
+    // 通常の遠征は部屋の報酬4つと、最大1枚のイベントカードを持つ。
+    // 遅れて始まったショーケースが、本来取れない6つ目の改造を得ないようにする。
     tankrun::Config config;
     config.combatSeconds = 1000000;
     config.maxDrafts = 5;
@@ -127,7 +127,7 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
     world_.resources.player_->SetRunModifiers(neutral);
     world_.resources.player_->ConfigurePrototypeLoadout(0);
     world_.resources.player_->SetRunCheckpointEvolution(true);
-    // Each showcase starts from a reproducible build, then plays normal combat.
+    // 各ショーケースは再現可能な構成から始め、その後は通常の戦闘を行う。
     const std::array<tankrun::CardId, 5> lateCards{
         {tankrun::CardId::Rapid, tankrun::CardId::Ricochet, tankrun::CardId::Heavy, tankrun::CardId::Homing, tankrun::CardId::DashBurst}};
     const std::array<tankrun::CardId, 5> bossCards{
@@ -154,8 +154,8 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
     world_.run.tankExpedition_.Reset();
     world_.run.tankExpedition_.Start();
     const int targetRoom = stage == 0 ? 0 : stage == 1 ? 2 : stage == 2 ? 3 : 4;
-    // Restore a room snapshot for the showcase; these setup transitions are not
-    // counted as played clears, rewards or routes in the runtime evidence.
+    // ショーケース用に部屋のスナップショットを復元する。この準備のための遷移は、
+    // 実行時の記録ではクリア・報酬・ルートとして数えない。
     for (int step = 0; world_.run.tankExpedition_.GetRoomIndex() < targetRoom && step < 30; ++step) {
         switch (world_.run.tankExpedition_.GetPhase()) {
         case tankexp::Phase::Combat:
@@ -194,7 +194,7 @@ void TitleDemoController::UpdateTitleDemo(float dt)
     if (!world_.demo.titleDemo_) {
         return;
     }
-    // Attract mode bypasses the ordinary expedition update (including burst cleanup).
+    // アトラクトモードは通常の遠征更新（バーストの後片付けを含む）を通らない。
     for (auto& burst : world_.run.tankRunBursts_) {
         burst.age += dt;
     }
@@ -405,7 +405,7 @@ void TitleDemoController::VerifyTitleDemoTransition(float dt)
         world_.run.tankRunCapturePath_ = "generated/title_demo/new_game.png";
     }
     if (world_.demo.titleDemoTransitionTimer_ < 3.0f) {
-        return; // Finish the image copy on a later frame/fence.
+        return; // 画像のコピーは後のフレーム/フェンスで完了させる。
     }
     const bool freshStart =
         world_.run.expeditionMapEnabled_
@@ -432,9 +432,9 @@ void TitleDemoController::VerifyTitleDemoTransition(float dt)
         const auto& early = samples[0]["build"];
         const auto& late = samples[2]["build"];
         const auto& boss = samples[3]["build"];
-        // The current game has one shot per barrel; this showcase gains barrels
-        // through evolution and changes projectile behavior through its cards.
-        // None of its fixed loadouts contains the retired split/multishot card.
+        // 現在のゲームは砲身1つにつき1発。このショーケースは進化で砲身を増やし、
+        // カードで弾の挙動を変える。
+        // 固定の装備構成には、廃止した分裂/マルチショットのカードは含まない。
         singleProjectilePerBarrel = std::all_of(samples.begin(), samples.end(), [](const auto& sample) {
             return sample["build"].value("projectilesPerBarrel", 0) == 1;
         });

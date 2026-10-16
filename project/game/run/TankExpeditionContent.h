@@ -19,8 +19,8 @@
 #include <Windows.h>
 #endif
 
-// Authoring data is independent of renderer / scene. Unknown behavior names are
-// rejected rather than silently producing an enemy with a different attack.
+// 作成データは描画やシーンに依存しない。不明な行動名は、
+// 黙って別の攻撃をする敵を作るのではなく、エラーとして拒否する。
 namespace tankcontent {
 inline constexpr const char* kCatalogPath = "resources/configs/expedition_content.json";
 inline constexpr std::size_t kMaxDefinitions = 128;
@@ -58,7 +58,7 @@ struct Upgrade {
         p.fill(1);
         return p;
     }();
-    std::string refitPlayer; // Legacy parsing only; no expedition card may use replacement growth.
+    std::string refitPlayer; // 旧形式の読み込み専用。遠征のカードで置き換え型の成長を使うことはできない。
 };
 
 /// @brief 制作された敵の識別子・性能・攻撃設定を表す。実行中の敵の状態はExpEnemyが持つ。
@@ -67,7 +67,7 @@ struct Enemy {
     EnemyBehavior behavior = EnemyBehavior::Charger;
     int hp = 24, contactDamage = 8, bulletDamage = 10, creditDrop = 5;
     float moveSpeedScale = 1, fireIntervalScale = 1;
-    int magazineSize = 0; // Zero selects the behavior default.
+    int magazineSize = 0; // 0なら行動の既定値を選ぶ。
     float reloadSeconds = 0;
     std::array<float, 4> color{1.6f, 0.36f, 0.1f, 1};
 };
@@ -375,8 +375,8 @@ inline std::vector<std::string> BuildShopOffers(const Catalog& catalog, tankbuil
         result.push_back(pool[chosen]->id);
         pool.erase(pool.begin() + static_cast<std::ptrdiff_t>(chosen));
     };
-    // Exactly one priority draw, then two ordinary weighted draws. Remove the
-    // chosen entry from both pools; no duplicate or already owned card appears.
+    // 優先枠からちょうど1回、通常の重み付き抽選から2回引く。選んだ項目は
+    // 両方のプールから除き、重複したカードや所持済みのカードは出さない。
     pick(special);
     if (!result.empty()) {
         std::erase_if(eligible, [&](const Upgrade* u) {
@@ -803,7 +803,7 @@ inline nlohmann::json CatalogToJson(const Catalog& c)
 inline bool CatalogFromJson(const nlohmann::json& sourceJson, Catalog& output, std::string& error)
 {
     try {
-        auto j = sourceJson; // Normalize retired growth records before validating live entries.
+        auto j = sourceJson; // 有効な項目を検証する前に、廃止した成長の記録を正規化する。
         auto integers = [](const nlohmann::json& object, std::initializer_list<const char*> keys) {
             for (const auto* key : keys) {
                 const auto& value = object.at(key);
@@ -969,8 +969,8 @@ inline bool CatalogFromJson(const nlohmann::json& sourceJson, Catalog& output, s
                 player.rarity = source.at("rarity").get<int>();
             }
         }
-        // Schema 1 remains readable: retire legacy spread effects without
-        // silently discarding the user's unrelated enemies or authored tanks.
+        // スキーマ1は引き続き読める。旧来の拡散効果は廃止するが、
+        // ユーザーの無関係な敵や作成した戦車を黙って捨てることはしない。
         for (auto& upgrade : c.upgrades) {
             const auto oldSize = upgrade.effects.size();
             const std::set<tankrun::CardId> uniqueEffects(upgrade.effects.begin(), upgrade.effects.end());

@@ -48,8 +48,8 @@ void ExperienceValidation::InitializeExperienceValidation()
     world_.run.expeditionSeed_ = kExperienceSeed;
     world_.run.expeditionMapDefinition_ = tankexp::GenerateExpeditionMap(world_.run.expeditionSeed_, 30, 8);
     if (submission) {
-        // Use the real generated graph. Pick a route with repair/workshop stops,
-        // then select existing standard rooms to guarantee all three enemy views.
+        // 実際に生成したグラフを使う。修理や工房に立ち寄るルートを選び、
+        // 既存の通常部屋を選んで3種類の敵の見え方をすべて確実に確認する。
         std::function<int(const std::string&)> score = [&](const std::string& id) {
             const auto* n = tankexp::FindMapNode(world_.run.expeditionMapDefinition_, id);
             if (!n) {
@@ -172,8 +172,8 @@ void ExperienceValidation::BeginExperienceMeleeProbe()
 {
     world_.validation.experienceMeleeStarted_ = true;
     world_.validation.experienceMeleeAge_ = 0;
-    // A single passive high-HP target isolates real melee collision/knockback.
-    // This fixture substitution happens only after the normal introductory flow.
+    // 受け身でHPの多い対象を1体だけ置き、実際の近接攻撃の当たりとノックバックを切り分ける。
+    // このフィクスチャへの差し替えは、通常の導入フローが終わった後にだけ行う。
     world_.resources.enemyManager_->ClearRunActors();
     world_.resources.bulletManager_->ClearAll();
     if (!world_.resources.player_->HasExpeditionCombatStyle() ||
@@ -538,8 +538,8 @@ bool ExperienceValidation::UpdateExperienceValidation(float dt)
         }
         if (node->kind == tankexp::NodeKind::Upgrade && !world_.validation.experienceEvolutionVerified_ &&
             node->role == tankexp::NodeRole::None) {
-            // Deterministic offer seed isolates purchase preservation from luck.
-            // The real weighted generator, eligibility and card transaction run.
+            // 提示内容のシードを固定し、購入内容の保持を運に左右されずに確かめる。
+            // 重み付き生成、出現条件、カードの取引は実際の処理を使う。
             if (world_.validation.experienceValidationStateAge_ < 0.7f) {
                 for (uint32_t fixtureSeed = 1; fixtureSeed < 512; ++fixtureSeed) {
                     auto offers =

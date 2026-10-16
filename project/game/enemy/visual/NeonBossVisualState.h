@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstdint>
 
-// Presentation-only values. No Enemy/Combat/controller can be mutated through this API.
+// 演出専用の値。このAPIを通してEnemy、戦闘、コントローラーを変更することはできない。
 enum class NeonBossAction {
     Idle,
     Reposition,
@@ -32,8 +32,8 @@ struct NeonBossAnimationMapping {
     bool holdAttackPose = false;
 };
 
-// AvatarSample_B has no embedded animation. Reuse the repository's two generated
-// clips. Missing walk/dash/reload/damage/death clips use these explicit fallbacks.
+// AvatarSample_Bには埋め込みアニメーションが無い。リポジトリで生成した2つのクリップを再利用する。
+// 歩き・ダッシュ・リロード・被ダメージ・死亡のクリップが無い場合は、ここで明示した代替を使う。
 inline NeonBossAnimationMapping MapNeonBossAnimation(NeonBossAction action, bool alive)
 {
     if (!alive) {
@@ -64,9 +64,9 @@ inline float NeonBossHpRatio(int hp, int maxHp)
     return (std::clamp)(static_cast<float>(hp) / static_cast<float>(maxHp), 0.0f, 1.0f);
 }
 
-// Negative means preserve current clip time. Rival Volley -> DashWarning uses
-// the same generated Attack clip, so entry must restore its pull pose if the
-// previous attack already passed it. Telegraph -> Attack resumes without seeking.
+// 負の値なら現在のクリップ時刻を保つ。ライバルのVolley -> DashWarningは
+// 同じ生成済みAttackクリップを使うため、前の攻撃が引き絞りポーズを過ぎていれば
+// 開始時にそこへ戻す必要がある。Telegraph -> Attackはシークせずに続きから再生する。
 inline float NeonBossEntryPoseTime(NeonBossAction action, bool actionChanged, float currentTime)
 {
     if (!actionChanged) {
@@ -108,7 +108,7 @@ public:
                 life_ = NeonBossVisualLife::Dying;
                 deathStarted_ = true;
                 mapping_ = MapNeonBossAnimation(action_, false);
-                // Preserve the last alive color and pose throughout dissolution.
+                // 消滅演出の間は、生きていた最後の色とポーズを保つ。
                 return;
             }
             if (!encounterActive) {
@@ -137,8 +137,8 @@ public:
         }
     }
 
-    // Independent Depth lifecycle. The legacy Update and constants above retain
-    // their exact timing and mapping contract for existing callers and tests.
+    // 独立したDepthのライフサイクル。上の旧来のUpdateと定数は、既存の呼び出し側と
+    // テストのために、タイミングと対応関係の約束事をそのまま保つ。
     void UpdateDepth(const neondepth::LifecycleInput& input, const neondepth::LifecycleTiming& timing, float permittedDelta)
     {
         actionChanged_ = animationChanged_ = false;

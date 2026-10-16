@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-// Test-only shared progress across title -> expedition -> title -> new expedition.
-// The runner must create an isolated-profile marker in its staging directory.
+// テスト専用: タイトル -> 遠征 -> タイトル -> 新しい遠征 をまたいで進行を共有する。
+// 実行側はステージングディレクトリに独立したプロファイルの目印を作る必要がある。
 namespace tanksubmission {
 /// @brief この機能が有効か判定する。
 inline bool Enabled()

@@ -24,8 +24,8 @@ struct CombatDeathInput {
     bool bossRoom = false;
 };
 
-// Expedition gives the player's simultaneous death priority; legacy combat
-// gives boss defeat priority. Neither renderer nor animation makes this choice.
+// 遠征ではプレイヤーとの同時死亡時にプレイヤーの死亡を優先し、旧来の戦闘では
+// ボス撃破を優先する。描画やアニメーションがこの判断をすることはない。
 inline CombatDeathOutcome SelectCombatDeathOutcome(const CombatDeathInput& input)
 {
     if (input.expedition && input.playerDead && !input.playerDeathHandled) {
@@ -44,12 +44,12 @@ struct CombatFlowEvents {
     bool bossImpact = false;
     bool bossResultReady = false;
     bool gameOverTextReady = false;
-    // The existing flow returns even on the exact frame a timer reaches zero.
+    // 既存のフローは、タイマーがちょうど0になったフレームでも戻る。
     bool waitForPresentation = false;
 };
 
-// Owns result timing only. Scene remains responsible for room/currency state,
-// screen effects, sound, UI and actual scene transition requests.
+// 結果のタイミングだけを担当する。部屋や通貨の状態、画面効果、サウンド、UI、
+// 実際のシーン遷移の要求は引き続きSceneが担当する。
 class CombatFlowController {
 public:
     void Reset()
@@ -57,7 +57,7 @@ public:
         *this = CombatFlowController{};
     }
 
-    // minimumDuration lets a staged finale (camera push-in, burst chain, title) finish before the result.
+    // minimumDurationにより、段階的なフィナーレ（カメラの寄り、連続爆発、タイトル）を結果の前に終えられる。
     void BeginBossDefeat(float dissolveSpeed, float impactDelay, float minimumDuration = 0.0f)
     {
         state_ = CombatFlowState::BossDefeatSequence;
@@ -83,8 +83,8 @@ public:
     CombatFlowEvents Update(float baseDeltaTime, bool pendingCredits)
     {
         CombatFlowEvents events;
-        // The engine supplies fixed positive dt. A paused or invalid caller
-        // cannot wind the timer backwards or introduce non-finite state.
+        // エンジンは固定の正のdtを渡す。一時停止中や不正な呼び出し側が
+        // タイマーを巻き戻したり、有限でない状態を持ち込んだりはできない。
         const float dt = std::isfinite(baseDeltaTime) && baseDeltaTime > 0.0f ? baseDeltaTime : 0.0f;
         if (state_ == CombatFlowState::BossDefeatSequence) {
             events.waitForPresentation = true;

@@ -8,8 +8,8 @@
 #include "../player/TankCombatStyleBalance.h"
 #include "../player/TankSpecialCombat.h"
 
-// A bounded illustration, not a second game world. All coordinates are local to
-// one card lane; this code never touches actors, economy, input or random state.
+// 上限付きの図解で、2つ目のゲームワールドではない。座標はすべてカードの1レーン内の
+// ローカル座標で、このコードはアクター、経済、入力、乱数の状態に一切触れない。
 namespace tankreward {
 /// @brief 報酬カード内のデモに使う2D座標を表す。
 struct Point {
@@ -170,8 +170,8 @@ inline Bullet SampleProjectile(Point start, Point target, float age, float initi
             const float desired = std::atan2(target.y - out.position.y, target.x - out.position.x);
             const float diff = std::atan2(std::sin(desired - out.angle), std::cos(desired - out.angle));
             const float distance = Length({target.x - out.position.x, target.y - out.position.y});
-            // The miniature uses a 20-unit-wide field: 0.70 corresponds to
-            // the actor's 14-unit acquisition radius, with the same front cone.
+            // ミニチュアは幅20単位のフィールドを使う。0.70がアクターの
+            // 捕捉半径14単位に相当し、前方の円錐も同じ。
             if (distance < 0.70f && distance > 0.01f && std::cos(diff) >= 0.35f) {
                 out.angle += (std::clamp)(diff, -turnLimit * dt * homingPower, turnLimit * dt * homingPower);
             }
@@ -299,8 +299,8 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
                     s.hit[1] = HitPulse(t, hitAt);
                 }
             }
-            // Incoming bullet reaches the real attack cone just after the
-            // first windup, then either passes through or is cut/reflected.
+            // 飛んでくる弾は最初の溜めの直後に実際の攻撃の円錐に入り、
+            // そのまま通り抜けるか、切られるか反射される。
             if (i == 0 && c.kind == DemoKind::ParryBlade) {
                 const float contact = at + .06f;
                 s.parryPosition = {s.player.x + (std::min)(reach, .25f), .52f};
@@ -354,7 +354,7 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
             auto p = owner(at - lag);
             p.x += .11f * formation * std::cos(angle);
             p.y += .16f * formation * std::sin(angle);
-            // Large authored formations are cropped to the miniature arena.
+            // 大きな作成済みの隊形は、ミニチュアのアリーナに合わせて切り取る。
             p.x = (std::clamp)(p.x, .065f, .9f);
             p.y = (std::clamp)(p.y, .1f, .9f);
             return p;
@@ -370,10 +370,10 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
         for (int n = 0; n < s.droneCount; ++n) {
             const float angle = static_cast<float>(n) / static_cast<float>(s.droneCount) * 6.2831853f;
             s.drones[n] = follower(t, angle);
-            // Holding LEFT CLICK is explicitly displayed during every firing period.
+            // 射撃中はずっと「左クリック長押し」を明示的に表示する。
             const float at = .45f + (.17f + static_cast<float>(n) * .09f) * droneTuning.reloadSeconds / .5f * c.reloadScale;
             if (at >= 2.15f) {
-                continue; // An edited slow attack never fires after LEFT CLICK is released.
+                continue; // 遅い攻撃に編集した場合も、左クリックを離した後に発射することはない。
             }
             if (t >= at) {
                 ++s.shots;
@@ -392,8 +392,8 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
         }
         s.links = c.droneLaserLink && s.droneCount >= 2;
         if (c.kind == DemoKind::DroneLaserLink) {
-            // The enemy crosses the moving formation; contact uses segment
-            // distance, with only one tick per enemy even at a shared vertex.
+            // 敵は動く隊形を横切る。接触は線分との距離で判定し、
+            // 頂点を共有していても敵ごとに1回だけ数える。
             auto crossing = [](float at) {
                 return Point{.08f + .48f * Ease((at - .3f) / 1.8f), .56f};
             };
@@ -510,8 +510,8 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
             }
         }
     }
-    // Hit visualization is taken from the simulation, including the stopping
-    // projectile. A miss never turns into a scripted successful hit.
+    // 命中の表示は、止まる弾も含めてシミュレーションの結果から取る。
+    // 外れがスクリプトで命中に変わることはない。
     for (int n = 0; n < s.targetCount; ++n) {
         if (hits[n] > 0) {
             s.hit[n] = 0.6f;

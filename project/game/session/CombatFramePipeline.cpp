@@ -47,7 +47,7 @@ const char* BloomViewCaption(int view)
 
 void CombatFramePipeline::Update()
 {
-    // Presentation helper: compare the pyramid bloom on the live game ([B] view, [Shift+B] back, [V] freeze).
+    // 演出確認用: 実際のゲームでピラミッドBloomを比較する（[B]で表示切替、[Shift+B]で戻る、[V]で停止）。
     if (!world_.demo.titleDemo_ && world_.resources.input_) {
         auto& presentation = world_.presentation;
         const bool shift = world_.resources.input_->GetKey()[DIK_LSHIFT] || world_.resources.input_->GetKey()[DIK_RSHIFT];
@@ -70,7 +70,7 @@ void CombatFramePipeline::Update()
         }
         presentation.bloomViewLabelTimer_ = (std::max)(0.0f, presentation.bloomViewLabelTimer_ - 1.0f / 60.0f);
         if (presentation.bloomViewFreeze_) {
-            return; // Freeze the frame: drawing continues with the same state, so views compare one moment.
+            return; // フレームを止める: 同じ状態のまま描画は続くので、同じ瞬間で表示を比べられる。
         }
     }
 
@@ -95,7 +95,7 @@ void CombatFramePipeline::Update()
         world_.routeReplay->StopNormalRouteReplay("external-showcase-or-freeze");
     }
     if (world_.gameplayQueries->IsNeonShowcaseActive()) {
-        // Freeze gameplay, follow-camera and menu state; Showcase camera/animation remain independent.
+        // ゲームプレイ、追従カメラ、メニューの状態を止める。Showcaseのカメラとアニメーションは独立したまま。
 #ifdef USE_IMGUI
         if (world_.resources.input_->IsKeyTriggered(DIK_F12)) {
             world_.presentation.showGameDebugConsole_ = !world_.presentation.showGameDebugConsole_;
@@ -116,10 +116,10 @@ void CombatFramePipeline::Update()
         if (world_.resources.neonSkinnedPreview_) {
             world_.resources.neonSkinnedPreview_->Update(0.0f);
         }
-        // Existing comparison mode disables temporal jitter. Refresh both boss
-        // representations against that same projection without advancing combat.
-        // Only this explicit comparison policy suppresses temporal jitter;
-        // continuous recording never enters this branch for readback waits.
+        // 既存の比較モードではテンポラルのジッターを無効にする。戦闘を進めずに、
+        // 同じ投影に対して両方のボス表現を更新する。
+        // テンポラルのジッターを抑えるのはこの明示的な比較の方針だけで、
+        // 連続記録が読み戻し待ちのためにこの分岐へ入ることはない。
         if (world_.gameplayQueries->GetDeveloperShowcaseState().comparisonFreeze) {
             world_.resources.camera->SetProjectionJitter({});
             world_.resources.debugCamera->SetProjectionJitter({});
@@ -127,9 +127,9 @@ void CombatFramePipeline::Update()
         if (world_.resources.enemyObject_) {
             world_.resources.enemyObject_->Update();
         }
-        // Draw still runs while frozen; reuse the renderer's per-frame CB slots.
+        // 停止中もDrawは実行されるので、描画のフレームごとの定数バッファのスロットを再利用する。
         world_.bossPresentation->UpdateNeonBossVisual(0.0f);
-        return; // Retain gameplay, particles, trails, follow-camera and world transforms; Draw still runs.
+        return; // ゲームプレイ、パーティクル、軌跡、追従カメラ、ワールド変換を保持したまま、Drawは実行する。
     }
 #endif
     if (world_.demo.titleDemo_) {
@@ -316,7 +316,7 @@ void CombatFramePipeline::Update()
 #endif // defined(USE_IMGUI) && !defined(NDEBUG)
 
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    // Undo the last comparison eye before normal follow or a boss camera saves it.
+    // 通常の追従やボスのカメラが保存する前に、最後の比較用の視点を元に戻す。
     if (world_.presentation.developerStageTiltApplied_) {
         world_.resources.camera->SetTranslate(world_.presentation.developerStageBaseCamera_);
         world_.resources.camera->SetRotate(world_.presentation.developerStageBaseRotation_);
@@ -331,8 +331,8 @@ void CombatFramePipeline::Update()
         const float kMarginY = 11.0f;
         const float kMaxCameraX = MapChip::kBlockWidth * (MapChip::kNumBlockHorizontal - 1) - kMarginX;
         const float kMaxCameraY = MapChip::kBlockHeight * (MapChip::kNumBlockVirtical - 1) - kMarginY;
-        // Frame the walled arena like a fixed monitor view: the floor view may reach at most a
-        // little past the outer wall, so the tall rampart never fills the screen. Display only.
+        // 壁に囲まれたアリーナを固定のモニター映像のように収める。床の表示範囲は外壁を
+        // 少し越える程度までにし、高い城壁が画面を埋めないようにする。表示専用。
         float arenaMinX = 0.0f, arenaMinY = 0.0f, arenaMaxX = 0.0f, arenaMaxY = 0.0f;
         const bool framedArena = world_.run.prototypeRun_ && world_.resources.stage_ &&
                                  arenacamera::ArenaBounds(world_.resources.stage_->GetBlocks(), arenaMinX, arenaMinY, arenaMaxX, arenaMaxY);
@@ -349,7 +349,7 @@ void CombatFramePipeline::Update()
         };
         myEngine::Vector3 targetCameraPos = clampTarget({playerPos.x, playerPos.y, kCameraZ});
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-        // Capture fixture only: show both actors with the same normal top-down camera.
+        // キャプチャ用フィクスチャ専用: 通常と同じ見下ろしカメラで両方のアクターを映す。
         if ((world_.resources.neonBossAutoTest_ || GameplayScenarioSession::Get().IsActive()) &&
             world_.gameplayQueries->IsRunRivalActive()) {
             const auto center = (playerPos + world_.resources.enemy_->GetWorldPosition()) * 0.5f;
@@ -383,7 +383,7 @@ void CombatFramePipeline::Update()
         rotation.x = angle;
         world_.resources.camera->SetTranslate(eye);
         world_.resources.camera->SetRotate(rotation);
-        world_.resources.player_->SetNeonDepthAimEnabled(true); // Existing viewport-scaled XY ray/plane aiming.
+        world_.resources.player_->SetNeonDepthAimEnabled(true); // 既存のビューポートに合わせて拡縮したXYのレイと平面による照準。
         presentation.developerStageTiltApplied_ = true;
     }
 #endif
@@ -414,7 +414,7 @@ void CombatFramePipeline::Update()
         !world_.arenaRunController->IsTankRunMenuOpen()) {
         if (world_.combat.phase_ == Phase::kMain && !world_.resources.player_->IsChangeMode()) {
             world_.combat.playTime_ += baseDeltaTime;
-            // While the player is in control, gamepad buttons drive combat (shoot / dash) next frame.
+            // プレイヤーが操作している間は、ゲームパッドのボタンで次フレームの戦闘（射撃/ダッシュ）を行う。
             if (!world_.demo.titleDemo_) {
                 world_.resources.input_->RequestGamepadGameplayContext();
             }
@@ -541,7 +541,7 @@ void CombatFramePipeline::Update()
             world_.resources.player_->UpdateDefeatPresentation(baseDeltaTime);
         }
     }
-    // Read the final HP/phase after every attack and collision; death presentation continues independently.
+    // すべての攻撃と衝突の後で最終的なHPとフェーズを読む。死亡演出は独立して続く。
     const float bossPresentationDeltaTime =
         depthIntroLocked ? world_.resources.neonDepthIntroDelta_
                          : (world_.resources.enemy_->IsDead()
@@ -556,7 +556,7 @@ void CombatFramePipeline::Update()
 #endif
     // 戦闘停止中も、残っている演出を進め、未消費の特殊戦闘イベントを受け取る。
     world_.playerAttackEffects->UpdateSpecialCombatPresentation(baseDeltaTime);
-    // The completed boss room counts as an open run menu; keep its gray menu veil off the finale.
+    // クリアしたボス部屋は開いているランメニューとして扱われる。フィナーレにはメニューの灰色の幕をかけない。
     world_.combat.screenEffectDirector_.SetUpgradeMenuOpen(
         (world_.resources.player_->IsChangeMode() || world_.arenaRunController->IsTankRunMenuOpen()) &&
         world_.combat.combatFlow_.GetState() != GameFlowState::BossDefeatSequence);

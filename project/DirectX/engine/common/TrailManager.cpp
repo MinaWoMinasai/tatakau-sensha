@@ -105,8 +105,8 @@ void TrailManager::BuildVertices()
         }
         const uint32_t connectors = builtVertices_.empty() ? 0u : 2u;
         const auto remaining = kMaxBatchVertices - static_cast<uint32_t>(builtVertices_.size());
-        // A two-vertex strip has no visible triangles. Never add a connector
-        // unless there is space for at least the first complete quad.
+        // 2頂点だけのストリップには見える三角形がない。最初の四角形を1つ丸ごと
+        // 置ける余裕がない限り、接続用の頂点は追加しない。
         if (remaining < connectors + 4u) {
             continue;
         }
@@ -162,9 +162,9 @@ void TrailManager::BuildVertices()
                 const TrailVertex tipVertex{tip, color, {globalRatio, 0.0f}};
                 const TrailVertex baseVertex{base, color, {globalRatio, 1.0f}};
                 if (instanceVertexCount == 0 && !builtVertices_.empty()) {
-                    // Every strip has an even vertex count. Two duplicated
-                    // endpoints preserve winding and create only zero-area
-                    // triangles between strips, with no extra pixels/blending.
+                    // どのストリップも頂点数は偶数。端点を2つ複製することで巻き順を保ち、
+                    // ストリップ間には面積0の三角形しか生じないため、
+                    // 余計なピクセルやブレンドは発生しない。
                     const TrailVertex previousLast = builtVertices_.back();
                     builtVertices_.push_back(previousLast);
                     builtVertices_.push_back(tipVertex);

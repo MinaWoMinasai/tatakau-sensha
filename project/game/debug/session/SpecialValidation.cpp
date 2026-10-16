@@ -236,13 +236,13 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
     }
     const float age = static_cast<float>(world_.run.specialValidation_.value("age", 0.0) + dt);
     world_.run.specialValidation_["age"] = age;
-    // Keep the wave probe outside direct sword reach despite attack follow-through.
+    // 攻撃の振り抜きがあっても、波動の検証対象を剣の直接の届く範囲の外に置く。
     if (index == 2 || index == 6 || index == 13) {
         world_.resources.player_->SetWorldPosition({30, 29, 0});
         world_.resources.player_->SetVelocity({});
     }
     const auto actors = world_.resources.enemyManager_->GetEnemyPtrs();
-    // Position fixtures isolate damage from movement/knockback; no HP or damage is injected.
+    // 位置のフィクスチャでダメージを移動やノックバックと切り分ける。HPやダメージは注入しない。
     for (size_t i = 0; i < actors.size(); ++i) {
         if (index != 14 && index != 7) {
             actors[i]->SetWorldPosition(ProbePosition(index, i, age));
@@ -267,7 +267,7 @@ bool SpecialValidation::UpdateSpecialValidation(float dt)
                 capture("slash_wave");
             }
         }
-        // Latch the first cut: a later, separately timed sword swing may finish it.
+        // 最初の斬撃を記録する。後で別のタイミングで振った剣がとどめを刺すことがあるため。
         if (index == 3 && bullet->GetOwner() == kEnemy && bullet->GetDamage() == 13 && bullet->GetBulletHp() < 12 &&
             world_.run.specialValidation_.value("armoredRemaining", 12.0f) == 12) {
             world_.run.specialValidation_["armoredRemaining"] = bullet->GetBulletHp();

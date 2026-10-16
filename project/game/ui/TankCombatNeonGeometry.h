@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
-// The game world and reward preview both call these geometry routines. They
-// only append vertices: no actors, global random source or camera is consulted.
+// ゲームワールドと報酬プレビューの両方がこの形状処理を呼ぶ。頂点を追加するだけで、
+// アクター、全体の乱数、カメラは参照しない。
 namespace tankneon {
 /// @brief 機体輪郭を後で処理するために予約する。
 inline void QueueBodyOutline(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& center, float radius, float lineWidth,

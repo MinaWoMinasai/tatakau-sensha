@@ -5,9 +5,9 @@ SamplerState samp : register(s0);
 
 #include "PostEffectCommon.hlsli"
 
-// Phosphor persistence: bright neon leaves a short, decaying afterglow like a vector CRT.
-// History is reprojected with the camera motion so static grid lines do not smear while scrolling;
-// moving actors and bullets keep a world-space trail behind them.
+// 蛍光体の残光: 明るいネオンがベクターCRTのように短く減衰する残光を残す。
+// 履歴はカメラの動きに合わせて再投影するため、スクロール中も静止したグリッド線はにじまず、
+// 動くアクターや弾はワールド空間での軌跡を後ろに残す。
 float4 main(PSInput input) : SV_TARGET
 {
     float2 uv = input.uv;
@@ -24,7 +24,7 @@ float4 main(PSInput input) : SV_TARGET
     }
 
     float3 history = persistenceHistoryTex.Sample(samp, historyUV).rgb * saturate(arenaPhosphorDecay);
-    // Only emissive energy persists; the dark floor and bodies never accumulate a veil.
+    // 残るのは発光エネルギーだけで、暗い床や本体に幕が積み重なることはない。
     float historyPeak = max(max(history.r, history.g), history.b);
     history *= smoothstep(0.18f, 0.65f, historyPeak);
     return float4(max(currentColor, history), 1.0f);

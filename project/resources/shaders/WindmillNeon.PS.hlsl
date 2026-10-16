@@ -1,7 +1,7 @@
 #include "Trail.hlsli"
 
-// Isolated plate path. Legacy still uses WindmillEmoji.PS.hlsl unchanged.
-Texture2D<float4> glyphAtlas : register(t0); // LinearData, premultiplied RGB
+// 独立したプレートの経路。LegacyはWindmillEmoji.PS.hlslを変更せずに使い続ける。
+Texture2D<float4> glyphAtlas : register(t0); // LinearData、乗算済みRGB
 SamplerState glyphSampler : register(s0);
 cbuffer WindmillNeon : register(b0)
 {
@@ -14,14 +14,14 @@ cbuffer WindmillNeon : register(b0)
     float haloWidthPixels;
     float haloIntensity;
     float3 coreColor;
-    uint diagnostic; // 0 combined, 1 base, 2 outer core, 3 inner, 4 halo, 5 surface
+    uint diagnostic; // 0 合成、1 下地、2 外側の芯、3 内側、4 ハロー、5 表面
     float3 haloColor;
     float recognitionAccent;
 };
 struct Output { float4 color : SV_TARGET0; float4 normal : SV_TARGET1; float4 material : SV_TARGET2; };
 
-// Uniform sampling/derivatives finish before clip. Widths are screen pixels,
-// independent of projected plate size, rotation, Core radiance or Bloom gain.
+// 一様なサンプリングと微分はclipより前に済ませる。幅は画面のピクセル単位で、
+// 投影後のプレートの大きさ、回転、Coreの放射輝度、Bloomの係数とは独立している。
 float4 SampleGlyph(float2 uv, float2 dx, float2 dy, float2 tile)
 {
     float2 lo = tile + .5 / 576, hi = tile + 1.0 / 3 - .5 / 576;
@@ -52,12 +52,12 @@ Output main(VertexShaderOutput input)
         halo = AlphaBand(input.texcoord, dx, dy, haloWidthPixels, p.a, tile).y * .45;
         halo += AlphaBand(input.texcoord, dx, dy, haloWidthPixels * .6, p.a, tile).y * .35;
         halo += AlphaBand(input.texcoord, dx, dy, haloWidthPixels * .3, p.a, tile).y * .20;
-        halo = saturate(halo * 2) * (1 - core); // Halo never pays Core energy twice.
+        halo = saturate(halo * 2) * (1 - core); // ハローがCoreのエネルギーを二重に払うことはない。
     }
-    // Adapted from NeonSkinnedSurface: perceptual color difference, no semantic
-    // eye/mouth/finger recognition. Reject alpha-edge neighborhoods so exterior
-    // lines do not become duplicate internal emission. MIP-filtered color keeps
-    // subpixel contrast finite rather than thresholding a level-zero distance.
+    // NeonSkinnedSurfaceから流用: 知覚的な色差を使い、目・口・指などの意味的な認識はしない。
+    // 外側の線が内部の発光として重複しないよう、アルファの縁の近傍は除外する。
+    // MIPでフィルタした色を使い、レベル0の距離をしきい値で切るのではなく
+    // サブピクセルのコントラストを有限に保つ。
     float4 xp = SampleGlyph(input.texcoord + dx, dx, dy, tile);
     float4 xm = SampleGlyph(input.texcoord - dx, dx, dy, tile);
     float4 yp = SampleGlyph(input.texcoord + dy, dx, dy, tile);
@@ -81,8 +81,8 @@ Output main(VertexShaderOutput input)
     else if (diagnostic == 5) rgb = surface;
     clip(max(p.a, max(core, halo)) - .001);
     Output o;
-    // Premultiplied blend ONE / INV_SRC_ALPHA. Halo has radiance but no body
-    // opacity: it adds light over the room without covering it with a dark quad.
+    // 乗算済みブレンド ONE / INV_SRC_ALPHA。ハローは放射輝度を持つが本体の不透明度は無く、
+    // 部屋を暗い四角形で覆わずに光を加える。
     o.color = float4(rgb * input.color.a, saturate(p.a + core) * input.color.a);
     o.normal = float4(.5,.5,0,1); o.material = float4(1,0,1,0);
     return o;

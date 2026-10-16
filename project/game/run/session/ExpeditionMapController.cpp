@@ -222,7 +222,7 @@ myEngine::InitializationTask ExpeditionMapController::BuildInitialization()
     if (!initialNodes.empty()) {
         world_.run.expeditionMapSelection_ = initialNodes.front();
     }
-    // Prefer learning the controls even when an authored map lists skip first.
+    // 作成済みマップでスキップが先に並んでいても、操作を覚えるほうを優先する。
     for (const auto& id : initialNodes) {
         if (const auto* n = tankexp::FindMapNode(world_.run.expeditionMapRun_.GetDefinition(), id);
             n && n->role == tankexp::NodeRole::TutorialCombat) {
@@ -461,7 +461,7 @@ void ExpeditionMapController::SetExpeditionBlueprint(int index)
 
 void ExpeditionMapController::UpdateExpeditionAuthoring()
 {
-    // Keep queued purchases and destinations stable until their transition commits.
+    // 予約した購入と行き先は、その遷移が確定するまで変えない。
     if (world_.run.expeditionTransition_.IsActive()) {
         return;
     }
@@ -472,8 +472,8 @@ void ExpeditionMapController::UpdateExpeditionAuthoring()
 #else
     return;
 #endif
-    // Authoring runs before the paused-frame decision. Applying content never
-    // restarts a fight or resets the run's wallet/history.
+    // 作成処理は一時停止フレームの判定より前に行う。コンテンツを適用しても
+    // 戦闘をやり直したり、ランの所持金や履歴をリセットしたりはしない。
     if (Press(world_.resources.input_, DIK_F4)) {
         world_.run.expeditionRoomEditorOpen_ = !world_.run.expeditionRoomEditorOpen_;
     }
@@ -962,8 +962,8 @@ void ExpeditionMapController::SelectExpeditionService(int option)
 
 void ExpeditionMapController::RefreshExpeditionMapUi()
 {
-    // The hidden map must not overwrite the pause menu's focus or emit hover
-    // audio. Both screens share expeditionLastFocus_; only the visible one owns it.
+    // 隠れているマップがポーズメニューのフォーカスを上書きしたり、ホバー音を鳴らしたりしてはならない。
+    // どちらの画面もexpeditionLastFocus_を共有し、見えているほうだけが所有する。
     if (!world_.run.expeditionMapTitle_ || world_.run.tankRunPaused_) {
         return;
     }
@@ -1100,8 +1100,8 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
         v.label->SetText(n.role == tankexp::NodeRole::TutorialCombat ? "操作を学ぶ"
                          : n.role == tankexp::NodeRole::TutorialSkip ? "説明をスキップ"
                                                                      : " ");
-        // Reuse each node's existing labels; keep both introductory captions in
-        // the visible map even at the left edge without allocating new UI.
+        // 各ノードの既存のラベルを再利用し、新しいUIを確保せずに、
+        // 左端でも導入用の2つの見出しを見えるマップ内に収める。
         const float captionX = intro ? (std::max)(112.0f, v.center.x) : v.center.x;
         v.label->SetPosition({captionX, v.center.y + 39});
         v.label->SetAlpha(abandoned ? 0.2f : reachable && intro ? 1.0f : 0.85f);
@@ -1244,8 +1244,8 @@ void ExpeditionMapController::DrawExpeditionMapUi()
             world_.run.tankRunCardTitles_[0]->Draw();
             world_.run.tankRunCardBodies_[0]->Draw();
             world_.expeditionExperience->DrawCurrencyIcon({506, 383}, 28);
-            // These UI objects also serve the pause/result screens. Restore
-            // their normal layout immediately after the dedicated repair draw.
+            // これらのUIオブジェクトはポーズ画面や結果画面でも使う。
+            // 修理専用の描画の直後に、通常のレイアウトへ戻す。
             world_.run.tankRunCards_[0]->SetPosition({64, 280});
             world_.run.tankRunCards_[0]->SetSize({368, 280});
             world_.run.tankRunCardTitles_[0]->SetPosition({80, 303});
@@ -1461,7 +1461,7 @@ void ExpeditionMapController::UpdateExpeditionMap(float dt)
     if (world_.run.expeditionMapPreview_ || world_.run.expeditionMapRun_.IsChoosing()) {
         const auto available = world_.run.expeditionMapRun_.GetAvailableNodeIds();
         if (!world_.run.expeditionMapPreview_ && world_.run.tankRunMenuAge_ > 0.15f) {
-            // Branches are stacked vertically on the map, so up / down also step through the reachable nodes.
+            // マップでは分岐が縦に積まれているので、上下キーでも到達可能なノードを順に移動できる。
             const bool previous = Press(world_.resources.input_, DIK_LEFT) || Press(world_.resources.input_, DIK_UP);
             const bool next = Press(world_.resources.input_, DIK_RIGHT) || Press(world_.resources.input_, DIK_DOWN);
             if ((previous || next) && !available.empty()) {
@@ -1713,7 +1713,7 @@ void ExpeditionMapController::UpdateExpeditionMapValidation(float dt)
             return;
         }
         std::string id = options.front();
-        // Exercise repair and sequential additive upgrades through real transactions.
+        // 実際の取引を通して、修理と連続した加算型の強化を確かめる。
         for (const auto& choice : options) {
             if (choice == "field_repair" || choice == "arsenal" || choice == "final_upgrade") {
                 id = choice;
@@ -1741,7 +1741,7 @@ void ExpeditionMapController::UpdateExpeditionMapValidation(float dt)
         world_.resources.player_->SpendRunHealth(20);
         SelectExpeditionService(0);
     } else if (node->kind == NK::Upgrade) {
-        // Keep the transaction deterministic while checking cumulative equipment.
+        // 累積した装備を確認する間、取引を決定的に保つ。
         for (const char* id : {"ExtraBarrel1", "ExtraBarrel2", "FanMount", "AlternatingFire"}) {
             const auto* u = tankcontent::FindUpgrade(world_.run.expeditionContent_, id);
             if (u && tankcontent::EligibleUpgrade(*u, world_.run.expeditionBuildStyle_, world_.run.tankRun_.GetCardCounts())) {

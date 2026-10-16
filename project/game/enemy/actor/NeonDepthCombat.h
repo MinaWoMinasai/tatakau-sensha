@@ -7,9 +7,9 @@
 #include <limits>
 #include <optional>
 
-// The Enemy adapter resolves actual Stage geometry before committing a plan.
-// The current beam is clipped after Step, then shared by hit detection and draw.
-// No actor, renderer, animation, platform or random-stream dependencies.
+// Enemyアダプタが計画を確定する前に、実際のStageの形状を解決する。
+// 現在のビームはStepの後に壁で切り詰められ、当たり判定と描画で共有される。
+// アクター、描画、アニメーション、プラットフォーム、乱数ストリームには依存しない。
 namespace neondepth {
 using Point = std::array<float, 2>;
 enum class Attack {
@@ -123,8 +123,8 @@ inline bool IsClippedSegment(const Segment& desired, const Segment& clipped)
 struct BeamPlan {
     Point origin{};
     float startAngle = -.6f, endAngle = .6f, range = 28, halfWidth = .8f;
-    // Authored Stage adapter supplies the same wall-clipped future band that
-    // Presentation outlines. No independently hand-written danger geometry.
+    // 作成済みのStageアダプタが、演出で輪郭を描くのと同じ壁で切り詰めた将来の帯を渡す。
+    // 危険範囲の形状を別に手書きすることはない。
     std::array<Segment, kMaximumWarningSegments> warning{};
     unsigned warningCount = 0;
     bool operator==(const BeamPlan&) const = default;
@@ -140,7 +140,7 @@ inline float BeamWarningHalfWidth(const BeamPlan& beam)
 }
 
 struct AttackPlan {
-    // Commit assigns identity and tuning. Callers cannot forge or reuse IDs.
+    // Commitが識別子と調整値を割り当てる。呼び出し側がIDを偽造したり再利用したりはできない。
     uint64_t generation = 0, instance = 0;
     Attack attack = Attack::Volley;
     bool phaseTwo = false;
@@ -196,8 +196,8 @@ class Combat {
 public:
     bool Reset(uint64_t generation, Point core, const Tuning& tuning = {})
     {
-        // Reject reused/backward generations before touching the old state,
-        // including after Abort/Defeat, so stale requests cannot match again.
+        // 古い状態に触れる前に、再利用された世代や過去の世代を拒否する。
+        // Abort/Defeatの後も同様にし、古い要求が再び一致しないようにする。
         if (!generation || generation <= snapshot_.generation || !Bounded(core) || !Valid(tuning)) {
             return false;
         }
@@ -333,10 +333,10 @@ public:
 
     Events Step(float dt, float hpRatio, bool bossAlive = true, bool playerAlive = true)
     {
-        // Contact permission belongs to this positive Gameplay update. A paused
-        // or invalid update keeps the displayed shape but closes its hit gate.
+        // 接触の許可は、この正のゲームプレイ更新に属する。一時停止中や不正な更新では
+        // 表示中の形状は保つが、当たり判定は閉じる。
         contactOpen_ = false;
-        // Death/abort authority is not suppressed by a paused/invalid dt.
+        // 一時停止中や不正なdtでも、死亡・中断の権限は抑制されない。
         if (!bossAlive) {
             return Defeat();
         }
@@ -352,8 +352,8 @@ public:
             snapshot_.phaseTwoPending = true;
         }
         snapshot_.elapsed = (std::min)(snapshot_.elapsed + elapsed, Duration());
-        // Never carry a spike's remaining time into a newly displayed warning.
-        // This is one phase transition per actual Gameplay update.
+        // 突出の残り時間を、新しく表示する警告へ持ち越してはならない。
+        // 実際のゲームプレイ更新1回につき、フェーズの遷移は1回だけ。
         if (snapshot_.elapsed >= Duration()) {
             switch (snapshot_.phase) {
             case Phase::Intro:
@@ -424,8 +424,8 @@ public:
                 range = (std::min)(range, std::sqrt(dx * dx + dy * dy));
             }
         }
-        // Active rays never exceed either adjacent conservative warning
-        // capsule. Its angular padding covers the entire continuous interval.
+        // 有効な光線は、隣接するどちらの保守的な警告カプセルも超えない。
+        // 角度方向の余白で、連続した区間全体を覆う。
         return {beam.origin, {beam.origin[0] + std::cos(angle) * range, beam.origin[1] + std::sin(angle) * range}, beam.halfWidth};
     }
 
@@ -490,8 +490,8 @@ public:
         return HitRequest{snapshot_.generation, plan.instance, target, snapshot_.contactClaims, index, plan.damage};
     }
 
-    // Actual actor adapter reports accepted HP loss after existing immunity /
-    // perfect-dodge / mitigation. Contact permission alone is not a real hit.
+    // 実際のアクターのアダプタは、既存の無敵・ジャスト回避・軽減を経て
+    // 受け入れたHP減少を報告する。接触の許可だけでは実際の命中にはならない。
     bool ReportAcceptedHit(const HitRequest& request, uint32_t actualHpLoss)
     {
         if (!contactOpen_ || !actualHpLoss || actualHpLoss > request.damage || request.damage != snapshot_.plan.damage ||
@@ -612,7 +612,7 @@ private:
     bool contactOpen_ = false;
     uint64_t nextInstance_ = 0;
     unsigned cycle_ = 0;
-    // One player + three companions across at most five landing circles.
+    // プレイヤー1人と仲間3人を、最大5つの着地円に配置する。
     std::array<HitRecord, 4 * kMaximumCircles> hits_{};
 };
 } // namespace neondepth

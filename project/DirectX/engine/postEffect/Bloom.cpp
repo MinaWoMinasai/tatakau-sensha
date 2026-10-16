@@ -24,7 +24,7 @@ float Halton(uint32_t index, uint32_t base)
 
 void ApplyVisibleNeonBloomPreset(BloomParam& param)
 {
-    // Keep the unfiltered core; give the normalized coarse levels a visible halo.
+    // フィルタをかけない芯は残し、正規化した粗いレベルに見えるハローを付ける。
     param.bloomMode = 2;
     param.threshold = 0.65f;
     param.bloomSoftKnee = 0.5f;
@@ -561,11 +561,11 @@ void Bloom::Update()
     bloomParam_.renderDebugMode =
         (enableMotionVector_ && bloomParam_.motionVectorScale < -0.5f) ? 15.0f : static_cast<float>(renderDebugMode_);
     arenaLook_ = SceneManager::GetInstance()->GetArenaLookSettings();
-    // Presentation comparison of the pyramid bloom (off / one level / bloom only / full).
+    // ピラミッドBloomの表示比較（オフ / 1レベル / Bloomのみ / すべて）。
     const IScene::BloomViewSettings bloomView = SceneManager::GetInstance()->GetBloomViewSettings();
     BloomPyramid::SetPresentationView(bloomView.view == 1, bloomView.view == 2 ? bloomView.level : -1);
     if (bloomView.view == 3 && bloomParam_.renderDebugMode < 0.5f) {
-        bloomParam_.renderDebugMode = 2.0f; // Bloom Only: the tone-mapped bloom buffer by itself.
+        bloomParam_.renderDebugMode = 2.0f; // Bloomのみ: トーンマップ後のBloomバッファ単体。
     }
     if (!screenEffectState_.active) {
         CaptureScreenEffectBase();
@@ -741,7 +741,7 @@ void Bloom::CaptureScreenEffectBase()
     screenEffectBaseParam_.randomScale = bloomParam_.randomScale;
     screenEffectBaseParam_.randomTimeScale = bloomParam_.randomTimeScale;
     screenEffectBaseParam_.exposure = bloomParam_.exposure;
-    // A scene-local suppression must not become the next scene's saved baseline.
+    // シーン内だけの抑制を、次のシーンの保存済み基準値にしてはならない。
     if (!screenEffectState_.suppressOutlines) {
         screenEffectBaseParam_.outlineWidth = bloomParam_.outlineWidth;
         screenEffectBaseParam_.outlineThreshold = bloomParam_.outlineThreshold;
@@ -988,8 +988,8 @@ void Bloom::PostDraw()
         bloomParam_.bloomRadius = developerShowcase_.bloomRadius;
         bloomParam_.bloomGain = developerShowcase_.bloomGain;
     } else {
-        // Existing gameplay pulses remain relative boosts in the linear path.
-        // Compose a draw-only gain so menu suppression cannot accumulate.
+        // 既存のゲームプレイの明滅は、リニア経路では相対的な強調のまま扱う。
+        // メニューでの抑制が累積しないよう、描画時だけの係数として合成する。
         bloomParam_.bloomGain =
             (std::clamp)(BloomPyramid::GetPresentationGainScale(bloomParam_.bloomScatter) * bloomParam_.bloomGain *
                              ((1.0f + (std::max)(0.0f, transientBloomBoost_)) * (std::clamp)(screenEffectState_.bloomScale, 0.0f, 1.0f) +
@@ -1000,8 +1000,8 @@ void Bloom::PostDraw()
     if (!developerShowcase_.active && developerShowcase_.toneMappingMode >= 0) {
         bloomParam_.toneMappingMode = static_cast<float>(developerShowcase_.toneMappingMode);
     }
-    // All resolve/filter draws below overwrite their full target with depth
-    // and blending disabled. Only a skipped resolve needs a fallback clear.
+    // 以下の解決・フィルタ描画はすべて、深度とブレンドを無効にして描画先全体を上書きする。
+    // 解決処理を飛ばしたときだけ、代わりのクリアが必要になる。
 
     // --- A. SceneRT の描画終了 (RT -> SRV) ---
     Transition(sceneRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -1028,7 +1028,7 @@ void Bloom::PostDraw()
         sceneSourceSrv = randomRT_->GetSrvIndex();
     }
 
-    // --- B. Motion vector pass (Depth + current/previous camera -> Motion Vector RT) ---
+    // --- B. モーションベクトルパス（深度 + 今回/前回のカメラ -> Motion Vector RT） ---
     Transition(motionVectorRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(motionVectorRT_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
@@ -1040,7 +1040,7 @@ void Bloom::PostDraw()
     }
     Transition(motionVectorRT_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    // --- C. Temporal resolve pass (Scene + History + Motion -> Stable Scene) ---
+    // --- C. テンポラル解決パス（Scene + History + Motion -> 安定したScene） ---
     const bool canUseTemporalAccumulation = !developerShowcase_.active && !developerShowcase_.comparisonFreeze &&
                                             !screenEffectState_.suppressTemporal && enableTemporalAccumulation_ && enableMotionVector_ &&
                                             bloomParam_.motionVectorScale >= 0.0f && renderDebugMode_ != 15;
@@ -1075,7 +1075,7 @@ void Bloom::PostDraw()
         bloomCB_->Update(bloomParam_);
     }
 
-    // --- C2. Phosphor persistence (Scene + reprojected afterglow -> Scene) ---
+    // --- C2. 蛍光体の残光（Scene + 再投影した残光 -> Scene） ---
     const bool usePhosphorPersistence =
         bloomParam_.arenaPhosphorDecay > 0.0f && !developerShowcase_.active && !developerShowcase_.comparisonFreeze && enableMotionVector_;
     if (usePhosphorPersistence) {
@@ -1097,7 +1097,7 @@ void Bloom::PostDraw()
         hasPersistenceHistory_ = false;
     }
 
-    // --- D. SSAO resolve pass (Depth/Normal/Material -> AO RT) ---
+    // --- D. SSAO解決パス（Depth/Normal/Material -> AO RT） ---
     Transition(ssaoResolveRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(ssaoResolveRT_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
@@ -1120,7 +1120,7 @@ void Bloom::PostDraw()
         ssaoCompositeSource = ssaoDenoiseRT_->GetGPUHandle();
     }
 
-    // --- E. SSR resolve pass (Scene/Depth/Normal -> SSR RT) ---
+    // --- E. SSR解決パス（Scene/Depth/Normal -> SSR RT） ---
     Transition(ssrResolveRT_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     dxCommon_->SetRenderTargetNoDepth(ssrResolveRT_->GetRTVHandle());
     dxCommon_->SetViewport(WinApp::kRenderWidth, WinApp::kRenderHeight);
@@ -1153,7 +1153,7 @@ void Bloom::PostDraw()
         dxCommon_->SetRenderTargetNoDepth(bloomRT_Half_->GetRTVHandle());
         dxCommon_->SetViewport(WinApp::kRenderWidth / 2, WinApp::kRenderHeight / 2);
 
-        // Full-screen smoothing modes skip bright-pass extraction and blur the whole scene.
+        // 画面全体を滑らかにするモードでは、高輝度抽出を省いてシーン全体をぼかす。
         if (bloomParam_.gaussianIntensity > 0.0f || bloomParam_.fullScreenBoxBlurBlend > 0.0f) {
             postEffect_->Draw(sceneSource, kAdd_Bloom_Downsample);
         } else {
@@ -1162,7 +1162,7 @@ void Bloom::PostDraw()
 
         Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-        // --- G. Bloom prefilter (BloomHalf -> BloomA) ---
+        // --- G. Bloomの前処理フィルタ（BloomHalf -> BloomA） ---
         Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
         dxCommon_->SetRenderTargetNoDepth(bloomRT_A_->GetRTVHandle());
         dxCommon_->SetViewport(WinApp::kRenderWidth / 2, WinApp::kRenderHeight / 2);
@@ -1170,7 +1170,7 @@ void Bloom::PostDraw()
         postEffect_->Draw(bloomRT_Half_->GetGPUHandle(), kAdd_Bloom_Downsample);
         Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-        // --- H. Blur filter ---
+        // --- H. ブラーフィルタ ---
         Transition(bloomRT_B_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
         dxCommon_->SetRenderTargetNoDepth(bloomRT_B_->GetRTVHandle());
         postEffect_->Draw(bloomRT_A_->GetGPUHandle(), kAdd_Bloom_BlurH);
@@ -1185,7 +1185,7 @@ void Bloom::PostDraw()
         extractSource = srvManager_->GetGPUDescriptorHandle(bloomPyramid_->GetExtractSrvIndex());
     } else {
         Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        const float black[4] = {0, 0, 0, 1}; // Match this legacy target's optimized clear value.
+        const float black[4] = {0, 0, 0, 1}; // この旧来の描画先の最適化クリア値に合わせる。
         dxCommon_->ClearRenderTarget(bloomRT_A_->GetRTVHandle(), black);
         Transition(bloomRT_A_->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         extractSource = bloomSource;
@@ -1227,7 +1227,7 @@ void Bloom::SetDeveloperShowcaseState(const IScene::DeveloperShowcaseState& stat
         hasPreviousMotionViewProjection_ = false;
     }
     developerShowcase_ = state;
-    // Set before scene capture so local effects and the final scene use one mode.
+    // シーンのキャプチャ前に設定し、局所エフェクトと最終シーンで同じモードを使う。
     BloomPyramid::SetModeOverride(state.bloomComparisonMode);
 }
 

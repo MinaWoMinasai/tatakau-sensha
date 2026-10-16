@@ -205,7 +205,7 @@ void Sprite::Draw()
     spriteCommon_->GetDxCommon()->GetList()->IASetIndexBuffer(&indexBufferView);          // IBVを設定
     spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
     spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(1, transformationMatrixResource->GetGPUVirtualAddress());
-    // The shared VS reads material b2 even for unlit UI to select its vertex path.
+    // 共通VSは、ライティングなしのUIでも頂点処理の分岐を選ぶためにマテリアルb2を読む。
     spriteCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(10, materialResource->GetGPUVirtualAddress());
     D3D12_GPU_DESCRIPTOR_HANDLE srvHandle{};
 

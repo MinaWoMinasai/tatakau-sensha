@@ -234,8 +234,8 @@ void PlayerProgression::ApplyBalanceConfig(const BalanceConfig& config)
     player_.runGrowth_ = {player_.maxHpUpgradeRate_, player_.bulletDamageUpgradeRate_, player_.bulletSpeedUpgradeRate_,
                           (std::min)(0.90f, player_.reloadUpgradeRate_), player_.moveSpeedUpgradeRate_};
     RecalculateStatsFromBase(config.healToFull);
-    // Editing a running expedition must not grant a free heal when the old
-    // maximum was full. Card acquisition keeps its separate growth/heal rule.
+    // 遠征中に編集しても、元の最大HPが満タンだったときに無料で回復させてはならない。
+    // カードの獲得は別の成長・回復ルールのまま。
     if (player_.runCheckpointEvolution_ && !config.healToFull) {
         player_.hp_ = (std::clamp)(previousHp, 0, player_.GetMaxHp());
     }
@@ -264,14 +264,14 @@ void PlayerProgression::SetRunModifiers(const TankRunModifiers& modifiers)
         player_.ui_->upgradeHudMouseCaptured_ = false;
     }
     RecalculateStatsFromBase(false);
-    // Refitting edited modules is not healing. A purchased repair grants its
-    // explicit recovery in the scene, including before the style is selected.
+    // 編集したモジュールの付け替えは回復ではない。購入した修理は、スタイル選択前も含め
+    // シーン内で明示的な回復量を与える。
     if (wasEnabled && player_.runModifiers_.enabled && player_.runModifiers_.expedition) {
         player_.hp_ = (std::clamp)(previousHp, 0, player_.GetMaxHp());
     }
     if (wasEnabled && !player_.runModifiers_.enabled) {
         SetRunCurrencyMode(false);
-        // A run's support units and attack configuration must not escape its mode.
+        // ランの支援ユニットと攻撃設定を、そのモードの外へ持ち出してはならない。
         player_.drones_.clear();
         player_.runSupportDroneTimer_ = 0.0f;
         player_.runDashAttackTimer_ = 0.0f;
@@ -324,7 +324,7 @@ bool PlayerProgression::SetExpeditionCombatStyle(tankbuild::Style style)
     if (!basic || basic->barrels.empty()) {
         return false;
     }
-    // Changing equipment must never rebuild the run or refill health/stamina.
+    // 装備の変更でランを作り直したり、HPやスタミナを回復させたりしてはならない。
     player_.runStarterConfig_ = *basic;
     player_.runStarterConfig_.displayName = tankbuild::Name(style);
     player_.runStarterConfig_.usesDrone = style == tankbuild::Style::Drone;
@@ -396,7 +396,7 @@ void PlayerProgression::EnsureExpeditionDrones()
     }
     while (player_.drones_.size() < limit) {
         auto drone = std::make_unique<PlayerDrone>();
-        // Spawn at the owner; normal wall-aware movement forms the escort.
+        // 所有者の位置に出現させ、壁を考慮した通常の移動で護衛の隊形を作る。
         drone->Initialize(player_.GetWorldPosition(), {});
         drone->SetAttackControllerBulletManager(player_.runBulletManager_);
         player_.ConfigureRunDrone(*drone);
@@ -460,8 +460,8 @@ void PlayerProgression::ConfigurePrototypeLoadout(int archetype)
         player_.UpdateBarrelLayout();
         return;
     }
-    // Starting loadouts are rank two. Their next evolution becomes available
-    // at rank three, rather than opening a locked menu at the first rank-up.
+    // 初期装備はランク2。最初のランクアップでロックされたメニューを開くのではなく、
+    // ランク3で次の進化を選べるようにする。
     if (player_.level_ < 5) {
         player_.level_ = 5;
         player_.exp_ = 0;
@@ -484,7 +484,7 @@ bool PlayerProgression::SpendRunHealth(int amount)
     if (!player_.runModifiers_.enabled || player_.isDead_ || amount <= 0 || player_.hp_ <= amount) {
         return false;
     }
-    // A chosen event cost is not an incoming hit and cannot be dodged or lethal.
+    // 自分で選んだイベントの代償は被弾ではないため、回避できず致死にもならない。
     player_.hp_ -= amount;
     return true;
 }
@@ -528,8 +528,8 @@ std::vector<RunEvolutionChoice> PlayerProgression::GetRunEvolutionChoices() cons
         return std::string(text);
     };
     for (const std::string& id : player_.classCatalog_.OrderedIds()) {
-        // The editor's temporary copy has no firing advantage over Twin. Keep it
-        // in the original C tree, but omit it from expedition checkpoint rewards.
+        // エディタ用の一時コピーはツインより射撃で有利にならない。元のCツリーには残すが、
+        // 遠征のチェックポイント報酬からは外す。
         if (id == "Triple_Copy" || !CanEvolveTo(id)) {
             continue;
         }
@@ -565,7 +565,7 @@ void PlayerProgression::PrepareRunEvolution()
     player_.evolutionConfirmedEvent_ = false;
     player_.evolutionCancelledEvent_ = false;
     if (player_.runCheckpointEvolution_) {
-        // A checkpoint specialization is independent of the arena's level/tree.
+        // チェックポイントでの特化は、アリーナのレベルやツリーとは独立している。
         player_.runEvolutionPrepared_ = !player_.runEvolutionActive_;
         return;
     }
@@ -580,7 +580,7 @@ void PlayerProgression::PrepareRunEvolution()
     const bool hasSuccessor =
         std::any_of(player_.classCatalog_.OrderedIds().begin(), player_.classCatalog_.OrderedIds().end(), [&](const std::string& id) {
             if (id == "Triple_Copy") {
-                return false; // Match the checkpoint candidate filter above.
+                return false; // 上のチェックポイント候補の絞り込みと合わせる。
             }
             const PlayerClassConfig* config = GetClassConfig(id);
             return config && config->requiredRank == targetRank && HasEvolutionEdge(current->id, id) && IsRunCompatibleClass(*config);
@@ -588,8 +588,8 @@ void PlayerProgression::PrepareRunEvolution()
     if (!hasSuccessor) {
         return;
     }
-    // Grant only the checkpoint's required rank. HP, partial XP, and the build
-    // remain untouched; normal level-up rewards and the legacy C popup do not run.
+    // チェックポイントで必要なランクだけを与える。HP、獲得途中の経験値、構成は
+    // そのままで、通常のレベルアップ報酬や旧来のCのポップアップは実行しない。
     while (player_.level_ < player_.kMaxLevel && GetRankFromLevel(player_.level_) < targetRank) {
         ++player_.level_;
     }
@@ -692,7 +692,7 @@ bool PlayerProgression::SpendRunMaintenancePoint(int stat)
     }
     const int previousHp = player_.hp_;
     RecalculateStatsFromBase(false);
-    // Maintenance changes never heal, including while the player is at full HP.
+    // 整備の変更で回復することはない。プレイヤーのHPが満タンのときも同じ。
     player_.hp_ = (std::min)(previousHp, player_.GetMaxHp());
     return true;
 }
@@ -896,7 +896,7 @@ bool PlayerProgression::IsRunCompatibleClass(const PlayerClassConfig& config) co
     if (!player_.runModifiers_.enabled) {
         return true;
     }
-    // Smasher bypasses the configured guns and always performs a melee attack.
+    // Smasherは設定された砲を使わず、常に近接攻撃を行う。
     if (config.type == ClassType::Smasher) {
         return false;
     }
@@ -910,7 +910,7 @@ bool PlayerProgression::IsRunCompatibleClass(const PlayerClassConfig& config) co
 
 bool PlayerProgression::IsEvolutionClassVisible(const std::string& classId) const
 {
-    // Keep the current node visible if an editor changes its weapon configuration.
+    // エディタで武器構成を変えても、現在のノードを表示したままにする。
     if (!player_.runModifiers_.enabled || classId == player_.currentClassId_) {
         return true;
     }

@@ -47,15 +47,15 @@ struct NeonSkinnedParams {
     float lineHaloIntensity = 1.5f;
     Vector3 outlineCoreColor = {1.0f, 0.12f, 0.38f};
     float outlineCoreIntensity = 8.0f;
-    uint32_t featureMaskRenderMode = 0; // 0: original RG, 1: coverage RGB, 2: SDF with coverage minification fallback.
-    uint32_t splitLineEmission = 0;     // Opt-in: independently colored core and narrow surface halo.
-    uint32_t lineDiagnosticMode = 0;    // 0: combined, 1: core, 2: surface halo, 3: dark body.
-    float sdfRangeTexels = 16.0f;       // Encoded distance = (R - .5) * 2 * range; positive inside a stroke.
-    float sdfHaloWidthTexels = 4.0f;    // UV surface halo, not screen-space bloom. Candidate G includes this support.
+    uint32_t featureMaskRenderMode = 0; // 0: 元のRG、1: カバレッジRGB、2: カバレッジ縮小フォールバック付きのSDF。
+    uint32_t splitLineEmission = 0;     // 任意: 個別に色付けした芯と細い表面ハロー。
+    uint32_t lineDiagnosticMode = 0;    // 0: 合成、1: 芯、2: 表面ハロー、3: 暗いボディ。
+    float sdfRangeTexels = 16.0f;       // 距離のエンコード = (R - .5) * 2 * range。線の内側が正。
+    float sdfHaloWidthTexels = 4.0f;    // スクリーン空間のBloomではなくUV上の表面ハロー。候補Gはこれを含む。
     float sdfLodBlendStart = 1.0f;
     float sdfLodBlendEnd = 2.0f;
     float qualityPadding = 0.0f;
-    NeonDissolveParams dissolve; // Disabled by default; evaluated in skinned pre-World model space.
+    NeonDissolveParams dissolve; // 既定では無効。World変換前のスキン適用済みモデル空間で評価する。
 };
 
 static_assert(sizeof(NeonSkinnedParams) == 288);
@@ -111,8 +111,8 @@ public:
     NeonSkinnedRenderer(const NeonSkinnedRenderer&) = delete;
     NeonSkinnedRenderer& operator=(const NeonSkinnedRenderer&) = delete;
 
-    // Explicit frame-boundary teardown. Last GPU use must have completed and
-    // SrvManager must remain alive. Safe to call again after resources are freed.
+    // フレーム境界で明示的に解放する。最後のGPU使用が完了しており、
+    // SrvManagerが生きている必要がある。解放後に再度呼んでも安全。
     void ReleaseGpuResources();
 
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
@@ -152,8 +152,8 @@ public:
     // SRVは同じSrvManagerのLinearData Texture2D。所有者はGPU完了まで資源とSRVを保持する。
     // TextureManagerのキャッシュを使い、GPU使用中の差し替え・破棄は行わない。
     void SetSubmeshFeatureMasks(const std::vector<std::optional<uint32_t>>& srvIndices);
-    // Optional signed-distance maps paired with the coverage masks above. Missing / invalid maps
-    // retain the coverage path, even if SDF mode was requested. Resources obey the same lifetime contract.
+    // 上のカバレッジマスクと対になる任意の符号付き距離マップ。マップが無いか不正な場合は
+    // SDFモードを指定していてもカバレッジ経路を使う。リソースの寿命の約束事は上と同じ。
     void SetSubmeshFeatureDistanceMasks(const std::vector<std::optional<uint32_t>>& srvIndices);
 
     // transformationCbvはObject3d::Update()等で更新済みのTransformationMatrix(WithShadow)を指す。

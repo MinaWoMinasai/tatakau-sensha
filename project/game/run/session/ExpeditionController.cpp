@@ -76,8 +76,8 @@ myEngine::InitializationTask ExpeditionController::BuildInitialization()
     world_.resources.enemy_->SetRunEncounterEnabled(false);
     world_.resources.enemyManager_->ClearRunActors();
     world_.resources.bulletManager_->ClearAll();
-    // The title demo's ResetTitleDemoStage() loads its room map right after this
-    // initialization, so building the same blocks here would be discarded work.
+    // タイトルデモのResetTitleDemoStage()はこの初期化の直後に部屋マップを読み込むため、
+    // ここで同じブロックを作っても無駄になる。
     if (!world_.demo.titleDemo_ && world_.resources.stage_->LoadRunMap("resources/maps/expedition_crossfire.csv", true)) {
         auto blocks = world_.resources.stage_->BuildBlocks();
         while (!blocks.Advance()) {
@@ -138,8 +138,8 @@ myEngine::InitializationTask ExpeditionController::BuildInitialization()
     world_.run.tankExpeditionBuildPanel_ = panel({988, 10}, {280, 150}, {0.0f, 0.0f, 0.004f, 0.42f});
     world_.run.tankExpeditionExpText_ = label(12, {24, 677}, {0.68f, 0.83f, 0.93f, 1});
     world_.run.tankExpeditionDetailsText_ = label(18, {280, 140}, {0.83f, 0.94f, 1, 1});
-    // Reuse the existing Tutorial UI primitives, but keep expedition progression
-    // separate from the arena's combat-suppressing introduction.
+    // 既存のチュートリアルUIの部品は再利用するが、遠征の進行は
+    // アリーナの戦闘を抑制する導入とは分けておく。
     co_await std::suspend_always{};
     world_.combat.tutorialPanel_ = panel({410, 596}, {460, 70}, {0.008f, 0.025f, 0.04f, 0.84f});
     world_.combat.tutorialTitleText_ = label(12, {640, 601}, {0.43f, 0.81f, 0.93f, 1});
@@ -696,7 +696,7 @@ void ExpeditionController::UpdateTankExpedition(float dt)
                 std::erase_if(world_.run.tankRunBursts_, [](const RunBurst& b) {
                     return b.age > (b.resource ? 0.7f : 0.35f);
                 });
-                // Deterministic rendering/transition smoke test; this does not measure balance.
+                // 決定的な描画・遷移のスモークテスト。バランスは計測しない。
                 if (world_.run.tankRunAutoTest_) {
                     const int step = world_.run.tankExpedition_.GetRoomIndex() * 2;
                     if (world_.run.tankRunAutoStep_ == step && world_.run.tankExpeditionArrival_ > 1.5f) {
@@ -1096,7 +1096,7 @@ void ExpeditionController::UpdateTankExpeditionTutorial(float dt)
         if (world_.combat.defeatedEnemies_ > world_.run.tankExpeditionTutorialKills_) {
             world_.run.tankExpeditionTutorial_.RecordKill();
         }
-        // Observe the actual dash state without consuming the effect/audio event.
+        // エフェクトやオーディオのイベントを消費せずに、実際のダッシュ状態を観測する。
         if (world_.resources.player_->IsDashing()) {
             world_.run.tankExpeditionTutorial_.RecordDash();
         }
@@ -1123,8 +1123,8 @@ void ExpeditionController::SaveExpeditionTutorialCompletion()
         !tankexp::ShouldSaveTutorialCompletion(world_.demo.titleDemo_, validation, isolatedSubmission)) {
         return;
     }
-    // Both tutorial flows share the existing settings file. Preserve unknown
-    // settings and publish the complete document with one atomic replacement.
+    // どちらのチュートリアルの流れも既存の設定ファイルを共有する。不明な設定は残し、
+    // 1回のアトミックな置き換えでドキュメント全体を書き出す。
     try {
         nlohmann::json settings = nlohmann::json::object();
         {
@@ -1132,7 +1132,7 @@ void ExpeditionController::SaveExpeditionTutorialCompletion()
             if (in) {
                 settings = nlohmann::json::parse(in, nullptr, false);
                 if (!settings.is_object()) {
-                    return; // Preserve a damaged file for recovery.
+                    return; // 復旧用に壊れたファイルを残しておく。
                 }
             }
         }

@@ -19,8 +19,8 @@ struct TankRewardCardModel {
     std::vector<tankrun::CardId> effects;
     tankrun::CardCounts ownedEffects{};
     bool styleChoice = false;
-    // Authored visual characteristics are supplied explicitly by the scene.
-    // They do not read/instantiate the player's class or authored JSON catalog.
+    // 作成した見た目の特徴はシーンから明示的に渡される。
+    // プレイヤーのクラスや作成済みのJSONカタログを読んだり実体化したりはしない。
     int barrels = 1, drones = 3;
     bool reflect = false, penetrate = false;
     int currentDrones = 3, currentBarrels = 1;

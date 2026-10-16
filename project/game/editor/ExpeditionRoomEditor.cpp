@@ -59,8 +59,8 @@ bool ExpeditionRoomEditor::Draw(bool* open, RoomCatalog& applied, const std::vec
     if (ImGui::Button("Reload / 再読込")) {
         RoomCatalog loaded;
         const bool loadedFile = LoadRoomCatalog(kRoomCatalogPath, loaded, status_);
-        // Legacy catalogs predate the scene-injected introductory room. Reload
-        // those files without dropping the reserved room from an active map.
+        // 旧形式のカタログは、シーンが注入する導入部屋より前に作られている。
+        // アクティブなマップから予約済みの部屋を落とさずにそれらのファイルを読み直す。
         if (loadedFile && !FindRoom(loaded, "tutorial_training")) {
             if (const auto* tutorial = FindRoom(applied, "tutorial_training")) {
                 loaded.rooms.push_back(*tutorial);
@@ -334,7 +334,7 @@ bool ExpeditionRoomEditor::Draw(bool* open, RoomCatalog& applied, const std::vec
                         room.grid[static_cast<size_t>(index)] = 0;
                         dirty_ = true;
                     }
-                    // Required targets are moved, never removed; this keeps the objective count explicit.
+                    // 必須の対象は削除せず移動するだけ。これで目標数を明確に保つ。
                 } else if ((left || painting) && tool_ <= 2) {
                     if (room.grid[static_cast<size_t>(index)] != tool_) {
                         room.grid[static_cast<size_t>(index)] = tool_;

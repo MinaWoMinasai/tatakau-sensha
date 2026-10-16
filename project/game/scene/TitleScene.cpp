@@ -25,8 +25,8 @@ void Fit(myEngine::TextLabel& label, const myEngine::Vector2& bounds)
     }
 }
 
-// Font registration while a hidden world initializes can invalidate old labels.
-// Finish any texture rebuilds before Game starts recording the title draw pass.
+// 非表示ワールドの初期化中にフォントを登録すると、古いラベルが無効になることがある。
+// Gameがタイトルの描画パスを記録し始める前に、テクスチャの作り直しを済ませる。
 void PrepareLabels(std::initializer_list<myEngine::TextLabel*> labels)
 {
     for (auto* label : labels) {
@@ -34,7 +34,7 @@ void PrepareLabels(std::initializer_list<myEngine::TextLabel*> labels)
             const bool hadSprite = label->GetSprite() != nullptr;
             const auto size = hadSprite ? label->GetSprite()->GetSize() : myEngine::Vector2{};
             label->PrepareForDraw();
-            // Rebuilding after font registration must keep the title's fitted bounds.
+            // フォント登録後に作り直しても、タイトルに合わせた範囲は保つ必要がある。
             if (hadSprite && label->GetSprite()) {
                 label->GetSprite()->SetSize(size);
             }
@@ -86,8 +86,8 @@ void TitleScene::Initialize()
     hint_.reset();
     demoCaption_.reset();
     menu_[0].reset();
-    // The demo applies the game's font override. Labels are created after that,
-    // so the first visible title frame already uses the final font.
+    // デモはゲームのフォント上書きを適用する。ラベルはその後で作るため、
+    // 最初に表示するタイトルのフレームから最終的なフォントになる。
     StartAssetPreloads();
     demoReady_ = false;
     revealed_ = false;
@@ -151,10 +151,10 @@ void TitleScene::CreateLabels()
 
 void TitleScene::StartAssetPreloads()
 {
-    // Idempotent: Game calls this before DirectX initialization so file decoding
-    // overlaps device/pipeline creation; returning to the title is a no-op.
+    // 何度呼んでも同じ結果になる。GameはDirectXの初期化前にこれを呼び、ファイルのデコードを
+    // デバイスやパイプラインの作成と並行させる。タイトルに戻ったときは何もしない。
     auto* textures = myEngine::TextureManager::GetInstance();
-    // Only game dependencies; dynamic text and unrelated project assets are not scanned.
+    // ゲームが依存するものだけを調べる。動的な文字や無関係なプロジェクト素材は調べない。
     for (const auto* path :
          {"resources/white512x512.png", "resources/skybox.dds", "resources/circle.png", "resources/fade.png", "resources/gradationLine.png",
           "resources/wasd.png", "resources/dashGide.png", "resources/toTitle.png", "resources/ui/salvage_orb.png"}) {
@@ -198,7 +198,7 @@ bool TitleScene::InitializeDemoStep()
         demoReady_ = true;
         stageSamples_[0].build = demo_->GetTitleDemoBuild().dump();
         CreateLabels();
-        // Fade in from the first frame that actually shows the title and demo.
+        // タイトルとデモを実際に表示した最初のフレームからフェードインする。
         phase_ = Phase::kFadeIn;
         blinkTimer_ = 0;
         fade_->Start(Fade::Status::FadeIn, 0.65f);
@@ -210,9 +210,9 @@ bool TitleScene::InitializeDemoStep()
 
 void TitleScene::PrepareForTransition()
 {
-    // Detach simulation callbacks/cameras before initializing the next world.
-    // The screen has already faded to black; keep it black and show only a small
-    // static loading caption, so the title never reappears without its demo.
+    // 次のワールドを初期化する前に、シミュレーションのコールバックとカメラを切り離す。
+    // 画面は既に黒くフェードしているので黒いまま保ち、小さな静止した読み込み表示だけを出して、
+    // デモなしでタイトルが再び表示されることがないようにする。
     demo_.reset();
     demoReady_ = false;
     loadingGame_ = true;
@@ -236,8 +236,8 @@ void TitleScene::Update()
         return;
     }
     if (!demoReady_) {
-        // Nothing is shown yet, so build the demo in ~100 ms slices instead of
-        // one coroutine step per vsync. Messages are still pumped every slice.
+        // まだ何も表示していないので、vsyncごとにコルーチンを1ステップずつ進めるのではなく、
+        // 約100msずつまとめてデモを構築する。メッセージは各区切りで処理する。
         if (!engineReady_) {
             return;
         }
@@ -253,8 +253,8 @@ void TitleScene::Update()
     const auto triggered = [this](int key) {
         return input_->IsKeyTriggered(static_cast<uint8_t>(key));
     };
-    // Confirmation is evaluated before the background simulation. The first
-    // input therefore cannot shoot, move, or select a reward inside the demo.
+    // 決定入力はバックグラウンドのシミュレーションより前に判定する。そのため
+    // 最初の入力でデモ内の射撃・移動・報酬の選択が起こることはない。
     if (phase_ != Phase::kFadeOut) {
         const myEngine::Vector2 mouse = input_->GetMousePosition();
         previousMousePosition_ = mouse;
@@ -296,8 +296,8 @@ void TitleScene::Update()
     }
     {
         const auto before = demo_->GetTitleDemoStatus();
-        // Capture transient effects before the game can restore the next fixed
-        // scene. A single still at six seconds cannot prove an Overdrive trigger.
+        // ゲームが次の固定シーンを復元する前に、一時的なエフェクトをキャプチャする。
+        // 6秒時点の静止画1枚だけでは、Overdriveの発動を証明できない。
         if (autoTest_) {
             const auto combat = demo_->GetTitleDemoBuild();
             maxObservedBurstAge_ = (std::max)(maxObservedBurstAge_, combat.value("oldestBurstAge", 0.0f));
@@ -375,8 +375,8 @@ void TitleScene::DrawPostEffect3D()
 
 void TitleScene::DrawAfterPostEffect3D()
 {
-    // Dim only the game background; both text glow and sharp source glyphs
-    // follow this veil, so moving walls/volleys cannot wash out menu labels.
+    // 暗くするのはゲームの背景だけ。文字の発光と鮮明な元の字形の両方がこの幕に従うため、
+    // 動く壁や一斉射撃でメニューのラベルが白飛びすることはない。
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     backgroundVeil_->SetColor({0.004f, 0.009f, 0.016f, demoReady_ ? 0.42f + 0.58f * demo_->GetTitleDemoFade() : 1.0f});
     backgroundVeil_->Update();
@@ -392,8 +392,8 @@ void TitleScene::DrawAfterPostEffect3D()
 
 void TitleScene::DrawSprite()
 {
-    // The frame on which the demo completes is still recorded by the simple
-    // path; keep it black so the title first appears together with the demo.
+    // デモが完了したフレームは、まだ簡易経路で記録される。
+    // タイトルがデモと同時に初めて表示されるよう、そのフレームは黒のままにする。
     if (!title_ || !revealed_) {
         revealed_ = demoReady_ || loadingGame_;
         return;
@@ -419,7 +419,7 @@ void TitleScene::DrawSprite()
 void TitleScene::RecordDeveloperFrame(myEngine::DirectXCommon&)
 {
     if (demoReady_) {
-        demo_->CopyTitleDemoCapture(); // Final backbuffer, after CRT composition.
+        demo_->CopyTitleDemoCapture(); // CRT合成後の最終バックバッファ。
     }
 }
 

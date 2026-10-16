@@ -191,8 +191,8 @@ float3 ReinhardExtended(float3 color)
 float3 ApplyToneMapping(float3 color)
 {
     color = max(color, 0.0f) * max(exposure, 0.0f);
-    // A shared shoulder retains RGB ratios of saturated neon highlights.
-    // Keep legacy per-channel ACES selectable for like-for-like comparison.
+    // 共有の肩で、彩度の高いネオンのハイライトのRGB比を保つ。
+    // 同条件で比較できるよう、旧来のチャンネルごとのACESも選べるようにしておく。
     if (toneMappingMode > 1.5f)
     {
         float peak = max(max(color.r, color.g), color.b);

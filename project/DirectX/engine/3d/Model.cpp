@@ -488,8 +488,8 @@ float MaxComponent(const Vector3& value)
 /// @brief MTLの鏡面反射指数を粗さへ変換する。
 float RoughnessFromMtlSpecularPower(float specularPower)
 {
-    // Wavefront Ns is commonly authored in 0..1000. This maps the legacy
-    // Blinn/Phong exponent into a microfacet roughness factor.
+    // WavefrontのNsは0..1000で作られることが多い。
+    // 旧来のBlinn/Phong指数をマイクロファセットの粗さ係数へ変換する。
     specularPower = (std::max)(specularPower, 0.0f);
     return std::clamp(std::sqrt(2.0f / (specularPower + 2.0f)), 0.04f, 1.0f);
 }

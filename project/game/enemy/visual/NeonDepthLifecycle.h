@@ -1,6 +1,6 @@
 #pragma once
-// Presentation-only lifecycle. Keep this header free of D3D/model/math/actors
-// so existing NeonBossVisualState tests retain their lightweight include graph.
+// 演出専用のライフサイクル。既存のNeonBossVisualStateのテストが軽いインクルード構成を
+// 保てるよう、このヘッダはD3D、モデル、数学、アクターに依存させない。
 #include <algorithm>
 #include <cmath>
 
@@ -51,8 +51,8 @@ public:
         }
         if (life_ == Life::Intro || life_ == Life::Active) {
             if (!input.alive || input.hp <= 0) {
-                // Death is irreversible, even if subsequent inputs erroneously
-                // raise HP/alive. Only explicit encounter Reset starts a new life.
+                // 死亡は取り消せない。後続の入力で誤ってHPや生存フラグが上がっても同じ。
+                // 新しい命が始まるのは、戦闘を明示的にResetしたときだけ。
                 timing_ = {Bounded(timing.collapseSeconds, .15f, .8f) ? timing.collapseSeconds : .35f,
                            Bounded(timing.dissolveSeconds, .4f, 2) ? timing.dissolveSeconds : 1.2f};
                 totalSeconds_ = timing_.collapseSeconds + timing_.dissolveSeconds;

@@ -577,7 +577,7 @@ public:
     /// @brief 描画対象No深度を設定する。
     void SetRenderTargetNoDepth(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
 
-    // Capture all MRT attachments and raster bounds, not just scene color.
+    // シーンカラーだけでなく、すべてのMRTとラスタ範囲を記録する。
     struct RenderTargetState {
         std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 3> rtvs{};
         UINT count = 1;

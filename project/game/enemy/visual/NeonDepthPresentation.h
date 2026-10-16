@@ -1,5 +1,5 @@
 #pragma once
-// Value-only settings, actual-bind placement and immutable attack presentation.
+// 値だけの設定、実際のバインドによる配置、不変の攻撃演出。
 #include "game/enemy/actor/NeonDepthCombat.h"
 #include "NeonDepthPlacement.h"
 #include "NeonDepthAnimations.h"
@@ -9,7 +9,7 @@
 
 namespace neondepth {
 
-// Copy-only presentation configuration. No Enemy, Camera, Stage or Input pointer.
+// コピーだけで扱う演出設定。Enemy、Camera、Stage、Inputへのポインタは持たない。
 struct PresentationConfig {
     float worldHeight = 18.0f;
     float hoverHeight = 3.0f;
@@ -57,9 +57,9 @@ struct BindPlacement {
     unsigned footBonesFound = 0;
 };
 
-// Called immediately after Initialize, before any generated animation is sampled.
-// Actual loader-transformed skeleton matrices determine X/Z. Bottom bind bounds
-// determine sole Y; the ankle joint's ~.1155 Y is deliberately not used as a sole.
+// Initializeの直後、生成したアニメーションをサンプリングする前に呼ぶ。
+// X/Zはローダーが変換した実際のスケルトン行列で決める。足裏のYはバインド境界の底で決め、
+// 足首の関節のY（約0.1155）はあえて足裏として使わない。
 inline bool TryBindPlacement(const myEngine::Skeleton& skeleton, const BindBounds& bounds, BindPlacement& output)
 {
     if (!ValidateDepthBindSkeleton(skeleton) || !Finite(bounds.low) || !Finite(bounds.high) || bounds.high.x < bounds.low.x ||
@@ -109,8 +109,8 @@ enum class Socket {
     RightHand
 };
 
-// Model is already sampled for this frame. A socket is a display endpoint only;
-// its height/animation never changes the floor danger or wall-clipped hit segment.
+// モデルはこのフレーム分のサンプリングを済ませている。ソケットは表示上の端点にすぎず、
+// その高さやアニメーションで床の危険範囲や壁で切り詰めた当たり区間が変わることはない。
 inline bool TrySocketWorld(const myEngine::Skeleton& skeleton, const myEngine::Matrix4x4& world, Socket socket, myEngine::Vector3& output)
 {
     const char* name = socket == Socket::Chest ? "J_Bip_C_Chest" : socket == Socket::LeftHand ? "J_Bip_L_Hand" : "J_Bip_R_Hand";
@@ -136,7 +136,7 @@ struct MotionMapping {
     Motion motion = Motion::Hover;
     float speed = 1;
     bool loop = true, playing = true;
-    float entryTime = -1; // Seek only when phase changes; -1 preserves clip time/blend.
+    float entryTime = -1; // フェーズが変わったときだけシークする。-1ならクリップの時刻とブレンドを保つ。
 };
 
 inline MotionMapping MapDepthMotion(const Snapshot& snapshot, bool collapsing = false, bool frozen = false, float collapseSeconds = .35f)
@@ -184,7 +184,7 @@ struct MotionCommand {
     bool select = false, restartSameClip = false, phaseChanged = false;
 };
 
-// Runtime selection guard only. It never controls Gameplay phase or hit events.
+// 実行時の選択を守るためだけのもの。ゲームプレイのフェーズや当たりイベントは制御しない。
 class MotionGate {
 public:
     void Reset()
@@ -239,8 +239,8 @@ struct BodyMotion {
     myEngine::Vector3 localLean{};
 };
 
-// Immutable plan progress -> fresh bounded transform. No previous pose additions,
-// wall/core resolution, screen displacement, attack activation or shared RNG.
+// 不変の計画の進行度 -> 毎回新しく求める範囲付きの変換。前のポーズへの加算、
+// 壁や中心の解決、画面上のずらし、攻撃の発動、共有の乱数は使わない。
 inline BodyMotion MapBodyMotion(const Snapshot& snapshot, const PresentationConfig& profile, float hitFeedback = 0)
 {
     BodyMotion result;

@@ -32,8 +32,8 @@ public:
     /// @brief 前のデータの保存
     void BeforeFrameData();
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    // A validation driver may replace hardware state for this frame only.
-    // The next BeforeFrameData restores ordinary polling.
+    // 検証用ドライバは、このフレームに限りハードウェアの状態を置き換えられる。
+    // 次のBeforeFrameDataで通常のポーリングに戻る。
     void OverrideValidationFrame(const Vector2& mousePosition);
 #endif
     /// @brief 注目点Changedの通知を受けて、このオブジェクトの状態を反映する。
@@ -165,14 +165,14 @@ private:
     uint32_t promptRevision_ = 0;
     bool gameplayContextRequested_ = false;
     bool gameplayContext_ = false;
-    // Menu navigation: direction held state and auto-repeat timers (frames).
+    // メニュー操作: 方向の押下状態とオートリピートのタイマー（フレーム単位）。
     uint8_t heldDirections_ = 0;
     uint32_t directionRepeatFrames_ = 0;
     float vibrationLow_ = 0.0f, vibrationHigh_ = 0.0f, vibrationSeconds_ = 0.0f;
     bool vibrationApplied_ = false;
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    // Development check without hardware: MYENGINE_FAKE_GAMEPAD names a text file of scripted pad states,
-    // one segment per line: firstFrame endFrame buttons(hex) lx ly rx ry lt rt  (sticks -1..1, triggers 0..1).
+    // 実機なしでの開発確認用: MYENGINE_FAKE_GAMEPADに、パッド状態を記述したテキストファイルを指定する。
+    // 1行1区間で firstFrame endFrame buttons(16進) lx ly rx ry lt rt（スティックは-1..1、トリガーは0..1）。
     struct FakeGamepadSegment {
         uint32_t first = 0, end = 0;
         XINPUT_GAMEPAD pad{};

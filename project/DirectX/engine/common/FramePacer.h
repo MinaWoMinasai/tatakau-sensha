@@ -4,8 +4,8 @@
 #include <chrono>
 #include <thread>
 
-// A frame-rate ceiling, independent of monitor refresh and GPU presentation.
-// Delayed frames start a fresh interval: no catch-up frames or 60--65 FPS gap.
+// モニターのリフレッシュレートやGPUの表示とは独立したフレームレート上限。
+// 遅れたフレームは新しい間隔から始めるため、追い上げフレームや60～65FPSの隙間は生じない。
 namespace myEngine {
 
 /// @brief 目標FPSに合わせて待機し、フレーム間隔と待機精度を計測する。
@@ -16,7 +16,7 @@ public:
     /// @brief myEngine::FramePacerの処理件数や所要時間を保持し、性能と動作の確認に使う。
     struct Stats {
         float frameMs = 0.0f;
-        // Wall time before the limiter, including Present/fence waits.
+        // リミッター適用前の実時間。Presentやフェンス待ちを含む。
         float preLimitMs = 0.0f;
         float waitMs = 0.0f;
         float overshootMs = 0.0f;
@@ -41,7 +41,7 @@ public:
     void Initialize()
     {
         CloseTimer();
-        // Supported on Windows 10 1803+. Older systems retain a safe fallback.
+        // Windows 10 1803以降で対応。それより古い環境では安全な代替処理を使う。
         timer_ = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_MODIFY_STATE | SYNCHRONIZE);
         highResolution_ = timer_ != nullptr;
         if (!timer_) {
@@ -91,8 +91,8 @@ public:
         const auto waitStart = Clock::now();
         const auto deadline = reference_ + std::chrono::nanoseconds(16'666'667);
         if (enabled_ && waitStart < deadline) {
-            // Block for almost all of the remainder. A bounded 0.5 ms tail
-            // absorbs timer wake-up jitter without a frame-long busy wait.
+            // 残り時間のほとんどは待機する。最後の0.5msだけ短く回して、
+            // タイマーの起床誤差をフレーム全体のビジーウェイトなしで吸収する。
             const auto tail = std::chrono::microseconds(500);
             auto now = waitStart;
             while (now < deadline) {

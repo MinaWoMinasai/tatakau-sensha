@@ -10,8 +10,8 @@ namespace myEngine {
 /// @brief ステージなどに重ねるネオン格子の描画資源と設定を管理する。
 class NeonGridRenderer {
 public:
-    // Includes 128 authored support actors, warning rings, dense actor-local
-    // grids, visible stage outlines, and a simultaneous death-outline burst.
+    // 配置済みの支援アクター128体、警告リング、アクター周辺の細かいグリッド、
+    // 表示中のステージ輪郭、同時に発生する撃破時の輪郭演出までを含む。
     static constexpr uint32_t kMaxVertices = NeonGridGeometry::kMaxVertices;
 
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
@@ -41,9 +41,9 @@ public:
         geometry_.QueueCameraFacingLine(a, b, lineWidth, color, cameraForward);
     }
 
-    // Pale HDR core, colored shoulder, and smooth halo in a single continuous
-    // profile. Polygon joins are shared, with round exterior corners; free lines
-    // have round caps. A complete primitive is skipped if the batch is full.
+    // 淡いHDRの芯、色付きの肩、滑らかなハローを1つの連続したプロファイルで描く。
+    // 多角形の継ぎ目は共有し、外側の角は丸める。独立した線の端は丸キャップにする。
+    // バッチが満杯なら、その図形は丸ごと描画しない。
     void QueueContourLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color, const Vector3& cameraForward,
                           const NeonContourStyle& style = {})
     {
@@ -116,7 +116,7 @@ public:
         geometry_.QueueBillboardRegularPolygonFill(center, segments, radius, rotationRad, scale, color, cameraRight, cameraUp);
     }
 
-    // A dark face and a lit bevel, drawn in the solid pass below its neon rim.
+    // 暗い面と光の当たった斜面を、ネオンの縁の下にあるソリッドパスで描く。
     void QueueBeveledPolygonFill(const Vector3* points, uint32_t count, const Vector4& baseColor, const Vector4& tint,
                                  const Vector3& lightDirection)
     {
@@ -180,7 +180,7 @@ public:
     }
 
 private:
-    // HDR dark actor fills need the Scene format, with and without capture depth.
+    // HDRの暗いアクター塗りには、キャプチャ用深度の有無どちらでもSceneフォーマットが必要。
     std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, 2> hdrFillPipelines_;
     DirectXCommon* dxCommon_ = nullptr;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> sceneSolidPipeline_;

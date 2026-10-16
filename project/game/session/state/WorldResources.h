@@ -8,7 +8,7 @@ struct WorldResources {
 
     std::unique_ptr<myEngine::Camera> camera;
 
-    // Presentation owns no combat state; the Enemy snapshot is consumed after collision resolution.
+    // 演出は戦闘の状態を持たない。Enemyのスナップショットは衝突解決の後で使う。
     std::unique_ptr<NeonBossVisual> neonBossVisual_;
 
     BossVisualBridge bossVisualBridge_;

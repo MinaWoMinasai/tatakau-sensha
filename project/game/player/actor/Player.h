@@ -521,7 +521,7 @@ public:
     /// @brief 遠征の初期装備を準備し、整備・進化状態を初期化する。遠征補正無効なら何もしない。
     /// @param archetype 初期系統。0: Twin、1: MachineGun、2: Overseer。範囲外は0～2へ制限する。
     /// @note 部屋ごとの進化方式ではBasicから開始し、レベル・強化・ドローンをリセットしてHPを全回復する。
-    void ConfigurePrototypeLoadout(int archetype); // 0: Twin, 1: MachineGun, 2: Overseer
+    void ConfigurePrototypeLoadout(int archetype); // 0: ツイン、1: マシンガン、2: オーバーシーア
     /// @brief 遠征中の自機のHPを回復する。
     /// @note amountが正で生存中の場合、最大HPまで回復する。遠征補正無効なら何もしない。
     void HealRunPlayer(int amount);

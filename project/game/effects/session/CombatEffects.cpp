@@ -120,8 +120,8 @@ void CombatEffects::QueueNeonTriangleParticles(const myEngine::Vector3& cameraRi
             myEngine::Vector4 color = particle.color;
             color.w *= 1.0f - myEngine::NeonParticleFade(age, particle.shape);
             if (particle.shape == myEngine::NeonParticleShape::Flash) {
-                // Concentric low-alpha discs soften the edge of an outline-mode
-                // flash without introducing textured/model particles.
+                // 同心円状の低アルファの円盤で、テクスチャやモデルのパーティクルを使わずに
+                // 輪郭モードの閃光の縁を柔らかくする。
                 for (int layer = 4; layer >= 0; --layer) {
                     myEngine::Vector4 flash = color;
                     flash.x *= 4.0f;

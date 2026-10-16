@@ -172,7 +172,7 @@ struct MapDefinition {
     int startingCurrency = 20;
     std::vector<std::string> startNodes;
     std::vector<MapNode> nodes;
-    // Old files remain authored. Only an explicit opt-in regenerates next run.
+    // 古いファイルは作成済みのまま扱う。明示的に有効にしたときだけ次のランで再生成する。
     bool procedural = false;
     uint32_t generationSeed = 0;
     int generationMinColumns = 18, generationMaxColumns = 22;
@@ -243,8 +243,8 @@ inline bool ValidateGenerationSettings(const MapDefinition& map, std::string& er
             return fail("同じ範囲・種類・部屋の生成候補が重複しています: " + rule.roomTemplate);
         }
     }
-    // Every possible generated combat column must have an explicit candidate.
-    // The two introductory columns never use these rules.
+    // 生成されうるすべての戦闘列には、明示的な候補が必要。
+    // 導入用の2列ではこの規則を使わない。
     for (const auto kind : {NodeKind::Combat, NodeKind::Elite, NodeKind::Boss}) {
         const int first = kind == NodeKind::Boss ? map.generationMinColumns - 1 : kind == NodeKind::Elite ? 3 : 2;
         const int last = kind == NodeKind::Boss ? map.generationMaxColumns - 1 : map.generationMaxColumns - 2;
@@ -351,7 +351,7 @@ inline bool ValidateExpeditionMap(const MapDefinition& map, std::string& error)
             if (!next || !destinations.insert(id).second) {
                 return fail("Unknown or duplicate connection from " + node.id + " to " + id);
             }
-            // Strictly increasing columns rule out both cycles and backward travel.
+            // 列番号を厳密に増やすことで、閉路と逆方向への移動の両方を防ぐ。
             if (next->column <= node.column) {
                 return fail("Connections must move to a later column: " + node.id + " to " + id);
             }
@@ -374,7 +374,7 @@ inline bool ValidateExpeditionMap(const MapDefinition& map, std::string& error)
     if (map.procedural && HasThreeConsecutiveNodeKinds(map)) {
         return fail("Procedural routes cannot contain three consecutive nodes of the same kind.");
     }
-    // With a finite forward graph and no other terminal, every route reaches the boss.
+    // 有限で前向きのグラフで他に終端が無いので、どのルートもボスにたどり着く。
     error.clear();
     return true;
 }
@@ -483,8 +483,8 @@ inline MapDefinition GenerateExpeditionMapUnchecked(uint32_t seed, const MapDefi
             node.row = width == 1 ? 2 : width == 2 ? 1 + lane * 2 : lane * 2;
             map.nodes.push_back(std::move(node));
         }
-        // Connect neighbouring lanes, then repair uncovered lanes. Every source
-        // gets an exit and every destination is reachable without dense crossings.
+        // 隣り合うレーンをつなぎ、その後でつながっていないレーンを修復する。どの出発点にも
+        // 出口があり、どの行き先にも密な交差なしでたどり着ける。
         auto connect = [&](size_t source, int lane) {
             auto& edges = map.nodes[source].next;
             const auto& id = map.nodes[first + static_cast<size_t>(lane)].id;
@@ -642,7 +642,7 @@ inline nlohmann::json ExpeditionMapJson(const MapDefinition& map)
 /// @brief JSONから遠征ルートを読み取り、ノードと接続を検証する。
 inline bool ParseExpeditionMap(const nlohmann::json& input, MapDefinition& output, std::string& error)
 {
-    // Parse into a temporary definition so all failures preserve the live authoring data.
+    // 一時的な定義へ読み込み、どこで失敗しても現在の作成データが保たれるようにする。
     auto integer = [](const nlohmann::json& owner, const char* key, int low, int high, int& value) {
         if (!owner.contains(key) || !owner[key].is_number_integer()) {
             return false;
@@ -793,7 +793,7 @@ inline bool SaveExpeditionMap(const std::string& path, const MapDefinition& map,
             error = "Writing expedition map failed.";
             return false;
         }
-        // rename replaces the old regular file atomically; a failed write leaves it intact.
+        // renameは古い通常ファイルをアトミックに置き換える。書き込みに失敗しても元のファイルは残る。
         std::filesystem::rename(temporary, target);
         error.clear();
         return true;

@@ -109,9 +109,9 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     srvManager_ = srvManager;
     auto device = dxCommon_->GetDevice();
 
-    // A padded quad lets the PS integrate the contour at pixel width and draw a
-    // soft halo outside the old hard-rasterized, double-sided strip geometry.
-    // The triangle itself still has radius one; the padding is visual only.
+    // 余白付きの四角形にすることで、PSが輪郭をピクセル幅で積分し、旧来の
+    // ハードなラスタライズによる両面ストリップの外側に柔らかいハローを描ける。
+    // 三角形自体の半径は1のままで、余白は見た目のためだけのもの。
     ModelData contourData{};
     contourData.vertices = {{{-1.22f, -0.86f, 0.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
                             {{-1.22f, 1.36f, 0.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
@@ -146,8 +146,8 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
     *materialData_ = MakeDefaultMaterial();
     materialData_->shininess = 1.0f;
-    // ModelParticle alone interprets Material's reserved byte-28 float as the
-    // procedural-frame selector. No shared CB field/offset or root binding changes.
+    // Materialの28バイト目にある予約floatを手続きフレームの選択値として解釈するのはModelParticleだけ。
+    // 共有の定数バッファのフィールドやオフセット、ルートのバインドは変更しない。
     materialData_->padding = 1.0f;
 
     directionalLightResource_ = dxCommon_->CreateBufferResource(sizeof(DirectionalLight));
@@ -404,7 +404,7 @@ void ParticleManager::Update(float deltaTime, Camera* camera, DebugCamera* debug
         instancingData_[instanceCount_].WVP = worldViewProjectionMatrix;
         instancingData_[instanceCount_].World = worldMatrix;
         instancingData_[instanceCount_].WorldInverseTranspose = worldInverseTransposeMatrix;
-        // This homogeneous element is unused by the shader's normal 3x3.
+        // この同次座標の要素は、シェーダーの通常の3x3では使われない。
         instancingData_[instanceCount_].WorldInverseTranspose.m[3][3] =
             particle.neonRadiance ? 2.0f + static_cast<float>(particle.neonShape) : 1.0f;
         instancingData_[instanceCount_].color = color;
@@ -438,8 +438,8 @@ void ParticleManager::Dispatch(float deltaTime, Camera* camera)
     computeSceneResource_->Unmap(0, nullptr);
 
     srvManager_->PreDraw();
-    // Compute PSO/root signature is not wired into DirectXCommon yet.
-    // Keep Update safe while the GPU particle path is being migrated.
+    // コンピュート用のPSOとルートシグネチャはまだDirectXCommonに接続していない。
+    // GPUパーティクル経路の移行中もUpdateを安全に保つ。
 }
 
 void ParticleManager::DispatchGpu(float deltaTime, const Matrix4x4& viewProjection, const Vector3& cameraPosition)
@@ -754,8 +754,8 @@ void ParticleManager::EmitNeonDeathEffect(const Vector3& position, const Vector4
                                           float strength)
 {
     strength = std::clamp(strength, 0.2f, 2.0f);
-    // A single compact ignition point precedes the burst. It replaces the
-    // overlapping giant triangle charges and leaves the target's position clear.
+    // バーストの前に小さな着火点を1つだけ出す。重なり合っていた巨大な三角形の
+    // チャージ演出の代わりで、対象の位置を見やすいまま保つ。
     const float size = 0.6f + strength * 0.65f;
     if (neonTriangleEffectMode_ != NeonTriangleEffectMode::Outline) {
         ParticleEmitterConfig config{};
@@ -794,7 +794,7 @@ void ParticleManager::EmitNeonDeathBurstNow(const Vector3& position, const Vecto
     const bool useModel = neonTriangleEffectMode_ != NeonTriangleEffectMode::Outline;
     const float size = 0.6f + strength * 0.65f;
     std::vector<Particle> particles;
-    // Both render modes consume the same choreography, palette and silhouettes.
+    // どちらの描画モードも同じ動き・配色・シルエットを使う。
     auto emit = [&](NeonParticleShape shape, const Vector3& velocity, float startSize, float endSize, float life, float rotation,
                     float spin, const Vector4& color, bool billboard) {
         if (useModel) {
@@ -1057,8 +1057,8 @@ void ParticleManager::EmitBatch(const std::vector<Particle>& particles)
         float startScale = (std::max)({src.startScaleVector.x, src.startScaleVector.y, src.startScaleVector.z, src.startScale});
         float endScale = (std::max)({src.endScaleVector.x, src.endScaleVector.y, src.endScaleVector.z, src.endScale});
         if (src.neonRadiance) {
-            // The scalar defaults to one even when a small vector range is
-            // authored. Match CPU fragment sizes instead of inflating each shard.
+            // ベクトルの範囲を小さく指定していても、スカラーの既定値は1になる。
+            // 破片をそれぞれ膨らませず、CPUの破片サイズに合わせる。
             startScale = (std::max)({src.startScaleVector.x, src.startScaleVector.y, src.startScaleVector.z});
             endScale = (std::max)({src.endScaleVector.x, src.endScaleVector.y, src.endScaleVector.z});
         }

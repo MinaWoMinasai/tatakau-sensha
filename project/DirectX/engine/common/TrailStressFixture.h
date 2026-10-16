@@ -7,9 +7,9 @@
 #include <memory>
 #include <vector>
 
-// Opt-in GPU A/B fixture. The caller owns the diagnostic environment switch
-// and the render target/bloom capture. Merely constructing this class allocates
-// nothing. All trails are in clip space, independent of scene/camera/game RNG.
+// 明示的に有効にしたときだけ使うGPUのA/B比較用フィクスチャ。診断用の環境変数の切り替えと
+// 描画先・Bloomのキャプチャは呼び出し側が管理する。このクラスを生成するだけでは何も確保しない。
+// 軌跡はすべてクリップ空間で扱い、シーン・カメラ・ゲームの乱数とは独立している。
 namespace myEngine {
 
 /// @brief 多数の軌跡を発生させ、描画負荷とバッファ再確保を検証する。
@@ -28,7 +28,7 @@ public:
         manager_ = std::make_unique<TrailManager>();
         manager_->Initialize(dxCommon, objectCommon, "resources/white512x512.png");
 
-        // Match the production bullet trail's density and fade convention.
+        // 本番の弾の軌跡と同じ密度とフェードの規約に合わせる。
         config_.interpolationSteps = 5;
         config_.maxPoints = 22;
         config_.lifetime = 0.24f;
@@ -45,8 +45,8 @@ public:
             trail->SetConfig(config_);
             trails_.push_back(trail);
         }
-        // Start measurements with a full, stable history rather than counting
-        // the initial 4-point visibility and lifetime ramp as a performance win.
+        // 最初の4点分の表示や寿命の立ち上がりを性能向上と数えないよう、
+        // 履歴が埋まって安定した状態から計測を始める。
         for (uint32_t i = 0; i < config_.maxPoints + 2u; ++i) {
             Update(1.0f / 60.0f);
         }

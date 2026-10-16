@@ -81,8 +81,8 @@ public:
         if (amount == 0 || ranks_[2] == 0) {
             return amount;
         }
-        // Double precision keeps even UINT32_MAX input defined. Round to the
-        // nearest whole HP; armor cannot turn a damaging hit into zero damage.
+        // double精度を使い、UINT32_MAXの入力でも定義された結果にする。
+        // 最も近い整数のHPに丸める。装甲でダメージのある攻撃を0にすることはできない。
         const double scaled = static_cast<double>(amount) * (1.0 - 0.08 * ranks_[2]);
         return scaled < 1.0 ? 1u : static_cast<uint32_t>(scaled + 0.5);
     }
@@ -120,7 +120,7 @@ struct TankExpeditionSpecialization {
     int drones;
 };
 
-// Multipliers are relative to the authored starter; these never mutate its JSON.
+// 倍率は作成済みの初期装備に対する相対値。そのJSONを書き換えることはない。
 inline constexpr std::array<TankExpeditionSpecialization, 6> kTankExpeditionSpecializations{
     {{"exp_twin_fan", "Twin", "トライファン",
       "3砲を扇状に同時発射\n広い角度の敵をまとめて狙う\n集中命中より面の制圧\n主軸・改造・整備を引き継ぎ", 3, 20.0f, false, 2.4f, 1.0f,

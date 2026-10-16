@@ -29,7 +29,7 @@ using namespace detail;
 
 void LevelRuntime::ApplyTankExpeditionRoomGeometry()
 {
-    // Learn movement and single shots on an open floor before cover and hazards.
+    // 遮蔽物や危険地帯の前に、開けた床で移動と単発射撃を覚えさせる。
     if (world_.run.expeditionRun_ && world_.run.tankExpedition_.GetRoomIndex() == 0) {
         world_.resources.stage_->LoadRunMap("resources/maps/expedition_outskirts.csv");
         world_.presentation.stagePostCacheValid_ = false;
