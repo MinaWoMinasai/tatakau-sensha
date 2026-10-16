@@ -81,6 +81,15 @@ void PlayerDrone::RotateToMouse(cg2::Camera* viewProjection)
         object_->SetRotate(worldTransform_.rotate);
         return;
     }
+    if (input_ && input_->IsGamepadActive()) {
+        cg2::Vector2 aim{};
+        if (input_->TryGetGamepadAim(aim))
+            dir = cg2::Normalize(cg2::Vector3{aim.x, aim.y, 0.0f});
+        angle_ = std::atan2(dir.y, dir.x);
+        worldTransform_.rotate.z = angle_;
+        object_->SetRotate(worldTransform_.rotate);
+        return;
+    }
     if (neonDepthAimEnabled_) {
         if (!viewProjection) return;
         auto* window = cg2::WinApp::GetInstance();

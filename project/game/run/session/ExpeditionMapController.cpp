@@ -1327,10 +1327,13 @@ void ExpeditionMapController::UpdateExpeditionMap(float dt)
     if (world_.run.expeditionMapPreview_ || world_.run.expeditionMapRun_.IsChoosing()) {
         const auto available = world_.run.expeditionMapRun_.GetAvailableNodeIds();
         if (!world_.run.expeditionMapPreview_ && world_.run.tankRunMenuAge_ > 0.15f) {
-            if ((Press(world_.resources.input_, DIK_LEFT) || Press(world_.resources.input_, DIK_RIGHT)) && !available.empty()) {
+            // Branches are stacked vertically on the map, so up / down also step through the reachable nodes.
+            const bool previous = Press(world_.resources.input_, DIK_LEFT) || Press(world_.resources.input_, DIK_UP);
+            const bool next = Press(world_.resources.input_, DIK_RIGHT) || Press(world_.resources.input_, DIK_DOWN);
+            if ((previous || next) && !available.empty()) {
                 const auto it = std::find(available.begin(), available.end(), world_.run.expeditionMapSelection_);
                 int i = it == available.end() ? 0 : static_cast<int>(std::distance(available.begin(), it));
-                i = (i + (Press(world_.resources.input_, DIK_LEFT) ? static_cast<int>(available.size()) - 1 : 1)) %
+                i = (i + (previous ? static_cast<int>(available.size()) - 1 : 1)) %
                     static_cast<int>(available.size());
                 world_.run.expeditionMapSelection_ = available[i];
                 const auto* n = tankexp::FindMapNode(world_.run.expeditionMapRun_.GetDefinition(), world_.run.expeditionMapSelection_);
@@ -1423,7 +1426,7 @@ void ExpeditionMapController::UpdateExpeditionMap(float dt)
                 world_.run.expeditionServicePage_ = (world_.run.expeditionServicePage_ + pages - 1) % pages;
             if (Press(world_.resources.input_, DIK_E) || (click && Inside(mouse, 130, 620, 68, 44)))
                 world_.run.expeditionServicePage_ = (world_.run.expeditionServicePage_ + 1) % pages;
-            if (click && Inside(mouse, 966, 620, 242, 44)) {
+            if ((click && Inside(mouse, 966, 620, 242, 44)) || Press(world_.resources.input_, DIK_X)) {
                 SelectExpeditionService(3);
                 return;
             }

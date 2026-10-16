@@ -58,6 +58,8 @@ public:
 
     /// @brief 画面演出状態を返す。
     ScreenEffectState GetScreenEffectState() const;
+    /// @brief ブルームの比較表示（[B]で切替）の設定を返す。
+    IScene::BloomViewSettings GetBloomViewSettings() const;
 
     bool IsNeonShowcaseActive() const;
 

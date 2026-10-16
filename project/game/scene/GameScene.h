@@ -58,6 +58,8 @@ public:
     ScreenEffectState GetScreenEffectState() const override;
     /// @brief ベクター管モニター風のアリーナ表示設定を返す。
     ArenaLookSettings GetArenaLookSettings() const override;
+    /// @brief ブルームの比較表示の設定を返す。
+    BloomViewSettings GetBloomViewSettings() const override;
 
     bool IsNeonShowcaseActive() const;
 

@@ -3,8 +3,33 @@
 #include "game/render/settings/StageSurfaceSettings.h"
 
 namespace gameplay {
+/// @brief 最終ボスの登場・戦闘・撃破のカメラワークと画面演出の進行状態（表示のみ）。
+struct BossCinematicState {
+    bool cameraInitialized = false;
+    cg2::Vector3 focus{};
+    float distanceScale = 1.0f;
+    float tiltDegrees = 14.0f;
+    float introTime = 0.0f;
+    bool introSeen = false;
+    bool revealFired = false;
+    float defeatTime = -1.0f;
+    cg2::Vector3 defeatFocus{};
+    int burstsFired = 0;
+    bool finaleFired = false;
+    float letterbox = 0.0f;
+    int titleMode = 0; // 0: none, 1: entrance, 2: defeat
+    float titleAlpha = 0.0f;
+    float titleAge = 0.0f;
+};
+
 /// @brief NeonPresentationStateに属する資源と実行状態を保持する。
 struct NeonPresentationState {
+    BossCinematicState bossCinematic_;
+    // Bloom explanation for presentations: [B] cycles the view, [V] freezes the frame.
+    // 0: full, 1: off, 2..6: one pyramid level (1/2 .. 1/32), 7: the bloom term only.
+    int bloomView_ = 0;
+    bool bloomViewFreeze_ = false;
+    float bloomViewLabelTimer_ = 0.0f;
     stagesurface::Settings stageSurface_;
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
     int developerStageSurfaceDebugView_ = -1;

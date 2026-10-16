@@ -204,6 +204,18 @@ void Player::RotateToMouse(cg2::Camera* viewProjection)
         object_->SetRotate(worldTransform_.rotate);
         return;
     }
+    if (input_ && input_->IsGamepadActive()) {
+        // Twin-stick aim: the right stick sets the barrel direction; released, the last direction is kept.
+        // The OS cursor is ignored so a resting mouse cannot pull the aim.
+        cg2::Vector2 aim{};
+        if (input_->TryGetGamepadAim(aim))
+            dir_ = cg2::Normalize(cg2::Vector3{aim.x, aim.y, 0.0f});
+        runAimWorld_ = worldTransform_.translate + dir_ * 12.0f;
+        angle_ = std::atan2(dir_.y, dir_.x);
+        worldTransform_.rotate.z = angle_;
+        object_->SetRotate(worldTransform_.rotate);
+        return;
+    }
     if (neonDepthAimEnabled_) {
         if (!viewProjection)
             return;
@@ -440,6 +452,10 @@ void Player::Update(cg2::Camera* viewProjection, Stage& stage, BulletManager* Bu
             inputDir_.y += 1.0f;
         if (input_->IsPress(input_->GetKey()[DIK_S]))
             inputDir_.y -= 1.0f;
+        if (input_->IsGamepadActive()) {
+            const cg2::Vector2 move = input_->GetGamepadMove();
+            inputDir_ = {move.x, move.y, 0};
+        }
         if (demoInputEnabled_)
             inputDir_ = {demoMove_.x, demoMove_.y, 0};
         RotateToMouse(viewProjection);
@@ -479,6 +495,11 @@ void Player::Update(cg2::Camera* viewProjection, Stage& stage, BulletManager* Bu
         inputDir_.y += 1.0f;
     if (input_->IsPress(input_->GetKey()[DIK_S]))
         inputDir_.y -= 1.0f;
+    if (input_->IsGamepadActive()) {
+        // Analog stick: direction and tilt (the movement step limits the length).
+        const cg2::Vector2 move = input_->GetGamepadMove();
+        inputDir_ = {move.x, move.y, 0};
+    }
 
     if (demoInputEnabled_)
         inputDir_ = {demoMove_.x, demoMove_.y, 0};

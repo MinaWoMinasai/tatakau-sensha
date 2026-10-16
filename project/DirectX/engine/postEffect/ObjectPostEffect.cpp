@@ -184,7 +184,8 @@ void ObjectPostEffect::DrawCachedBloom(const Vector2& uvOffset) {
     }
     // A before/after switch must not reuse a texture filtered by the other mode.
     // The source capture stays resident; only its bloom is regenerated here.
-    if (drawParam.bloomMode != cachedFilterParam_.bloomMode ||
+    if (cachedPresentationGeneration_ != BloomPyramid::GetPresentationGeneration() ||
+        drawParam.bloomMode != cachedFilterParam_.bloomMode ||
         drawParam.threshold != cachedFilterParam_.threshold ||
         drawParam.bloomSoftKnee != cachedFilterParam_.bloomSoftKnee ||
         drawParam.bloomScatter != cachedFilterParam_.bloomScatter ||
@@ -194,6 +195,7 @@ void ObjectPostEffect::DrawCachedBloom(const Vector2& uvOffset) {
         const auto currentDsv = dxCommon_->GetCurrentDSVHandle();
         const bool hasDsv = dxCommon_->HasCurrentDSV();
         cachedBloomSrv_ = RenderBloom(drawParam);
+        cachedPresentationGeneration_ = BloomPyramid::GetPresentationGeneration();
         if (hasDsv) dxCommon_->SetRenderTarget(currentRtv, currentDsv);
         else dxCommon_->SetRenderTargetNoDepth(currentRtv);
         dxCommon_->SetViewport(
@@ -262,6 +264,7 @@ void ObjectPostEffect::FinishCapture(FinishMode mode, bool outputToHdr) {
 BloomParam ObjectPostEffect::MakeDrawParam(bool outputToHdr) const {
     BloomParam drawParam = param_;
     drawParam.bloomMode = BloomPyramid::EffectiveMode(param_);
+    drawParam.bloomGain = (std::min)(4.0f, drawParam.bloomGain * BloomPyramid::GetPresentationGainScale(drawParam.bloomScatter));
     drawParam.bloomOutputToHdr = outputToHdr ? 1u : 0u;
     if (drawParam.bloomMode == 0) drawParam.outlineBloomIntensity = 0;
     return drawParam;

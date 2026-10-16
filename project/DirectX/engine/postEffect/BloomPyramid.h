@@ -27,6 +27,14 @@ public:
 
     // A frame-wide comparison override: -1 follows each category's parameters.
     static void SetModeOverride(int mode);
+    // Presentation comparison, shared by every pyramid (global and per-category glow):
+    // off removes all bloom; isolatedLevel >= 0 outputs only that downsampled level
+    // (0 = 1/2 resolution ... kMaxLevels-1 = 1/32) instead of the blended upsample chain.
+    static void SetPresentationView(bool off, int isolatedLevel);
+    static int GetPresentationIsolatedLevel() { return presentationLevel_; }
+    /// @brief 1段だけ表示するときの明るさ補正（全段合成でその段が受け持つ割合の逆数）。
+    static float GetPresentationGainScale(float scatter);
+    static uint32_t GetPresentationGeneration() { return presentationGeneration_; }
     static uint32_t EffectiveMode(const BloomParam& param);
 
     uint32_t GetExtractSrvIndex() const;
@@ -64,6 +72,9 @@ private:
         D3D12_RESOURCE_STATES after);
 
     static int modeOverride_;
+    static bool presentationOff_;
+    static int presentationLevel_;
+    static uint32_t presentationGeneration_;
     DirectXCommon* dxCommon_ = nullptr;
     SrvManager* srvManager_ = nullptr;
     // A private heap avoids exhausting the scene's already occupied RTV heap.

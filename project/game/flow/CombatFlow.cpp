@@ -48,6 +48,7 @@ void CombatFlow::UpdateGameplayEventEffects(float, bool)
             hitDirection.y /= length;
         }
         world_.combat.screenEffectDirector_.TriggerPlayerDamage(hitDirection);
+        world_.resources.input_->Vibrate(0.55f, 0.75f, 0.18f);
         world_.presentation.cameraShakeDuration_ = world_.combat.screenEffectDirector_.GetConfig().cameraShakeDuration;
         world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
         world_.presentation.cameraShakePower_ =
@@ -116,17 +117,21 @@ void CombatFlow::BeginBossDefeatSequence()
         world_.arenaRunController->RefreshTankRunUi();
     }
     world_.combat.bossDefeatHandled_ = true;
+    // The final boss plays a staged finale (push-in, burst chain, closing title) before the result.
+    const bool staged = world_.resources.neonDepthCameraScoped_;
     world_.combat.combatFlow_.BeginBossDefeat(world_.combat.screenEffectDirector_.GetConfig().dissolveSpeed,
-                                              world_.combat.screenEffectDirector_.GetConfig().bossDefeatImpactDelay);
+                                              world_.combat.screenEffectDirector_.GetConfig().bossDefeatImpactDelay, staged ? 4.6f : 0.0f);
     if (world_.combat.flowBannerText_) {
         world_.combat.flowBannerText_->SetText("ボス撃破");
     }
     const cg2::Vector2 center = world_.gameplayQueries->WorldToScreenUv(world_.resources.enemy_->GetWorldPosition());
     world_.combat.screenEffectDirector_.TriggerBossDefeat(center);
+    world_.resources.input_->Vibrate(0.9f, 0.6f, 0.7f);
     world_.presentation.cameraShakeDuration_ = world_.combat.screenEffectDirector_.GetConfig().cameraShakeDuration * 4.5f;
     world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
     world_.presentation.cameraShakePower_ = world_.combat.screenEffectDirector_.GetConfig().cameraShakeStrength * 2.75f;
-    SetEventCallout("ボス撃破", 1.35f);
+    if (!staged)
+        SetEventCallout("ボス撃破", 1.35f);
 }
 
 void CombatFlow::BeginGameOver()

@@ -41,6 +41,39 @@ void CombatTutorial::InitializeSubmissionUi()
     world_.combat.flowBannerText_->SetAnchorPoint({0.5f, 0.5f});
     world_.combat.flowBannerText_->SetPosition({cg2::WinApp::kClientWidth * 0.5f, 170.0f});
 
+    for (auto* bar : {&world_.combat.cinematicBarTop_, &world_.combat.cinematicBarBottom_}) {
+        *bar = std::make_unique<cg2::Sprite>();
+        (*bar)->Initialize(cg2::SpriteCommon::GetInstance(), "resources/white512x512.png");
+        (*bar)->SetColor({0.0f, 0.0f, 0.0f, 1.0f});
+    }
+    cg2::TextStyle cinematicTitleStyle = bannerStyle;
+    cinematicTitleStyle.fontWeight = 700;
+    cinematicTitleStyle.fontSize = 66.0f;
+    cinematicTitleStyle.color = {1.0f, 0.62f, 0.92f, 1.0f};
+    cinematicTitleStyle.outlineColor = {0.10f, 0.0f, 0.08f, 0.95f};
+    cinematicTitleStyle.outlineThickness = 4.0f;
+    world_.combat.cinematicTitle_ = std::make_unique<cg2::TextLabel>();
+    world_.combat.cinematicTitle_->Initialize(cg2::SpriteCommon::GetInstance(), "最終決戦", cinematicTitleStyle);
+    world_.combat.cinematicTitle_->SetAnchorPoint({0.5f, 0.5f});
+    cg2::TextStyle cinematicSubtitleStyle = cinematicTitleStyle;
+    cinematicSubtitleStyle.fontWeight = 400;
+    cinematicSubtitleStyle.fontSize = 22.0f;
+    cinematicSubtitleStyle.color = {0.86f, 0.92f, 1.0f, 1.0f};
+    cinematicSubtitleStyle.outlineThickness = 2.0f;
+    world_.combat.cinematicSubtitle_ = std::make_unique<cg2::TextLabel>();
+    world_.combat.cinematicSubtitle_->Initialize(cg2::SpriteCommon::GetInstance(), "最深部の投影体があらわれた  /  Enterでスキップ",
+                                                 cinematicSubtitleStyle);
+    world_.combat.cinematicSubtitle_->SetAnchorPoint({0.5f, 0.5f});
+    world_.combat.cinematicTitleMode_ = 1;
+
+    cg2::TextStyle bloomViewStyle = bannerStyle;
+    bloomViewStyle.fontSize = 22.0f;
+    bloomViewStyle.color = {1.0f, 0.95f, 0.70f, 1.0f};
+    bloomViewStyle.outlineThickness = 3.0f;
+    world_.combat.bloomViewText_ = std::make_unique<cg2::TextLabel>();
+    world_.combat.bloomViewText_->Initialize(cg2::SpriteCommon::GetInstance(), " ", bloomViewStyle);
+    world_.combat.bloomViewText_->SetAnchorPoint({0.5f, 0.5f});
+
     cg2::TextStyle eventStyle = bannerStyle;
     eventStyle.fontSize = 30.0f;
     eventStyle.color = {0.55f, 1.0f, 0.72f, 1.0f};

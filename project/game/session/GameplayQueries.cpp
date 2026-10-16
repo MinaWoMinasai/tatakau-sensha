@@ -260,6 +260,9 @@ cg2::Object3d* GameplayQueries::GetBallObj()
 /// @brief 最終差分時間を返す。
 float GameplayQueries::GetFinalDeltaTime() const
 {
+    // The boss defeat cinematic is a full-color finale, not the grayscale pause/slow-motion cue.
+    if (world_.combat.combatFlow_.GetState() == GameFlowState::BossDefeatSequence && world_.resources.neonDepthCameraScoped_)
+        return 1.0f / 60.0f;
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (world_.presentation.developerBloomFreeze_ || world_.resources.neonBossDeveloperFreeze_)
         return 1.0f / 60.0f; // Freeze is a comparison, not the grayscale slow-motion effect.

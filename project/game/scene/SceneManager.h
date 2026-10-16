@@ -53,6 +53,8 @@ public:
     IScene::WaterPostProcessSettings GetWaterPostProcessSettings();
     /// @brief 現在シーンのアリーナ表示設定を返す。
     IScene::ArenaLookSettings GetArenaLookSettings();
+    /// @brief 現在シーンのブルーム比較表示の設定を返す。
+    IScene::BloomViewSettings GetBloomViewSettings();
     /// @brief 描画区間の計測値を設定する。
     void SetRenderProfile(const IScene::RenderProfile& profile);
 
