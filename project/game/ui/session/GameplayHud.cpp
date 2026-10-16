@@ -257,8 +257,6 @@ void GameplayHud::DrawSprite()
             world_.expeditionMapController->DrawExpeditionPresentation();
         world_.combat.fade_->Draw();
     }
-    if (world_.run.prototypeRun_)
-        world_.arenaRunController->CopyTankRunCapture();
 }
 
 void GameplayHud::InitializeFollowHpBars(size_t count)

@@ -2,6 +2,7 @@
 #include "LogWrite.h"
 #include "StartupTrace.h"
 
+#include <chrono>
 #include <utility>
 
 SceneManager* SceneManager::GetInstance()
@@ -77,6 +78,8 @@ bool SceneManager::Initialize(const std::string& firstSceneName) {
 
 void SceneManager::Finalize()
 {
+    pendingScene_.reset();
+    pendingSceneName_.clear();
     // Scene resources can refer to engine-owned managers such as SrvManager.
     // Destroy them explicitly while those managers are still alive instead of
     // relying on static-destruction order at process shutdown.
@@ -89,6 +92,22 @@ void SceneManager::Finalize()
 
 void SceneManager::Update() {
     if (!currentScene_) {
+        return;
+    }
+
+    if (pendingScene_) {
+        // Several steps per frame (~33 ms) keep the loading text animated while
+        // avoiding one vsync of idle time per coroutine step.
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(33);
+        bool initialized = false;
+        do initialized = pendingScene_->InitializeStep();
+        while (!initialized && std::chrono::steady_clock::now() < deadline);
+        if (initialized) {
+            currentScene_ = std::move(pendingScene_);
+            currentSceneName_ = std::move(pendingSceneName_);
+            cg2::StartupTrace::Mark("transition.initialized." + currentSceneName_);
+            cg2::StartupTrace::Flush();
+        } else currentScene_->Update(); // Prepare title text after hidden-world font registration.
         return;
     }
 
@@ -107,6 +126,13 @@ void SceneManager::Update() {
 
             if (nextScene) {
                 cg2::StartupTrace::Mark("transition.begin." + currentSceneName_ + "." + nextSceneName);
+                if (currentScene_->KeepTitleDuringTransition()) {
+                    currentScene_->PrepareForTransition();
+                    pendingScene_ = std::move(nextScene);
+                    pendingSceneName_ = nextSceneName;
+                    cg2::StartupTrace::Flush();
+                    return;
+                }
                 {
                     cg2::StartupTrace::Scope scope("Scene.DestroyPrevious." + currentSceneName_);
                     currentScene_ = std::move(nextScene);

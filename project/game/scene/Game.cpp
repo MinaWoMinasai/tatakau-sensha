@@ -14,8 +14,15 @@
 #include "TextLabel.h"
 #include "RuntimeProfiler.h"
 #include "StartupTrace.h"
+#include "BackgroundLoader.h"
+#include "SkinCluster.h"
+#include "TitleScene.h"
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+#include "game/debug/NeonShowcaseCapture.h"
+#endif
 #include <array>
 #include <chrono>
+#include <cstring>
 #include <filesystem>
 #include <string>
 #include <thread>
@@ -246,8 +253,13 @@ bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
 
     cg2::WinApp::GetInstance()->Initialize();
 
+    char asyncFlag[8]{};
+    titleFirst_ = resolvedStartupScene_ == "TITLE" &&
+        !(GetEnvironmentVariableA("CG2_ASYNC_STARTUP", asyncFlag, sizeof(asyncFlag)) == 1 && asyncFlag[0] == '0');
+    // File decoding needs no device, so it overlaps D3D12 device and pipeline creation.
+    if (resolvedStartupScene_ == "TITLE") TitleScene::StartAssetPreloads();
     InitializeEngine();
-    InitializeImGui();
+    if (!titleFirst_) InitializeImGui();
     cg2::StartupTrace::Count("build.developer_tools", cg2::kDeveloperTools ? 1 : 0);
     cg2::StartupTrace::Count("ui.imgui_initialized", imguiInitialized_ ? 1 : 0);
     LoadResources();
@@ -273,9 +285,25 @@ bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
     cg2::LogWrite().Log(
         "[GameProject] Startup scene initialized: '" + resolvedStartupScene_ + "'.\n");
 
+    if (titleFirst_) {
+        presentationTask_ = InitializePresentation();
+    } else {
+        auto presentation = InitializePresentation();
+        while (!presentation.Advance()) {}
+        engineReady_ = true;
+        sceneManager->OnEngineReady();
+    }
+    return true;
+}
+
+cg2::InitializationTask Game::InitializePresentation()
+{
+    if (titleFirst_) InitializeImGui();
+    co_await std::suspend_always{};
     rtvManager_ = std::make_unique<cg2::RtvManager>();
     rtvManager_->Initialize(dxCommon_.get());
 
+    co_await std::suspend_always{};
     bloom_ = std::make_unique<cg2::Bloom>();
 	bloom_->Initialize(dxCommon_.get(), srvManager_.get(), rtvManager_.get());
     char stressCount[16]{};
@@ -287,13 +315,15 @@ bool Game::Initialize(const GameProjectCommandLineOptions& projectOptions) {
         }
     }
 
+    co_await std::suspend_always{};
     cg2::ParticleManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
 
+    co_await std::suspend_always{};
     // 音声読み込み
     cg2::Audio::GetInstance()->Initialize();
     cg2::Audio::GetInstance()->LoadAudio(L"bulletShoot", L"resources/bulletShoot.mp3", 5);
 
-    return true;
+    cg2::StartupTrace::Mark("engine.ready");
 }
 
 void Game::InitializeEngine() {
@@ -301,7 +331,7 @@ void Game::InitializeEngine() {
     const auto timed = [](const char* name, auto&& action) { cg2::StartupTrace::Scope scope(name); action(); };
 
     dxCommon_ = std::make_unique<cg2::DirectXCommon>();
-    timed("Engine.DirectX", [&] { dxCommon_->Initialize(cg2::WinApp::GetInstance()); });
+    timed("Engine.DirectX", [&] { dxCommon_->Initialize(cg2::WinApp::GetInstance(), titleFirst_); });
     cg2::RuntimeProfiler::Get().Initialize(dxCommon_.get());
     char frameLimit[8]{};
     if (GetEnvironmentVariableA("CG2_FRAME_LIMIT", frameLimit, sizeof(frameLimit)) == 1 && frameLimit[0] == '0') {
@@ -319,6 +349,13 @@ void Game::InitializeEngine() {
 
     timed("Engine.Object3d", [&] { cg2::Object3dCommon::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get(), shadow_->GetShadowMap()); });
     timed("Engine.Sprite", [&] { cg2::SpriteCommon::GetInstance()->Initialize(dxCommon_.get()); });
+    // Sprite shares the Object shader. Its unlit path still needs valid root
+    // bindings before any 3D world has supplied camera/light/wake constants.
+    startupConstants_ = dxCommon_->CreateBufferResource(1024);
+    void* startupData = nullptr;
+    startupConstants_->Map(0, nullptr, &startupData);
+    std::memset(startupData, 0, 1024);
+    startupConstants_->Unmap(0, nullptr);
 
     cg2::Input::GetInstance()->Initialize(
         cg2::WinApp::GetInstance()->GetWindowClass(),
@@ -423,6 +460,10 @@ int Game::MainLoop() {
 #endif
     MSG msg{};
     std::string lastPresentedScene;
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    NeonShowcaseCapture startupCapture;
+    const bool captureStartup = testEnabled("CG2_STARTUP_CAPTURE");
+#endif
     unsigned startupValidationFrames = 0;
     while (msg.message != WM_QUIT) {
 		const auto frameStart = std::chrono::steady_clock::now();
@@ -483,6 +524,54 @@ int Game::MainLoop() {
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
         if (GameplayScenarioSession::Get().IsActive()) input->OverrideValidationFrame({640.0f, 360.0f});
 #endif
+        auto* scenes = SceneManager::GetInstance();
+        if (!engineReady_ || scenes->UsesSimpleRendering()) {
+            // Always present one title frame before doing deferred work. This
+            // branch also pumps messages/input every frame during scene loading.
+            if (!engineReady_ && !lastPresentedScene.empty()) {
+                // The title stays black until its demo is ready, so run the
+                // remaining engine steps in ~100 ms slices instead of one per vsync.
+                const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+                while (!engineReady_ && std::chrono::steady_clock::now() < deadline) {
+                    if (!dxCommon_->ArePipelinesReady()) dxCommon_->InitializePipelinesStep();
+                    else if (presentationTask_.Advance()) {
+                        engineReady_ = true;
+                        scenes->OnEngineReady();
+                    }
+                }
+            }
+            scenes->Update();
+            if (scenes->GetCurrentSceneName() != "TITLE") continue;
+            dxCommon_->PreDraw();
+            srvManager_->PreDraw();
+            cg2::SpriteCommon::GetInstance()->PreDraw(cg2::kNormal);
+            auto* list = dxCommon_->GetList().Get();
+            for (const unsigned slot : {3u, 4u, 5u, 6u, 17u})
+                list->SetGraphicsRootConstantBufferView(slot, startupConstants_->GetGPUVirtualAddress());
+            auto* textures = cg2::TextureManager::GetInstance();
+            const auto black = textures->GetSrvHandleGPU(cg2::TextureManager::GetBlackCausticsTexturePath(),
+                cg2::TextureManager::TextureColorSpace::LinearData);
+            list->SetGraphicsRootDescriptorTable(7, black);
+            list->SetGraphicsRootDescriptorTable(18, black);
+            list->SetGraphicsRootDescriptorTable(8, textures->GetSrvHandleGPU(
+                cg2::TextureManager::GetPbrPrefilteredEnvironmentTexturePath(), cg2::TextureManager::TextureColorSpace::LinearData));
+            scenes->DrawSprite();
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+            if (captureStartup && lastPresentedScene.empty())
+                startupCapture.Request("generated/async_startup_capture", "first_title", {{"stage", "first_title"}});
+            startupCapture.Record(*dxCommon_);
+#endif
+            dxCommon_->PostDraw();
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+            startupCapture.Resolve(*dxCommon_);
+#endif
+            if (lastPresentedScene != "TITLE") {
+                cg2::StartupTrace::Mark("first_frame.TITLE");
+                cg2::StartupTrace::Flush();
+                lastPresentedScene = "TITLE";
+            }
+            continue;
+        }
         auto& runtime = cg2::RuntimeProfiler::Get();
         runtime.BeginFrame();
         const int gpuFrame = runtime.BeginGpu("GPU frame");
@@ -683,6 +772,9 @@ int Game::MainLoop() {
 }
 
 void Game::Finalize() {
+    cg2::BackgroundLoader::Get().Shutdown();
+    presentationTask_ = {};
+    cg2::SkinnedModel::ClearPreloadedAssets();
 	// The current scene owns RenderTextures and other GPU resources that keep
 	// non-owning pointers to SrvManager.  Release the scene before the Game
 	// members (and therefore SrvManager) begin their destruction.
@@ -690,6 +782,7 @@ void Game::Finalize() {
 		dxCommon_->ExecuteCommandListAndWait();
 	}
 	SceneManager::GetInstance()->Finalize();
+    startupConstants_.Reset();
     trailStress_.reset();
     cg2::RuntimeProfiler::Get().Shutdown();
 

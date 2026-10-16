@@ -1,6 +1,8 @@
 #include "TextureManager.h"
 #include "StartupTrace.h"
 #include "GeneratedTextureCache.h"
+#include "BackgroundLoader.h"
+#include <stdexcept>
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -858,6 +860,7 @@ void TextureManager::CreateBlackCausticsTexture()
 }
 
 void TextureManager::Finalize() {
+	pendingTextures_.clear();
 	textureDatas.clear();
 	dxCommon_ = nullptr;
 	srvManager_ = nullptr;
@@ -866,9 +869,88 @@ void TextureManager::Finalize() {
 	pbrEnvironmentLoadedFromSource_ = false;
 }
 
+namespace {
+std::shared_ptr<DirectX::ScratchImage> BuildDecodedTexture(DirectX::ScratchImage image,
+    TextureManager::TextureColorSpace colorSpace) {
+    auto result = std::make_shared<DirectX::ScratchImage>();
+    if (DirectX::IsCompressed(image.GetMetadata().format)) *result = std::move(image);
+    else {
+        const auto filter = colorSpace == TextureManager::TextureColorSpace::LinearData
+            ? DirectX::TEX_FILTER_DEFAULT : DirectX::TEX_FILTER_SRGB;
+        if (FAILED(DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(),
+            image.GetMetadata(), filter, 0, *result))) throw std::runtime_error("Texture mip generation failed");
+    }
+    return result;
+}
+}
+
+std::shared_ptr<DirectX::ScratchImage> TextureManager::DecodeTextureMemory(
+    const void* data, size_t size, TextureColorSpace colorSpace) {
+    DirectX::ScratchImage image;
+    const auto flags = colorSpace == TextureColorSpace::LinearData ? DirectX::WIC_FLAGS_NONE : DirectX::WIC_FLAGS_FORCE_SRGB;
+    if (FAILED(DirectX::LoadFromWICMemory(static_cast<const uint8_t*>(data), size, flags, nullptr, image)))
+        throw std::runtime_error("Embedded texture decode failed");
+    return BuildDecodedTexture(std::move(image), colorSpace);
+}
+
+void TextureManager::PreloadTexture(const std::string& path, TextureColorSpace colorSpace) {
+    const auto key = MakeTextureKey(path, colorSpace);
+    if (textureDatas.contains(key) || pendingTextures_.contains(key)) return;
+    std::error_code fileError;
+    if (!std::filesystem::is_regular_file(path, fileError)) return; // Keep the synchronous fallback (e.g. optional skybox).
+    auto result = BackgroundLoader::Get().Submit([path, colorSpace] {
+        StartupTrace::Scope scope("FileThread.Texture." + path);
+        DirectX::ScratchImage image;
+        const auto wide = LogWrite().ConvertString(path);
+        const auto flags = colorSpace == TextureColorSpace::LinearData ? DirectX::WIC_FLAGS_NONE : DirectX::WIC_FLAGS_FORCE_SRGB;
+        const HRESULT hr = std::filesystem::path(path).extension() == ".dds"
+            ? DirectX::LoadFromDDSFile(wide.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image)
+            : DirectX::LoadFromWICFile(wide.c_str(), flags, nullptr, image);
+        if (FAILED(hr)) throw std::runtime_error("Cannot decode " + path);
+        return BuildDecodedTexture(std::move(image), colorSpace);
+    });
+    pendingTextures_.emplace(key, PendingTexture{path, colorSpace, std::move(result)});
+}
+
+void TextureManager::RegisterPreparedTexture(const std::string& key, TextureColorSpace colorSpace,
+    const DirectX::ScratchImage& image) {
+    if (textureDatas.contains(MakeTextureKey(key, colorSpace))) return;
+    StoreGeneratedTexture(key, colorSpace, image, (image.GetMetadata().miscFlags & DirectX::TEX_MISC_TEXTURECUBE) != 0);
+}
+
+void TextureManager::PumpPreloads(unsigned maxUploads) {
+    for (auto it = pendingTextures_.begin(); it != pendingTextures_.end() && maxUploads > 0;) {
+        if (it->second.result.wait_for(std::chrono::seconds(0)) != std::future_status::ready) { ++it; continue; }
+        const auto path = it->second.path;
+        const auto colorSpace = it->second.colorSpace;
+        ++it; // LoadTexture erases its entry; unordered_map erasure preserves other iterators.
+        LoadTexture(path, colorSpace);
+        --maxUploads;
+    }
+}
+
+bool TextureManager::ArePreloadsReady() const {
+    for (const auto& entry : pendingTextures_)
+        if (entry.second.result.wait_for(std::chrono::seconds(0)) != std::future_status::ready) return false;
+    return true;
+}
+
 void TextureManager::LoadTexture(const std::string& filePath, TextureColorSpace colorSpace) {
     const std::string textureKey = MakeTextureKey(filePath, colorSpace);
     if (textureDatas.contains(textureKey)) return;
+
+    if (auto pending = pendingTextures_.find(textureKey); pending != pendingTextures_.end()) {
+        auto result = pending->second.result;
+        pendingTextures_.erase(pending);
+        try {
+            const auto image = result.get();
+            RegisterPreparedTexture(filePath, colorSpace, *image);
+            StartupTrace::Count("Textures.BackgroundUsed");
+            return;
+        } catch (const std::exception& error) {
+            LogWrite().Log("[BackgroundLoader] Texture fallback: " + std::string(error.what()) + "\n");
+        }
+    }
 
     StartupTrace::Scope startupScope("Texture.Load." + filePath);
     StartupTrace::Count("Textures.LoadedFromFile");

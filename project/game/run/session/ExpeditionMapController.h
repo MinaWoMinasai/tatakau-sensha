@@ -1,5 +1,6 @@
 #pragma once
 #include "game/session/GameWorld.h"
+#include "InitializationTask.h"
 
 namespace gameplay {
 /// @brief ExpeditionMapControllerの処理を担当し、同じプレイの共有状態を借用する。
@@ -9,6 +10,7 @@ public:
     explicit ExpeditionMapController(GameWorld& world) : world_(world) {}
     /// @brief 遠征マップを初期化する。
     void InitializeExpeditionMap();
+    cg2::InitializationTask BuildInitialization();
 
     /// @brief 遠征マップを更新する。
     /// @param dt この処理で進める経過時間（秒）。

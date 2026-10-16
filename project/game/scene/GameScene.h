@@ -20,6 +20,7 @@ public:
     ~GameScene() override;
     /// @brief 初期化
     void Initialize() override;
+    bool InitializeStep() override;
 
     /// @brief シーンの状態に応じて戦闘・演出・進行を更新する。戦闘の呼び出し順は実装内に記載する。
     void Update() override;

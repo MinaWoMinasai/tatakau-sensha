@@ -17,6 +17,10 @@ public:
     ~TitleScene() override;
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize() override;
+    void OnEngineReady() override { engineReady_ = true; }
+    bool UsesSimpleRendering() const override { return !demoReady_ || finished_; }
+    bool KeepTitleDuringTransition() const override { return asyncStartup_; }
+    void PrepareForTransition() override;
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update() override;
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
@@ -29,6 +33,9 @@ public:
     void DrawAfterPostEffect3D() override;
     /// @brief スプライトを描画する。
     void DrawSprite() override;
+    void RecordDeveloperFrame(cg2::DirectXCommon&) override;
+    /// @brief タイトルとデモが使うファイルの読み込みを裏で開始する。何度呼んでもよい。
+    static void StartAssetPreloads();
     /// @brief 後処理ガウシアン強度を返す。
     float GetPostGaussianIntensity() const override
     {
@@ -41,7 +48,7 @@ public:
     /// @brief 終了済みであるか判定する。
     bool IsFinished() const override
     {
-        return finished_;
+        return finished_ && engineReady_;
     }
     /// @brief 次のシーン名前を返す。
     std::string GetNextSceneName() const override
@@ -62,6 +69,12 @@ private:
     int HitTestMenu(const cg2::Vector2& mouse) const;
     /// @brief デモ検証を書き込む。
     void WriteDemoValidation(bool fadeComplete);
+    /// @return 先読み待ち以外で処理が進んだ場合true。
+    bool InitializeDemoStep();
+    /// @brief デモがフォント設定を適用した後に、タイトル文字を生成する。
+    void CreateLabels();
+    bool engineReady_ = false, demoReady_ = false, loadingGame_ = false, asyncStartup_ = true, revealed_ = false;
+    unsigned titleFrames_ = 0;
     std::unique_ptr<GameScene> demo_;
     std::unique_ptr<Fade> fade_;
     std::unique_ptr<cg2::Sprite> backgroundVeil_;
