@@ -202,6 +202,13 @@ IScene::WaterPostProcessSettings SceneManager::GetWaterPostProcessSettings()
 		: IScene::WaterPostProcessSettings{};
 }
 
+IScene::BloomViewSettings SceneManager::GetBloomViewSettings()
+{
+	return currentScene_
+		? currentScene_->GetBloomViewSettings()
+		: IScene::BloomViewSettings{};
+}
+
 IScene::ArenaLookSettings SceneManager::GetArenaLookSettings()
 {
 	return currentScene_

@@ -5,6 +5,7 @@
 #endif
 #include <dinput.h>
 #include <span>
+#include <vector>
 #include <cassert>
 #include <Xinput.h>
 #include "Struct.h"
@@ -12,7 +13,11 @@
 
 namespace cg2 {
 
+/// @brief 最後に操作された入力機器。操作説明の表記と照準の取り方を切り替える。
+enum class InputDevice { KeyboardMouse, Gamepad };
+
 /// @brief キーボード・マウス・ゲームパッドの前回と今回の状態を保持する。
+/// ゲームパッドの操作は、既存のキー・マウスの状態へ変換して合成する（メニュー等の既存処理をそのまま使う）。
 class Input {
 
 public:
@@ -88,7 +93,28 @@ public:
     /// @brief ウィンドウ内のマウス位置を返す。
     Vector2 GetMousePosition() const;
 
+    /// @brief 最後に操作された入力機器を返す。
+    InputDevice GetActiveDevice() const { return activeDevice_; }
+    /// @brief 最後の操作がゲームパッドであるか。
+    bool IsGamepadActive() const { return activeDevice_ == InputDevice::Gamepad; }
+    /// @brief ゲームパッドが接続されているか。
+    bool IsGamepadConnected() const { return gamepadConnected_; }
+    /// @brief 入力機器が切り替わるたびに増える番号。操作説明の文字を作り直す判定に使う。
+    uint32_t GetPromptRevision() const { return promptRevision_; }
+    /// @brief 戦闘を操作中のフレームで毎回呼ぶ。次のフレームのボタン割り当てを戦闘用にする。
+    void RequestGamepadGameplayContext() { gameplayContextRequested_ = true; }
+    /// @brief 移動入力（左スティック、戦闘中は十字キーも）。半径方向のデッドゾーン処理済み、長さ0〜1。
+    Vector2 GetGamepadMove() const;
+    /// @brief 右スティックの照準方向。倒していなければfalse。
+    bool TryGetGamepadAim(Vector2& direction) const;
+    /// @brief ゲームパッドを振動させる（0〜1、秒）。強い方・長い方を残す。
+    void Vibrate(float lowFrequency, float highFrequency, float seconds);
+
 private:
+    /// @brief ゲームパッドの操作を、キー・マウスの状態へ変換して合成する。
+    void TranslateGamepad();
+    /// @brief 振動の残り時間を進め、モーターへ反映する。
+    void UpdateVibration();
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
     bool validationFrame_ = false;
     Vector2 validationMousePosition_{};
@@ -106,6 +132,26 @@ private:
     DIMOUSESTATE preMouseState_;
     XINPUT_STATE currentGamepadState_{};
     XINPUT_STATE previousGamepadState_{};
+    bool gamepadConnected_ = false;
+    uint32_t gamepadPollCountdown_ = 0;
+    InputDevice activeDevice_ = InputDevice::KeyboardMouse;
+    uint32_t promptRevision_ = 0;
+    bool gameplayContextRequested_ = false;
+    bool gameplayContext_ = false;
+    // Menu navigation: direction held state and auto-repeat timers (frames).
+    uint8_t heldDirections_ = 0;
+    uint32_t directionRepeatFrames_ = 0;
+    float vibrationLow_ = 0.0f, vibrationHigh_ = 0.0f, vibrationSeconds_ = 0.0f;
+    bool vibrationApplied_ = false;
+#if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
+    // Development check without hardware: CG2_FAKE_GAMEPAD names a text file of scripted pad states,
+    // one segment per line: firstFrame endFrame buttons(hex) lx ly rx ry lt rt  (sticks -1..1, triggers 0..1).
+    struct FakeGamepadSegment { uint32_t first = 0, end = 0; XINPUT_GAMEPAD pad{}; };
+    std::vector<FakeGamepadSegment> fakeGamepad_;
+    bool fakeGamepadLoaded_ = false;
+    uint32_t fakeGamepadFrame_ = 0;
+    bool PollFakeGamepad();
+#endif
 
     IDirectInputDevice8* mouse_ = nullptr;
     IDirectInputDevice8* keyboard_ = nullptr;

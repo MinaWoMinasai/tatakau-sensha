@@ -72,6 +72,11 @@ IScene::ScreenEffectState GameScene::GetScreenEffectState() const
     return session_->GetScreenEffectState();
 }
 
+IScene::BloomViewSettings GameScene::GetBloomViewSettings() const
+{
+    return session_->GetBloomViewSettings();
+}
+
 IScene::ArenaLookSettings GameScene::GetArenaLookSettings() const
 {
     return arenalook::Get();

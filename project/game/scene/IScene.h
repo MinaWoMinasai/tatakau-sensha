@@ -71,6 +71,11 @@ public:
         cg2::Vector3 nebulaColorA{0.30f, 0.05f, 0.42f};
         cg2::Vector3 nebulaColorB{0.06f, 0.02f, 0.30f};
     };
+    /// @brief ブルームの説明用の表示切り替え。view: 0=通常, 1=OFF, 2=ピラミッドの1段だけ, 3=光の成分だけ。
+    struct BloomViewSettings {
+        int view = 0;
+        int level = 0; // view==2 のときの段（0=1/2解像度 … 4=1/32解像度）
+    };
     /// @brief シーン描画の区間ごとの所要時間を記録する。
     struct RenderProfile {
         float frameTotalMs = 0.0f;
@@ -137,6 +142,11 @@ public:
     }
     /// @brief アリーナ表示の設定を返す。既定は無効。
     virtual ArenaLookSettings GetArenaLookSettings() const
+    {
+        return {};
+    }
+    /// @brief ブルームの比較表示の設定を返す。既定は通常表示。
+    virtual BloomViewSettings GetBloomViewSettings() const
     {
         return {};
     }

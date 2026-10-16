@@ -269,7 +269,8 @@ void ExpeditionExperience::UpdateGuidedExpedition(float dt)
     using S = tankexp::GuidedCombatTutorial::Stage;
     const auto before = world_.run.expeditionGuide_.GetStage();
     const auto mouse = world_.resources.input_->GetMouseState(), previous = world_.resources.input_->GetPreMouseState();
-    const bool click = world_.resources.input_->IsTrigger(mouse.rgbButtons[0], previous.rgbButtons[0]);
+    const bool click = world_.resources.input_->IsTrigger(mouse.rgbButtons[0], previous.rgbButtons[0]) ||
+                       world_.resources.input_->IsKeyTriggered(DIK_RETURN);
     if (IsGuidedExpeditionPaused()) {
         if (click && world_.run.expeditionGuideAge_ > 0.25f) {
             AcknowledgeGuidedExpedition();

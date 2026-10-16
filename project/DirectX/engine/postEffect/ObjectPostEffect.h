@@ -88,6 +88,7 @@ private:
     BloomParam param_{};
     BloomParam cachedFilterParam_{};
     uint32_t cachedBloomSrv_ = 0;
+    uint32_t cachedPresentationGeneration_ = 0;
     float timer_ = 0.0f;
     uint32_t renderWidth_ = WinApp::kRenderWidth;
     uint32_t renderHeight_ = WinApp::kRenderHeight;

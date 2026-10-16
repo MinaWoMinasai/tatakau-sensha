@@ -11,6 +11,7 @@
 #include "../runtime/SceneRegistry.h"
 #include "Audio.h"
 #include "TextRenderer.h"
+#include "TextLabel.h"
 #include "RuntimeProfiler.h"
 #include "StartupTrace.h"
 #include <array>
@@ -477,6 +478,8 @@ int Game::MainLoop() {
 		const auto inputImGuiStart = std::chrono::steady_clock::now();
 		// 前のフレームのキー状態を保存
         input->BeforeFrameData();
+        // Device switch: re-render operation prompts now, outside of draw command recording.
+        cg2::TextLabel::RefreshAllInputPrompts();
 #if CG2_DEVELOPER_TOOLS && !defined(NDEBUG)
         if (GameplayScenarioSession::Get().IsActive()) input->OverrideValidationFrame({640.0f, 360.0f});
 #endif
