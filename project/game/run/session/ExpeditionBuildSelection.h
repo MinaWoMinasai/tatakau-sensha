@@ -1,5 +1,6 @@
 #pragma once
 #include "game/session/GameWorld.h"
+#include "InitializationTask.h"
 
 namespace gameplay {
 /// @brief ExpeditionBuildSelectionの処理を担当し、同じプレイの共有状態を借用する。
@@ -9,6 +10,7 @@ public:
     explicit ExpeditionBuildSelection(GameWorld& world) : world_(world) {}
     /// @brief 遠征強化ビルドカードを初期化する。
     void InitializeExpeditionBuildCards();
+    cg2::InitializationTask BuildInitialization();
 
     /// @brief 遠征強化ビルドカードを最新の内容へ更新する。
     void RefreshExpeditionBuildCards();

@@ -114,6 +114,13 @@ bool Inside(cg2::Vector2 mouse, float x, float y, float w, float h)
 void ExpeditionMapController::InitializeExpeditionMap()
 {
     cg2::StartupTrace::Scope scope("Expedition.Map");
+    auto initialization = BuildInitialization();
+    while (!initialization.Advance()) {}
+}
+
+cg2::InitializationTask ExpeditionMapController::BuildInitialization()
+{
+
     world_.run.expeditionMapEnabled_ = true;
     world_.run.expeditionMapDefinition_ = tankexp::DefaultExpeditionMap();
     world_.run.expeditionRooms_ = tankexp::DefaultRoomCatalog();
@@ -199,6 +206,7 @@ void ExpeditionMapController::InitializeExpeditionMap()
             world_.run.expeditionMapSelection_ = id;
             break;
         }
+    co_await std::suspend_always{};
     const cg2::Vector4 white{0.83f, 0.96f, 1, 1}, muted{0.42f, 0.64f, 0.75f, 1};
     world_.run.expeditionMapTitle_ = MapLabel(32, {44, 85}, white);
     world_.run.expeditionMapSubtitle_ = MapLabel(16, {46, 133}, muted);
@@ -217,7 +225,9 @@ void ExpeditionMapController::InitializeExpeditionMap()
         world_.run.expeditionMapGrid_.push_back(MapRect({static_cast<float>(x), 152}, {1, 420}, {0.08f, 0.26f, 0.35f, 0.13f}));
     for (int y = 152; y <= 572; y += 35)
         world_.run.expeditionMapGrid_.push_back(MapRect({36, static_cast<float>(y)}, {1208, 1}, {0.08f, 0.26f, 0.35f, 0.13f}));
+    co_await std::suspend_always{};
     for (const auto& node : world_.run.expeditionMapRun_.GetDefinition().nodes) {
+        co_await std::suspend_always{};
         MapNodeVisual v;
         v.halo = MapRect({0, 0}, {55, 55}, NodeColor(node.kind));
         v.rim = MapRect({0, 0}, {46, 46}, NodeColor(node.kind));
@@ -261,7 +271,8 @@ void ExpeditionMapController::InitializeExpeditionMap()
         std::filesystem::create_directories("generated/expedition_map");
         std::ofstream("generated/expedition_map/validation.json") << "{\"completed\":false}\n";
     }
-    world_.expeditionBuildSelection->InitializeExpeditionBuildCards();
+    auto cards = world_.expeditionBuildSelection->BuildInitialization();
+    while (!cards.Advance()) co_await std::suspend_always{};
     RefreshExpeditionMapUi();
 }
 

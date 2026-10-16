@@ -231,13 +231,18 @@ const std::vector<SurfaceWall>& Stage::GetSurfaceWalls(const stagesurface::Setti
 }
 
 void Stage::Initialize() {
-
-	mapChip_ = std::make_unique<MapChip>();
-	mapChip_->LoadMapChipCsv("resources/map.csv");
-	GenerateBlocks();
+    auto initialization = BuildInitialization();
+    while (!initialization.Advance()) {}
 }
 
-bool Stage::LoadRunMap(const std::string& csvPath)
+cg2::InitializationTask Stage::BuildInitialization() {
+    mapChip_ = std::make_unique<MapChip>();
+    mapChip_->LoadMapChipCsv("resources/map.csv");
+    auto blocks = BuildBlocks();
+    while (!blocks.Advance()) co_await std::suspend_always{};
+}
+
+bool Stage::LoadRunMap(const std::string& csvPath, bool deferBlockBuild)
 {
 	std::ifstream input(csvPath);
 	if (!input) return false;
@@ -267,7 +272,7 @@ bool Stage::LoadRunMap(const std::string& csvPath)
 	mapChip_ = std::move(nextMap);
 	// GenerateBlocksは空白セルの旧ブロックを消さないため、前の部屋の有効ブロックを先に全消去する。
 	ClearBlocksForPreview();
-	GenerateBlocks();
+	if (!deferBlockBuild) GenerateBlocks();
 	return true;
 }
 
@@ -378,6 +383,11 @@ void Stage::ClearLevelObstacles()
 }
 
 void Stage::GenerateBlocks() {
+    auto blocks = BuildBlocks();
+    while (!blocks.Advance()) {}
+}
+
+cg2::InitializationTask Stage::BuildBlocks() {
 	InitializeSurfaceModels();
 
 	uint32_t numBlockHorizontal = mapChip_->GetNumBlockHorizontal();
@@ -435,6 +445,7 @@ void Stage::GenerateBlocks() {
 				block.type = mapChip_->GetMapChipTypeByIndex(x, y);
 			}
 		}
+        co_await std::suspend_always{};
 	}
 
 	RebuildMergedBlocks();

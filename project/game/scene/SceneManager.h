@@ -27,6 +27,8 @@ public:
     }
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update();
+    bool UsesSimpleRendering() const { return pendingScene_ || (currentScene_ && currentScene_->UsesSimpleRendering()); }
+    void OnEngineReady() { if (currentScene_) currentScene_->OnEngineReady(); }
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
     void Draw();
     /// @brief 後処理演出3Dを描画する。
@@ -61,6 +63,8 @@ public:
 private:
     // 現在のシーンを抽象的な型で保持
     std::unique_ptr<IScene> currentScene_ = nullptr;
+    std::unique_ptr<IScene> pendingScene_;
+    std::string pendingSceneName_;
     std::unique_ptr<AbstractSceneFactory> sceneFactory_ = nullptr;
 
     // 現在のシーン名を保持（必要な場合のみ）

@@ -112,6 +112,8 @@ private:
 /// @brief 骨格とアニメーションの再生状態を持ち、スキニングモデルを描画する。
 class SkinnedModel {
 public:
+    static void PreloadAsset(const std::string& filePath);
+    static void ClearPreloadedAssets();
     // Explicit frame-boundary teardown for presentation owners. The caller must
     // keep SrvManager alive and wait for the last GPU use before calling this.
     void ReleaseGpuResources();

@@ -10,6 +10,8 @@ void GameSession::Initialize()
     world_->sessionBootstrap->Initialize();
 }
 
+bool GameSession::InitializeStep() { return world_->sessionBootstrap->InitializeStep(); }
+
 void GameSession::Update()
 {
     world_->combatFramePipeline->Update();
@@ -102,6 +104,7 @@ void GameSession::RecordDeveloperPostParameters(const cg2::BloomParam& param)
 void GameSession::RecordDeveloperFrame(cg2::DirectXCommon& dx)
 {
     world_->gameplayQueries->RecordDeveloperFrame(dx);
+    if (world_->run.prototypeRun_) world_->arenaRunController->CopyTankRunCapture();
 }
 
 void GameSession::SetRenderProfile(const IScene::RenderProfile& profile)

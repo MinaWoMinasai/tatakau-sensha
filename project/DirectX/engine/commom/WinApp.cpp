@@ -1,4 +1,5 @@
 #include "WinApp.h"
+#include "StartupTrace.h"
 
 #include <algorithm>
 
@@ -135,6 +136,7 @@ void WinApp::Initialize()
 
 	// ウィンドウを表示する
 	ShowWindow(hwnd_, SW_SHOW);
+    cg2::StartupTrace::Mark("window.shown");
 
 	// システムタイマーの分解度をあげる
 	timeBeginPeriod(1);
