@@ -102,7 +102,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
 {
     const bool usesSceneNormalTarget = renderTargetFormat == kSceneRenderTargetFormat &&
                                        (pso.shaderType_ == Object || pso.shaderType_ == Skinning || pso.shaderType_ == Skybox ||
-                                        pso.shaderType_ == Ocean || pso.shaderType_ == Trail || pso.shaderType_ == ModelParticle);
+                                        pso.shaderType_ == Trail || pso.shaderType_ == ModelParticle);
 
     // 1. 各タイプごとのシェーダーパスとルートシグネチャ初期化
     switch (pso.shaderType_) {
@@ -199,11 +199,6 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
         pso.root_.InitializeForSkybox(); // 前回作成した関数
         pso.vsFilePath_ = L"resources/shaders/Skybox.VS.hlsl";
         pso.psFilePath_ = usesSceneNormalTarget ? L"resources/shaders/Skybox.Scene.PS.hlsl" : L"resources/shaders/Skybox.PS.hlsl";
-        break;
-    case Ocean:
-        pso.root_.InitializeForOcean();
-        pso.vsFilePath_ = L"resources/shaders/Ocean.VS.hlsl";
-        pso.psFilePath_ = L"resources/shaders/Ocean.PS.hlsl";
         break;
     case Skinning:
         pso.root_.InitalizeForObject();
@@ -450,7 +445,6 @@ InitializationTask DirectXCommon::BuildPipelines()
     objectPSO_None_HDR.shaderType_ = Object;
     objectPSO_Alpha_HDR.shaderType_ = Object;
     objectPSO_Add_HDR.shaderType_ = Object;
-    oceanPSO_HDR.shaderType_ = Ocean;
     psoParticle_.shaderType_ = Particle;
     psoModelParticle_.shaderType_ = ModelParticle;
     psoModelParticle_HDR.shaderType_ = ModelParticle;
@@ -536,8 +530,6 @@ InitializationTask DirectXCommon::BuildPipelines()
     CreateShaderCommon(objectPSO_Alpha_HDR, kNormal, false, kSceneRenderTargetFormat);
     co_await std::suspend_always{};
     CreateShaderCommon(objectPSO_Add_HDR, kAdd, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(oceanPSO_HDR, kNone, false, kSceneRenderTargetFormat);
     co_await std::suspend_always{};
     CreateShaderCommon(psoParticle_, kAdd);
     co_await std::suspend_always{};

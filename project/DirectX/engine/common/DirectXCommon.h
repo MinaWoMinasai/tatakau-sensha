@@ -84,7 +84,6 @@ public:
         Shadow,
         Trail,
         Skybox,
-        Ocean,
         Skinning,
         SkinningShadow,
     };
@@ -433,12 +432,6 @@ public:
     /// @brief 深度を持たないHDRキャプチャにはDSVなしの互換PSOを再利用する。
     ID3D12PipelineState* GetObjectScenePipeline(BlendMode blendMode);
 
-    /// @brief PSO海面用のシーンを返す。
-    PSO& GetPSOOceanForScene()
-    {
-        return oceanPSO_HDR;
-    }
-
     /// @brief PSO粒子を返す。
     PSO& GetPSOParticle()
     {
@@ -751,7 +744,6 @@ private:
     PSO objectPSO_None_HDR;
     PSO objectPSO_Alpha_HDR;
     PSO objectPSO_Add_HDR;
-    PSO oceanPSO_HDR;
     PSO psoParticle_;
     PSO psoModelParticle_;
     PSO psoModelParticle_HDR;

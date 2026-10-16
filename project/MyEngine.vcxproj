@@ -175,11 +175,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="DirectX\engine\audio\AudioManager.cpp" />
-    <ClCompile Include="DirectX\engine\common\CylinderManager.cpp" />
     <ClCompile Include="DirectX\engine\common\NeonGridRenderer.cpp" />
     <ClCompile Include="DirectX\engine\common\NeonGridGeometry.cpp" />
-    <ClCompile Include="DirectX\engine\common\ProceduralFlameRenderer.cpp" />
     <ClCompile Include="DirectX\engine\common\RingManager.cpp" />
     <ClCompile Include="DirectX\engine\common\TrailInstance.cpp" />
     <ClCompile Include="DirectX\engine\common\TrailManager.cpp">
@@ -219,7 +216,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\particle\EffectSequencer.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
@@ -319,7 +315,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="DirectX\engine\2d\TextureManager.cpp" />
     <ClCompile Include="DirectX\engine\3d\Object3dCommon.cpp" />
     <ClCompile Include="DirectX\engine\3d\Object3d.cpp" />
-    <ClCompile Include="DirectX\engine\3d\OceanRenderer.cpp" />
     <ClCompile Include="DirectX\engine\3d\Animation.cpp" />
     <ClCompile Include="DirectX\engine\3d\Skeleton.cpp" />
     <ClCompile Include="DirectX\engine\3d\SkinCluster.cpp" />
@@ -358,22 +353,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="resources\shaders\Object3d.VS.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Development|x64'">Vertex</ShaderType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
-    </FxCompile>
-    <FxCompile Include="resources\shaders\Ocean.PS.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Development|x64'">Pixel</ShaderType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
-    </FxCompile>
-    <FxCompile Include="resources\shaders\Ocean.VS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Development|x64'">Vertex</ShaderType>
@@ -445,31 +424,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="resources\shaders\ProceduralFlame.PS.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Development|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </FxCompile>
-    <FxCompile Include="resources\shaders\ProceduralFlame.VS.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Development|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="DirectX\engine\audio\AudioManager.h" />
     <ClInclude Include="DirectX\engine\common\BackgroundLoader.h" />
     <ClInclude Include="DirectX\engine\common\InitializationTask.h" />
-    <ClInclude Include="DirectX\engine\common\CylinderManager.h" />
     <ClInclude Include="DirectX\engine\common\NeonGridRenderer.h" />
     <ClInclude Include="DirectX\engine\common\NeonGridGeometry.h" />
-    <ClInclude Include="DirectX\engine\common\ProceduralFlameRenderer.h" />
     <ClInclude Include="DirectX\engine\common\RingManager.h" />
     <ClInclude Include="DirectX\engine\common\TrailInstance.h" />
     <ClInclude Include="DirectX\engine\common\TrailManager.h" />
@@ -478,7 +438,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\postEffect\Bloom.h" />
     <ClInclude Include="DirectX\engine\postEffect\BloomPyramid.h" />
     <ClInclude Include="DirectX\engine\postEffect\ObjectPostEffect.h" />
-    <ClInclude Include="DirectX\engine\particle\EffectSequencer.h" />
     <ClInclude Include="game\scene\AbstractSceneFactory.h" />
     <ClInclude Include="DirectX\engine\postEffect\BloomConstantBuffer.h" />
     <ClInclude Include="DirectX\engine\postEffect\PostEffect.h" />
@@ -528,14 +487,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\2d\TextureManager.h" />
     <ClInclude Include="DirectX\engine\3d\Object3dCommon.h" />
     <ClInclude Include="DirectX\engine\3d\Object3d.h" />
-    <ClInclude Include="DirectX\engine\3d\OceanRenderer.h" />
     <ClInclude Include="DirectX\engine\3d\Animation.h" />
     <ClInclude Include="DirectX\engine\3d\Skeleton.h" />
     <ClInclude Include="DirectX\engine\3d\SkinCluster.h" />
     <ClInclude Include="DirectX\engine\3d\Model.h" />
     <ClInclude Include="DirectX\engine\3d\ModelCommon.h" />
     <ClInclude Include="DirectX\engine\3d\ModelManager.h" />
-    <ClInclude Include="DirectX\engine\3d\PbrEnvironment.h" />
     <ClInclude Include="DirectX\engine\common\SrvManager.h" />
     <ClInclude Include="game\exp\EnemyManager.h" />
     <ClInclude Include="game\exp\ExpEnemy.h" />
@@ -642,16 +599,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
     </None>
-    <None Include="resources\shaders\OceanCommon.hlsli">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
-    </None>
-    <None Include="resources\shaders\OceanFFTCommon.hlsli" />
-    <None Include="resources\shaders\OceanSpectrumInitialize.CS.hlsl" />
-    <None Include="resources\shaders\OceanSpectrumEvolve.CS.hlsl" />
-    <None Include="resources\shaders\OceanFFT.CS.hlsl" />
-    <None Include="resources\shaders\OceanFFTOutput.CS.hlsl" />
     <None Include="resources\shaders\Trail.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
