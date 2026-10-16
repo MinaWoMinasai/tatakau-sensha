@@ -154,21 +154,23 @@ bool TitleScene::InitializeDemoStep() {
 
 void TitleScene::PrepareForTransition() {
     // Detach simulation callbacks/cameras before initializing the next world.
-    // The title's text/sprites remain available for the loading presentation.
+    // The screen has already faded to black; keep it black and show only a small
+    // static loading caption, so the title never reappears without its demo.
     demo_.reset();
     demoReady_=false;
     loadingGame_=true;
     cg2::Object3dCommon::GetInstance()->SetDefaultCamera(nullptr);
     cg2::Object3dCommon::GetInstance()->SetDebugDefaultCamera(nullptr);
     demoCaption_->SetText("遠征を準備しています…");
+    demoCaption_->SetAnchorPoint({1.0f,1.0f});
+    demoCaption_->SetPosition({static_cast<float>(cg2::WinApp::kClientWidth)-28,static_cast<float>(cg2::WinApp::kClientHeight)-24});
 }
 void TitleScene::Update() {
     constexpr float dt=1.0f/60.0f;
     blinkTimer_+=dt;
     if(asyncStartup_ && titleFrames_++>0) cg2::TextureManager::GetInstance()->PumpPreloads();
     if(loadingGame_) {
-        menu_[0]->SetAlpha(0.65f+0.25f*std::sin(blinkTimer_*3.2f));
-        PrepareLabels({title_.get(),subtitle_.get(),hint_.get(),demoCaption_.get(),menu_[0].get()});
+        PrepareLabels({demoCaption_.get()});
         return;
     }
     if(!demoReady_) {
@@ -272,10 +274,11 @@ void TitleScene::DrawSprite(){
     // The frame on which the demo completes is still recorded by the simple
     // path; keep it black so the title first appears together with the demo.
     if(!title_||!revealed_) {revealed_=demoReady_||loadingGame_;return;}
+    if(loadingGame_) {demoCaption_->Draw();return;}
     title_->Draw();subtitle_->Draw();
     for(int i=0;i<1;++i) if(IsMenuAvailable(i)) menu_[i]->Draw();
     hint_->Draw();demoCaption_->Draw();
-    if(!loadingGame_ && (demoReady_ || phase_==Phase::kFadeOut)) fade_->Draw();
+    if(demoReady_ || phase_==Phase::kFadeOut) fade_->Draw();
 }
 void TitleScene::RecordDeveloperFrame(cg2::DirectXCommon&) {
     if(demoReady_) demo_->CopyTitleDemoCapture(); // Final backbuffer, after CRT composition.
