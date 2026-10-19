@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- エンジンを使うゲーム（実行ファイル）のプロジェクトが、Microsoft.Cpp.targets の後に Import する処理。
+     実行に必要な DLL（DXC と Assimp）を実行ファイルの隣へ置く。 -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MyEngineAssimpRoot>$(MSBuildThisFileDirectory)externals\assimp\</MyEngineAssimpRoot>
+    <MyEngineDxcBinDir>$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\</MyEngineDxcBinDir>
+  </PropertyGroup>
+  <Target Name="MyEngineValidateAssimpLocalBinaries" BeforeTargets="Link">
+    <Error Condition="!Exists('$(MyEngineAssimpRoot)lib\$(AssimpLibraryName).lib')"
+           Text="Assimp import library is missing. This generated file is intentionally not committed. Run project\build\bootstrap_dependencies.ps1, or rebuild/copy it locally to project\externals\assimp\lib\$(AssimpLibraryName).lib. See project\externals\assimp\README.md." />
+    <Error Condition="!Exists('$(MyEngineAssimpRoot)runtime\$(AssimpLibraryName).dll')"
+           Text="Assimp runtime DLL is missing. This generated file is intentionally not committed. Run project\build\bootstrap_dependencies.ps1, or rebuild/copy it locally to project\externals\assimp\runtime\$(AssimpLibraryName).dll. See project\externals\assimp\README.md." />
+  </Target>
+  <!-- エンジン付属の素材を、MyEngine.Game.props の MyEngineResourceCopyDir へコピーする。
+       MyEngineResourceCopyDir を持たないプロジェクト（エンジンのリポジトリ内のゲーム）ではコピーしない。 -->
+  <Target Name="MyEngineCopyEngineResources" AfterTargets="Build" Condition="'$(MyEngineResourceCopyDir)'!=''">
+    <ItemGroup>
+      <MyEngineShaderFile Include="$(MyEngineResourceSourceDir)shaders\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(MyEngineShaderFile)"
+          DestinationFiles="@(MyEngineShaderFile->'$(MyEngineResourceCopyDir)shaders\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(MyEngineResourceSourceDir)white512x512.png"
+          DestinationFolder="$(MyEngineResourceCopyDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="MyEngineCopyRuntimeFiles" AfterTargets="Build">
+    <Copy SourceFiles="$(MyEngineDxcBinDir)dxcompiler.dll;$(MyEngineDxcBinDir)dxil.dll;$(MyEngineAssimpRoot)runtime\$(AssimpLibraryName).dll"
+          DestinationFolder="$(TargetDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

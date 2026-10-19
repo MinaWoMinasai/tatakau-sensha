@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- エンジンを使うゲーム（実行ファイル）のプロジェクトが Import する設定。
+     使い方（ゲーム側の vcxproj）:
+       Microsoft.Cpp.Default.props の後に  MyEngine.Configuration.props
+       Microsoft.Cpp.props の後に          MyEngine.Game.props（このファイル）
+       Microsoft.Cpp.targets の後に        MyEngine.Game.targets
+     ソリューションは <ゲーム>\project\ に置く。エンジンとゲームのビルド成果物は <ゲーム>\generated\ に出力される。
+     Visual Studio からビルドする場合は、MyEngineCore.vcxproj と DirectXTex のプロジェクトもソリューションに追加する。 -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildThisFileDirectory)MyEngine.Common.props" />
+  <PropertyGroup>
+    <!-- エンジンの project ディレクトリ（このファイルの場所）。 -->
+    <MyEngineRoot>$(MSBuildThisFileDirectory)</MyEngineRoot>
+    <!-- エンジン付属の素材（シェーダー・既定テクスチャ）。ビルド時に MyEngine.Game.targets がゲーム側へコピーする。
+         エンジンは日本語などを含む絶対パスを std::filesystem::path へ渡すと例外になるため、
+         作業ディレクトリ（ゲームの project ディレクトリ）からの相対パスで渡す。 -->
+    <MyEngineResourceSourceDir>$(MSBuildThisFileDirectory)resources\</MyEngineResourceSourceDir>
+    <MyEngineResourceCopyDir Condition="'$(MyEngineResourceCopyDir)'==''">$(SolutionDir)..\generated\engine_resources\</MyEngineResourceCopyDir>
+    <MyEngineResourceRoot>$([MSBuild]::MakeRelative('$(ProjectDir)', '$(MyEngineResourceCopyDir)').TrimEnd('\').Replace('\', '/'))</MyEngineResourceRoot>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <!-- ゲーム側のディレクトリを先に探すように、エンジンのディレクトリは後ろへ足す。
+           シーンとゲームモジュールの基盤は "game/runtime/Application.h" のようにエンジンのルートからのパスで include する。 -->
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(MyEngineIncludeDirectories)</AdditionalIncludeDirectories>
+      <!-- IApplicationHooks::GetEngineResourceRoot から返すための、エンジン付属の素材の場所（作業ディレクトリからの相対パス）。 -->
+      <PreprocessorDefinitions>MYENGINE_ENGINE_RESOURCE_ROOT="$(MyEngineResourceRoot)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(MyEngineRoot)externals\assimp\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(AssimpLibraryName).lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(MyEngineRoot)MyEngineCore.vcxproj">
+      <Project>{4e1c6b52-8d0a-4f3e-9b7a-2c5d81f0a6e3}</Project>
+    </ProjectReference>
+    <ProjectReference Include="$(MyEngineRoot)externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
+      <Project>{371b9fa9-4c90-4ac6-a123-aced756d6c77}</Project>
+    </ProjectReference>
+  </ItemGroup>
+</Project>

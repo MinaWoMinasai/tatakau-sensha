@@ -73,10 +73,6 @@
       <AdditionalLibraryDirectories>$(ProjectDir)externals\assimp\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>$(AssimpLibraryName).lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PreBuildEvent>
-      <Command>copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
-copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dxil.dll"</Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -91,10 +87,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <AdditionalLibraryDirectories>$(ProjectDir)externals\assimp\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>$(AssimpLibraryName).lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PostBuildEvent>
-      <Command>copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
-copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dxil.dll"</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
     <ClCompile>
@@ -109,10 +101,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <AdditionalLibraryDirectories>$(ProjectDir)externals\assimp\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>$(AssimpLibraryName).lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PostBuildEvent>
-      <Command>copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
-copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dxil.dll"</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <Link>
@@ -366,17 +354,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="tools\level_aiditor\README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <Target Name="ValidateAssimpLocalBinaries" BeforeTargets="Link">
-    <Error Condition="!Exists('$(ProjectDir)externals\assimp\lib\$(AssimpLibraryName).lib')"
-           Text="Assimp import library is missing. This generated file is intentionally not committed. Run project\build\bootstrap_dependencies.ps1, or rebuild/copy it locally to project\externals\assimp\lib\$(AssimpLibraryName).lib. See project\externals\assimp\README.md." />
-    <Error Condition="!Exists('$(ProjectDir)externals\assimp\runtime\$(AssimpLibraryName).dll')"
-           Text="Assimp runtime DLL is missing. This generated file is intentionally not committed. Run project\build\bootstrap_dependencies.ps1, or rebuild/copy it locally to project\externals\assimp\runtime\$(AssimpLibraryName).dll. See project\externals\assimp\README.md." />
-  </Target>
-  <Target Name="CopyAssimpRuntime" AfterTargets="Build">
-    <Copy SourceFiles="$(ProjectDir)externals\assimp\runtime\$(AssimpLibraryName).dll"
-          DestinationFolder="$(TargetDir)"
-          SkipUnchangedFiles="true" />
-  </Target>
+  <!-- 実行に必要なDLL（DXC・Assimp）のコピーとAssimpの確認は、エンジンを使うゲーム共通の処理を使う。 -->
+  <Import Project="MyEngine.Game.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
   <ItemGroup>
