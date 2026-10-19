@@ -241,7 +241,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManag
     bloomCB_->Update(bloomParam_);
 }
 
-void Bloom::Update()
+void Bloom::Update(const BloomFrameSettings& frameSettings)
 {
 #ifdef USE_IMGUI
 
@@ -546,7 +546,7 @@ void Bloom::Update()
     temporalJitterScale_ = (std::clamp)(temporalJitterScale_, 0.0f, 2.0f);
     bloomParam_.temporalJitterEnabled = enableTemporalJitter_ ? 1.0f : 0.0f;
     bloomParam_.temporalJitterScale = temporalJitterScale_;
-    const IScene::WaterPostProcessSettings waterSettings = SceneManager::GetInstance()->GetWaterPostProcessSettings();
+    const WaterPostProcessSettings& waterSettings = frameSettings.water;
     bloomParam_.waterDiagnosticsEnabled = waterSettings.diagnosticsEnabled ? 1.0f : 0.0f;
     bloomParam_.waterTaaEnabled = waterSettings.taaEnabled ? 1.0f : 0.0f;
     bloomParam_.waterBloomEnabled = waterSettings.bloomEnabled ? 1.0f : 0.0f;
@@ -561,9 +561,9 @@ void Bloom::Update()
     bloomParam_.ssrProjectionScale = {aspectRatio * tanHalfFovY, tanHalfFovY};
     bloomParam_.renderDebugMode =
         (enableMotionVector_ && bloomParam_.motionVectorScale < -0.5f) ? 15.0f : static_cast<float>(renderDebugMode_);
-    arenaLook_ = SceneManager::GetInstance()->GetArenaLookSettings();
+    arenaLook_ = frameSettings.arenaLook;
     // ピラミッドBloomの表示比較（オフ / 1レベル / Bloomのみ / すべて）。
-    const IScene::BloomViewSettings bloomView = SceneManager::GetInstance()->GetBloomViewSettings();
+    const BloomViewSettings& bloomView = frameSettings.bloomView;
     BloomPyramid::SetPresentationView(bloomView.view == 1, bloomView.view == 2 ? bloomView.level : -1);
     if (bloomView.view == 3 && bloomParam_.renderDebugMode < 0.5f) {
         bloomParam_.renderDebugMode = 2.0f; // Bloomのみ: トーンマップ後のBloomバッファ単体。
@@ -573,7 +573,7 @@ void Bloom::Update()
     }
     ComposeTransientEffects();
     bloomCB_->Update(bloomParam_);
-    timer_ += SceneManager::GetInstance()->GetFinalDeltaTime();
+    timer_ += frameSettings.deltaTime;
     bloomParam_.timer = timer_;
 }
 
@@ -704,7 +704,7 @@ void Bloom::SetTransientPulse(float bloomBoost, float chromAbAmount, const Vecto
     bloomCB_->Update(bloomParam_);
 }
 
-void Bloom::SetScreenEffectState(const IScene::ScreenEffectState& state)
+void Bloom::SetScreenEffectState(const ScreenEffectState& state)
 {
     const bool wasActive = screenEffectState_.active;
     if (state.suppressTemporal != screenEffectState_.suppressTemporal) {
@@ -844,7 +844,7 @@ void Bloom::ComposeTransientEffects()
 
 void Bloom::ApplyArenaLook()
 {
-    const IScene::ArenaLookSettings& look = arenaLook_;
+    const ArenaLookSettings& look = arenaLook_;
     bloomParam_.arenaEnabled = look.enabled ? 1.0f : 0.0f;
     // 入力側も同じ歪みで論理座標へ戻し、照準とUIの当たり判定を見た目に合わせる。
     WinApp::GetInstance()->SetPresentationCurvature(look.enabled ? (std::max)(0.0f, look.curvature) : 0.0f);
@@ -1221,7 +1221,7 @@ void Bloom::PresentToBackBuffer()
     postEffect_->DrawCrtPresent(presentRT_->GetGPUHandle());
 }
 
-void Bloom::SetDeveloperShowcaseState(const IScene::DeveloperShowcaseState& state)
+void Bloom::SetDeveloperShowcaseState(const DeveloperShowcaseState& state)
 {
     if (developerShowcase_.active != state.active || developerShowcase_.comparisonFreeze != state.comparisonFreeze) {
         ResetTemporalHistory();

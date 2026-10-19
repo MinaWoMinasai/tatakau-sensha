@@ -7,7 +7,7 @@
 #include "BloomConstantBuffer.h"
 #include "BloomPyramid.h"
 #include "RtvManager.h"
-#include "SceneManager.h"
+#include "PostEffectSettings.h"
 #include <cstdint>
 
 namespace myEngine {
@@ -18,7 +18,8 @@ public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, RtvManager* rtvManager);
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
-    void Update(); // ImGuiと定数バッファ更新
+    /// @param frameSettings 現在のシーンが求める水面・アリーナ表示・ブルーム比較の設定と経過時間。
+    void Update(const BloomFrameSettings& frameSettings); // ImGuiと定数バッファ更新
     /// @brief 1. シーン描画用のレンダーターゲット（SceneRT）を設定する。
     void PreDraw();
     /// @brief 2. シーン描画後に抽出・ぼかし・合成を実行する。
@@ -31,9 +32,9 @@ public:
     /// @brief Transientパルスを設定する。
     void SetTransientPulse(float bloomBoost, float chromAbAmount, const Vector2& center, float radius, float width, float strength);
     /// @brief 画面演出状態を設定する。
-    void SetScreenEffectState(const IScene::ScreenEffectState& state);
+    void SetScreenEffectState(const ScreenEffectState& state);
     // シーンの既定値では無効。カメラや設定を渡すのはDeveloper Showcaseだけ。
-    void SetDeveloperShowcaseState(const IScene::DeveloperShowcaseState& state);
+    void SetDeveloperShowcaseState(const DeveloperShowcaseState& state);
 
     const BloomParam& GetLastCompositeParams() const
     {
@@ -99,8 +100,8 @@ private:
     float baseChromAbAmount_ = 0.0f;
     float transientBloomBoost_ = 0.0f;
     float transientChromAbAmount_ = 0.0f;
-    IScene::PostEffectPulse transientPulse_{};
-    IScene::ScreenEffectState screenEffectState_{};
+    PostEffectPulse transientPulse_{};
+    ScreenEffectState screenEffectState_{};
     BloomParam screenEffectBaseParam_{};
     bool enableDepthOutline_ = true;
     bool enableDepthFog_ = false;
@@ -114,7 +115,7 @@ private:
     bool hasTemporalHistory_ = false;
     bool hasPersistenceHistory_ = false;
     int persistenceIndex_ = 0;
-    IScene::ArenaLookSettings arenaLook_{};
+    ArenaLookSettings arenaLook_{};
     int temporalHistoryIndex_ = 0;
     uint32_t temporalFrameIndex_ = 0;
     Vector2 temporalJitter_ = {0.0f, 0.0f};
@@ -125,7 +126,7 @@ private:
     Matrix4x4 previousMotionViewProjection_ = MakeIdentity4x4();
     float motionMatrixDelta_ = 0.0f;
     int renderDebugMode_ = 0;
-    IScene::DeveloperShowcaseState developerShowcase_{};
+    DeveloperShowcaseState developerShowcase_{};
 };
 
 } // namespace myEngine

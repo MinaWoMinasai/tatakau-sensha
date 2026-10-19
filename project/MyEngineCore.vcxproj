@@ -44,8 +44,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <!-- 段階2では実行ファイルと同じ一覧を使い、コンパイル引数を変えない。ゲーム側の項目は段階3で外す。 -->
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\common;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dumpClass;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)game\collision;$(ProjectDir)game\enemy;$(ProjectDir)game\enemy\actor;$(ProjectDir)game\mapchip;$(ProjectDir)game\player\actor;$(ProjectDir)game\scene;$(ProjectDir)game\exp;$(ProjectDir)DirectX\engine\postEffect;$(ProjectDir)DirectX\engine\particle;$(ProjectDir)externals\nlohmann;$(ProjectDir)externals\assimp\include;$(ProjectDir)externals;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(MyEngineIncludeDirectories);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -181,6 +180,7 @@
     <ClInclude Include="game\scene\AbstractSceneFactory.h" />
     <ClInclude Include="DirectX\engine\postEffect\BloomConstantBuffer.h" />
     <ClInclude Include="DirectX\engine\postEffect\PostEffect.h" />
+    <ClInclude Include="DirectX\engine\postEffect\PostEffectSettings.h" />
     <ClInclude Include="DirectX\engine\postEffect\RenderTexture.h" />
     <ClInclude Include="DirectX\engine\common\RtvManager.h" />
     <ClInclude Include="DirectX\engine\debugCamera\Camera.h" />
