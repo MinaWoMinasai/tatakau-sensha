@@ -122,6 +122,7 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
+    <ClCompile Include="game\runtime\Application.cpp" />
     <ClCompile Include="game\runtime\GameModuleRegistry.cpp" />
     <ClCompile Include="game\runtime\GameProject.cpp" />
     <ClCompile Include="game\runtime\SceneRegistry.cpp" />
@@ -234,6 +235,8 @@
     <ClInclude Include="DirectX\engine\3d\ModelCommon.h" />
     <ClInclude Include="DirectX\engine\3d\ModelManager.h" />
     <ClInclude Include="DirectX\engine\common\SrvManager.h" />
+    <ClInclude Include="game\runtime\Application.h" />
+    <ClInclude Include="game\runtime\IApplicationHooks.h" />
     <ClInclude Include="game\runtime\GameModuleRegistry.h" />
     <ClInclude Include="game\runtime\GameProject.h" />
     <ClInclude Include="game\runtime\IGameModule.h" />

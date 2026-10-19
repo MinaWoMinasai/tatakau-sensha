@@ -1,5 +1,6 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include "Game.h"
+#include "game/runtime/Application.h"
 #include "LogWrite.h"
 #include "StartupTrace.h"
 
@@ -70,8 +71,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
     myEngine::D3DResourceLeakChecker leakCheck;
 
-    Game game;
-    if (!game.Initialize(projectOptions)) {
+    // ゲーム固有の処理（フック）はApplicationより長く有効にしておく。
+    Game gameHooks;
+    Application application(gameHooks);
+    if (!application.Initialize(projectOptions)) {
         myEngine::StartupTrace::Mark("initialization.failed");
         myEngine::StartupTrace::Flush();
         return -1;
@@ -80,8 +83,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
     myEngine::StartupTrace::Mark("initialization.ready");
     myEngine::StartupTrace::Flush();
 
-    const int exitCode = game.Run();
-    game.Finalize();
+    const int exitCode = application.Run();
+    application.Finalize();
     myEngine::StartupTrace::Mark("process.finalized");
     myEngine::StartupTrace::Flush();
 
