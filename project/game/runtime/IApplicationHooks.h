@@ -39,6 +39,12 @@ public:
         return {};
     }
 
+    /// @brief エンジン付属の素材（シェーダー・既定テクスチャ）を置いたディレクトリを返す。空なら作業ディレクトリの "resources" を使う。
+    virtual std::string_view GetEngineResourceRoot() const
+    {
+        return {};
+    }
+
     /// @brief D3D12デバイスの作成前に呼ぶ。デバイスを必要としないファイル読み込みを先に始められる。
     virtual void OnBeforeEngineInitialize(const std::string&) {}
 

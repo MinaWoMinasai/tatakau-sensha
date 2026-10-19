@@ -1,4 +1,5 @@
 #include "BloomPyramid.h"
+#include "ResourcePaths.h"
 #include "StartupTrace.h"
 #include <algorithm>
 #include <cmath>
@@ -239,7 +240,7 @@ void BloomPyramid::CreatePipeline()
                                                       IID_PPV_ARGS(&bundle->rootSignature)),
           "Cannot create BloomPyramid root signature.");
     Microsoft::WRL::ComPtr<IDxcBlob> vertex;
-    vertex.Attach(dxCommon_->CompileShader(L"resources/shaders/FullScreen.VS.hlsl", L"vs_6_0"));
+    vertex.Attach(dxCommon_->CompileShader(ResourcePaths::EngineShader(L"FullScreen.VS.hlsl"), L"vs_6_0"));
     D3D12_GRAPHICS_PIPELINE_STATE_DESC description{};
     description.pRootSignature = bundle->rootSignature.Get();
     description.VS = {vertex->GetBufferPointer(), vertex->GetBufferSize()};
@@ -259,8 +260,9 @@ void BloomPyramid::CreatePipeline()
     blend.BlendOp = blend.BlendOpAlpha = D3D12_BLEND_OP_ADD;
     blend.LogicOp = D3D12_LOGIC_OP_NOOP;
     blend.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-    const wchar_t* files[] = {L"resources/shaders/BloomPyramidExtract.PS.hlsl", L"resources/shaders/BloomPyramidDownsample.PS.hlsl",
-                              L"resources/shaders/BloomPyramidUpsample.PS.hlsl"};
+    const std::wstring files[] = {ResourcePaths::EngineShader(L"BloomPyramidExtract.PS.hlsl"),
+                                  ResourcePaths::EngineShader(L"BloomPyramidDownsample.PS.hlsl"),
+                                  ResourcePaths::EngineShader(L"BloomPyramidUpsample.PS.hlsl")};
     Microsoft::WRL::ComPtr<ID3D12PipelineState>* pipelines[] = {&bundle->extract, &bundle->down, &bundle->up};
     for (uint32_t index = 0; index < 3; ++index) {
         Microsoft::WRL::ComPtr<IDxcBlob> pixel;

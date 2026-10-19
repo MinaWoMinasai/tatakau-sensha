@@ -1,6 +1,7 @@
 #pragma once
 
 #include "TrailManager.h"
+#include "ResourcePaths.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -26,7 +27,7 @@ public:
         columns_ = static_cast<uint32_t>(std::ceil(std::sqrt(static_cast<float>(count))));
         rows_ = (count + columns_ - 1u) / columns_;
         manager_ = std::make_unique<TrailManager>();
-        manager_->Initialize(dxCommon, objectCommon, "resources/white512x512.png");
+        manager_->Initialize(dxCommon, objectCommon, ResourcePaths::DefaultWhiteTexture());
 
         // 本番の弾の軌跡と同じ密度とフェードの規約に合わせる。
         config_.interpolationSteps = 5;

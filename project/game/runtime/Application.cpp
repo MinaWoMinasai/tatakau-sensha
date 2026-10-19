@@ -12,6 +12,7 @@
 #include "StartupTrace.h"
 #include "BackgroundLoader.h"
 #include "SkinCluster.h"
+#include "ResourcePaths.h"
 #include "ModelManager.h"
 #include "ParticleManager.h"
 #include <array>
@@ -66,8 +67,7 @@ void LogActiveProject(const GameProject& project, bool loadedFromFallback)
 {
     myEngine::LogWrite().Log("[GameProject] Active project: name='" + project.projectName + "', source='" + GetProjectSourceLabel(project) +
                              "', gameModule='" + project.gameModule + "', startupScene='" + project.startupScene + "', resourceRoot='" +
-                             project.resourceRoot + "', loadedFromFallback=" + (loadedFromFallback ? "true" : "false") +
-                             ". resourceRoot is metadata only in this stage.\n");
+                             project.resourceRoot + "', loadedFromFallback=" + (loadedFromFallback ? "true" : "false") + ".\n");
 }
 
 } // namespace
@@ -205,6 +205,9 @@ bool Application::Initialize(const GameProjectCommandLineOptions& projectOptions
     myEngine::StartupTrace::Scope startupScope("Game.Initialize");
 
     LoadActiveProject(projectOptions);
+    // 素材の置き場所は、バックグラウンド読み込みやエンジンの初期化より前に決める。
+    myEngine::ResourcePaths::SetEngineRoot(hooks_.GetEngineResourceRoot());
+    myEngine::ResourcePaths::SetGameRoot(activeProject_.resourceRoot);
     if (!ConfigureGameModuleAndSceneFactory()) {
         return false;
     }

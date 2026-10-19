@@ -107,6 +107,9 @@
     <ClCompile Include="DirectX\engine\common\LogWrite.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\common\ResourcePaths.cpp">
+      <Filter>DirectX\engine\common</Filter>
+    </ClCompile>
     <ClCompile Include="DirectX\engine\common\Resource.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
@@ -264,6 +267,9 @@
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\common\LogWrite.h">
+      <Filter>DirectX\engine\common</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\common\ResourcePaths.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\common\Resource.h">

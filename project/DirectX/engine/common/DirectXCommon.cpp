@@ -1,4 +1,5 @@
 #include "DirectXCommon.h"
+#include "ResourcePaths.h"
 
 #include <cassert>
 #include "Bloom.h"
@@ -108,106 +109,110 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
     switch (pso.shaderType_) {
     case Object:
         pso.root_.InitalizeForObject();
-        pso.vsFilePath_ = L"resources/shaders/Object3d.VS.hlsl";
-        pso.psFilePath_ = usesSceneNormalTarget ? L"resources/shaders/Object3d.Scene.PS.hlsl" : L"resources/shaders/Object3d.PS.hlsl";
+        pso.vsFilePath_ = ResourcePaths::EngineShader(L"Object3d.VS.hlsl");
+        pso.psFilePath_ = usesSceneNormalTarget ? ResourcePaths::EngineShader(L"Object3d.Scene.PS.hlsl")
+                                                : ResourcePaths::EngineShader(L"Object3d.PS.hlsl");
         break;
     case Particle:
         pso.root_.InitalizeForParticle();
-        pso.vsFilePath_ = L"resources/shaders/Particle.VS.hlsl";
-        pso.psFilePath_ = L"resources/shaders/Particle.PS.hlsl";
+        pso.vsFilePath_ = ResourcePaths::EngineShader(L"Particle.VS.hlsl");
+        pso.psFilePath_ = ResourcePaths::EngineShader(L"Particle.PS.hlsl");
         break;
     case ModelParticle:
         pso.root_.InitalizeForModelParticle();
-        pso.vsFilePath_ = L"resources/shaders/ModelParticle.VS.hlsl";
-        pso.psFilePath_ =
-            usesSceneNormalTarget ? L"resources/shaders/ModelParticle.Scene.PS.hlsl" : L"resources/shaders/ModelParticle.PS.hlsl";
+        pso.vsFilePath_ = ResourcePaths::EngineShader(L"ModelParticle.VS.hlsl");
+        pso.psFilePath_ = usesSceneNormalTarget ? ResourcePaths::EngineShader(L"ModelParticle.Scene.PS.hlsl")
+                                                : ResourcePaths::EngineShader(L"ModelParticle.PS.hlsl");
         break;
     case ComputeParticle:
         assert(false);
         break;
     case Shadow:
         pso.root_.InitalizeForShadow();
-        pso.vsFilePath_ = L"resources/shaders/Shadow.VS.hlsl";
+        pso.vsFilePath_ = ResourcePaths::EngineShader(L"Shadow.VS.hlsl");
         pso.psFilePath_ = L"";
         break;
     case PostEffect:
         pso.root_.InitializeForPostEffect();
-        pso.vsFilePath_ = L"resources/shaders/FullScreen.VS.hlsl";
+        pso.vsFilePath_ = ResourcePaths::EngineShader(L"FullScreen.VS.hlsl");
         switch (pso.postEffectType_) {
         case Bloom_Extract:
-            pso.psFilePath_ = L"resources/shaders/BloomExtract.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"BloomExtract.PS.hlsl");
             break;
         case Bloom_Downsample:
-            pso.psFilePath_ = L"resources/shaders/BloomDownsample.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"BloomDownsample.PS.hlsl");
             break;
         case Bloom_BlurH:
-            pso.psFilePath_ = L"resources/shaders/BloomBlurH.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"BloomBlurH.PS.hlsl");
             break;
         case Bloom_BlurV:
-            pso.psFilePath_ = L"resources/shaders/BloomBlurV.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"BloomBlurV.PS.hlsl");
             break;
         case Gaussian_Filter:
-            pso.psFilePath_ = L"resources/shaders/GaussianFilter.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"GaussianFilter.PS.hlsl");
             break;
         case Bloom_Composite:
-            pso.psFilePath_ = L"resources/shaders/Composite.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"Composite.PS.hlsl");
             break;
         case ObjectPost_Composite:
-            pso.psFilePath_ = L"resources/shaders/ObjectPostComposite.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"ObjectPostComposite.PS.hlsl");
             break;
         case ObjectPost_OutlineAdd:
-            pso.psFilePath_ = L"resources/shaders/ObjectPostOutlineAdd.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"ObjectPostOutlineAdd.PS.hlsl");
             break;
         case ObjectPost_BloomAdd:
-            pso.psFilePath_ = L"resources/shaders/ObjectPostBloomAdd.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"ObjectPostBloomAdd.PS.hlsl");
             break;
         case Random:
-            pso.psFilePath_ = L"resources/shaders/Random.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"Random.PS.hlsl");
             break;
         case SSAO_Resolve:
-            pso.psFilePath_ = L"resources/shaders/SSAOResolve.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"SSAOResolve.PS.hlsl");
             break;
         case SSAO_Denoise:
-            pso.psFilePath_ = L"resources/shaders/SSAODenoise.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"SSAODenoise.PS.hlsl");
             break;
         case SSR_Resolve:
-            pso.psFilePath_ = L"resources/shaders/SSRResolve.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"SSRResolve.PS.hlsl");
             break;
         case SSR_Denoise:
-            pso.psFilePath_ = L"resources/shaders/SSRDenoise.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"SSRDenoise.PS.hlsl");
             break;
         case MotionVector_Resolve:
-            pso.psFilePath_ = L"resources/shaders/MotionVectorResolve.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"MotionVectorResolve.PS.hlsl");
             break;
         case Temporal_Resolve:
-            pso.psFilePath_ = L"resources/shaders/TemporalResolve.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"TemporalResolve.PS.hlsl");
             break;
         case Phosphor_Persistence:
-            pso.psFilePath_ = L"resources/shaders/PhosphorPersistence.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"PhosphorPersistence.PS.hlsl");
             break;
         case Crt_Present:
-            pso.psFilePath_ = L"resources/shaders/CrtPresent.PS.hlsl";
+            pso.psFilePath_ = ResourcePaths::EngineShader(L"CrtPresent.PS.hlsl");
             break;
         }
         break;
     case Trail:
         pso.root_.InitalizeForTrail(); // 上で作った関数
-        pso.vsFilePath_ = L"resources/shaders/Trail.VS.hlsl";
-        pso.psFilePath_ = usesSceneNormalTarget ? L"resources/shaders/Trail.Scene.PS.hlsl" : L"resources/shaders/Trail.PS.hlsl";
+        pso.vsFilePath_ = ResourcePaths::EngineShader(L"Trail.VS.hlsl");
+        pso.psFilePath_ =
+            usesSceneNormalTarget ? ResourcePaths::EngineShader(L"Trail.Scene.PS.hlsl") : ResourcePaths::EngineShader(L"Trail.PS.hlsl");
         break;
     case Skybox:                         // ★追加
         pso.root_.InitializeForSkybox(); // 前回作成した関数
-        pso.vsFilePath_ = L"resources/shaders/Skybox.VS.hlsl";
-        pso.psFilePath_ = usesSceneNormalTarget ? L"resources/shaders/Skybox.Scene.PS.hlsl" : L"resources/shaders/Skybox.PS.hlsl";
+        pso.vsFilePath_ = ResourcePaths::EngineShader(L"Skybox.VS.hlsl");
+        pso.psFilePath_ =
+            usesSceneNormalTarget ? ResourcePaths::EngineShader(L"Skybox.Scene.PS.hlsl") : ResourcePaths::EngineShader(L"Skybox.PS.hlsl");
         break;
     case Skinning:
         pso.root_.InitalizeForObject();
-        pso.vsFilePath_ = L"resources/shaders/SkinningObject3d.VS.hlsl";
-        pso.psFilePath_ = usesSceneNormalTarget ? L"resources/shaders/Object3d.Scene.PS.hlsl" : L"resources/shaders/Object3d.PS.hlsl";
+        pso.vsFilePath_ = ResourcePaths::EngineShader(L"SkinningObject3d.VS.hlsl");
+        pso.psFilePath_ = usesSceneNormalTarget ? ResourcePaths::EngineShader(L"Object3d.Scene.PS.hlsl")
+                                                : ResourcePaths::EngineShader(L"Object3d.PS.hlsl");
         break;
     case SkinningShadow:
         pso.root_.InitializeForSkinningShadow();
-        pso.vsFilePath_ = L"resources/shaders/SkinningShadow.VS.hlsl";
+        pso.vsFilePath_ = ResourcePaths::EngineShader(L"SkinningShadow.VS.hlsl");
         pso.psFilePath_ = L"";
         break;
     default:
@@ -537,13 +542,13 @@ InitializationTask DirectXCommon::BuildPipelines()
     co_await std::suspend_always{};
     CreateShaderCommon(psoModelParticle_HDR, kAdd, false, kSceneRenderTargetFormat);
     co_await std::suspend_always{};
-    CreateComputeShaderCommon(psoInitializeParticle_, L"resources/shaders/ParticleInitialize.CS.hlsl");
+    CreateComputeShaderCommon(psoInitializeParticle_, ResourcePaths::EngineShader(L"ParticleInitialize.CS.hlsl"));
     co_await std::suspend_always{};
-    CreateComputeShaderCommon(psoEmitParticle_, L"resources/shaders/ParticleEmit.CS.hlsl");
+    CreateComputeShaderCommon(psoEmitParticle_, ResourcePaths::EngineShader(L"ParticleEmit.CS.hlsl"));
     co_await std::suspend_always{};
-    CreateComputeShaderCommon(psoEmitBatchParticle_, L"resources/shaders/ParticleEmitBatch.CS.hlsl");
+    CreateComputeShaderCommon(psoEmitBatchParticle_, ResourcePaths::EngineShader(L"ParticleEmitBatch.CS.hlsl"));
     co_await std::suspend_always{};
-    CreateComputeShaderCommon(psoComputeParticle_, L"resources/shaders/ParticleUpdate.CS.hlsl");
+    CreateComputeShaderCommon(psoComputeParticle_, ResourcePaths::EngineShader(L"ParticleUpdate.CS.hlsl"));
     co_await std::suspend_always{};
     CreateShaderCommon(bloomPSO, kNone);
     co_await std::suspend_always{};

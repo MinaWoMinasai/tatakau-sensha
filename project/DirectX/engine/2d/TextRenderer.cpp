@@ -1,4 +1,5 @@
 #include "TextRenderer.h"
+#include "ResourcePaths.h"
 #include "StartupTrace.h"
 #include "WinApp.h"
 #include <Windows.h>
@@ -192,7 +193,8 @@ std::string TextRenderer::BuildCachePath(const std::string& utf8Text, const Text
 
     const size_t hash = std::hash<std::string>{}(key.str());
     std::ostringstream path;
-    path << "resources/generated/text/text_" << std::hex << std::setw(sizeof(size_t) * 2) << std::setfill('0') << hash << ".png";
+    path << ResourcePaths::GameRoot() << "/generated/text/text_" << std::hex << std::setw(sizeof(size_t) * 2) << std::setfill('0') << hash
+         << ".png";
     return path.str();
 }
 
