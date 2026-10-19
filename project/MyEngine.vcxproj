@@ -120,80 +120,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="DirectX\engine\common\NeonGridRenderer.cpp" />
-    <ClCompile Include="DirectX\engine\common\NeonGridGeometry.cpp" />
-    <ClCompile Include="DirectX\engine\common\RingManager.cpp" />
-    <ClCompile Include="DirectX\engine\common\TrailInstance.cpp" />
-    <ClCompile Include="DirectX\engine\common\TrailManager.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\2d\TextLabel.cpp" />
-    <ClCompile Include="DirectX\engine\2d\TextRenderer.cpp" />
-    <ClCompile Include="DirectX\engine\postEffect\Bloom.cpp" />
-    <ClCompile Include="DirectX\engine\postEffect\BloomPyramid.cpp" />
-    <ClCompile Include="DirectX\engine\postEffect\BloomConstantBuffer.cpp" />
-    <ClCompile Include="DirectX\engine\postEffect\ObjectPostEffect.cpp" />
-    <ClCompile Include="DirectX\engine\postEffect\PostEffect.cpp" />
-    <ClCompile Include="DirectX\engine\postEffect\RenderTexture.cpp" />
-    <ClCompile Include="DirectX\engine\common\RtvManager.cpp" />
-    <ClCompile Include="DirectX\engine\debugCamera\Camera.cpp" />
-    <ClCompile Include="DirectX\engine\audio\Audio.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\calc\Calculation.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\debugCamera\DebugCamera.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\DirectXCommon.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\dumpClass\Dump.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\easing\Easing.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_demo.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_draw.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_impl_dx12.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_impl_win32.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_tables.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_widgets.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\input\Input.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\InputDesc.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\LogWrite.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
     <ClCompile Include="game\level\LevelLoader.cpp" />
     <ClCompile Include="game\exp\EnemyManager.cpp" />
     <ClCompile Include="game\exp\ExpEnemy.cpp" />
@@ -202,9 +128,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\modules\NeonWindmillModule.cpp" />
     <ClCompile Include="game\scene\NeonWindmillScene.cpp" />
     <ClCompile Include="game\render\WindmillEmojiRenderer.cpp" />
-    <ClCompile Include="game\runtime\GameModuleRegistry.cpp" />
-    <ClCompile Include="game\runtime\GameProject.cpp" />
-    <ClCompile Include="game\runtime\SceneRegistry.cpp" />
     <ClCompile Include="game\scene\Game.cpp" />
     <ClCompile Include="game\collision\Collider.cpp" />
     <ClCompile Include="game\collision\CollisionConfig.cpp" />
@@ -226,51 +149,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\ui\TankButtonUI.cpp" />
     <ClCompile Include="game\scene\Fade.cpp" />
     <ClCompile Include="game\scene\GameScene.cpp" />
-    <ClCompile Include="game\scene\SceneFactory.cpp" />
-    <ClCompile Include="game\scene\SceneManager.cpp" />
     <ClCompile Include="game\scene\TitleScene.cpp" />
     <ClCompile Include="main.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\Resource.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\Root.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\2d\Sprite.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\2d\SpriteCommon.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\Texture.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\WinApp.cpp">
-      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
-      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\2d\TextureManager.cpp" />
-    <ClCompile Include="DirectX\engine\3d\Object3dCommon.cpp" />
-    <ClCompile Include="DirectX\engine\3d\Object3d.cpp" />
-    <ClCompile Include="DirectX\engine\3d\Animation.cpp" />
-    <ClCompile Include="DirectX\engine\3d\Skeleton.cpp" />
-    <ClCompile Include="DirectX\engine\3d\SkinCluster.cpp" />
-    <ClCompile Include="DirectX\engine\3d\Model.cpp" />
-    <ClCompile Include="DirectX\engine\3d\ModelCommon.cpp" />
-    <ClCompile Include="DirectX\engine\3d\ModelManager.cpp" />
-    <ClCompile Include="DirectX\engine\common\SrvManager.cpp" />
-    <ClCompile Include="DirectX\engine\particle\ParticleManager.cpp" />
-    <ClCompile Include="DirectX\engine\common\ShadowMap.cpp" />
-    <ClCompile Include="DirectX\engine\postEffect\Shadow.cpp" />
-    <ClCompile Include="DirectX\engine\3d\Skybox.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\ModelParticle.PS.hlsl">
@@ -371,74 +254,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="DirectX\engine\common\BackgroundLoader.h" />
-    <ClInclude Include="DirectX\engine\common\InitializationTask.h" />
-    <ClInclude Include="DirectX\engine\common\NeonGridRenderer.h" />
-    <ClInclude Include="DirectX\engine\common\NeonGridGeometry.h" />
-    <ClInclude Include="DirectX\engine\common\RingManager.h" />
-    <ClInclude Include="DirectX\engine\common\TrailInstance.h" />
-    <ClInclude Include="DirectX\engine\common\TrailManager.h" />
-    <ClInclude Include="DirectX\engine\2d\TextLabel.h" />
-    <ClInclude Include="DirectX\engine\2d\TextRenderer.h" />
-    <ClInclude Include="DirectX\engine\postEffect\Bloom.h" />
-    <ClInclude Include="DirectX\engine\postEffect\BloomPyramid.h" />
-    <ClInclude Include="DirectX\engine\postEffect\ObjectPostEffect.h" />
-    <ClInclude Include="game\scene\AbstractSceneFactory.h" />
-    <ClInclude Include="DirectX\engine\postEffect\BloomConstantBuffer.h" />
-    <ClInclude Include="DirectX\engine\postEffect\PostEffect.h" />
-    <ClInclude Include="DirectX\engine\postEffect\RenderTexture.h" />
-    <ClInclude Include="DirectX\engine\common\RtvManager.h" />
-    <ClInclude Include="DirectX\engine\debugCamera\Camera.h" />
-    <ClInclude Include="DirectX\engine\audio\Audio.h" />
-    <ClInclude Include="DirectX\engine\calc\Calculation.h" />
-    <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h" />
-    <ClInclude Include="DirectX\engine\common\DirectXCommon.h" />
-    <ClInclude Include="DirectX\engine\dumpClass\Dump.h" />
-    <ClInclude Include="DirectX\engine\easing\Easing.h" />
-    <ClInclude Include="externals\imgui\imconfig.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imgui.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imgui_impl_dx12.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imgui_impl_win32.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imgui_internal.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imstb_rectpack.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imstb_textedit.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imstb_truetype.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\input\Input.h" />
-    <ClInclude Include="DirectX\engine\common\InputDesc.h" />
-    <ClInclude Include="DirectX\engine\common\LogWrite.h" />
-    <ClInclude Include="DirectX\engine\common\Resource.h" />
-    <ClInclude Include="DirectX\engine\common\Root.h" />
-    <ClInclude Include="DirectX\engine\2d\Sprite.h" />
-    <ClInclude Include="DirectX\engine\2d\SpriteCommon.h" />
-    <ClInclude Include="DirectX\engine\struct\Struct.h" />
-    <ClInclude Include="DirectX\engine\common\Texture.h" />
-    <ClInclude Include="DirectX\engine\common\WinApp.h" />
-    <ClInclude Include="DirectX\engine\2d\TextureManager.h" />
-    <ClInclude Include="DirectX\engine\3d\Object3dCommon.h" />
-    <ClInclude Include="DirectX\engine\3d\Object3d.h" />
-    <ClInclude Include="DirectX\engine\3d\Animation.h" />
-    <ClInclude Include="DirectX\engine\3d\Skeleton.h" />
-    <ClInclude Include="DirectX\engine\3d\SkinCluster.h" />
-    <ClInclude Include="DirectX\engine\3d\Model.h" />
-    <ClInclude Include="DirectX\engine\3d\ModelCommon.h" />
-    <ClInclude Include="DirectX\engine\3d\ModelManager.h" />
-    <ClInclude Include="DirectX\engine\common\SrvManager.h" />
     <ClInclude Include="game\exp\EnemyManager.h" />
     <ClInclude Include="game\exp\ExpEnemy.h" />
     <ClInclude Include="game\modules\BuiltInGameModule.h" />
@@ -451,10 +266,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="resources\shaders\WindmillNeon.PS.hlsl" />
     <None Include="resources\projects\neon_windmill.project.json" />
     <None Include="resources\neon_windmill\iphone_sources.json" />
-    <ClInclude Include="game\runtime\GameModuleRegistry.h" />
-    <ClInclude Include="game\runtime\GameProject.h" />
-    <ClInclude Include="game\runtime\IGameModule.h" />
-    <ClInclude Include="game\runtime\SceneRegistry.h" />
     <ClInclude Include="game\scene\Game.h" />
     <ClInclude Include="game\collision\Collider.h" />
     <ClInclude Include="game\collision\CollisionConfig.h" />
@@ -493,22 +304,13 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\exp\ExpEnemyNavigation.h" />
     <ClInclude Include="game\player\TankRunModifiers.h" />
     <ClInclude Include="game\enemy\actor\PrototypeBossCombat.h" />
-    <ClInclude Include="game\scene\SceneManager.h" />
     <ClInclude Include="game\scene\TitleScene.h" />
-    <ClInclude Include="DirectX\engine\particle\ParticleManager.h" />
-    <ClInclude Include="DirectX\engine\common\ShadowMap.h" />
     <ClInclude Include="game\level\LevelLoader.h" />
-    <ClInclude Include="game\scene\IScene.h" />
-    <ClInclude Include="game\scene\SceneFactory.h" />
-    <ClInclude Include="DirectX\engine\postEffect\Shadow.h" />
-    <ClInclude Include="DirectX\engine\3d\Skybox.h" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="externals\imgui\LICENSE.txt">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </Text>
-  </ItemGroup>
-  <ItemGroup>
+    <ProjectReference Include="MyEngineCore.vcxproj">
+      <Project>{4e1c6b52-8d0a-4f3e-9b7a-2c5d81f0a6e3}</Project>
+    </ProjectReference>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
       <Project>{371b9fa9-4c90-4ac6-a123-aced756d6c77}</Project>
     </ProjectReference>
@@ -578,13 +380,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
   <ItemGroup>
-    <ClCompile Include="DirectX\engine\common\RuntimeProfiler.cpp" />
-    <ClInclude Include="DirectX\engine\common\RuntimeProfiler.h" />
-    <ClInclude Include="DirectX\engine\common\StartupTrace.h" />
-    <ClInclude Include="DirectX\engine\common\ShaderDiskCache.h" />
-    <ClInclude Include="DirectX\engine\2d\GeneratedTextureCache.h" />
-    <ClInclude Include="DirectX\engine\common\FramePacer.h" />
-    <ClInclude Include="DirectX\engine\common\TrailStressFixture.h" />
   </ItemGroup>  <ItemGroup>
     <ClInclude Include="game\run\TankExpeditionBalance.h" />
     <ClInclude Include="game\run\TankExpeditionTutorial.h" />
@@ -597,7 +392,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\ui\TankRewardCard.h" />
     <ClInclude Include="game\ui\ColorMath.h" />
     <ClInclude Include="game\weapon\CombatTypes.h" />
-    <ClInclude Include="DirectX\engine\common\StringUtils.h" />
     <ClInclude Include="game\ui\TankRewardCardDemo.h" />
     <ClInclude Include="game\run\TankBuildStyle.h" />
     <ClCompile Include="game\editor\ExpeditionRoomEditor.cpp" />
@@ -626,7 +420,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\player\TankCombatStyleBalance.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.cpp" />
     <ClCompile Include="game\debug\NeonSkinnedPreview.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
     </ClCompile>
@@ -635,7 +428,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
     </ClCompile>
     <ClInclude Include="game\debug\NeonDissolvePreviewController.h" />
-    <ClInclude Include="DirectX\engine\3d\neon\NeonDissolve.h" />
     <None Include="resources\shaders\NeonDissolve.hlsli" />
     <ClCompile Include="game\debug\NeonShowcaseCapture.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
@@ -648,11 +440,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </ClCompile>
     <ClInclude Include="game\enemy\visual\NeonBossVisual.h" />
     <ClInclude Include="game\enemy\visual\NeonBossVisualState.h" />
-    <ClInclude Include="DirectX\engine\3d\neon\NeonCharacterStyle.h" />
     <ClInclude Include="game\debug\NeonPreviewAnimations.h" />
     <None Include="resources\models\neon_hologram\AvatarSample_B.glb" />
     <None Include="resources\models\neon_hologram\README.md" />
-    <ClInclude Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.h" />
     <None Include="resources\shaders\NeonSkinned.hlsli" />
     <None Include="resources\shaders\NeonSkinnedSkinning.hlsli" />
     <None Include="resources\shaders\NeonSkinnedSurface.hlsli" />
