@@ -12,7 +12,7 @@ void Shadow::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager)
     shadowMap_->Initialize(dxCommon_, srvManager_, 2048, 2048);
 }
 
-void Shadow::PreDraw()
+void Shadow::PreDraw(const std::function<void()>& drawShadowCasters)
 {
     // ==========================================
     // 1. シャドウマップへの描き込み (Depth Only Pass)
@@ -30,7 +30,7 @@ void Shadow::PreDraw()
 
     // 影用PSOを使用して描画 (PSなしの軽量パス)
     // 内部で SetPipelineState(shadowPSO.graphicsState_) を呼ぶ
-    SceneManager::GetInstance()->DrawShadow();
+    drawShadowCasters();
 
     // 書き込み終わったので SHADER_RESOURCE に戻す
     Transition(shadowMap_->GetResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

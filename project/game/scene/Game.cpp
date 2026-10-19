@@ -592,7 +592,16 @@ int Game::MainLoop()
         const float inputImGuiBeginMs = elapsedMs(inputImGuiStart, std::chrono::steady_clock::now());
 
         const auto engineUpdateStart = std::chrono::steady_clock::now();
-        bloom_->Update();
+        {
+            // エンジンはシーンを直接参照しないので、現在のシーンが求める画面効果の設定をここで渡す。
+            SceneManager* sceneManager = SceneManager::GetInstance();
+            myEngine::BloomFrameSettings bloomFrameSettings{};
+            bloomFrameSettings.water = sceneManager->GetWaterPostProcessSettings();
+            bloomFrameSettings.arenaLook = sceneManager->GetArenaLookSettings();
+            bloomFrameSettings.bloomView = sceneManager->GetBloomViewSettings();
+            bloomFrameSettings.deltaTime = sceneManager->GetFinalDeltaTime();
+            bloom_->Update(bloomFrameSettings);
+        }
 
 #ifdef USE_IMGUI
         if (input->IsPress(input->GetKey()[DIK_LCONTROL]) && input->IsPress(input->GetKey()[DIK_LSHIFT]) &&
@@ -660,7 +669,9 @@ int Game::MainLoop()
         dxCommon_->PreDraw(); // バックバッファのバリアはここで行われている
         srvManager_->PreDraw();
 
-        shadow_->PreDraw();
+        shadow_->PreDraw([] {
+            SceneManager::GetInstance()->DrawShadow();
+        });
 
         bloom_->PreDraw();
         const float drawSetupMs = elapsedMs(drawSetupStart, std::chrono::steady_clock::now());
