@@ -155,6 +155,9 @@
     <ClCompile Include="game\runtime\SceneRegistry.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\runtime\Application.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\runtime\GameModuleRegistry.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -342,6 +345,12 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\runtime\IGameModule.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\runtime\Application.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\runtime\IApplicationHooks.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\runtime\GameModuleRegistry.h">
