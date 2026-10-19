@@ -25,24 +25,14 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Development|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
+  <Import Project="MyEngine.Configuration.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
@@ -58,18 +48,7 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup>
-    <MyEngineDeveloperTools Condition="'$(MyEngineDeveloperTools)'=='' and '$(Configuration)'=='Release'">false</MyEngineDeveloperTools>
-    <MyEngineDeveloperTools Condition="'$(MyEngineDeveloperTools)'==''">true</MyEngineDeveloperTools>
-    <MyEngineDeveloperToolsValue Condition="'$(MyEngineDeveloperTools)'=='true'">1</MyEngineDeveloperToolsValue>
-    <MyEngineDeveloperToolsValue Condition="'$(MyEngineDeveloperTools)'!='true'">0</MyEngineDeveloperToolsValue>
-    <MyEngineDeveloperUiDefines Condition="'$(MyEngineDeveloperTools)'=='true' and '$(Configuration)'=='Release'">USE_RUNTIME_PROFILER;</MyEngineDeveloperUiDefines>
-    <MyEngineDeveloperUiDefines Condition="'$(MyEngineDeveloperTools)'=='true' and '$(Configuration)'!='Release'">USE_IMGUI;</MyEngineDeveloperUiDefines>
-  </PropertyGroup>
-  <PropertyGroup>
-    <AssimpLibraryName>assimp-vc145-mt</AssimpLibraryName>
-    <AssimpLibraryName Condition="Exists('$(ProjectDir)externals\assimp\lib\assimp-vc143-mt.lib') and !Exists('$(ProjectDir)externals\assimp\lib\assimp-vc145-mt.lib')">assimp-vc143-mt</AssimpLibraryName>
-  </PropertyGroup>
+  <Import Project="MyEngine.Common.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IntDir>$(SolutionDir)..\generated\obj\$(ProjectName)\$(Configuration)\</IntDir>
     <OutDir>$(SolutionDir)..\generated\outputs\$(Configuration)\</OutDir>
@@ -86,15 +65,6 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;MYENGINE_DEVELOPER_TOOLS=$(MyEngineDeveloperToolsValue);$(MyEngineDeveloperUiDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\common;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dumpClass;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)game\collision;$(ProjectDir)game\enemy;$(ProjectDir)game\enemy\actor;$(ProjectDir)game\mapchip;$(ProjectDir)game\player\actor;$(ProjectDir)game\scene;$(ProjectDir)game\exp;$(ProjectDir)DirectX\engine\postEffect;$(ProjectDir)DirectX\engine\particle;$(ProjectDir)externals\nlohmann;$(ProjectDir)externals\assimp\include;$(ProjectDir)externals;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -110,18 +80,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;MYENGINE_DEVELOPER_TOOLS=$(MyEngineDeveloperToolsValue);$(MyEngineDeveloperUiDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <TreatWarningAsError>true</TreatWarningAsError>
-      <Optimization>MinSpace</Optimization>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\common;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dumpClass;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)game\collision;$(ProjectDir)game\enemy;$(ProjectDir)game\enemy\actor;$(ProjectDir)game\mapchip;$(ProjectDir)game\player\actor;$(ProjectDir)game\scene;$(ProjectDir)game\exp;$(ProjectDir)DirectX\engine\postEffect;$(ProjectDir)DirectX\engine\particle;$(ProjectDir)externals\nlohmann;$(ProjectDir)externals\assimp\include;$(ProjectDir)externals;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -140,19 +98,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_WINDOWS;MYENGINE_DEVELOPER_TOOLS=$(MyEngineDeveloperToolsValue);$(MyEngineDeveloperUiDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <TreatWarningAsError>true</TreatWarningAsError>
-      <Optimization>Disabled</Optimization>
-      <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)DirectX\engine\2d;$(ProjectDir)DirectX\engine\3d;$(ProjectDir)DirectX\engine\audio;$(ProjectDir)DirectX\engine\calc;$(ProjectDir)DirectX\engine\common;$(ProjectDir)DirectX\engine\debugCamera;$(ProjectDir)DirectX\engine\dumpClass;$(ProjectDir)DirectX\engine\easing;$(ProjectDir)DirectX\engine\input;$(ProjectDir)DirectX\engine\struct;$(ProjectDir)game\collision;$(ProjectDir)game\enemy;$(ProjectDir)game\enemy\actor;$(ProjectDir)game\mapchip;$(ProjectDir)game\player\actor;$(ProjectDir)game\scene;$(ProjectDir)game\exp;$(ProjectDir)DirectX\engine\postEffect;$(ProjectDir)DirectX\engine\particle;$(ProjectDir)externals\nlohmann;$(ProjectDir)externals\assimp\include;$(ProjectDir)externals;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
