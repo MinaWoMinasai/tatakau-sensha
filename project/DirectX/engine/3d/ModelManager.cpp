@@ -3,6 +3,7 @@
 #include "StartupTrace.h"
 #include "BackgroundLoader.h"
 #include "TextureManager.h"
+#include "Utf8Path.h"
 #include <filesystem>
 
 namespace myEngine {
@@ -32,8 +33,8 @@ void ModelManager::PreloadObjModel(const std::string& filePath)
     if (models.contains(filePath) || pendingModels_.contains(filePath)) {
         return;
     }
-    if (std::filesystem::path(filePath).extension() != ".obj" ||
-        !std::filesystem::is_regular_file(std::filesystem::path(ResourcePaths::GameRoot()) / filePath)) {
+    if (Utf8ToPath(filePath).extension() != ".obj" ||
+        !std::filesystem::is_regular_file(Utf8ToPath(ResourcePaths::GameRoot()) / Utf8ToPath(filePath))) {
         return;
     }
     pendingModels_.emplace(filePath, BackgroundLoader::Get().Submit([filePath] {

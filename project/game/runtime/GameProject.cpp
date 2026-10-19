@@ -1,6 +1,7 @@
 #include "GameProject.h"
 
 #include "LogWrite.h"
+#include "Utf8Path.h"
 
 #include <cstddef>
 #include <filesystem>
@@ -15,17 +16,6 @@ namespace {
 void LogProjectError(const std::string& message)
 {
     myEngine::LogWrite().Log("[GameProject] " + message + "\n");
-}
-
-/// @brief Utf8パスを作成して返す。
-std::filesystem::path MakeUtf8Path(const std::string& path)
-{
-    std::u8string utf8Path;
-    utf8Path.reserve(path.size());
-    for (const char byte : path) {
-        utf8Path.push_back(static_cast<char8_t>(static_cast<unsigned char>(byte)));
-    }
-    return std::filesystem::path(utf8Path);
 }
 
 /// @brief Required文字列を検証する。
@@ -81,7 +71,7 @@ GameProjectCommandLineOptions ParseGameProjectCommandLine(const std::vector<std:
 bool GameProjectLoader::Load(const std::string& filePath, GameProject& outProject) const
 {
     try {
-        const std::filesystem::path projectPath = MakeUtf8Path(filePath);
+        const std::filesystem::path projectPath = myEngine::Utf8ToPath(filePath);
         std::ifstream file(projectPath);
         if (!file.is_open()) {
             LogProjectError("Failed to open project file '" + filePath + "'.");

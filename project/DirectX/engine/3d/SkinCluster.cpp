@@ -3,6 +3,7 @@
 #include "BackgroundLoader.h"
 #include "StartupTrace.h"
 #include "StringUtils.h"
+#include "Utf8Path.h"
 
 #include "Calculation.h"
 #include "DirectXCommon.h"
@@ -198,7 +199,7 @@ MaterialData MakeDefaultSkinnedMaterial()
 std::string MakeEmbeddedTextureKey(const std::filesystem::path& sourcePath, const aiString& texturePath,
                                    TextureManager::TextureColorSpace colorSpace)
 {
-    std::string key = sourcePath.generic_string() + "#embedded/" + texturePath.C_Str();
+    std::string key = PathToUtf8Generic(sourcePath) + "#embedded/" + texturePath.C_Str();
     if (colorSpace == TextureManager::TextureColorSpace::LinearData) {
         key += "#linear";
     }
@@ -234,11 +235,11 @@ std::string ResolveSkinningTexturePath(SkinningModelAsset& asset, const aiScene&
         return {};
     }
 
-    std::filesystem::path resolvedPath(texturePath.C_Str());
+    std::filesystem::path resolvedPath = Utf8ToPath(texturePath.C_Str());
     if (!resolvedPath.is_absolute()) {
         resolvedPath = sourcePath.parent_path() / resolvedPath;
     }
-    return resolvedPath.lexically_normal().generic_string();
+    return PathToUtf8Generic(resolvedPath.lexically_normal());
 }
 
 /// @brief スキニング材質テクスチャを返す。
@@ -545,7 +546,7 @@ SkinningModelAsset SkinningModelLoader::LoadFromFile(const std::string& filePath
 
     SkinningModelAsset asset;
     asset.rootNode = ReadNode(*scene->mRootNode);
-    const std::filesystem::path sourcePath(filePath);
+    const std::filesystem::path sourcePath = Utf8ToPath(filePath);
     asset.modelData.materials = LoadSkinningMaterials(asset, *scene, sourcePath);
 
     for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {

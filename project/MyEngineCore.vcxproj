@@ -221,6 +221,7 @@
     <ClInclude Include="DirectX\engine\common\InputDesc.h" />
     <ClInclude Include="DirectX\engine\common\LogWrite.h" />
     <ClInclude Include="DirectX\engine\common\ResourcePaths.h" />
+    <ClInclude Include="DirectX\engine\common\Utf8Path.h" />
     <ClInclude Include="DirectX\engine\common\Resource.h" />
     <ClInclude Include="DirectX\engine\common\Root.h" />
     <ClInclude Include="DirectX\engine\2d\Sprite.h" />

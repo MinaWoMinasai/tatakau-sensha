@@ -275,6 +275,9 @@
     <ClInclude Include="DirectX\engine\common\ResourcePaths.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
+    <ClInclude Include="DirectX\engine\common\Utf8Path.h">
+      <Filter>DirectX\engine\common</Filter>
+    </ClInclude>
     <ClInclude Include="DirectX\engine\common\Resource.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
