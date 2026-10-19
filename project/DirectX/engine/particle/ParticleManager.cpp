@@ -1,5 +1,6 @@
 #include "ParticleManager.h"
 #include "ResourcePaths.h"
+#include "Utf8Path.h"
 #include "Calculation.h"
 #include "TextureManager.h"
 #include "DebugCamera.h"
@@ -618,7 +619,7 @@ void ParticleManager::ResetDrawArgs()
 void ParticleManager::RegisterEffect(const std::string& effectName, const std::string& jsonPath)
 {
     ParticleEmitterConfig config;
-    std::ifstream file(jsonPath);
+    std::ifstream file(Utf8ToPath(jsonPath));
     if (file) {
         nlohmann::json json;
         file >> json;
@@ -639,7 +640,7 @@ void ParticleManager::SaveEffect(const std::string& effectName, const std::strin
         return;
     }
 
-    std::ofstream file(jsonPath);
+    std::ofstream file(Utf8ToPath(jsonPath));
     if (!file) {
         return;
     }

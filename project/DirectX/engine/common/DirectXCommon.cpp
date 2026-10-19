@@ -5,6 +5,7 @@
 #include "Bloom.h"
 #include "ShaderDiskCache.h"
 #include "StartupTrace.h"
+#include "Utf8Path.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -220,7 +221,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
         break;
     }
     const std::string pipelineName =
-        std::filesystem::path(pso.psFilePath_.empty() ? pso.vsFilePath_ : pso.psFilePath_).filename().string() +
+        PathToUtf8(std::filesystem::path(pso.psFilePath_.empty() ? pso.vsFilePath_ : pso.psFilePath_).filename()) +
         "/format=" + std::to_string(renderTargetFormat) + "/blend=" + std::to_string(blendMode) + (doubleSided ? "/doubleSided" : "");
     StartupTrace::Scope pipelineScope("Pipeline.Prepare/" + pipelineName);
     StartupTrace::Count("pipeline.graphics.created");
@@ -405,7 +406,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
 
 void DirectXCommon::CreateComputeShaderCommon(PSO& pso, const std::wstring& shaderPath)
 {
-    const std::string pipelineName = std::filesystem::path(shaderPath).filename().string();
+    const std::string pipelineName = PathToUtf8(std::filesystem::path(shaderPath).filename());
     StartupTrace::Scope pipelineScope("Pipeline.Prepare/" + pipelineName);
     StartupTrace::Count("pipeline.compute.created");
     pso.root_.InitializeForComputeParticle();
