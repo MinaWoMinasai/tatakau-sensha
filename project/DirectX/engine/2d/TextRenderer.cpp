@@ -1,5 +1,7 @@
 #include "TextRenderer.h"
+#include "ResourcePaths.h"
 #include "StartupTrace.h"
+#include "Utf8Path.h"
 #include "WinApp.h"
 #include <Windows.h>
 #include <gdiplus.h>
@@ -102,7 +104,7 @@ std::string TextRenderer::GetOrCreateTexture(const std::string& utf8Text, const 
     const TextStyle resolvedStyle = ResolveStyle(style);
 
     const std::string path = BuildCachePath(utf8Text, resolvedStyle);
-    const bool cacheFileExisted = std::filesystem::exists(path);
+    const bool cacheFileExisted = std::filesystem::exists(Utf8ToPath(path));
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     lastGetOrCreateTextureProfile_.cacheFileExisted = cacheFileExisted;
 #endif
@@ -184,7 +186,7 @@ std::string TextRenderer::BuildCachePath(const std::string& utf8Text, const Text
         << style.padding << '|' << style.preserveOutline << '|' << "raster" << GetRasterScale();
     if (!style.fontPath.empty()) {
         std::error_code error{};
-        const auto modified = std::filesystem::last_write_time(std::filesystem::path(style.fontPath), error);
+        const auto modified = std::filesystem::last_write_time(Utf8ToPath(style.fontPath), error);
         if (!error) {
             key << '|' << modified.time_since_epoch().count();
         }
@@ -192,7 +194,8 @@ std::string TextRenderer::BuildCachePath(const std::string& utf8Text, const Text
 
     const size_t hash = std::hash<std::string>{}(key.str());
     std::ostringstream path;
-    path << "resources/generated/text/text_" << std::hex << std::setw(sizeof(size_t) * 2) << std::setfill('0') << hash << ".png";
+    path << ResourcePaths::GameRoot() << "/generated/text/text_" << std::hex << std::setw(sizeof(size_t) * 2) << std::setfill('0') << hash
+         << ".png";
     return path.str();
 }
 
@@ -200,14 +203,13 @@ bool TextRenderer::SaveTextPng(const std::wstring& text, const TextStyle& style,
 {
     StartupTrace::Scope startupScope("Text.GeneratePng");
     StartupTrace::Count("Text.GeneratedPng");
-    std::filesystem::create_directories(std::filesystem::path(path).parent_path());
+    std::filesystem::create_directories(Utf8ToPath(path).parent_path());
 
     const std::wstring fontName = Utf8ToWide(style.fontFamily);
     std::unique_ptr<Gdiplus::FontFamily> fontFamily;
     if (!style.fontPath.empty() && fontStore_) {
         std::error_code error{};
-        const std::filesystem::path absolutePath =
-            std::filesystem::absolute(std::filesystem::path(style.fontPath), error).lexically_normal();
+        const std::filesystem::path absolutePath = std::filesystem::absolute(Utf8ToPath(style.fontPath), error).lexically_normal();
         if (!error && std::filesystem::exists(absolutePath)) {
             const std::wstring widePath = absolutePath.wstring();
             if (!fontStore_->registeredPaths.contains(widePath)) {

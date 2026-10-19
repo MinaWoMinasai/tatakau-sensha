@@ -1,5 +1,7 @@
 #include "Model.h"
+#include "ResourcePaths.h"
 #include "StringUtils.h"
+#include "Utf8Path.h"
 #include <assimp/Importer.hpp>
 #include <assimp/material.h>
 #include <assimp/postprocess.h>
@@ -144,11 +146,11 @@ std::string ResolveTexturePath(const std::string& directoryPath, const std::stri
         return {};
     }
 
-    const std::filesystem::path texturePath(textureFilename);
+    const std::filesystem::path texturePath = Utf8ToPath(textureFilename);
     if (texturePath.is_absolute()) {
-        return texturePath.generic_string();
+        return PathToUtf8Generic(texturePath);
     }
-    return (std::filesystem::path(directoryPath) / texturePath).generic_string();
+    return PathToUtf8Generic(Utf8ToPath(directoryPath) / texturePath);
 }
 
 /// @brief マテリアルの名前などから描画用途を推定する。
@@ -191,7 +193,7 @@ MaterialSemantic InferMaterialSemantic(const MaterialData& material)
 /// @brief LowerExtensionを返す。
 std::string GetLowerExtension(const std::string& filename)
 {
-    return ToLowerAscii(std::filesystem::path(filename).extension().generic_string());
+    return ToLowerAscii(PathToUtf8Generic(Utf8ToPath(filename).extension()));
 }
 
 /// @brief OBJ形式モデルであるか判定する。
@@ -216,7 +218,7 @@ Vector3 ConvertAssimpDirection(const aiVector3D& direction)
 std::string MakeAssimpTextureKey(const std::filesystem::path& sourcePath, const aiString& texturePath,
                                  TextureManager::TextureColorSpace colorSpace)
 {
-    std::string key = sourcePath.generic_string() + "#embedded/" + texturePath.C_Str();
+    std::string key = PathToUtf8Generic(sourcePath) + "#embedded/" + texturePath.C_Str();
     if (colorSpace == TextureManager::TextureColorSpace::LinearData) {
         key += "#linear";
     }
@@ -243,11 +245,11 @@ std::string ResolveAssimpTexturePath(const aiScene& scene, const std::filesystem
         return {};
     }
 
-    std::filesystem::path resolvedPath(texturePath.C_Str());
+    std::filesystem::path resolvedPath = Utf8ToPath(texturePath.C_Str());
     if (!resolvedPath.is_absolute()) {
         resolvedPath = sourcePath.parent_path() / resolvedPath;
     }
-    return resolvedPath.lexically_normal().generic_string();
+    return PathToUtf8Generic(resolvedPath.lexically_normal());
 }
 
 /// @brief Assimp材質テクスチャを返す。
@@ -506,7 +508,7 @@ MaterialData MakeDefaultPrimitiveMaterial()
     MaterialData material;
     material.materialName = "default";
     material.semantic = MaterialSemantic::GenericPbr;
-    material.textureFilePath = "resources/white512x512.png";
+    material.textureFilePath = ResourcePaths::DefaultWhiteTexture();
     material.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
     material.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
     material.occlusionTextureFilePath = TextureManager::GetFlatNormalTexturePath();
@@ -532,7 +534,7 @@ void FinalizeParsedMaterial(ParsedMaterialData& parsedMaterial)
     }
 
     if (materialData.textureFilePath.empty()) {
-        materialData.textureFilePath = "resources/white512x512.png";
+        materialData.textureFilePath = ResourcePaths::DefaultWhiteTexture();
     }
     if (!materialData.hasNormalTexture) {
         materialData.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
@@ -689,7 +691,7 @@ void ParseMtlMaterialLine(ParsedMaterialData& parsedMaterial, const std::string&
 std::vector<std::pair<std::string, MaterialData>> LoadMaterialTemplateLibrary(const std::string& directoryPath, const std::string& filename)
 {
     std::vector<std::pair<std::string, MaterialData>> materials;
-    std::ifstream file(directoryPath + "/" + filename);
+    std::ifstream file(Utf8ToPath(directoryPath + "/" + filename));
     assert(file.is_open());
 
     std::string line;
@@ -857,7 +859,7 @@ void Model::InitializeFromModelData(ModelCommon* modelCommon, const ModelData& m
 
     auto prepareMaterial = [](MaterialData& material) {
         if (material.textureFilePath.empty()) {
-            material.textureFilePath = "resources/white512x512.png";
+            material.textureFilePath = ResourcePaths::DefaultWhiteTexture();
         }
 
         if (!material.metallicTextureFilePath.empty() || !material.roughnessTextureFilePath.empty()) {
@@ -1075,10 +1077,10 @@ void Model::RecalculateSmoothNormals()
 
 MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename)
 {
-    MaterialData materialData;                          // 構築するMaterialData
-    std::string line;                                   // ファイルから読んだ一行を格納するもの
-    std::ifstream file(directoryPath + "/" + filename); // ファイルを開く
-    assert(file.is_open());                             // 開けなかったらエラー
+    MaterialData materialData;                                      // 構築するMaterialData
+    std::string line;                                               // ファイルから読んだ一行を格納するもの
+    std::ifstream file(Utf8ToPath(directoryPath + "/" + filename)); // ファイルを開く
+    assert(file.is_open());                                         // 開けなかったらエラー
     bool hasExplicitRoughness = false;
     bool hasSpecularPower = false;
     bool hasLegacySpecular = false;
@@ -1233,7 +1235,7 @@ MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, c
     }
 
     if (materialData.textureFilePath.empty()) {
-        materialData.textureFilePath = "resources/white512x512.png";
+        materialData.textureFilePath = ResourcePaths::DefaultWhiteTexture();
     }
     if (!materialData.hasNormalTexture) {
         materialData.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
@@ -1260,8 +1262,8 @@ ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string
     std::unordered_map<std::string, uint32_t> materialNameToIndex;
     std::unordered_map<std::string, uint32_t> vertexDefinitionToIndex;
 
-    std::ifstream file(directoryPath + "/" + filename); // ファイルを開く
-    assert(file.is_open());                             // 開けなかったらエラー
+    std::ifstream file(Utf8ToPath(directoryPath + "/" + filename)); // ファイルを開く
+    assert(file.is_open());                                         // 開けなかったらエラー
 
     auto ensureDefaultMaterial = [&]() {
         if (!modelData.materials.empty()) {
@@ -1422,15 +1424,17 @@ ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string
 
 ModelData Model::LoadAssimpFile(const std::string& directoryPath, const std::string& filename)
 {
-    const std::filesystem::path sourcePath = std::filesystem::path(directoryPath) / filename;
+    const std::filesystem::path sourcePath = Utf8ToPath(directoryPath) / Utf8ToPath(filename);
 
     Assimp::Importer importer;
     constexpr unsigned int kImportFlags = aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_GenSmoothNormals |
                                           aiProcess_CalcTangentSpace | aiProcess_ImproveCacheLocality | aiProcess_SortByPType;
 
-    const aiScene* scene = importer.ReadFile(sourcePath.generic_string(), kImportFlags);
+    // Assimp は Windows でもファイル名をUTF-8として扱う。
+    const std::string sourcePathUtf8 = PathToUtf8Generic(sourcePath);
+    const aiScene* scene = importer.ReadFile(sourcePathUtf8, kImportFlags);
     if (scene == nullptr || scene->mRootNode == nullptr || scene->mNumMeshes == 0) {
-        throw std::runtime_error("Failed to load static model: " + sourcePath.generic_string() + " / " + importer.GetErrorString());
+        throw std::runtime_error("Failed to load static model: " + sourcePathUtf8 + " / " + importer.GetErrorString());
     }
 
     ModelData modelData;

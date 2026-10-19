@@ -2,6 +2,7 @@
 #include "StartupTrace.h"
 #include "GeneratedTextureCache.h"
 #include "BackgroundLoader.h"
+#include "Utf8Path.h"
 #include <stdexcept>
 #include <algorithm>
 #include <cassert>
@@ -353,7 +354,7 @@ bool LoadTexture2DAsFloat(const std::string& filePath, DirectX::ScratchImage& ou
     DirectX::TexMetadata metadata{};
     const std::wstring filePathW = LogWrite().ConvertString(filePath);
     HRESULT hr = E_FAIL;
-    if (std::filesystem::path(filePath).extension() == ".dds") {
+    if (Utf8ToPath(filePath).extension() == ".dds") {
         hr = DirectX::LoadFromDDSFile(filePathW.c_str(), DirectX::DDS_FLAGS_NONE, &metadata, loaded);
     } else {
         hr = DirectX::LoadFromWICFile(filePathW.c_str(), DirectX::WIC_FLAGS_NONE, &metadata, loaded);
@@ -549,7 +550,7 @@ bool BuildProceduralEnvironmentCube(DirectX::ScratchImage& outCube, size_t cubeS
 /// @brief Optional背景テクスチャであるか判定する。
 bool IsOptionalSkyboxTexture(const std::string& filePath)
 {
-    const std::string fileName = std::filesystem::path(filePath).filename().string();
+    const std::string fileName = PathToUtf8(Utf8ToPath(filePath).filename());
     return fileName == "skybox.dds" || fileName == "skyboxSky.dds";
 }
 
@@ -585,7 +586,7 @@ bool LoadEnvironmentCubeAsFloat(const std::string& filePath, DirectX::ScratchIma
     const std::wstring filePathW = LogWrite().ConvertString(filePath);
 
     HRESULT hr = E_FAIL;
-    if (std::filesystem::path(filePath).extension() == ".dds") {
+    if (Utf8ToPath(filePath).extension() == ".dds") {
         hr = DirectX::LoadFromDDSFile(filePathW.c_str(), DirectX::DDS_FLAGS_NONE, &metadata, loaded);
     } else {
         hr = DirectX::LoadFromWICFile(filePathW.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, &metadata, loaded);
@@ -817,7 +818,7 @@ void TextureManager::PreloadTexture(const std::string& path, TextureColorSpace c
         return;
     }
     std::error_code fileError;
-    if (!std::filesystem::is_regular_file(path, fileError)) {
+    if (!std::filesystem::is_regular_file(Utf8ToPath(path), fileError)) {
         return; // 同期読み込みの代替経路を残す（任意のスカイボックスなど）。
     }
     auto result = BackgroundLoader::Get().Submit([path, colorSpace] {
@@ -825,7 +826,7 @@ void TextureManager::PreloadTexture(const std::string& path, TextureColorSpace c
         DirectX::ScratchImage image;
         const auto wide = LogWrite().ConvertString(path);
         const auto flags = colorSpace == TextureColorSpace::LinearData ? DirectX::WIC_FLAGS_NONE : DirectX::WIC_FLAGS_FORCE_SRGB;
-        const HRESULT hr = std::filesystem::path(path).extension() == ".dds"
+        const HRESULT hr = Utf8ToPath(path).extension() == ".dds"
                                ? DirectX::LoadFromDDSFile(wide.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image)
                                : DirectX::LoadFromWICFile(wide.c_str(), flags, nullptr, image);
         if (FAILED(hr)) {
@@ -903,7 +904,7 @@ void TextureManager::LoadTexture(const std::string& filePath, TextureColorSpace 
     const DirectX::TEX_FILTER_FLAGS mipFilter = linearData ? DirectX::TEX_FILTER_DEFAULT : DirectX::TEX_FILTER_SRGB;
 
     // 拡張子で読み込み方法を分岐
-    if (std::filesystem::path(filePath).extension() == ".dds") {
+    if (Utf8ToPath(filePath).extension() == ".dds") {
         hr = DirectX::LoadFromDDSFile(filePathW.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image);
     } else {
         hr = DirectX::LoadFromWICFile(filePathW.c_str(), wicFlags, nullptr, image);

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- エンジンと、エンジンを使う各プロジェクトで共通のコンパイル設定。
+     Microsoft.Cpp.props の後に Import する。
+     USE_IMGUI と MYENGINE_DEVELOPER_TOOLS はエンジンのクラスレイアウトを変える（Input.h など）ので、
+     エンジンとゲームで必ず同じ値にする。各プロジェクトで個別に定義しないこと。 -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MyEngineDeveloperTools Condition="'$(MyEngineDeveloperTools)'=='' and '$(Configuration)'=='Release'">false</MyEngineDeveloperTools>
+    <MyEngineDeveloperTools Condition="'$(MyEngineDeveloperTools)'==''">true</MyEngineDeveloperTools>
+    <MyEngineDeveloperToolsValue Condition="'$(MyEngineDeveloperTools)'=='true'">1</MyEngineDeveloperToolsValue>
+    <MyEngineDeveloperToolsValue Condition="'$(MyEngineDeveloperTools)'!='true'">0</MyEngineDeveloperToolsValue>
+    <MyEngineDeveloperUiDefines Condition="'$(MyEngineDeveloperTools)'=='true' and '$(Configuration)'=='Release'">USE_RUNTIME_PROFILER;</MyEngineDeveloperUiDefines>
+    <MyEngineDeveloperUiDefines Condition="'$(MyEngineDeveloperTools)'=='true' and '$(Configuration)'!='Release'">USE_IMGUI;</MyEngineDeveloperUiDefines>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!-- エンジンのヘッダーを使うためのインクルードディレクトリ。ゲーム側のディレクトリは含めない。 -->
+    <MyEngineIncludeDirectories>$(MSBuildThisFileDirectory);$(MSBuildThisFileDirectory)DirectX\engine\2d;$(MSBuildThisFileDirectory)DirectX\engine\3d;$(MSBuildThisFileDirectory)DirectX\engine\audio;$(MSBuildThisFileDirectory)DirectX\engine\calc;$(MSBuildThisFileDirectory)DirectX\engine\common;$(MSBuildThisFileDirectory)DirectX\engine\debugCamera;$(MSBuildThisFileDirectory)DirectX\engine\dumpClass;$(MSBuildThisFileDirectory)DirectX\engine\easing;$(MSBuildThisFileDirectory)DirectX\engine\input;$(MSBuildThisFileDirectory)DirectX\engine\struct;$(MSBuildThisFileDirectory)DirectX\engine\postEffect;$(MSBuildThisFileDirectory)DirectX\engine\particle;$(MSBuildThisFileDirectory)externals\nlohmann;$(MSBuildThisFileDirectory)externals\assimp\include;$(MSBuildThisFileDirectory)externals</MyEngineIncludeDirectories>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssimpLibraryName>assimp-vc145-mt</AssimpLibraryName>
+    <AssimpLibraryName Condition="Exists('$(MSBuildThisFileDirectory)externals\assimp\lib\assimp-vc143-mt.lib') and !Exists('$(MSBuildThisFileDirectory)externals\assimp\lib\assimp-vc145-mt.lib')">assimp-vc143-mt</AssimpLibraryName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;MYENGINE_DEVELOPER_TOOLS=$(MyEngineDeveloperToolsValue);$(MyEngineDeveloperUiDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <TreatWarningAsError>true</TreatWarningAsError>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;MYENGINE_DEVELOPER_TOOLS=$(MyEngineDeveloperToolsValue);$(MyEngineDeveloperUiDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <Optimization>MinSpace</Optimization>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_WINDOWS;MYENGINE_DEVELOPER_TOOLS=$(MyEngineDeveloperToolsValue);$(MyEngineDeveloperUiDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <Optimization>Disabled</Optimization>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

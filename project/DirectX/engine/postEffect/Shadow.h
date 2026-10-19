@@ -1,8 +1,8 @@
 #pragma once
 #include "DirectXCommon.h"
 #include "SrvManager.h"
-#include "SceneManager.h"
 #include "ShadowMap.h"
+#include <functional>
 
 namespace myEngine {
 
@@ -11,8 +11,9 @@ class Shadow {
 public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager);
-    /// @brief 後続の描画で使う描画先・パイプラインを準備する。対応するPostDrawと組にして使う。
-    void PreDraw();
+    /// @brief 影マップへの描画パスを実行する。
+    /// @param drawShadowCasters 影を落とす物体を描画する処理。影マップを描画先にした状態で呼ぶ。
+    void PreDraw(const std::function<void()>& drawShadowCasters);
     /// @brief 描画後の処理を行い、次の描画または合成に必要な状態へ進める。
     void PostDraw();
 

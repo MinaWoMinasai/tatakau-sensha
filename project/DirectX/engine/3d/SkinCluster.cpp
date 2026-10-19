@@ -1,7 +1,9 @@
 #include "SkinCluster.h"
+#include "ResourcePaths.h"
 #include "BackgroundLoader.h"
 #include "StartupTrace.h"
 #include "StringUtils.h"
+#include "Utf8Path.h"
 
 #include "Calculation.h"
 #include "DirectXCommon.h"
@@ -186,7 +188,7 @@ MaterialData MakeDefaultSkinnedMaterial()
     MaterialData material;
     material.materialName = "default";
     material.semantic = MaterialSemantic::GenericPbr;
-    material.textureFilePath = "resources/white512x512.png";
+    material.textureFilePath = ResourcePaths::DefaultWhiteTexture();
     material.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
     material.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
     material.occlusionTextureFilePath = TextureManager::GetFlatNormalTexturePath();
@@ -197,7 +199,7 @@ MaterialData MakeDefaultSkinnedMaterial()
 std::string MakeEmbeddedTextureKey(const std::filesystem::path& sourcePath, const aiString& texturePath,
                                    TextureManager::TextureColorSpace colorSpace)
 {
-    std::string key = sourcePath.generic_string() + "#embedded/" + texturePath.C_Str();
+    std::string key = PathToUtf8Generic(sourcePath) + "#embedded/" + texturePath.C_Str();
     if (colorSpace == TextureManager::TextureColorSpace::LinearData) {
         key += "#linear";
     }
@@ -233,11 +235,11 @@ std::string ResolveSkinningTexturePath(SkinningModelAsset& asset, const aiScene&
         return {};
     }
 
-    std::filesystem::path resolvedPath(texturePath.C_Str());
+    std::filesystem::path resolvedPath = Utf8ToPath(texturePath.C_Str());
     if (!resolvedPath.is_absolute()) {
         resolvedPath = sourcePath.parent_path() / resolvedPath;
     }
-    return resolvedPath.lexically_normal().generic_string();
+    return PathToUtf8Generic(resolvedPath.lexically_normal());
 }
 
 /// @brief スキニング材質テクスチャを返す。
@@ -473,7 +475,7 @@ void GenerateSkinningTangents(ModelData& modelData)
 void PrepareSkinningMaterialForGpu(MaterialData& material)
 {
     if (material.textureFilePath.empty()) {
-        material.textureFilePath = "resources/white512x512.png";
+        material.textureFilePath = ResourcePaths::DefaultWhiteTexture();
     }
     if (material.materialName.empty()) {
         material.materialName = "default";
@@ -544,7 +546,7 @@ SkinningModelAsset SkinningModelLoader::LoadFromFile(const std::string& filePath
 
     SkinningModelAsset asset;
     asset.rootNode = ReadNode(*scene->mRootNode);
-    const std::filesystem::path sourcePath(filePath);
+    const std::filesystem::path sourcePath = Utf8ToPath(filePath);
     asset.modelData.materials = LoadSkinningMaterials(asset, *scene, sourcePath);
 
     for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
@@ -599,7 +601,7 @@ SkinningModelAsset SkinningModelLoader::LoadFromFile(const std::string& filePath
             if (submesh.materialIndex < asset.modelData.materials.size()) {
                 submesh.textureKey = asset.modelData.materials[submesh.materialIndex].textureFilePath;
             } else {
-                submesh.textureKey = "resources/white512x512.png";
+                submesh.textureKey = ResourcePaths::DefaultWhiteTexture();
             }
             if (mesh.mMaterialIndex < scene->mNumMaterials) {
                 aiString materialName;
@@ -628,7 +630,7 @@ SkinningModelAsset SkinningModelLoader::LoadFromFile(const std::string& filePath
         submesh.materialIndex = 0;
         submesh.materialName = "default";
         submesh.textureKey =
-            asset.modelData.materials.empty() ? "resources/white512x512.png" : asset.modelData.materials.front().textureFilePath;
+            asset.modelData.materials.empty() ? ResourcePaths::DefaultWhiteTexture() : asset.modelData.materials.front().textureFilePath;
         asset.submeshes.push_back(submesh);
         asset.modelData.submeshes.push_back({
             submesh.indexStart,
@@ -850,7 +852,7 @@ void SkinnedModel::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, c
 
     for (MaterialData& material : asset_.modelData.materials) {
         if (failedEmbeddedTextureKeys.contains(material.textureFilePath)) {
-            material.textureFilePath = "resources/white512x512.png";
+            material.textureFilePath = ResourcePaths::DefaultWhiteTexture();
             material.hasBaseColorFactor = true;
         }
         if (failedEmbeddedTextureKeys.contains(material.normalTextureFilePath)) {

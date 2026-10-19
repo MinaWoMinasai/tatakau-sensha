@@ -1,7 +1,9 @@
 #include "ModelManager.h"
+#include "ResourcePaths.h"
 #include "StartupTrace.h"
 #include "BackgroundLoader.h"
 #include "TextureManager.h"
+#include "Utf8Path.h"
 #include <filesystem>
 
 namespace myEngine {
@@ -31,13 +33,13 @@ void ModelManager::PreloadObjModel(const std::string& filePath)
     if (models.contains(filePath) || pendingModels_.contains(filePath)) {
         return;
     }
-    if (std::filesystem::path(filePath).extension() != ".obj" ||
-        !std::filesystem::is_regular_file(std::filesystem::path("resources") / filePath)) {
+    if (Utf8ToPath(filePath).extension() != ".obj" ||
+        !std::filesystem::is_regular_file(Utf8ToPath(ResourcePaths::GameRoot()) / Utf8ToPath(filePath))) {
         return;
     }
     pendingModels_.emplace(filePath, BackgroundLoader::Get().Submit([filePath] {
         StartupTrace::Scope scope("FileThread.Model." + filePath);
-        return Model::LoadObjFile("resources", filePath);
+        return Model::LoadObjFile(ResourcePaths::GameRoot(), filePath);
     }));
 }
 
@@ -99,10 +101,10 @@ void ModelManager::LoadModel(const std::string& filePath)
         }
         catch (const std::exception& error) {
             LogWrite().Log("[BackgroundLoader] Model fallback: " + std::string(error.what()) + "\n");
-            model->Initialize(modelCommon.get(), "resources", filePath);
+            model->Initialize(modelCommon.get(), ResourcePaths::GameRoot(), filePath);
         }
     } else {
-        model->Initialize(modelCommon.get(), "resources", filePath);
+        model->Initialize(modelCommon.get(), ResourcePaths::GameRoot(), filePath);
     }
 
     // モデルをmapコンテナに格納する

@@ -1,4 +1,6 @@
 #include "ParticleManager.h"
+#include "ResourcePaths.h"
+#include "Utf8Path.h"
 #include "Calculation.h"
 #include "TextureManager.h"
 #include "DebugCamera.h"
@@ -118,7 +120,7 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
                             {{1.22f, -0.86f, 0.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
                             {{1.22f, 1.36f, 0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     contourData.indices = {0, 1, 2, 1, 3, 2};
-    contourData.material.textureFilePath = "resources/white512x512.png";
+    contourData.material.textureFilePath = ResourcePaths::DefaultWhiteTexture();
     contourModelCommon_ = std::make_unique<ModelCommon>();
     contourModelCommon_->Initialize(dxCommon_);
     contourModel_ = std::make_unique<Model>();
@@ -617,7 +619,7 @@ void ParticleManager::ResetDrawArgs()
 void ParticleManager::RegisterEffect(const std::string& effectName, const std::string& jsonPath)
 {
     ParticleEmitterConfig config;
-    std::ifstream file(jsonPath);
+    std::ifstream file(Utf8ToPath(jsonPath));
     if (file) {
         nlohmann::json json;
         file >> json;
@@ -638,7 +640,7 @@ void ParticleManager::SaveEffect(const std::string& effectName, const std::strin
         return;
     }
 
-    std::ofstream file(jsonPath);
+    std::ofstream file(Utf8ToPath(jsonPath));
     if (!file) {
         return;
     }

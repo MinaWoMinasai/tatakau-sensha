@@ -108,102 +108,6 @@
     <ClCompile Include="main.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="externals\imgui\imgui.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_demo.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_draw.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_impl_dx12.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_impl_win32.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_tables.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_widgets.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\audio\Audio.cpp">
-      <Filter>DirectX\engine\audio</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\calc\Calculation.cpp">
-      <Filter>DirectX\engine\calc</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\DirectXCommon.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\dumpClass\Dump.cpp">
-      <Filter>DirectX\engine\dump</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\easing\Easing.cpp">
-      <Filter>DirectX\engine\easing</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\input\Input.cpp">
-      <Filter>DirectX\engine\input</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\2d\Sprite.cpp">
-      <Filter>DirectX\engine\2d</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\2d\SpriteCommon.cpp">
-      <Filter>DirectX\engine\2d</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\2d\TextLabel.cpp">
-      <Filter>DirectX\engine\2d</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\2d\TextRenderer.cpp">
-      <Filter>DirectX\engine\2d</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\InputDesc.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\LogWrite.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\Resource.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\Root.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\Texture.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\WinApp.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\debugCamera\DebugCamera.cpp">
-      <Filter>DirectX\engine\debugCamera</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\2d\TextureManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\Object3dCommon.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\Object3d.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\ModelCommon.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\Model.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\ModelManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\debugCamera\Camera.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\SrvManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="game\collision\Collider.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -261,25 +165,10 @@
     <ClCompile Include="game\effects\ScreenEffectDirector.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="game\scene\SceneManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\scene\SceneFactory.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\runtime\SceneRegistry.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\runtime\GameModuleRegistry.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="game\modules\BuiltInGameModule.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\modules\GameModuleBootstrap.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\runtime\GameProject.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\scene\TitleScene.cpp">
@@ -292,48 +181,6 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\exp\ExpEnemy.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\postEffect\BloomConstantBuffer.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\postEffect\ObjectPostEffect.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\postEffect\PostEffect.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\postEffect\RenderTexture.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\RtvManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\particle\ParticleManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\ShadowMap.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\postEffect\Bloom.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\postEffect\BloomPyramid.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\postEffect\Shadow.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\RingManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\Skybox.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\TrailInstance.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\common\TrailManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\level\LevelLoader.cpp">
@@ -361,108 +208,6 @@
     <FxCompile Include="resources\shaders\Trail.VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="externals\imgui\imconfig.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imgui.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imgui_impl_dx12.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imgui_impl_win32.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imgui_internal.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imstb_rectpack.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imstb_textedit.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imstb_truetype.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\audio\Audio.h">
-      <Filter>DirectX\engine\audio</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\calc\Calculation.h">
-      <Filter>DirectX\engine\calc</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\DirectXCommon.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\dumpClass\Dump.h">
-      <Filter>DirectX\engine\dump</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\easing\Easing.h">
-      <Filter>DirectX\engine\easing</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\input\Input.h">
-      <Filter>DirectX\engine\input</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\2d\SpriteCommon.h">
-      <Filter>DirectX\engine\2d</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\2d\Sprite.h">
-      <Filter>DirectX\engine\2d</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\2d\TextLabel.h">
-      <Filter>DirectX\engine\2d</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\2d\TextRenderer.h">
-      <Filter>DirectX\engine\2d</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\InputDesc.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\LogWrite.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\Resource.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\Root.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\Texture.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\WinApp.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\struct\Struct.h">
-      <Filter>DirectX\engine\struct</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h">
-      <Filter>DirectX\engine\debugCamera</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\2d\TextureManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\Object3dCommon.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\Object3d.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\ModelCommon.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\Model.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\ModelManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\debugCamera\Camera.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\SrvManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="game\collision\Collider.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -540,9 +285,6 @@
     <ClInclude Include="game\effects\ScreenEffectDirector.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="game\scene\SceneManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="game\scene\TitleScene.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -555,83 +297,15 @@
     <ClInclude Include="game\exp\ExpEnemy.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\BloomConstantBuffer.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\PostEffect.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\RenderTexture.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\RtvManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\particle\ParticleManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\ShadowMap.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\scene\IScene.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\scene\AbstractSceneFactory.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\scene\SceneFactory.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\runtime\SceneRegistry.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\runtime\IGameModule.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\runtime\GameModuleRegistry.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="game\modules\BuiltInGameModule.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\modules\GameModuleBootstrap.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="game\runtime\GameProject.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\Bloom.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\BloomPyramid.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\ObjectPostEffect.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\Shadow.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\RingManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\Skybox.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\TrailInstance.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\common\TrailManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="game\level\LevelLoader.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="externals\imgui\LICENSE.txt">
-      <Filter>imgui</Filter>
-    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\Object3d.hlsli">
@@ -644,12 +318,6 @@
     <None Include="resources\shaders\Trail.hlsli" />
   </ItemGroup>
   <ItemGroup>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="DirectX\engine\common\RuntimeProfiler.cpp" />
-    <ClInclude Include="DirectX\engine\common\RuntimeProfiler.h" />
-    <ClInclude Include="DirectX\engine\common\FramePacer.h" />
-    <ClInclude Include="DirectX\engine\common\TrailStressFixture.h" />
   </ItemGroup>  <ItemGroup>
     <ClInclude Include="game\run\TankExpeditionBalance.h" />
     <ClInclude Include="game\run\TankExpeditionTutorial.h" />
@@ -683,14 +351,8 @@
     <ClInclude Include="game\ui\TankRewardPreviewRenderer.h" />
     <ClInclude Include="game\ui\TankCombatNeonGeometry.h" />
     <ClInclude Include="game\player\TankCombatStyleBalance.h" />
-    <ClInclude Include="DirectX\engine\common\StartupTrace.h" />
-    <ClInclude Include="DirectX\engine\common\ShaderDiskCache.h" />
-    <ClInclude Include="DirectX\engine\2d\GeneratedTextureCache.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.cpp">
-      <Filter>DirectX\engine\3d</Filter>
-    </ClCompile>
     <ClCompile Include="game\debug\NeonSkinnedPreview.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -702,9 +364,6 @@
     </ClCompile>
     <ClInclude Include="game\debug\NeonDissolvePreviewController.h">
       <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\neon\NeonDissolve.h">
-      <Filter>DirectX\engine\3d</Filter>
     </ClInclude>
     <None Include="resources\shaders\NeonDissolve.hlsli">
       <Filter>DirectX\shaders</Filter>
@@ -725,7 +384,6 @@
     <ClInclude Include="game\debug\GameplayScenarioSession.h" />
     <ClCompile Include="game\debug\GameplayScenarioSession.cpp" />
     <ClInclude Include="game\enemy\visual\NeonBossVisualState.h" />
-    <ClInclude Include="DirectX\engine\3d\neon\NeonCharacterStyle.h" />
     <ClCompile Include="game\debug\NeonPreviewAnimations.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -738,9 +396,6 @@
     <None Include="resources\models\neon_hologram\README.md">
       <Filter>リソース ファイル</Filter>
     </None>
-    <ClInclude Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.h">
-      <Filter>DirectX\engine\3d</Filter>
-    </ClInclude>
     <None Include="resources\shaders\NeonSkinned.hlsli">
       <Filter>DirectX\shaders</Filter>
     </None>
