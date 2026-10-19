@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "ResourcePaths.h"
 #include "StringUtils.h"
 #include <assimp/Importer.hpp>
 #include <assimp/material.h>
@@ -506,7 +507,7 @@ MaterialData MakeDefaultPrimitiveMaterial()
     MaterialData material;
     material.materialName = "default";
     material.semantic = MaterialSemantic::GenericPbr;
-    material.textureFilePath = "resources/white512x512.png";
+    material.textureFilePath = ResourcePaths::DefaultWhiteTexture();
     material.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
     material.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
     material.occlusionTextureFilePath = TextureManager::GetFlatNormalTexturePath();
@@ -532,7 +533,7 @@ void FinalizeParsedMaterial(ParsedMaterialData& parsedMaterial)
     }
 
     if (materialData.textureFilePath.empty()) {
-        materialData.textureFilePath = "resources/white512x512.png";
+        materialData.textureFilePath = ResourcePaths::DefaultWhiteTexture();
     }
     if (!materialData.hasNormalTexture) {
         materialData.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
@@ -857,7 +858,7 @@ void Model::InitializeFromModelData(ModelCommon* modelCommon, const ModelData& m
 
     auto prepareMaterial = [](MaterialData& material) {
         if (material.textureFilePath.empty()) {
-            material.textureFilePath = "resources/white512x512.png";
+            material.textureFilePath = ResourcePaths::DefaultWhiteTexture();
         }
 
         if (!material.metallicTextureFilePath.empty() || !material.roughnessTextureFilePath.empty()) {
@@ -1233,7 +1234,7 @@ MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, c
     }
 
     if (materialData.textureFilePath.empty()) {
-        materialData.textureFilePath = "resources/white512x512.png";
+        materialData.textureFilePath = ResourcePaths::DefaultWhiteTexture();
     }
     if (!materialData.hasNormalTexture) {
         materialData.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();

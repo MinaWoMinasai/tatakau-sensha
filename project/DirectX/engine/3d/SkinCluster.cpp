@@ -1,4 +1,5 @@
 #include "SkinCluster.h"
+#include "ResourcePaths.h"
 #include "BackgroundLoader.h"
 #include "StartupTrace.h"
 #include "StringUtils.h"
@@ -186,7 +187,7 @@ MaterialData MakeDefaultSkinnedMaterial()
     MaterialData material;
     material.materialName = "default";
     material.semantic = MaterialSemantic::GenericPbr;
-    material.textureFilePath = "resources/white512x512.png";
+    material.textureFilePath = ResourcePaths::DefaultWhiteTexture();
     material.normalTextureFilePath = TextureManager::GetFlatNormalTexturePath();
     material.metallicRoughnessTextureFilePath = TextureManager::GetFlatNormalTexturePath();
     material.occlusionTextureFilePath = TextureManager::GetFlatNormalTexturePath();
@@ -473,7 +474,7 @@ void GenerateSkinningTangents(ModelData& modelData)
 void PrepareSkinningMaterialForGpu(MaterialData& material)
 {
     if (material.textureFilePath.empty()) {
-        material.textureFilePath = "resources/white512x512.png";
+        material.textureFilePath = ResourcePaths::DefaultWhiteTexture();
     }
     if (material.materialName.empty()) {
         material.materialName = "default";
@@ -599,7 +600,7 @@ SkinningModelAsset SkinningModelLoader::LoadFromFile(const std::string& filePath
             if (submesh.materialIndex < asset.modelData.materials.size()) {
                 submesh.textureKey = asset.modelData.materials[submesh.materialIndex].textureFilePath;
             } else {
-                submesh.textureKey = "resources/white512x512.png";
+                submesh.textureKey = ResourcePaths::DefaultWhiteTexture();
             }
             if (mesh.mMaterialIndex < scene->mNumMaterials) {
                 aiString materialName;
@@ -628,7 +629,7 @@ SkinningModelAsset SkinningModelLoader::LoadFromFile(const std::string& filePath
         submesh.materialIndex = 0;
         submesh.materialName = "default";
         submesh.textureKey =
-            asset.modelData.materials.empty() ? "resources/white512x512.png" : asset.modelData.materials.front().textureFilePath;
+            asset.modelData.materials.empty() ? ResourcePaths::DefaultWhiteTexture() : asset.modelData.materials.front().textureFilePath;
         asset.submeshes.push_back(submesh);
         asset.modelData.submeshes.push_back({
             submesh.indexStart,
@@ -850,7 +851,7 @@ void SkinnedModel::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, c
 
     for (MaterialData& material : asset_.modelData.materials) {
         if (failedEmbeddedTextureKeys.contains(material.textureFilePath)) {
-            material.textureFilePath = "resources/white512x512.png";
+            material.textureFilePath = ResourcePaths::DefaultWhiteTexture();
             material.hasBaseColorFactor = true;
         }
         if (failedEmbeddedTextureKeys.contains(material.normalTextureFilePath)) {

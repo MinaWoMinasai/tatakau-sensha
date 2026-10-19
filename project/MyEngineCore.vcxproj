@@ -118,6 +118,7 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\common\ResourcePaths.cpp" />
     <ClCompile Include="DirectX\engine\common\LogWrite.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
@@ -218,6 +219,7 @@
     <ClInclude Include="DirectX\engine\input\Input.h" />
     <ClInclude Include="DirectX\engine\common\InputDesc.h" />
     <ClInclude Include="DirectX\engine\common\LogWrite.h" />
+    <ClInclude Include="DirectX\engine\common\ResourcePaths.h" />
     <ClInclude Include="DirectX\engine\common\Resource.h" />
     <ClInclude Include="DirectX\engine\common\Root.h" />
     <ClInclude Include="DirectX\engine\2d\Sprite.h" />
