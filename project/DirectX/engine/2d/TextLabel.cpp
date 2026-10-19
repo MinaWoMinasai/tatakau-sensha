@@ -1,5 +1,6 @@
 #include "TextLabel.h"
 #include "InputPrompt.h"
+#include "Utf8Path.h"
 #include <unordered_set>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -83,7 +84,7 @@ void TextLabel::Initialize(SpriteCommon* spriteCommon, const std::string& text, 
 
 bool TextLabel::InitializeFromJson(SpriteCommon* spriteCommon, const std::string& configPath, const std::string& labelId)
 {
-    std::ifstream file(configPath);
+    std::ifstream file(Utf8ToPath(configPath));
     if (!file.is_open()) {
         return false;
     }
