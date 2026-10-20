@@ -125,6 +125,7 @@
     </ClCompile>
     <ClCompile Include="game\runtime\Application.cpp" />
     <ClCompile Include="game\runtime\ApplicationMain.cpp" />
+    <ClCompile Include="game\runtime\EntityScene.cpp" />
     <ClCompile Include="game\runtime\GameModuleRegistry.cpp" />
     <ClCompile Include="game\runtime\GameProject.cpp" />
     <ClCompile Include="game\runtime\SceneRegistry.cpp" />
@@ -241,6 +242,7 @@
     <ClInclude Include="DirectX\engine\common\SrvManager.h" />
     <ClInclude Include="game\runtime\Application.h" />
     <ClInclude Include="game\runtime\ApplicationMain.h" />
+    <ClInclude Include="game\runtime\EntityScene.h" />
     <ClInclude Include="game\runtime\IApplicationHooks.h" />
     <ClInclude Include="game\runtime\GameModuleRegistry.h" />
     <ClInclude Include="game\runtime\GameProject.h" />
@@ -268,6 +270,31 @@
     <ClInclude Include="DirectX\engine\3d\neon\NeonDissolve.h" />
     <ClInclude Include="DirectX\engine\3d\neon\NeonCharacterStyle.h" />
     <ClInclude Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="DirectX\engine\ecs\EcsComponents.cpp" />
+    <ClCompile Include="DirectX\engine\ecs\ComponentRegistry.cpp" />
+    <ClCompile Include="DirectX\engine\ecs\SceneSerializer.cpp" />
+    <ClCompile Include="DirectX\engine\ecs\RenderSync.cpp" />
+    <ClCompile Include="DirectX\engine\ecs\EntityEditor.cpp" />
+    <ClInclude Include="DirectX\engine\ecs\EcsComponents.h" />
+    <ClInclude Include="DirectX\engine\ecs\ComponentRegistry.h" />
+    <ClInclude Include="DirectX\engine\ecs\SceneSerializer.h" />
+    <ClInclude Include="DirectX\engine\ecs\RenderSync.h" />
+    <ClInclude Include="DirectX\engine\ecs\EntityEditor.h" />
+    <ClInclude Include="DirectX\engine\ecs\EcsFlecs.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- flecs は外部のCのコード。Cとしてコンパイルし、警告の扱いはこのファイルだけ外部コード向けにする（中身は変更しない）。 -->
+    <ClCompile Include="externals\flecs\flecs.c">
+      <CompileAs>CompileAsC</CompileAs>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <SDLCheck>false</SDLCheck>
+    </ClCompile>
+    <ClInclude Include="externals\flecs\flecs.h" />
+    <None Include="externals\flecs\LICENSE" />
+    <None Include="externals\flecs\README.md" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
