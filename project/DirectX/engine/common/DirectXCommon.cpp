@@ -455,6 +455,8 @@ InitializationTask DirectXCommon::BuildPipelines()
     psoModelParticle_.shaderType_ = ModelParticle;
     psoModelParticle_HDR.shaderType_ = ModelParticle;
     psoComputeParticle_.shaderType_ = ComputeParticle;
+    psoScanParticle_.shaderType_ = ComputeParticle;
+    psoCompactParticle_.shaderType_ = ComputeParticle;
     psoInitializeParticle_.shaderType_ = ComputeParticle;
     psoEmitParticle_.shaderType_ = ComputeParticle;
     psoEmitBatchParticle_.shaderType_ = ComputeParticle;
@@ -550,6 +552,10 @@ InitializationTask DirectXCommon::BuildPipelines()
     CreateComputeShaderCommon(psoEmitBatchParticle_, ResourcePaths::EngineShader(L"ParticleEmitBatch.CS.hlsl"));
     co_await std::suspend_always{};
     CreateComputeShaderCommon(psoComputeParticle_, ResourcePaths::EngineShader(L"ParticleUpdate.CS.hlsl"));
+    co_await std::suspend_always{};
+    CreateComputeShaderCommon(psoScanParticle_, ResourcePaths::EngineShader(L"ParticleScan.CS.hlsl"));
+    co_await std::suspend_always{};
+    CreateComputeShaderCommon(psoCompactParticle_, ResourcePaths::EngineShader(L"ParticleCompact.CS.hlsl"));
     co_await std::suspend_always{};
     CreateShaderCommon(bloomPSO, kNone);
     co_await std::suspend_always{};

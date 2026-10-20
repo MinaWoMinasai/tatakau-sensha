@@ -692,8 +692,18 @@ void Root::InitializeForComputeParticle()
     Parameters_[8].DescriptorTable.pDescriptorRanges = &descriptorRange_[6];
     Parameters_[8].DescriptorTable.NumDescriptorRanges = 1;
 
+    // u6: 更新のグループごとの生存数・死亡数と、詰める位置。
+    descriptorRange_[7].BaseShaderRegister = 6;
+    descriptorRange_[7].NumDescriptors = 1;
+    descriptorRange_[7].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    descriptorRange_[7].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    Parameters_[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    Parameters_[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    Parameters_[9].DescriptorTable.pDescriptorRanges = &descriptorRange_[7];
+    Parameters_[9].DescriptorTable.NumDescriptorRanges = 1;
+
     descriptionSignature_.pParameters = Parameters_;
-    descriptionSignature_.NumParameters = 9;
+    descriptionSignature_.NumParameters = 10;
     descriptionSignature_.pStaticSamplers = nullptr;
     descriptionSignature_.NumStaticSamplers = 0;
 

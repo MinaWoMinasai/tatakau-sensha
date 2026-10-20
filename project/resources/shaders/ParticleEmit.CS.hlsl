@@ -61,11 +61,11 @@ void main(uint3 DTid : SV_DispatchThreadID)
         return;
     }
 
-    int freeListIndex;
-    InterlockedAdd(gFreeListIndex[0], -1, freeListIndex);
+    // フリーリストの先頭から要求の順に取る（取れた数は ParticleScan が先頭から除く）。
+    // 不可分操作で取ると、どの要求がどの番号に入るかが実行ごとに変わり、描画順が揺れる。
+    const int freeListIndex = gFreeListIndex[0] - int(gConfig.emitOffset + DTid.x);
     if (freeListIndex < 0 || freeListIndex >= int(gConfig.maxParticles))
     {
-        InterlockedAdd(gFreeListIndex[0], 1);
         return;
     }
 

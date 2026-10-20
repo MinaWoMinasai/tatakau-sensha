@@ -187,6 +187,13 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     uavIndexAliveIndices_ = srvManager_->Allocate();
     srvManager_->CreateUAVforStructuredBuffer(uavIndexAliveIndices_, aliveIndicesResource_.Get(), kMaxInstance, sizeof(uint32_t));
 
+    // 更新のグループごとの生存数・死亡数と、詰める位置（uint4）。
+    groupCountsResource_ =
+        dxCommon_->CreateUAVBufferResource(sizeof(uint32_t) * 4 * kUpdateGroupCount, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    uavIndexGroupCounts_ = srvManager_->Allocate();
+    srvManager_->CreateUAVforStructuredBuffer(uavIndexGroupCounts_, groupCountsResource_.Get(), kUpdateGroupCount,
+                                              sizeof(uint32_t) * 4);
+
     // 5. 定数バッファ
     computeConfigResource_ = dxCommon_->CreateBufferResource(sizeof(GlobalConfig));
     computeSceneResource_ = dxCommon_->CreateBufferResource(sizeof(SceneConfig));
@@ -225,6 +232,7 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     Transition(freeListResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     Transition(gpuInstancingResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     Transition(aliveIndicesResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    Transition(groupCountsResource_.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     InitializeGpuParticles();
 
@@ -453,11 +461,7 @@ void ParticleManager::DispatchGpu(float deltaTime, const Matrix4x4& viewProjecti
     auto commandList = dxCommon_->GetList();
 
     gpuTime_ += deltaTime;
-    DispatchGpuEmitters();
-
-    Transition(drawArgsResource_.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_DEST);
-    commandList->CopyBufferRegion(drawArgsResource_.Get(), 4, resetResource_.Get(), 0, sizeof(uint32_t));
-    Transition(drawArgsResource_.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    const uint32_t emitCount = DispatchGpuEmitters();
 
     GlobalConfig* config = nullptr;
     computeConfigResource_->Map(0, nullptr, reinterpret_cast<void**>(&config));
@@ -465,6 +469,7 @@ void ParticleManager::DispatchGpu(float deltaTime, const Matrix4x4& viewProjecti
     config->maxParticles = kMaxInstance;
     config->time = gpuTime_;
     config->itemCount = kMaxInstance;
+    config->emitCount = emitCount;
     computeConfigResource_->Unmap(0, nullptr);
 
     SceneConfig* scene = nullptr;
@@ -475,7 +480,32 @@ void ParticleManager::DispatchGpu(float deltaTime, const Matrix4x4& viewProjecti
     computeSceneResource_->Unmap(0, nullptr);
 
     srvManager_->PreDraw();
-    auto& pso = dxCommon_->GetPSOComputeParticle();
+    // 生存分の詰め直しとフリーリストへの返却は、不可分操作ではなくパーティクルの番号順で行う。
+    // 不可分操作の順序はウェーブの実行順で実行ごとに変わり、加算合成の描画順が揺れて画素が1ずれるため。
+    // 1. 寿命と物理を進め、グループごとの生存数・死亡数を数える
+    SetGpuParticleComputeRoot(dxCommon_->GetPSOComputeParticle());
+    commandList->Dispatch(kUpdateGroupCount, 1, 1);
+    AddUavBarrier({particleResource_.Get(), groupCountsResource_.Get()});
+
+    // 2. グループごとの書き込み開始位置、InstanceCount、フリーリストの先頭を決める
+    SetGpuParticleComputeRoot(dxCommon_->GetPSOScanParticle());
+    commandList->Dispatch(1, 1, 1);
+    AddUavBarrier({groupCountsResource_.Get(), drawArgsResource_.Get(), freeListIndexResource_.Get()});
+
+    // 3. 描画データを詰め、寿命が尽きたものをフリーリストへ返す
+    SetGpuParticleComputeRoot(dxCommon_->GetPSOCompactParticle());
+    commandList->Dispatch(kUpdateGroupCount, 1, 1);
+    AddUavBarrier({particleResource_.Get(), gpuInstancingResource_.Get(), drawArgsResource_.Get(), freeListIndexResource_.Get(),
+                   freeListResource_.Get()});
+
+    Transition(gpuInstancingResource_.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    Transition(drawArgsResource_.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+    gpuDrawReady_ = true;
+}
+
+void ParticleManager::SetGpuParticleComputeRoot(DirectXCommon::PSO& pso)
+{
+    auto commandList = dxCommon_->GetList();
     commandList->SetComputeRootSignature(pso.root_.GetSignature().Get());
     commandList->SetPipelineState(pso.computeState_.Get());
     commandList->SetComputeRootConstantBufferView(0, computeConfigResource_->GetGPUVirtualAddress());
@@ -486,15 +516,7 @@ void ParticleManager::DispatchGpu(float deltaTime, const Matrix4x4& viewProjecti
     commandList->SetComputeRootDescriptorTable(5, srvManager_->GetGPUDescriptorHandle(uavIndexDrawArgs_));
     commandList->SetComputeRootDescriptorTable(6, srvManager_->GetGPUDescriptorHandle(uavIndexFreeListIndex_));
     commandList->SetComputeRootDescriptorTable(7, srvManager_->GetGPUDescriptorHandle(uavIndexFreeList_));
-
-    commandList->Dispatch((kMaxInstance + 1023) / 1024, 1, 1);
-
-    AddUavBarrier({particleResource_.Get(), gpuInstancingResource_.Get(), drawArgsResource_.Get(), freeListIndexResource_.Get(),
-                   freeListResource_.Get()});
-
-    Transition(gpuInstancingResource_.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    Transition(drawArgsResource_.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-    gpuDrawReady_ = true;
+    commandList->SetComputeRootDescriptorTable(9, srvManager_->GetGPUDescriptorHandle(uavIndexGroupCounts_));
 }
 
 void ParticleManager::InitializeGpuParticles()
@@ -517,10 +539,12 @@ void ParticleManager::InitializeGpuParticles()
     AddUavBarrier({particleResource_.Get(), freeListIndexResource_.Get(), freeListResource_.Get()});
 }
 
-void ParticleManager::DispatchGpuEmitters()
+uint32_t ParticleManager::DispatchGpuEmitters()
 {
     auto commandList = dxCommon_->GetList();
     srvManager_->PreDraw();
+    // Emit と EmitBatch は、フリーリストの先頭からこの順に続けて取る。
+    uint32_t emitCount = 0;
 
     if (!pendingGpuEmitters_.empty()) {
         const uint32_t count = static_cast<uint32_t>((std::min)(pendingGpuEmitters_.size(), size_t{kMaxEmitRequests}));
@@ -531,7 +555,7 @@ void ParticleManager::DispatchGpuEmitters()
 
         GlobalConfig* config = nullptr;
         emitterConfigResource_->Map(0, nullptr, reinterpret_cast<void**>(&config));
-        *config = {0.0f, kMaxInstance, gpuTime_, count};
+        *config = {0.0f, kMaxInstance, gpuTime_, count, emitCount};
         emitterConfigResource_->Unmap(0, nullptr);
 
         auto& pso = dxCommon_->GetPSOEmitParticle();
@@ -544,6 +568,7 @@ void ParticleManager::DispatchGpuEmitters()
         commandList->SetComputeRootDescriptorTable(8, srvManager_->GetGPUDescriptorHandle(srvIndexEmitterRequests_));
         commandList->Dispatch((count + 63) / 64, 1, 1);
         AddUavBarrier({particleResource_.Get(), freeListIndexResource_.Get(), freeListResource_.Get()});
+        emitCount += count;
     }
 
     if (!pendingGpuParticles_.empty()) {
@@ -555,7 +580,7 @@ void ParticleManager::DispatchGpuEmitters()
 
         GlobalConfig* config = nullptr;
         batchConfigResource_->Map(0, nullptr, reinterpret_cast<void**>(&config));
-        *config = {0.0f, kMaxInstance, gpuTime_, count};
+        *config = {0.0f, kMaxInstance, gpuTime_, count, emitCount};
         batchConfigResource_->Unmap(0, nullptr);
 
         auto& pso = dxCommon_->GetPSOEmitBatchParticle();
@@ -568,10 +593,12 @@ void ParticleManager::DispatchGpuEmitters()
         commandList->SetComputeRootDescriptorTable(8, srvManager_->GetGPUDescriptorHandle(srvIndexPrebuiltParticles_));
         commandList->Dispatch((count + 63) / 64, 1, 1);
         AddUavBarrier({particleResource_.Get(), freeListIndexResource_.Get(), freeListResource_.Get()});
+        emitCount += count;
     }
 
     pendingGpuEmitters_.clear();
     pendingGpuParticles_.clear();
+    return emitCount;
 }
 
 void ParticleManager::AddUavBarrier(std::initializer_list<ID3D12Resource*> resources)
