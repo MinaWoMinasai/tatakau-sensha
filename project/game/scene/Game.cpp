@@ -70,8 +70,7 @@ bool Game::IsBackgroundValidationActive() const
     return TestEnabled("MYENGINE_TITLE_AUTOTEST") || TestEnabled("MYENGINE_TANK_TUTORIAL_AUTOTEST") ||
            TestEnabled("MYENGINE_TANK_AUTOTEST") || TestEnabled("MYENGINE_TANK_MAP_AUTOTEST") ||
            TestEnabled("MYENGINE_TANK_COMBAT_AUTOTEST") || TestEnabled("MYENGINE_TANK_SPECIAL_AUTOTEST") ||
-           TestEnabled("MYENGINE_NEON_BOSS_AUTOTEST") || TestEnabled("MYENGINE_SUBMISSION_AUTOTEST") ||
-           TestEnabled("MYENGINE_WINDMILL_AUTOTEST") || experienceValidation
+           TestEnabled("MYENGINE_NEON_BOSS_AUTOTEST") || TestEnabled("MYENGINE_SUBMISSION_AUTOTEST") || experienceValidation
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
            || GameplayScenarioSession::Get().IsActive()
 #endif
