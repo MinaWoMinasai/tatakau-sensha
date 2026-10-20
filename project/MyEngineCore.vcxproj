@@ -270,6 +270,18 @@
     <ClInclude Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.h" />
   </ItemGroup>
   <ItemGroup>
+    <!-- flecs は外部のCのコード。Cとしてコンパイルし、警告の扱いはこのファイルだけ外部コード向けにする（中身は変更しない）。 -->
+    <ClCompile Include="externals\flecs\flecs.c">
+      <CompileAs>CompileAsC</CompileAs>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <SDLCheck>false</SDLCheck>
+    </ClCompile>
+    <ClInclude Include="externals\flecs\flecs.h" />
+    <None Include="externals\flecs\LICENSE" />
+    <None Include="externals\flecs\README.md" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
       <Project>{371b9fa9-4c90-4ac6-a123-aced756d6c77}</Project>
     </ProjectReference>
