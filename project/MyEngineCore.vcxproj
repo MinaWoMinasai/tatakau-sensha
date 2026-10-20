@@ -276,10 +276,12 @@
     <ClCompile Include="DirectX\engine\ecs\ComponentRegistry.cpp" />
     <ClCompile Include="DirectX\engine\ecs\SceneSerializer.cpp" />
     <ClCompile Include="DirectX\engine\ecs\RenderSync.cpp" />
+    <ClCompile Include="DirectX\engine\ecs\EntityEditor.cpp" />
     <ClInclude Include="DirectX\engine\ecs\EcsComponents.h" />
     <ClInclude Include="DirectX\engine\ecs\ComponentRegistry.h" />
     <ClInclude Include="DirectX\engine\ecs\SceneSerializer.h" />
     <ClInclude Include="DirectX\engine\ecs\RenderSync.h" />
+    <ClInclude Include="DirectX\engine\ecs\EntityEditor.h" />
     <ClInclude Include="DirectX\engine\ecs\EcsFlecs.h" />
   </ItemGroup>
   <ItemGroup>
