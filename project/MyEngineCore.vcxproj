@@ -270,6 +270,14 @@
     <ClInclude Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DirectX\engine\ecs\EcsComponents.cpp" />
+    <ClCompile Include="DirectX\engine\ecs\ComponentRegistry.cpp" />
+    <ClCompile Include="DirectX\engine\ecs\SceneSerializer.cpp" />
+    <ClInclude Include="DirectX\engine\ecs\EcsComponents.h" />
+    <ClInclude Include="DirectX\engine\ecs\ComponentRegistry.h" />
+    <ClInclude Include="DirectX\engine\ecs\SceneSerializer.h" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- flecs は外部のCのコード。Cとしてコンパイルし、警告の扱いはこのファイルだけ外部コード向けにする（中身は変更しない）。 -->
     <ClCompile Include="externals\flecs\flecs.c">
       <CompileAs>CompileAsC</CompileAs>

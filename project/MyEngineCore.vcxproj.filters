@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="DirectX\engine\ecs">
+      <UniqueIdentifier>{32416152-f3d4-4058-a900-c89449e921ee}</UniqueIdentifier>
+    </Filter>
     <Filter Include="flecs">
       <UniqueIdentifier>{00216c72-e410-417b-9ee0-bce3634dc28b}</UniqueIdentifier>
     </Filter>
@@ -433,5 +436,23 @@
     <None Include="externals\flecs\README.md">
       <Filter>flecs</Filter>
     </None>
+    <ClCompile Include="DirectX\engine\ecs\EcsComponents.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClCompile>
+    <ClInclude Include="DirectX\engine\ecs\EcsComponents.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClCompile Include="DirectX\engine\ecs\ComponentRegistry.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClCompile>
+    <ClInclude Include="DirectX\engine\ecs\ComponentRegistry.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClCompile Include="DirectX\engine\ecs\SceneSerializer.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClCompile>
+    <ClInclude Include="DirectX\engine\ecs\SceneSerializer.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
