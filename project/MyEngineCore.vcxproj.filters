@@ -170,6 +170,9 @@
     <ClCompile Include="game\runtime\ApplicationMain.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\runtime\EntityScene.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\runtime\GameModuleRegistry.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -371,6 +374,9 @@
     <ClInclude Include="game\runtime\ApplicationMain.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="game\runtime\EntityScene.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\runtime\IApplicationHooks.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -451,7 +457,16 @@
     <ClCompile Include="DirectX\engine\ecs\SceneSerializer.cpp">
       <Filter>DirectX\engine\ecs</Filter>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\ecs\RenderSync.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClCompile>
     <ClInclude Include="DirectX\engine\ecs\SceneSerializer.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ecs\RenderSync.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ecs\EcsFlecs.h">
       <Filter>DirectX\engine\ecs</Filter>
     </ClInclude>
   </ItemGroup>
