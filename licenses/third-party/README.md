@@ -10,6 +10,7 @@
 | `Hedley-CC0-1.0.txt` | [Creative Commons 公式 CC0 1.0 原文](https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt)。`nlohmann/thirdparty/hedley/hedley.hpp` の CC0-1.0 表示に対応し、無改変コピーを同梱 |
 | `stb-LICENSE.txt` | `project/externals/imgui/imstb_*.h` 3ファイル末尾の同一ライセンス本文を、そのまま抜粋 |
 | `RapidJSON-LICENSE.txt` | ローカル Assimp ソース `project/.deps/assimp/source/contrib/rapidjson/license.txt` から無改変コピー |
+| `flecs-LICENSE.txt` | 2026-10-20 追加。[flecs v4.1.6 の LICENSE](https://raw.githubusercontent.com/SanderMertens/flecs/fb55f3c25660425cfe1bc4cf5e6bff8b3f18a9b8/LICENSE) を無改変コピー（`project/externals/flecs/LICENSE` と同一） |
 | `zlib-LICENSE.txt` | ローカル Assimp ソース `project/.deps/assimp/source/contrib/zlib/LICENSE` から無改変コピー |
 
 ライブラリ本体を更新するときは、この補完本文と既存表示も使用版に照らして確認してください。本文のない依存・出典未確認の素材については [一覧と保留事項](../../THIRD_PARTY_NOTICES.md) を参照してください。

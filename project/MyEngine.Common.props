@@ -13,8 +13,15 @@
     <MyEngineDeveloperUiDefines Condition="'$(MyEngineDeveloperTools)'=='true' and '$(Configuration)'!='Release'">USE_IMGUI;</MyEngineDeveloperUiDefines>
   </PropertyGroup>
   <PropertyGroup>
+    <!-- flecs（externals/flecs）で使う機能。flecs.h の C++ API の中身が変わるので、エンジン・ゲーム・flecs.c で必ず同じにする。
+         プレハブと親子関係は flecs の本体の機能なので定義は不要。依存する機能は flecs が自動で有効にする。 -->
+    <MyEngineFlecsDefines>FLECS_CUSTOM_BUILD;FLECS_CPP;FLECS_MODULE;FLECS_SYSTEM;FLECS_PIPELINE;FLECS_TIMER;FLECS_META;FLECS_JSON;FLECS_DOC;FLECS_LOG;FLECS_OS_API_IMPL;</MyEngineFlecsDefines>
+    <!-- 開発用ビルドだけ、ブラウザの Flecs Explorer から中身を見るための REST と統計を有効にする（公式も本番では使わないよう案内している）。 -->
+    <MyEngineFlecsDefines Condition="'$(MyEngineDeveloperTools)'=='true'">$(MyEngineFlecsDefines)FLECS_REST;FLECS_STATS;</MyEngineFlecsDefines>
+  </PropertyGroup>
+  <PropertyGroup>
     <!-- エンジンのヘッダーを使うためのインクルードディレクトリ。ゲーム側のディレクトリは含めない。 -->
-    <MyEngineIncludeDirectories>$(MSBuildThisFileDirectory);$(MSBuildThisFileDirectory)DirectX\engine\2d;$(MSBuildThisFileDirectory)DirectX\engine\3d;$(MSBuildThisFileDirectory)DirectX\engine\audio;$(MSBuildThisFileDirectory)DirectX\engine\calc;$(MSBuildThisFileDirectory)DirectX\engine\common;$(MSBuildThisFileDirectory)DirectX\engine\debugCamera;$(MSBuildThisFileDirectory)DirectX\engine\dumpClass;$(MSBuildThisFileDirectory)DirectX\engine\easing;$(MSBuildThisFileDirectory)DirectX\engine\input;$(MSBuildThisFileDirectory)DirectX\engine\struct;$(MSBuildThisFileDirectory)DirectX\engine\postEffect;$(MSBuildThisFileDirectory)DirectX\engine\particle;$(MSBuildThisFileDirectory)externals\nlohmann;$(MSBuildThisFileDirectory)externals\assimp\include;$(MSBuildThisFileDirectory)externals</MyEngineIncludeDirectories>
+    <MyEngineIncludeDirectories>$(MSBuildThisFileDirectory);$(MSBuildThisFileDirectory)DirectX\engine\2d;$(MSBuildThisFileDirectory)DirectX\engine\3d;$(MSBuildThisFileDirectory)DirectX\engine\audio;$(MSBuildThisFileDirectory)DirectX\engine\calc;$(MSBuildThisFileDirectory)DirectX\engine\common;$(MSBuildThisFileDirectory)DirectX\engine\debugCamera;$(MSBuildThisFileDirectory)DirectX\engine\dumpClass;$(MSBuildThisFileDirectory)DirectX\engine\easing;$(MSBuildThisFileDirectory)DirectX\engine\input;$(MSBuildThisFileDirectory)DirectX\engine\struct;$(MSBuildThisFileDirectory)DirectX\engine\postEffect;$(MSBuildThisFileDirectory)DirectX\engine\particle;$(MSBuildThisFileDirectory)externals\nlohmann;$(MSBuildThisFileDirectory)externals\assimp\include;$(MSBuildThisFileDirectory)externals;$(MSBuildThisFileDirectory)externals\flecs</MyEngineIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup>
     <AssimpLibraryName>assimp-vc145-mt</AssimpLibraryName>
@@ -24,7 +31,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;MYENGINE_DEVELOPER_TOOLS=$(MyEngineDeveloperToolsValue);$(MyEngineDeveloperUiDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;MYENGINE_DEVELOPER_TOOLS=$(MyEngineDeveloperToolsValue);$(MyEngineDeveloperUiDefines)$(MyEngineFlecsDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -39,7 +46,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;MYENGINE_DEVELOPER_TOOLS=$(MyEngineDeveloperToolsValue);$(MyEngineDeveloperUiDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;MYENGINE_DEVELOPER_TOOLS=$(MyEngineDeveloperToolsValue);$(MyEngineDeveloperUiDefines)$(MyEngineFlecsDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -55,7 +62,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_WINDOWS;MYENGINE_DEVELOPER_TOOLS=$(MyEngineDeveloperToolsValue);$(MyEngineDeveloperUiDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDOWS;MYENGINE_DEVELOPER_TOOLS=$(MyEngineDeveloperToolsValue);$(MyEngineDeveloperUiDefines)$(MyEngineFlecsDefines)%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>

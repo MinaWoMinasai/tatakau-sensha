@@ -16,6 +16,7 @@
 | Assimp / `project/externals/assimp/` | assimp team。既存 LICENSE は 2006-2021、各ヘッダーには別年の表示もある | BSD 3-Clause。[既存 LICENSE](project/externals/assimp/LICENSE.txt) を改変せず保持。ソース表示・バイナリ配布時の文書への表示・推奨への名称使用制限を確認。既存ファイル内の Poly2Tri 表示も保持 |
 | RapidJSON / ローカル生成 Assimp の依存 | THL A29 Limited / Milo Yip ほか | MIT および原文に記された第三者条件。[同じローカル Assimp ソースにある本文](licenses/third-party/RapidJSON-LICENSE.txt) を追加。本文中の他コンポーネントの記載だけで、それら全てが本ゲームへリンクされると断定しない |
 | zlib / ローカル生成 Assimp の依存 | Jean-loup Gailly / Mark Adler | zlib license。[同じローカル Assimp ソースにある本文](licenses/third-party/zlib-LICENSE.txt) を追加。ビルドスクリプトで `ASSIMP_BUILD_ZLIB=ON` |
+| flecs / `project/externals/flecs/` | Copyright (c) 2025 Sander Mertens。Portions Copyright (c) Meta Platforms, Inc. and affiliates | MIT。v4.1.6 の `distr/flecs.c`・`distr/flecs.h` を無改変で収録し、[同梱 LICENSE](project/externals/flecs/LICENSE) と [コピー](licenses/third-party/flecs-LICENSE.txt) を保持。版とハッシュは [README](project/externals/flecs/README.md)。`flecs.c` 内の wyhash（Wang Yi ほか、The Unlicense と記載）と stm32tpl（Copyright (c) 2011-2020 Anton B. Gusev）由来部分の表示も保持。stm32tpl の条件本文は未確認 |
 | Zen Maru Gothic Bold / `project/resources/fonts/` | Copyright 2021 The Zen Maru Gothic Project Authors | SIL Open Font License 1.1。[既存 OFL 原文](project/resources/fonts/ZenMaruGothic-OFL.txt) とフォントを保持。フォントの配布時は著作権・ライセンス表示を同梱。名称等の制限は原文に従う |
 
 ## nlohmann/json 内の追加の表示
