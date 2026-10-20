@@ -277,11 +277,13 @@
     <ClCompile Include="DirectX\engine\ecs\SceneSerializer.cpp" />
     <ClCompile Include="DirectX\engine\ecs\RenderSync.cpp" />
     <ClCompile Include="DirectX\engine\ecs\EntityEditor.cpp" />
+    <ClCompile Include="DirectX\engine\ecs\EditorHistory.cpp" />
     <ClInclude Include="DirectX\engine\ecs\EcsComponents.h" />
     <ClInclude Include="DirectX\engine\ecs\ComponentRegistry.h" />
     <ClInclude Include="DirectX\engine\ecs\SceneSerializer.h" />
     <ClInclude Include="DirectX\engine\ecs\RenderSync.h" />
     <ClInclude Include="DirectX\engine\ecs\EntityEditor.h" />
+    <ClInclude Include="DirectX\engine\ecs\EditorHistory.h" />
     <ClInclude Include="DirectX\engine\ecs\EcsFlecs.h" />
   </ItemGroup>
   <ItemGroup>

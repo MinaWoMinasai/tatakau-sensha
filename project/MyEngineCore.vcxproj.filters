@@ -463,6 +463,9 @@
     <ClCompile Include="DirectX\engine\ecs\EntityEditor.cpp">
       <Filter>DirectX\engine\ecs</Filter>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\ecs\EditorHistory.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClCompile>
     <ClInclude Include="DirectX\engine\ecs\SceneSerializer.h">
       <Filter>DirectX\engine\ecs</Filter>
     </ClInclude>
@@ -470,6 +473,9 @@
       <Filter>DirectX\engine\ecs</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\ecs\EntityEditor.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ecs\EditorHistory.h">
       <Filter>DirectX\engine\ecs</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\ecs\EcsFlecs.h">

@@ -133,40 +133,83 @@ bool DrawValue(flecs::world& world, flecs::entity_t type, void* value, const cha
 } // namespace
 
 EntityEditor::EntityEditor(ComponentRegistry& registry, std::filesystem::path sceneFile)
-    : registry_(registry), serializer_(registry), sceneFile_(std::move(sceneFile))
+    : registry_(registry), serializer_(registry), history_(serializer_), sceneFile_(std::move(sceneFile))
 {
+}
+
+void EntityEditor::Record(EditorCommand command)
+{
+    if (playing_) {
+        return;
+    }
+    history_.Push(std::move(command));
+}
+
+std::vector<flecs::entity> EntityEditor::CollectSubtree(flecs::entity entity) const
+{
+    std::vector<flecs::entity> result{entity};
+    for (size_t index = 0; index < result.size(); ++index) {
+        result[index].children([&](flecs::entity child) {
+            if (child.has<EntityGuid>()) {
+                result.push_back(child);
+            }
+        });
+    }
+    return result;
 }
 
 flecs::entity EntityEditor::CreateEntity(const std::string& name, flecs::entity parent)
 {
     flecs::world& world = registry_.GetWorld();
     flecs::entity entity = world.entity();
-    entity.set<EntityGuid>(EntityGuid::Generate());
+    const EntityGuid guid = EntityGuid::Generate();
+    entity.set<EntityGuid>(guid);
     entity.set_doc_name(name.c_str());
     if (parent && parent.is_alive()) {
         entity.child_of(parent);
     }
-    // 新しいエンティティには Transform を付けておく（Unity の GameObject と同じ）。
-    AddComponent(entity, "Transform");
+    // 新しいエンティティには Transform を付けておく（Unity の GameObject と同じ）。作成と合わせて1つの操作にする。
+    if (const ComponentRegistry::Info* transform = registry_.FindByName("Transform")) {
+        transform->addDefault(entity);
+    }
+    Record({"「" + name + "」を作成", {{guid, std::nullopt}}, {{guid, serializer_.CaptureEntity(entity)}}});
     selected_ = entity;
-    dirty_ = true;
     return entity;
 }
 
 void EntityEditor::DeleteEntity(flecs::entity entity)
 {
-    if (!entity || !entity.is_alive()) {
+    if (!entity || !entity.is_alive() || !entity.has<EntityGuid>()) {
         return;
     }
-    if (selected_ == entity) {
-        selected_ = flecs::entity();
+    EditorCommand command;
+    command.label = "「" + DisplayName(entity) + "」を削除";
+    for (flecs::entity member : CollectSubtree(entity)) {
+        const EntityState state = serializer_.CaptureEntity(member);
+        command.before.emplace_back(state.guid, state);
+        command.after.emplace_back(state.guid, std::nullopt);
     }
     // ChildOf の子も一緒に消える。
     entity.destruct();
     if (selected_ && !selected_.is_alive()) {
         selected_ = flecs::entity();
     }
-    dirty_ = true;
+    Record(std::move(command));
+}
+
+bool EntityEditor::ModifyEntity(const std::string& label, flecs::entity entity, const std::function<void(flecs::entity)>& change)
+{
+    if (!entity || !entity.is_alive() || !entity.has<EntityGuid>()) {
+        return false;
+    }
+    const EntityState before = serializer_.CaptureEntity(entity);
+    change(entity);
+    const EntityState after = serializer_.CaptureEntity(entity);
+    if (before == after) {
+        return false;
+    }
+    Record({label, {{before.guid, before}}, {{after.guid, after}}});
+    return true;
 }
 
 bool EntityEditor::AddComponent(flecs::entity entity, const std::string& componentName)
@@ -175,9 +218,9 @@ bool EntityEditor::AddComponent(flecs::entity entity, const std::string& compone
     if (!info || !entity || entity.has(info->id)) {
         return false;
     }
-    info->addDefault(entity);
-    dirty_ = true;
-    return true;
+    return ModifyEntity(componentName + " を追加", entity, [info](flecs::entity target) {
+        info->addDefault(target);
+    });
 }
 
 bool EntityEditor::RemoveComponent(flecs::entity entity, const std::string& componentName)
@@ -186,8 +229,70 @@ bool EntityEditor::RemoveComponent(flecs::entity entity, const std::string& comp
     if (!info || !entity || !entity.has(info->id)) {
         return false;
     }
-    entity.remove(info->id);
-    dirty_ = true;
+    return ModifyEntity(componentName + " を削除", entity, [info](flecs::entity target) {
+        target.remove(info->id);
+    });
+}
+
+bool EntityEditor::SetName(flecs::entity entity, const std::string& name)
+{
+    return ModifyEntity("名前を変更", entity, [&name](flecs::entity target) {
+        target.set_doc_name(name.c_str());
+    });
+}
+
+bool EntityEditor::SetParent(flecs::entity entity, flecs::entity parent)
+{
+    if (!entity || !entity.is_alive()) {
+        return false;
+    }
+    // 自分や自分の子孫を親にすると循環するので受け付けない。
+    for (flecs::entity ancestor = parent; ancestor; ancestor = ancestor.parent()) {
+        if (ancestor == entity) {
+            return false;
+        }
+    }
+    return ModifyEntity("親を変更", entity, [parent](flecs::entity target) {
+        if (parent && parent.is_alive()) {
+            target.child_of(parent);
+        } else if (SceneParent(target)) {
+            target.remove(flecs::ChildOf, flecs::Wildcard);
+        }
+    });
+}
+
+void EntityEditor::ReselectAfterHistory(const std::optional<EntityGuid>& selectedGuid)
+{
+    selected_ = selectedGuid ? serializer_.FindByGuid(*selectedGuid) : flecs::entity();
+    inspectorFrameBefore_.reset();
+    inspectorEditBefore_.reset();
+}
+
+bool EntityEditor::Undo()
+{
+    if (playing_ || !history_.CanUndo()) {
+        return false;
+    }
+    const std::string label = *history_.NextUndoLabel();
+    const std::optional<EntityGuid> selectedGuid =
+        selected_ && selected_.is_alive() ? std::optional<EntityGuid>(selected_.get<EntityGuid>()) : std::nullopt;
+    history_.Undo();
+    ReselectAfterHistory(selectedGuid);
+    status_ = "元に戻しました: " + label;
+    return true;
+}
+
+bool EntityEditor::Redo()
+{
+    if (playing_ || !history_.CanRedo()) {
+        return false;
+    }
+    const std::string label = *history_.NextRedoLabel();
+    const std::optional<EntityGuid> selectedGuid =
+        selected_ && selected_.is_alive() ? std::optional<EntityGuid>(selected_.get<EntityGuid>()) : std::nullopt;
+    history_.Redo();
+    ReselectAfterHistory(selectedGuid);
+    status_ = "やり直しました: " + label;
     return true;
 }
 
@@ -204,7 +309,8 @@ bool EntityEditor::SaveAs(const std::filesystem::path& path)
     }
     const bool ok = serializer_.SaveToFile(path);
     if (ok && path == sceneFile_) {
-        dirty_ = false;
+        history_.MarkSaved();
+        externalDirty_ = false;
     }
     status_ = ok ? "保存しました: " + PathToUtf8(path) : "保存に失敗しました: " + PathToUtf8(path);
     LogWrite().Log("[EntityEditor] " + status_ + "\n");
@@ -225,7 +331,9 @@ bool EntityEditor::Reload()
     std::ostringstream text;
     text << file.rdbuf();
     const bool ok = LoadSceneText(text.str());
-    dirty_ = !ok;
+    // 読み直した後は、それまでの履歴の状態とつながらないので履歴を消す。
+    history_.Clear();
+    externalDirty_ = !ok;
     status_ = ok ? "シーンファイルから読み直しました。" : "シーンファイルの読み直しに失敗しました。";
     return ok;
 }
@@ -237,6 +345,8 @@ void EntityEditor::Play()
     }
     playSnapshot_ = serializer_.SaveToString();
     playing_ = true;
+    inspectorFrameBefore_.reset();
+    inspectorEditBefore_.reset();
     status_ = "Play 中（Stop で Play 前の状態に戻ります）";
 }
 
@@ -246,9 +356,8 @@ void EntityEditor::Stop()
         return;
     }
     playing_ = false;
-    const bool wasDirty = dirty_;
+    // Play 前の状態へ戻すので、編集中の履歴はそのまま使える（エンティティは GUID で指している）。
     LoadSceneText(playSnapshot_);
-    dirty_ = wasDirty;
     playSnapshot_.clear();
     status_ = "Stop しました。Play 前の状態に戻しました。";
 }
@@ -277,13 +386,7 @@ bool EntityEditor::LoadSceneText(const std::string& text)
     }
     ClearSceneEntities();
     const SceneLoadResult result = serializer_.LoadFromString(text);
-    if (selectedGuid) {
-        for (flecs::entity entity : result.entities) {
-            if (entity.get<EntityGuid>() == *selectedGuid) {
-                selected_ = entity;
-            }
-        }
-    }
+    ReselectAfterHistory(selectedGuid);
     return result.success;
 }
 
@@ -293,6 +396,7 @@ void EntityEditor::Draw()
     if (!ImGui::GetCurrentContext()) {
         return;
     }
+    HandleShortcuts();
     DrawToolbar();
     DrawHierarchy();
     DrawInspector();
@@ -305,11 +409,29 @@ void EntityEditor::Draw()
 
 #ifdef USE_IMGUI
 
+void EntityEditor::HandleShortcuts()
+{
+    const ImGuiIO& io = ImGui::GetIO();
+    // 文字の入力中は、テキストの編集（Ctrl+Z など）を優先する。
+    if (playing_ || io.WantTextInput || !io.KeyCtrl) {
+        return;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
+        if (io.KeyShift) {
+            Redo();
+        } else {
+            Undo();
+        }
+    } else if (ImGui::IsKeyPressed(ImGuiKey_Y, false)) {
+        Redo();
+    }
+}
+
 void EntityEditor::DrawToolbar()
 {
     ImGui::SetNextWindowPos({20.0f, 20.0f}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({460.0f, 110.0f}, ImGuiCond_FirstUseEver);
-    const std::string title = std::string("シーン") + (dirty_ ? " *" : "") + "###EntityEditorScene";
+    const std::string title = std::string("シーン") + (IsDirty() ? " *" : "") + "###EntityEditorScene";
     if (ImGui::Begin(title.c_str())) {
         ImGui::TextUnformatted(PathToUtf8(sceneFile_.filename()).c_str());
         if (playing_) {
@@ -328,6 +450,24 @@ void EntityEditor::DrawToolbar()
             if (ImGui::Button("読み直す")) {
                 Reload();
             }
+            ImGui::SameLine();
+            ImGui::BeginDisabled(!history_.CanUndo());
+            if (ImGui::Button("元に戻す")) {
+                Undo();
+            }
+            if (history_.CanUndo() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                ImGui::SetTooltip("%s (Ctrl+Z)", history_.NextUndoLabel()->c_str());
+            }
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            ImGui::BeginDisabled(!history_.CanRedo());
+            if (ImGui::Button("やり直す")) {
+                Redo();
+            }
+            if (history_.CanRedo() && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                ImGui::SetTooltip("%s (Ctrl+Y)", history_.NextRedoLabel()->c_str());
+            }
+            ImGui::EndDisabled();
         }
         ImGui::TextWrapped("%s", status_.c_str());
     }
@@ -404,11 +544,16 @@ void EntityEditor::DrawInspector()
             return;
         }
         flecs::world& world = registry_.GetWorld();
+        // 連続した変更（ドラッグ・文字入力）を1つの操作にまとめるため、操作が始まる前の状態を毎フレーム覚えておく。
+        if (!inspectorEditBefore_) {
+            inspectorFrameBefore_ = serializer_.CaptureEntity(selected_);
+        }
+        bool changed = false;
         char name[256]{};
         std::snprintf(name, sizeof(name), "%s", selected_.doc_name() ? selected_.doc_name() : "");
         if (ImGui::InputText("名前", name, sizeof(name))) {
             selected_.set_doc_name(name);
-            dirty_ = true;
+            changed = true;
         }
         ImGui::TextDisabled("GUID %s", selected_.get<EntityGuid>().ToString().c_str());
         ImGui::Separator();
@@ -428,10 +573,22 @@ void EntityEditor::DrawInspector()
                 void* value = ecs_ensure_id(world.c_ptr(), selected_.id(), info.id, info.size);
                 if (DrawValue(world, info.id, value, info.name.c_str())) {
                     ecs_modified_id(world.c_ptr(), selected_.id(), info.id);
-                    dirty_ = true;
+                    changed = true;
                 }
             }
             ImGui::PopID();
+        }
+        if (changed && !inspectorEditBefore_) {
+            inspectorEditBefore_ = inspectorFrameBefore_;
+        }
+        // 入力欄から手を離した（確定した）ら、変更前と変更後を1つの操作として記録する。
+        if (inspectorEditBefore_ && !ImGui::IsAnyItemActive()) {
+            const flecs::entity edited = serializer_.FindByGuid(inspectorEditBefore_->guid);
+            if (edited) {
+                const EntityState after = serializer_.CaptureEntity(edited);
+                Record({"インスペクターで変更", {{after.guid, *inspectorEditBefore_}}, {{after.guid, after}}});
+            }
+            inspectorEditBefore_.reset();
         }
         if (!removeName.empty()) {
             RemoveComponent(selected_, removeName);

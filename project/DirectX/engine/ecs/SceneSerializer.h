@@ -78,6 +78,12 @@ public:
     /// @brief 状態を、シーンファイルの entities の1要素のJSONにする。
     static nlohmann::ordered_json ToJson(const EntityState& state);
 
+    /// @brief 対象の world を返す。
+    flecs::world& GetWorld() const
+    {
+        return registry_.GetWorld();
+    }
+
 private:
     const ComponentRegistry& registry_;
 };
