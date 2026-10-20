@@ -8,6 +8,7 @@
 namespace myEngine {
 
 class Object3d;
+class EditorCamera;
 
 /// @brief MeshRenderer を描画するための実行時だけの状態。シーンには保存しない。
 struct RenderHandle {
@@ -39,12 +40,23 @@ public:
         return &camera_;
     }
 
+    /// @brief 位置と向きをシーンの主カメラの代わりに editorCamera から取る（編集中に使う）。nullptr で主カメラへ戻す。
+    /// 視野角とクリップ距離は、引き続き主カメラの CameraComponent を使う。
+    void SetEditorCamera(const EditorCamera* editorCamera)
+    {
+        editorCamera_ = editorCamera;
+    }
+
 private:
     void UpdateCamera();
 
     flecs::world& world_;
     Camera camera_;
+    const EditorCamera* editorCamera_ = nullptr;
 };
+
+/// @brief 親（ChildOf）をたどって、エンティティのワールド行列を求める。Transform が無いものは単位行列として扱う。
+Matrix4x4 ComputeEntityWorldMatrix(flecs::entity entity);
 
 /// @brief RenderHandle を flecs へ登録する（保存しない実行時のコンポーネント）。RenderSync より前に呼ぶ。
 void RegisterRenderComponents(flecs::world& world);

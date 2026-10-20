@@ -57,7 +57,13 @@ void EntityScene::Initialize()
         }
     }
     OnSceneLoaded();
+    UseEditorCameraWhileEditing();
     renderSync_->Update();
+}
+
+void EntityScene::UseEditorCameraWhileEditing()
+{
+    renderSync_->SetEditorCamera(editor_ && !editor_->IsPlaying() ? &editor_->GetCamera() : nullptr);
 }
 
 void EntityScene::Update()
@@ -69,6 +75,7 @@ void EntityScene::Update()
     if (!editor_ || editor_->IsPlaying()) {
         world_->progress(GetFinalDeltaTime());
     }
+    UseEditorCameraWhileEditing();
     renderSync_->Update();
 }
 

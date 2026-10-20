@@ -1,5 +1,6 @@
 #pragma once
 #include "ComponentRegistry.h"
+#include "EditorCamera.h"
 #include "EditorHistory.h"
 #include "SceneSerializer.h"
 
@@ -12,6 +13,9 @@ namespace myEngine {
 
 /// @brief ECS のシーンを編集するエディタ（ヒエラルキー・インスペクター・保存・Play/Stop・元に戻す/やり直す）。
 /// 操作の本体（作成・削除・保存・Play/Stop・元に戻す）はどの構成でも使える。ImGui の画面（Draw）は USE_IMGUI のときだけ描く。
+///
+/// 編集中は、シーンのカメラとは別のエディタ用カメラ（GetCamera）で見る。右ドラッグで向き、右ドラッグ中の WASD / QE で移動、
+/// 中ドラッグで平行移動、ホイールで前後、F で選んだエンティティに寄る。
 ///
 /// Play/Stop は Unity の「シーンだけ読み直す」と同じ考え方で、Play の時点のシーンをメモリへ保存し、
 /// Stop でエンティティを消してから保存した内容を読み直す。Play 中の操作は履歴に残さない。
@@ -78,6 +82,20 @@ public:
         return history_;
     }
 
+    /// @brief エディタ用カメラを返す。編集中の表示に使う（Play 中はシーンの主カメラで見る）。
+    EditorCamera& GetCamera()
+    {
+        return camera_;
+    }
+
+    /// @brief エディタ用カメラを、シーンの主カメラ（primary の CameraComponent）と同じ位置・向きにする。
+    /// 主カメラの z 軸まわりの回転は使わない。主カメラが無ければ何もしない。
+    /// @return 主カメラが見つかればtrue。
+    bool ResetCameraToSceneCamera();
+    /// @brief 選んでいるエンティティが画面の中央に来るよう、エディタ用カメラを寄せる。
+    /// @return 選んでいるエンティティがあればtrue。
+    bool FocusSelected();
+
     /// @brief 現在のシーンをシーンファイルへ保存する。Play 中は保存しない。
     bool Save();
     /// @brief 指定したファイルへ保存する。Play 中は保存しない。
@@ -110,6 +128,7 @@ private:
 
 #ifdef USE_IMGUI
     void HandleShortcuts();
+    void HandleCameraInput();
     void DrawToolbar();
     void DrawHierarchy();
     void DrawHierarchyNode(flecs::entity entity);
@@ -119,6 +138,9 @@ private:
     ComponentRegistry& registry_;
     SceneSerializer serializer_;
     EditorHistory history_;
+    EditorCamera camera_;
+    // ImGui のウィンドウの外で右・中ボタンを押して、カメラを動かしている途中か。
+    bool cameraDragging_ = false;
     std::filesystem::path sceneFile_;
     flecs::entity selected_;
     bool playing_ = false;

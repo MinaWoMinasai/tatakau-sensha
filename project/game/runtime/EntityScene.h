@@ -18,6 +18,7 @@ class Camera;
 /// 毎フレーム world のシステムを実行してから、RenderSync で描画へ反映する。
 /// ゲームは、自分のコンポーネントとシステムを registerGame で登録する。
 /// エディタを使う場合、ゲームのシステムは Play 中だけ動き、編集中は描画への反映だけを行う。
+/// 編集中の表示には、エディタ用カメラを使う。
 class EntityScene : public IScene {
 public:
     /// @brief world 作成後に、ゲームのコンポーネント・システムを登録する関数。
@@ -82,6 +83,9 @@ protected:
     virtual void OnSceneLoaded() {}
 
 private:
+    /// @brief 編集中はエディタ用カメラ、Play 中（とエディタが無いとき）はシーンの主カメラで描くように RenderSync を設定する。
+    void UseEditorCameraWhileEditing();
+
     std::string sceneFile_;
     RegisterFunction registerGame_;
     std::unique_ptr<flecs::world> world_;

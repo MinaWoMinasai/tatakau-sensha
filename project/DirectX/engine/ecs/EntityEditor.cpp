@@ -1,6 +1,7 @@
 #include "EntityEditor.h"
 #include "EcsComponents.h"
 #include "LogWrite.h"
+#include "RenderSync.h"
 #include "Struct.h"
 #include "Utf8Path.h"
 
@@ -8,6 +9,8 @@
 #include "externals/imgui/imgui.h"
 #endif
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
@@ -135,6 +138,39 @@ bool DrawValue(flecs::world& world, flecs::entity_t type, void* value, const cha
 EntityEditor::EntityEditor(ComponentRegistry& registry, std::filesystem::path sceneFile)
     : registry_(registry), serializer_(registry), history_(serializer_), sceneFile_(std::move(sceneFile))
 {
+    // 最初は、ゲームのカメラと同じところから見る。
+    ResetCameraToSceneCamera();
+}
+
+bool EntityEditor::ResetCameraToSceneCamera()
+{
+    bool found = false;
+    registry_.GetWorld().each([&](flecs::entity entity, const CameraComponent& component) {
+        if (found || !component.primary) {
+            return;
+        }
+        found = true;
+        if (const Transform* transform = entity.try_get<Transform>()) {
+            camera_.SetPose(transform->translate, transform->rotate);
+        }
+    });
+    return found;
+}
+
+bool EntityEditor::FocusSelected()
+{
+    if (!selected_ || !selected_.is_alive()) {
+        return false;
+    }
+    const Matrix4x4 world = ComputeEntityWorldMatrix(selected_);
+    // 大きいものほど離れて見る。拡大縮小はワールド行列の各行の長さから求める。
+    float size = 0.0f;
+    for (int row = 0; row < 3; ++row) {
+        size = (std::max)(size, std::sqrt(world.m[row][0] * world.m[row][0] + world.m[row][1] * world.m[row][1] +
+                                          world.m[row][2] * world.m[row][2]));
+    }
+    camera_.Focus({world.m[3][0], world.m[3][1], world.m[3][2]}, (std::max)(5.0f, size * 4.0f));
+    return true;
 }
 
 void EntityEditor::Record(EditorCommand command)
@@ -397,6 +433,7 @@ void EntityEditor::Draw()
         return;
     }
     HandleShortcuts();
+    HandleCameraInput();
     DrawToolbar();
     DrawHierarchy();
     DrawInspector();
@@ -427,10 +464,51 @@ void EntityEditor::HandleShortcuts()
     }
 }
 
+void EntityEditor::HandleCameraInput()
+{
+    if (playing_) {
+        cameraDragging_ = false;
+        return;
+    }
+    const ImGuiIO& io = ImGui::GetIO();
+    const bool right = ImGui::IsMouseDown(ImGuiMouseButton_Right);
+    const bool middle = ImGui::IsMouseDown(ImGuiMouseButton_Middle);
+    // ImGui のウィンドウの上で押したときはウィンドウの操作なので、カメラは動かさない。
+    if ((ImGui::IsMouseClicked(ImGuiMouseButton_Right) || ImGui::IsMouseClicked(ImGuiMouseButton_Middle)) && !io.WantCaptureMouse) {
+        cameraDragging_ = true;
+    }
+    if (!right && !middle) {
+        cameraDragging_ = false;
+    }
+
+    EditorCameraInput input;
+    input.deltaTime = io.DeltaTime;
+    input.fast = io.KeyShift;
+    if (cameraDragging_) {
+        input.mouseDelta = {io.MouseDelta.x, io.MouseDelta.y};
+        input.rotating = right;
+        input.panning = middle && !right;
+        if (right && !io.WantTextInput) {
+            const auto axis = [](ImGuiKey positive, ImGuiKey negative) {
+                return (ImGui::IsKeyDown(positive) ? 1.0f : 0.0f) - (ImGui::IsKeyDown(negative) ? 1.0f : 0.0f);
+            };
+            input.move = {axis(ImGuiKey_D, ImGuiKey_A), axis(ImGuiKey_E, ImGuiKey_Q), axis(ImGuiKey_W, ImGuiKey_S)};
+        }
+    }
+    if (!io.WantCaptureMouse) {
+        input.wheel = io.MouseWheel;
+    }
+    camera_.Apply(input);
+
+    if (!cameraDragging_ && !io.WantTextInput && !io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_F, false)) {
+        FocusSelected();
+    }
+}
+
 void EntityEditor::DrawToolbar()
 {
     ImGui::SetNextWindowPos({20.0f, 20.0f}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize({460.0f, 110.0f}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({460.0f, 135.0f}, ImGuiCond_FirstUseEver);
     const std::string title = std::string("シーン") + (IsDirty() ? " *" : "") + "###EntityEditorScene";
     if (ImGui::Begin(title.c_str())) {
         ImGui::TextUnformatted(PathToUtf8(sceneFile_.filename()).c_str());
@@ -470,13 +548,20 @@ void EntityEditor::DrawToolbar()
             ImGui::EndDisabled();
         }
         ImGui::TextWrapped("%s", status_.c_str());
+        if (!playing_) {
+            ImGui::TextDisabled("カメラ: 右ドラッグ+WASD/QE、中ドラッグ、ホイール、F で選択へ");
+            ImGui::SameLine();
+            if (ImGui::SmallButton("ゲームの視点へ")) {
+                ResetCameraToSceneCamera();
+            }
+        }
     }
     ImGui::End();
 }
 
 void EntityEditor::DrawHierarchy()
 {
-    ImGui::SetNextWindowPos({20.0f, 140.0f}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos({20.0f, 165.0f}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({300.0f, 420.0f}, ImGuiCond_FirstUseEver);
     if (ImGui::Begin("ヒエラルキー###EntityEditorHierarchy")) {
         if (ImGui::Button("+ エンティティを作る")) {

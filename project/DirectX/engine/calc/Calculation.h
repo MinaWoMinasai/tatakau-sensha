@@ -88,6 +88,14 @@ Matrix4x4 MakeRotateMatrix(const Quaternion& quaternion);
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate);
 /// @brief Affine行列を作成して返す。
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate);
+/// @brief アフィン行列を、MakeAffineMatrix(scale, rotate, translate) と同じ規約（回転は Rx * Ry * Rz、ラジアン）の値へ分解する。
+/// 回転の各成分は (-π, π]（y は [-π/2, π/2]）。y が ±π/2（ジンバルロック）のときは z を 0 とする。
+/// 行列が鏡映を含む（行列式が負）ときは scale.x を負にする。
+/// @return 拡大縮小がほぼ 0 で分解できなければfalse（そのとき scale・rotate・translate は分かった範囲で埋める）。
+bool DecomposeAffineMatrix(const Matrix4x4& matrix, Vector3& scale, Vector3& rotate, Vector3& translate);
+/// @brief 同じ回転を表すオイラー角（Rx * Ry * Rz、ラジアン）のうち、reference に最も近いものを返す。
+/// 分解した角度が 179°→-179° のように飛ばないよう、直前の値を reference に渡して使う。
+Vector3 NearestEulerAngles(const Vector3& rotate, const Vector3& reference);
 
 // 透視投影行列
 Matrix4x4 MakePerspectiveForMatrix(float fovY, float aspectRatio, float nearClip, float farClip);

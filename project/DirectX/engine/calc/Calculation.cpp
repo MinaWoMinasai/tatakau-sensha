@@ -615,6 +615,73 @@ Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const
     return result;
 }
 
+bool DecomposeAffineMatrix(const Matrix4x4& matrix, Vector3& scale, Vector3& rotate, Vector3& translate)
+{
+    translate = {matrix.m[3][0], matrix.m[3][1], matrix.m[3][2]};
+    rotate = {0.0f, 0.0f, 0.0f};
+    // 行ベクトルの規約では、各行が「拡大縮小 × 回転行列の行」になっている。
+    float axisScale[3];
+    for (int row = 0; row < 3; ++row) {
+        axisScale[row] = std::sqrt(matrix.m[row][0] * matrix.m[row][0] + matrix.m[row][1] * matrix.m[row][1] +
+                                   matrix.m[row][2] * matrix.m[row][2]);
+    }
+    scale = {axisScale[0], axisScale[1], axisScale[2]};
+    constexpr float kMinScale = 1.0e-6f;
+    if (axisScale[0] < kMinScale || axisScale[1] < kMinScale || axisScale[2] < kMinScale) {
+        return false;
+    }
+    // 鏡映を含む（3×3 部分の行列式が負）なら、x の拡大縮小を負にして、残りを回転行列にする。
+    const float determinant = matrix.m[0][0] * (matrix.m[1][1] * matrix.m[2][2] - matrix.m[1][2] * matrix.m[2][1]) -
+                              matrix.m[0][1] * (matrix.m[1][0] * matrix.m[2][2] - matrix.m[1][2] * matrix.m[2][0]) +
+                              matrix.m[0][2] * (matrix.m[1][0] * matrix.m[2][1] - matrix.m[1][1] * matrix.m[2][0]);
+    if (determinant < 0.0f) {
+        axisScale[0] = -axisScale[0];
+        scale.x = axisScale[0];
+    }
+    float r[3][3];
+    for (int row = 0; row < 3; ++row) {
+        for (int column = 0; column < 3; ++column) {
+            r[row][column] = matrix.m[row][column] / axisScale[row];
+        }
+    }
+    // Rx * Ry * Rz（行ベクトル）の成分:
+    //   r[0] = ( cy cz,              cy sz,              -sy   )
+    //   r[1] = ( sx sy cz - cx sz,   sx sy sz + cx cz,   sx cy )
+    //   r[2] = ( cx sy cz + sx sz,   cx sy sz - sx cz,   cx cy )
+    rotate.y = std::asin(std::clamp(-r[0][2], -1.0f, 1.0f));
+    const float cosY = std::sqrt(r[0][0] * r[0][0] + r[0][1] * r[0][1]);
+    if (cosY > 1.0e-5f) {
+        rotate.x = std::atan2(r[1][2], r[2][2]);
+        rotate.z = std::atan2(r[0][1], r[0][0]);
+    } else {
+        // ジンバルロック: x と z が同じ軸の回転になるので、z を 0 にして x にまとめる。
+        rotate.x = std::atan2(-r[2][1], r[1][1]);
+        rotate.z = 0.0f;
+    }
+    return true;
+}
+
+Vector3 NearestEulerAngles(const Vector3& rotate, const Vector3& reference)
+{
+    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kTwoPi = 2.0f * kPi;
+    // 各成分に 2π の整数倍を足して、reference に最も近い値にする。
+    const auto wrapNear = [kTwoPi](float angle, float target) {
+        return angle + kTwoPi * std::round((target - angle) / kTwoPi);
+    };
+    const auto wrapAll = [&](const Vector3& angles) {
+        return Vector3{wrapNear(angles.x, reference.x), wrapNear(angles.y, reference.y), wrapNear(angles.z, reference.z)};
+    };
+    const auto distance = [&](const Vector3& angles) {
+        const Vector3 d = angles - reference;
+        return d.x * d.x + d.y * d.y + d.z * d.z;
+    };
+    // Rx * Ry * Rz では (x, y, z) と (x + π, π - y, z + π) が同じ回転になる。
+    const Vector3 first = wrapAll(rotate);
+    const Vector3 second = wrapAll({rotate.x + kPi, kPi - rotate.y, rotate.z + kPi});
+    return distance(second) < distance(first) ? second : first;
+}
+
 Matrix4x4 MakePerspectiveForMatrix(float fovY, float aspectRatio, float nearClip, float farClip)
 {
     Matrix4x4 result;
