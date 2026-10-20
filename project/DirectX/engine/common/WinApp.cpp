@@ -121,8 +121,13 @@ void WinApp::Initialize()
     hwnd_ = CreateWindow(wc_.lpszClassName, L"たたかうせんしゃ", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, wrc.right - wrc.left,
                          wrc.bottom - wrc.top, nullptr, nullptr, wc_.hInstance, nullptr);
 
-    // ウィンドウを表示する
-    ShowWindow(hwnd_, SW_SHOW);
+    // ウィンドウを表示する。自動検証では MYENGINE_HIDDEN_WINDOW=1 で表示せず、作業中の画面やフォーカスを奪わない。
+    // 描画とキャプチャ（GPUからの読み戻し）は非表示のままでも同じ結果になる。
+    char hidden[8]{};
+    const bool hiddenWindow = GetEnvironmentVariableA("MYENGINE_HIDDEN_WINDOW", hidden, sizeof(hidden)) == 1 && hidden[0] == '1';
+    if (!hiddenWindow) {
+        ShowWindow(hwnd_, SW_SHOW);
+    }
     myEngine::StartupTrace::Mark("window.shown");
 
     // システムタイマーの分解度をあげる
