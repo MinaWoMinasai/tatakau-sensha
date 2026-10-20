@@ -19,6 +19,7 @@ EntityScene::~EntityScene()
     if (renderSync_ && common->GetDefaultCamera() == renderSync_->GetCamera()) {
         common->SetDefaultCamera(previousCamera_);
     }
+    editor_.reset();
     registry_.reset();
     world_.reset();
 }
@@ -48,13 +49,26 @@ void EntityScene::Initialize()
     } else {
         loadResult_.success = true;
     }
+    if (editorOptions_.enabled) {
+        editor_ = std::make_unique<myEngine::EntityEditor>(*registry_,
+                                                           myEngine::Utf8ToPath(myEngine::ResourcePaths::GameRoot() + "/" + sceneFile_));
+        if (editorOptions_.startPlaying) {
+            editor_->Play();
+        }
+    }
     OnSceneLoaded();
     renderSync_->Update();
 }
 
 void EntityScene::Update()
 {
-    world_->progress(GetFinalDeltaTime());
+    if (editor_) {
+        editor_->Draw();
+    }
+    // エディタの編集中はゲームのシステムを動かさない（値の変更は描画へ反映する）。
+    if (!editor_ || editor_->IsPlaying()) {
+        world_->progress(GetFinalDeltaTime());
+    }
     renderSync_->Update();
 }
 
