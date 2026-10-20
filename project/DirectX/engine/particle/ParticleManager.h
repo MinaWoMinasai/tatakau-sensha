@@ -161,6 +161,9 @@ public:
         uint32_t maxParticles;
         float time;
         uint32_t itemCount;
+        uint32_t emitOffset; // 発生: このディスパッチの最初の要求が、このフレームの発生の何番目か
+        uint32_t emitCount;  // 更新: このフレームに発生を要求した数
+        uint32_t padding[2];
     };
 
     /// @brief myEngine::ParticleManagerで使う設定値をまとめる。生成・更新される実行状態とは分けて扱う。
@@ -299,7 +302,10 @@ private:
     /// @param deltaTime この処理で進める経過時間（秒）。
     void DispatchGpu(float deltaTime, const Matrix4x4& viewProjection, const Vector3& cameraPosition);
     /// @brief GPU発生源をGPU計算を実行する。
-    void DispatchGpuEmitters();
+    /// @return このフレームに発生を要求した数。
+    uint32_t DispatchGpuEmitters();
+    /// @brief GPU更新の計算に使うルートとリソースを設定する。
+    void SetGpuParticleComputeRoot(DirectXCommon::PSO& pso);
     /// @brief GPU粒子を初期化する。
     void InitializeGpuParticles();
     /// @brief GPU発生源を後で処理するために予約する。
@@ -359,6 +365,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> freeListResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> drawArgsResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> aliveIndicesResource_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> groupCountsResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> computeConfigResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> computeSceneResource_;
     Microsoft::WRL::ComPtr<ID3D12Resource> initializeConfigResource_;
@@ -377,6 +384,7 @@ private:
     uint32_t uavIndexFreeList_ = 0;
     uint32_t uavIndexRenderData_ = 0;
     uint32_t uavIndexAliveIndices_ = 0;
+    uint32_t uavIndexGroupCounts_ = 0;
     uint32_t uavIndexDrawArgs_ = 0;
     uint32_t srvIndexEmitterRequests_ = 0;
     uint32_t srvIndexPrebuiltParticles_ = 0;
@@ -386,6 +394,10 @@ private:
     float gpuTime_ = 0.0f;
     uint32_t emitterSeed_ = 1;
     static constexpr uint32_t kMaxEmitRequests = 16384;
+    // ParticleUpdate/ParticleCompact の1グループのスレッド数。ParticleScan は1グループでこの数まで集計する。
+    static constexpr uint32_t kUpdateThreadsPerGroup = 1024;
+    static constexpr uint32_t kUpdateGroupCount = (kMaxInstance + kUpdateThreadsPerGroup - 1) / kUpdateThreadsPerGroup;
+    static_assert(kUpdateGroupCount <= kUpdateThreadsPerGroup, "ParticleScan.CS.hlsl scans the group counts in one group");
     std::string editorEffectName_ = "HitSpark";
     ParticleEmitterConfig editorConfig_;
     bool useGpuUpdate_ = true;

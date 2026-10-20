@@ -462,6 +462,18 @@ public:
         return psoComputeParticle_;
     }
 
+    /// @brief PSO粒子の詰める位置の計算を返す。
+    PSO& GetPSOScanParticle()
+    {
+        return psoScanParticle_;
+    }
+
+    /// @brief PSO粒子の詰め直しを返す。
+    PSO& GetPSOCompactParticle()
+    {
+        return psoCompactParticle_;
+    }
+
     /// @brief PSO初期化粒子を返す。
     PSO& GetPSOInitializeParticle()
     {
@@ -748,6 +760,8 @@ private:
     PSO psoModelParticle_;
     PSO psoModelParticle_HDR;
     PSO psoComputeParticle_;
+    PSO psoScanParticle_;
+    PSO psoCompactParticle_;
     PSO psoInitializeParticle_;
     PSO psoEmitParticle_;
     PSO psoEmitBatchParticle_;
