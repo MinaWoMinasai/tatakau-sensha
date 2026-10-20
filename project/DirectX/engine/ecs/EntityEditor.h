@@ -11,11 +11,22 @@
 
 namespace myEngine {
 
+class Camera;
+
+/// @brief ギズモの操作の種類。
+enum class GizmoOperation {
+    Translate,
+    Rotate,
+    Scale,
+};
+
 /// @brief ECS のシーンを編集するエディタ（ヒエラルキー・インスペクター・保存・Play/Stop・元に戻す/やり直す）。
 /// 操作の本体（作成・削除・保存・Play/Stop・元に戻す）はどの構成でも使える。ImGui の画面（Draw）は USE_IMGUI のときだけ描く。
 ///
 /// 編集中は、シーンのカメラとは別のエディタ用カメラ（GetCamera）で見る。右ドラッグで向き、右ドラッグ中の WASD / QE で移動、
 /// 中ドラッグで平行移動、ホイールで前後、F で選んだエンティティに寄る。
+/// 選んだエンティティにはギズモ（ImGuizmo）を出す。W / E / R で移動・回転・拡大縮小、Ctrl でスナップ。
+/// 1回のドラッグは1つの操作として履歴に残る。画面の右下の視点キューブで、カメラの向きを変えられる。
 ///
 /// Play/Stop は Unity の「シーンだけ読み直す」と同じ考え方で、Play の時点のシーンをメモリへ保存し、
 /// Stop でエンティティを消してから保存した内容を読み直す。Play 中の操作は履歴に残さない。
@@ -96,6 +107,50 @@ public:
     /// @return 選んでいるエンティティがあればtrue。
     bool FocusSelected();
 
+    /// @brief ギズモで使う視野角とクリップ距離を持つカメラ（シーンの描画に使うカメラ）を設定する。
+    /// 位置と向きはエディタ用カメラのものを使う。nullptr ならギズモと視点キューブを出さない。
+    void SetSceneCamera(const Camera* camera)
+    {
+        sceneCamera_ = camera;
+    }
+
+    GizmoOperation GetGizmoOperation() const
+    {
+        return gizmoOperation_;
+    }
+
+    void SetGizmoOperation(GizmoOperation operation)
+    {
+        gizmoOperation_ = operation;
+    }
+
+    /// @brief ギズモの軸をエンティティの向き（ローカル）に合わせるか。false ならワールドの軸。
+    bool IsGizmoLocal() const
+    {
+        return gizmoLocal_;
+    }
+
+    void SetGizmoLocal(bool local)
+    {
+        gizmoLocal_ = local;
+    }
+
+    /// @brief Transform の連続した変更（ギズモのドラッグ）を始める。変更前の状態を覚える。Play 中は何もしない。
+    /// @return 始められたらtrue（すでに始めていればfalse）。
+    bool BeginTransformEdit(flecs::entity entity);
+    /// @brief ワールド行列を、操作の種類に合う Transform の値（親から見たローカルの値）へ書き戻す。履歴には残さない。
+    /// 移動は translate だけ、回転は rotate だけ（直前の角度に近い値を選ぶ）、拡大縮小は scale だけ（符号は元のまま）を変える。
+    /// @return 書き戻せたらtrue。Transform が無い、行列が分解できないときはfalse。
+    bool ApplyGizmoMatrix(flecs::entity entity, const Matrix4x4& world, GizmoOperation operation);
+    /// @brief BeginTransformEdit から今までの変更を、1つの操作として履歴に残す。
+    /// @return 変化があって記録したらtrue。
+    bool EndTransformEdit(const std::string& label);
+    /// @brief Transform の連続した変更の途中か。途中は元に戻す・やり直すをしない。
+    bool IsEditingTransform() const
+    {
+        return transformEditBefore_.has_value();
+    }
+
     /// @brief 現在のシーンをシーンファイルへ保存する。Play 中は保存しない。
     bool Save();
     /// @brief 指定したファイルへ保存する。Play 中は保存しない。
@@ -129,6 +184,7 @@ private:
 #ifdef USE_IMGUI
     void HandleShortcuts();
     void HandleCameraInput();
+    void DrawGizmo();
     void DrawToolbar();
     void DrawHierarchy();
     void DrawHierarchyNode(flecs::entity entity);
@@ -141,6 +197,11 @@ private:
     EditorCamera camera_;
     // ImGui のウィンドウの外で右・中ボタンを押して、カメラを動かしている途中か。
     bool cameraDragging_ = false;
+    const Camera* sceneCamera_ = nullptr;
+    GizmoOperation gizmoOperation_ = GizmoOperation::Translate;
+    bool gizmoLocal_ = false;
+    // ギズモのドラッグ（BeginTransformEdit〜EndTransformEdit）の変更前の状態。
+    std::optional<EntityState> transformEditBefore_;
     std::filesystem::path sceneFile_;
     flecs::entity selected_;
     bool playing_ = false;

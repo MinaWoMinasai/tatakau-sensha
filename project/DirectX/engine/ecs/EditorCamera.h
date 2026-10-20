@@ -50,6 +50,10 @@ public:
     /// @brief 位置と向き（ラジアン。x: pitch、y: yaw。z は使わない）を直接設定する。
     void SetPose(const Vector3& translate, const Vector3& rotate);
 
+    /// @brief ビュー行列（カメラのワールド行列の逆行列）から、位置と向きを設定する。z 軸まわりの回転は捨てる。
+    /// 視点キューブで変えた向きを取り込むときに使う。
+    void SetFromViewMatrix(const Matrix4x4& view);
+
     /// @brief Camera へ位置と向きを設定する（Camera::Update は呼び出し側で行う）。
     void ApplyTo(Camera& camera) const;
 

@@ -52,6 +52,7 @@ void EntityScene::Initialize()
     if (editorOptions_.enabled) {
         editor_ = std::make_unique<myEngine::EntityEditor>(*registry_,
                                                            myEngine::Utf8ToPath(myEngine::ResourcePaths::GameRoot() + "/" + sceneFile_));
+        editor_->SetSceneCamera(renderSync_->GetCamera());
         if (editorOptions_.startPlaying) {
             editor_->Play();
         }

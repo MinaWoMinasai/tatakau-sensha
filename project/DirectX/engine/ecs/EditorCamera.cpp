@@ -59,6 +59,24 @@ void EditorCamera::SetPose(const Vector3& translate, const Vector3& rotate)
     yaw_ = rotate.y;
 }
 
+void EditorCamera::SetFromViewMatrix(const Matrix4x4& view)
+{
+    // カメラのワールド行列の各行が、右・上・前の向きと位置になる。
+    const Matrix4x4 world = Inverse(view);
+    const Vector3 up = Normalize({world.m[1][0], world.m[1][1], world.m[1][2]});
+    const Vector3 forward = Normalize({world.m[2][0], world.m[2][1], world.m[2][2]});
+    // 前 = (cos p sin y, -sin p, cos p cos y)
+    pitch_ = std::clamp(std::asin(std::clamp(-forward.y, -1.0f, 1.0f)), -kMaxPitch, kMaxPitch);
+    if (forward.x * forward.x + forward.z * forward.z > 1.0e-6f) {
+        yaw_ = std::atan2(forward.x, forward.z);
+    } else {
+        // 真上・真下を向いているときは、上の向き = ±(sin y, 0, cos y) から yaw を決める。
+        const float sign = forward.y < 0.0f ? 1.0f : -1.0f;
+        yaw_ = std::atan2(up.x * sign, up.z * sign);
+    }
+    translate_ = {world.m[3][0], world.m[3][1], world.m[3][2]};
+}
+
 void EditorCamera::ApplyTo(Camera& camera) const
 {
     camera.SetTranslate(translate_);
