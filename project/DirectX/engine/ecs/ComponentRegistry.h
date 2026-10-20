@@ -1,5 +1,5 @@
 #pragma once
-#include "flecs.h"
+#include "EcsFlecs.h"
 
 #include <functional>
 #include <string>

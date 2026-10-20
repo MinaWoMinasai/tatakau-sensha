@@ -125,6 +125,7 @@
     </ClCompile>
     <ClCompile Include="game\runtime\Application.cpp" />
     <ClCompile Include="game\runtime\ApplicationMain.cpp" />
+    <ClCompile Include="game\runtime\EntityScene.cpp" />
     <ClCompile Include="game\runtime\GameModuleRegistry.cpp" />
     <ClCompile Include="game\runtime\GameProject.cpp" />
     <ClCompile Include="game\runtime\SceneRegistry.cpp" />
@@ -241,6 +242,7 @@
     <ClInclude Include="DirectX\engine\common\SrvManager.h" />
     <ClInclude Include="game\runtime\Application.h" />
     <ClInclude Include="game\runtime\ApplicationMain.h" />
+    <ClInclude Include="game\runtime\EntityScene.h" />
     <ClInclude Include="game\runtime\IApplicationHooks.h" />
     <ClInclude Include="game\runtime\GameModuleRegistry.h" />
     <ClInclude Include="game\runtime\GameProject.h" />
@@ -273,9 +275,12 @@
     <ClCompile Include="DirectX\engine\ecs\EcsComponents.cpp" />
     <ClCompile Include="DirectX\engine\ecs\ComponentRegistry.cpp" />
     <ClCompile Include="DirectX\engine\ecs\SceneSerializer.cpp" />
+    <ClCompile Include="DirectX\engine\ecs\RenderSync.cpp" />
     <ClInclude Include="DirectX\engine\ecs\EcsComponents.h" />
     <ClInclude Include="DirectX\engine\ecs\ComponentRegistry.h" />
     <ClInclude Include="DirectX\engine\ecs\SceneSerializer.h" />
+    <ClInclude Include="DirectX\engine\ecs\RenderSync.h" />
+    <ClInclude Include="DirectX\engine\ecs\EcsFlecs.h" />
   </ItemGroup>
   <ItemGroup>
     <!-- flecs は外部のCのコード。Cとしてコンパイルし、警告の扱いはこのファイルだけ外部コード向けにする（中身は変更しない）。 -->
