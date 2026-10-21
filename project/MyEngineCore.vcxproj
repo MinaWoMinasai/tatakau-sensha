@@ -65,6 +65,7 @@
     <ClCompile Include="DirectX\engine\postEffect\RenderTexture.cpp" />
     <ClCompile Include="DirectX\engine\common\RtvManager.cpp" />
     <ClCompile Include="DirectX\engine\debugCamera\Camera.cpp" />
+    <ClCompile Include="DirectX\engine\debugCamera\MapCamera.cpp" />
     <ClCompile Include="DirectX\engine\audio\Audio.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
@@ -139,6 +140,7 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\2d\DynamicTexture.cpp" />
     <ClCompile Include="DirectX\engine\2d\Sprite.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
@@ -188,6 +190,7 @@
     <ClInclude Include="DirectX\engine\postEffect\RenderTexture.h" />
     <ClInclude Include="DirectX\engine\common\RtvManager.h" />
     <ClInclude Include="DirectX\engine\debugCamera\Camera.h" />
+    <ClInclude Include="DirectX\engine\debugCamera\MapCamera.h" />
     <ClInclude Include="DirectX\engine\audio\Audio.h" />
     <ClInclude Include="DirectX\engine\calc\Calculation.h" />
     <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h" />
@@ -225,6 +228,7 @@
     <ClInclude Include="DirectX\engine\common\Utf8Path.h" />
     <ClInclude Include="DirectX\engine\common\Resource.h" />
     <ClInclude Include="DirectX\engine\common\Root.h" />
+    <ClInclude Include="DirectX\engine\2d\DynamicTexture.h" />
     <ClInclude Include="DirectX\engine\2d\Sprite.h" />
     <ClInclude Include="DirectX\engine\2d\SpriteCommon.h" />
     <ClInclude Include="DirectX\engine\struct\Struct.h" />

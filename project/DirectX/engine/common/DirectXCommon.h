@@ -8,6 +8,7 @@
 #include <chrono>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 #include <array>
 #include "Root.h"
 #include "InputDesc.h"
@@ -152,6 +153,12 @@ public:
     /// @brief 記録したGPUコマンドを送信し、完了フェンスを待ってから再利用する。
     /// @note 待機終了までCPUがGPU用資源を書き換えないために使う。
     void ExecuteCommandListAndWait();
+    /// @brief 今のコマンドリストに積んだコマンドが GPU で終わるまで、資源を解放せずに持っておく。
+    /// 持ち主がフレームの途中で消える資源（コピーなどを積んだ直後に破棄するもの）に使う。
+    void ReleaseAfterExecution(Microsoft::WRL::ComPtr<ID3D12Resource> resource)
+    {
+        releaseAfterExecution_.push_back(std::move(resource));
+    }
     /// @brief 固定FPSを初期状態へ戻す。
     void ResetFixFPS();
 
@@ -721,6 +728,8 @@ private:
     bool gpuBasedValidationEnabled_ = false;
     HANDLE fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
     uint64_t fenceValue_ = 0;
+    // ReleaseAfterExecution で預かった資源。コマンドリストの実行が終わったら解放する。
+    std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> releaseAfterExecution_;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_ = nullptr;
 

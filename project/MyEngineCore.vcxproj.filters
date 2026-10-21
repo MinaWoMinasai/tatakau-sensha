@@ -98,6 +98,9 @@
     <ClCompile Include="DirectX\engine\input\Input.cpp">
       <Filter>DirectX\engine\input</Filter>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\2d\DynamicTexture.cpp">
+      <Filter>DirectX\engine\2d</Filter>
+    </ClCompile>
     <ClCompile Include="DirectX\engine\2d\Sprite.cpp">
       <Filter>DirectX\engine\2d</Filter>
     </ClCompile>
@@ -132,6 +135,9 @@
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\debugCamera\DebugCamera.cpp">
+      <Filter>DirectX\engine\debugCamera</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\debugCamera\MapCamera.cpp">
       <Filter>DirectX\engine\debugCamera</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\2d\TextureManager.cpp">
@@ -269,6 +275,9 @@
     <ClInclude Include="DirectX\engine\2d\SpriteCommon.h">
       <Filter>DirectX\engine\2d</Filter>
     </ClInclude>
+    <ClInclude Include="DirectX\engine\2d\DynamicTexture.h">
+      <Filter>DirectX\engine\2d</Filter>
+    </ClInclude>
     <ClInclude Include="DirectX\engine\2d\Sprite.h">
       <Filter>DirectX\engine\2d</Filter>
     </ClInclude>
@@ -306,6 +315,9 @@
       <Filter>DirectX\engine\struct</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h">
+      <Filter>DirectX\engine\debugCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\debugCamera\MapCamera.h">
       <Filter>DirectX\engine\debugCamera</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\2d\TextureManager.h">

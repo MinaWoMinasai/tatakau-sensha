@@ -983,6 +983,7 @@ void DirectXCommon::CommandListExecuteAndReset()
         WaitForSingleObject(fenceEvent_, INFINITE);
         frameSubmitProfile_.fenceWaitMs = elapsedMs(fenceStart, Clock::now());
     }
+    releaseAfterExecution_.clear();
 
     // FPS固定
     const auto fpsLimitStart = Clock::now();
@@ -1016,6 +1017,7 @@ void DirectXCommon::ExecuteCommandListAndWait()
         fence_->SetEventOnCompletion(fenceValue_, fenceEvent_);
         WaitForSingleObject(fenceEvent_, INFINITE);
     }
+    releaseAfterExecution_.clear();
 
     // Reset
     allocator_->Reset();

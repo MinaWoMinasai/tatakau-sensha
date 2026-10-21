@@ -284,6 +284,15 @@ Vector3 ScreenToWorldOnZ0(const Vector2& screenPos, const Matrix4x4& viewMatrix,
 Vector3 ScreenToWorld3D(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth,
                         float windowHeight, float distanceFromCamera);
 
+/// @brief 画面上の点を通る、ワールド空間の光線を返す。origin は近クリップ面上の点、diff は長さ1の向き。
+/// screenPos は左上を原点とする画面の座標で、screenWidth・screenHeight と同じ座標系（ピクセルなど）で渡す。
+Ray ScreenPointToRay(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float screenWidth,
+                     float screenHeight);
+/// @brief 光線（ray.diff の向きへ無限に伸びる）と平面（Dot(normal, p) == distance）の交点を求める。
+/// @param hitDistance 交点までの距離（ray.diff の長さを単位とする）を受け取る。不要なら nullptr。
+/// @return 交わればtrue。平面と平行なとき、交点が始点より後ろにあるときはfalse。
+bool IntersectRayPlane(const Ray& ray, const Plane& plane, Vector3& hitPoint, float* hitDistance = nullptr);
+
 /// @brief 乱数を使って単位方向ベクトルを生成する。
 Vector3 RandomUnitVector();
 

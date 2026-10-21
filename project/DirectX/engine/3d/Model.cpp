@@ -958,7 +958,7 @@ void Model::Draw()
     Draw({});
 }
 
-void Model::Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddresses)
+void Model::Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddresses, const D3D12_GPU_DESCRIPTOR_HANDLE* baseColorTexture)
 {
     modelCommon_->GetDxCommon()->GetList()->IASetVertexBuffers(0, 1, &vertexBufferView); //VBVを設定
     modelCommon_->GetDxCommon()->GetList()->IASetIndexBuffer(&indexBufferView);
@@ -973,7 +973,7 @@ void Model::Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddres
         }
 
         modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
-            2, TextureManager::GetInstance()->GetSrvHandleGPU(material.textureFilePath));
+            2, baseColorTexture ? *baseColorTexture : TextureManager::GetInstance()->GetSrvHandleGPU(material.textureFilePath));
         modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
             11,
             TextureManager::GetInstance()->GetSrvHandleGPU(material.normalTextureFilePath, TextureManager::TextureColorSpace::LinearData));

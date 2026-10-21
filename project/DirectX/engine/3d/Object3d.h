@@ -131,6 +131,26 @@ public:
         materialData_->enableLighting = enable;
     }
 
+    /// @brief モデルの基本色のテクスチャの代わりに、指定したテクスチャ（DynamicTexture など）を貼る。
+    /// テクスチャの寿命は呼び出し側で管理し、描画する間は有効にしておく。
+    /// スキニングのモデル（DrawSkinned）には効かない。
+    void SetTextureOverride(D3D12_GPU_DESCRIPTOR_HANDLE texture)
+    {
+        textureOverride_ = texture;
+        hasTextureOverride_ = true;
+    }
+
+    /// @brief SetTextureOverride をやめ、モデルのテクスチャに戻す。
+    void ClearTextureOverride()
+    {
+        hasTextureOverride_ = false;
+    }
+
+    bool HasTextureOverride() const
+    {
+        return hasTextureOverride_;
+    }
+
     /// @brief ライティング方式を設定する。
     void SetLightingMode(int32_t mode)
     {
@@ -441,6 +461,9 @@ private:
 
     uint32_t environmentMapIndex_ = 0; // デフォルトのSRVインデックス
     uint32_t causticsTextureIndex_ = 0;
+    // SetTextureOverride で指定した、基本色のテクスチャの代わり。
+    D3D12_GPU_DESCRIPTOR_HANDLE textureOverride_{};
+    bool hasTextureOverride_ = false;
     bool hasCausticsTexture_ = false;
     bool causticsRequestedEnabled_ = false;
 
