@@ -932,6 +932,35 @@ Vector3 ScreenToWorld3D(const Vector2& screenPos, const Matrix4x4& viewMatrix, c
     return rayOrigin + rayDir * distanceFromCamera;
 }
 
+Ray ScreenPointToRay(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float screenWidth,
+                     float screenHeight)
+{
+    // 画面の座標を正規化デバイス座標（x, y は -1〜1、上が +y）にし、近クリップ面（z = 0）と遠クリップ面（z = 1）の点を戻す。
+    const float x = 2.0f * screenPos.x / screenWidth - 1.0f;
+    const float y = 1.0f - 2.0f * screenPos.y / screenHeight;
+    const Matrix4x4 inverseViewProjection = Inverse(Multiply(viewMatrix, projectionMatrix));
+    const Vector3 nearPoint = TransformMatrix(Vector3{x, y, 0.0f}, inverseViewProjection);
+    const Vector3 farPoint = TransformMatrix(Vector3{x, y, 1.0f}, inverseViewProjection);
+    return Ray{nearPoint, Normalize(farPoint - nearPoint)};
+}
+
+bool IntersectRayPlane(const Ray& ray, const Plane& plane, Vector3& hitPoint, float* hitDistance)
+{
+    const float denominator = Dot(plane.normal, ray.diff);
+    if (std::fabs(denominator) < 1.0e-8f) {
+        return false;
+    }
+    const float t = (plane.distance - Dot(plane.normal, ray.origin)) / denominator;
+    if (t < 0.0f) {
+        return false;
+    }
+    hitPoint = ray.origin + ray.diff * t;
+    if (hitDistance) {
+        *hitDistance = t;
+    }
+    return true;
+}
+
 bool IsCollision(const AABB& aabb1, const AABB& aabb2)
 {
     if ((aabb1.min.x <= aabb2.max.x && aabb1.max.x >= aabb2.min.x) && (aabb1.min.y <= aabb2.max.y && aabb1.max.y >= aabb2.min.y) &&

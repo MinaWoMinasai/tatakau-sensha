@@ -65,6 +65,7 @@
     <ClCompile Include="DirectX\engine\postEffect\RenderTexture.cpp" />
     <ClCompile Include="DirectX\engine\common\RtvManager.cpp" />
     <ClCompile Include="DirectX\engine\debugCamera\Camera.cpp" />
+    <ClCompile Include="DirectX\engine\debugCamera\MapCamera.cpp" />
     <ClCompile Include="DirectX\engine\audio\Audio.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
@@ -188,6 +189,7 @@
     <ClInclude Include="DirectX\engine\postEffect\RenderTexture.h" />
     <ClInclude Include="DirectX\engine\common\RtvManager.h" />
     <ClInclude Include="DirectX\engine\debugCamera\Camera.h" />
+    <ClInclude Include="DirectX\engine\debugCamera\MapCamera.h" />
     <ClInclude Include="DirectX\engine\audio\Audio.h" />
     <ClInclude Include="DirectX\engine\calc\Calculation.h" />
     <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h" />

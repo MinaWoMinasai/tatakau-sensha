@@ -134,6 +134,9 @@
     <ClCompile Include="DirectX\engine\debugCamera\DebugCamera.cpp">
       <Filter>DirectX\engine\debugCamera</Filter>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\debugCamera\MapCamera.cpp">
+      <Filter>DirectX\engine\debugCamera</Filter>
+    </ClCompile>
     <ClCompile Include="DirectX\engine\2d\TextureManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -306,6 +309,9 @@
       <Filter>DirectX\engine\struct</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h">
+      <Filter>DirectX\engine\debugCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\debugCamera\MapCamera.h">
       <Filter>DirectX\engine\debugCamera</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\2d\TextureManager.h">
