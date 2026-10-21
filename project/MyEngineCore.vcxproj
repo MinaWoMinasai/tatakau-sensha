@@ -277,11 +277,15 @@
     <ClCompile Include="DirectX\engine\ecs\SceneSerializer.cpp" />
     <ClCompile Include="DirectX\engine\ecs\RenderSync.cpp" />
     <ClCompile Include="DirectX\engine\ecs\EntityEditor.cpp" />
+    <ClCompile Include="DirectX\engine\ecs\EditorHistory.cpp" />
+    <ClCompile Include="DirectX\engine\ecs\EditorCamera.cpp" />
     <ClInclude Include="DirectX\engine\ecs\EcsComponents.h" />
     <ClInclude Include="DirectX\engine\ecs\ComponentRegistry.h" />
     <ClInclude Include="DirectX\engine\ecs\SceneSerializer.h" />
     <ClInclude Include="DirectX\engine\ecs\RenderSync.h" />
     <ClInclude Include="DirectX\engine\ecs\EntityEditor.h" />
+    <ClInclude Include="DirectX\engine\ecs\EditorHistory.h" />
+    <ClInclude Include="DirectX\engine\ecs\EditorCamera.h" />
     <ClInclude Include="DirectX\engine\ecs\EcsFlecs.h" />
   </ItemGroup>
   <ItemGroup>
@@ -295,6 +299,16 @@
     <ClInclude Include="externals\flecs\flecs.h" />
     <None Include="externals\flecs\LICENSE" />
     <None Include="externals\flecs\README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- ImGuizmo はエディタのギズモ用の外部コード（中身は変更しない）。imgui.h を名前だけでインクルードするので、imgui のフォルダを検索先に足す。 -->
+    <ClCompile Include="externals\imguizmo\ImGuizmo.cpp">
+      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)externals\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClInclude Include="externals\imguizmo\ImGuizmo.h" />
+    <None Include="externals\imguizmo\LICENSE" />
+    <None Include="externals\imguizmo\README.md" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">

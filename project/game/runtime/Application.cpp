@@ -546,6 +546,16 @@ int Application::MainLoop()
         if (imguiInitialized_) {
             ImGui_ImplDX12_NewFrame();
             ImGui_ImplWin32_NewFrame();
+            {
+                // スワップチェーン（kRenderWidth x kRenderHeight）は、ウィンドウの大きさに合わせて拡大縮小して表示される。
+                // ImGui の座標はウィンドウのクライアント座標（マウスと同じ）のまま、スワップチェーン全体へ描くように倍率を合わせる。
+                // 合わせないと、ウィンドウがスワップチェーンより小さいときに ImGui だけが縮んで表示され、マウスの位置とずれる。
+                ImGuiIO& io = ImGui::GetIO();
+                if (io.DisplaySize.x > 0.0f && io.DisplaySize.y > 0.0f) {
+                    io.DisplayFramebufferScale = ImVec2(float(myEngine::WinApp::kRenderWidth) / io.DisplaySize.x,
+                                                        float(myEngine::WinApp::kRenderHeight) / io.DisplaySize.y);
+                }
+            }
             ImGui::NewFrame();
 #ifdef USE_IMGUI
             ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode);

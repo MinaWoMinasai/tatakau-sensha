@@ -15,6 +15,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
+    <Filter Include="imguizmo">
+      <UniqueIdentifier>{6b0d3f2e-5a7c-4e1b-9c42-8f3a1d7e2b55}</UniqueIdentifier>
+    </Filter>
     <Filter Include="imgui">
       <UniqueIdentifier>{ec9f3dc1-7844-4f4d-ad84-4dc97c202047}</UniqueIdentifier>
     </Filter>
@@ -442,6 +445,18 @@
     <None Include="externals\flecs\README.md">
       <Filter>flecs</Filter>
     </None>
+    <ClCompile Include="externals\imguizmo\ImGuizmo.cpp">
+      <Filter>imguizmo</Filter>
+    </ClCompile>
+    <ClInclude Include="externals\imguizmo\ImGuizmo.h">
+      <Filter>imguizmo</Filter>
+    </ClInclude>
+    <None Include="externals\imguizmo\LICENSE">
+      <Filter>imguizmo</Filter>
+    </None>
+    <None Include="externals\imguizmo\README.md">
+      <Filter>imguizmo</Filter>
+    </None>
     <ClCompile Include="DirectX\engine\ecs\EcsComponents.cpp">
       <Filter>DirectX\engine\ecs</Filter>
     </ClCompile>
@@ -463,6 +478,12 @@
     <ClCompile Include="DirectX\engine\ecs\EntityEditor.cpp">
       <Filter>DirectX\engine\ecs</Filter>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\ecs\EditorHistory.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\ecs\EditorCamera.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClCompile>
     <ClInclude Include="DirectX\engine\ecs\SceneSerializer.h">
       <Filter>DirectX\engine\ecs</Filter>
     </ClInclude>
@@ -470,6 +491,12 @@
       <Filter>DirectX\engine\ecs</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\ecs\EntityEditor.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ecs\EditorHistory.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ecs\EditorCamera.h">
       <Filter>DirectX\engine\ecs</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\ecs\EcsFlecs.h">

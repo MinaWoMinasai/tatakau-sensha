@@ -1,5 +1,6 @@
 #include "RenderSync.h"
 #include "Calculation.h"
+#include "EditorCamera.h"
 #include "EcsComponents.h"
 #include "Object3d.h"
 #include "WinApp.h"
@@ -38,6 +39,12 @@ Matrix4x4 ComputeWorldMatrix(flecs::entity entity, std::unordered_map<flecs::ent
 
 } // namespace
 
+Matrix4x4 ComputeEntityWorldMatrix(flecs::entity entity)
+{
+    std::unordered_map<flecs::entity_t, Matrix4x4> cache;
+    return ComputeWorldMatrix(entity, cache);
+}
+
 void RegisterRenderComponents(flecs::world& world)
 {
     world.component<RenderHandle>("myEngine::RenderHandle");
@@ -67,6 +74,10 @@ void RenderSync::UpdateCamera()
             camera_.SetTranslate(transform->translate);
         }
     });
+    // 編集中は、位置と向きだけエディタ用カメラのものを使う。
+    if (editorCamera_) {
+        editorCamera_->ApplyTo(camera_);
+    }
     camera_.Update();
 }
 
