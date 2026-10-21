@@ -17,7 +17,8 @@ public:
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
     void Draw();
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
-    void Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddresses);
+    /// @param baseColorTexture nullptr でなければ、すべてのマテリアルの基本色のテクスチャの代わりに使う。
+    void Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddresses, const D3D12_GPU_DESCRIPTOR_HANDLE* baseColorTexture = nullptr);
     /// @brief 専用メッシュを描画する。
     void DrawOnlyMesh();
 

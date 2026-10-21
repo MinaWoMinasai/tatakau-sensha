@@ -140,6 +140,7 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\2d\DynamicTexture.cpp" />
     <ClCompile Include="DirectX\engine\2d\Sprite.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
@@ -227,6 +228,7 @@
     <ClInclude Include="DirectX\engine\common\Utf8Path.h" />
     <ClInclude Include="DirectX\engine\common\Resource.h" />
     <ClInclude Include="DirectX\engine\common\Root.h" />
+    <ClInclude Include="DirectX\engine\2d\DynamicTexture.h" />
     <ClInclude Include="DirectX\engine\2d\Sprite.h" />
     <ClInclude Include="DirectX\engine\2d\SpriteCommon.h" />
     <ClInclude Include="DirectX\engine\struct\Struct.h" />

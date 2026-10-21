@@ -263,7 +263,7 @@ void Object3d::Draw()
         for (const auto& materialResource : materialInstanceResources_) {
             materialCbvAddresses.push_back(materialResource ? materialResource->GetGPUVirtualAddress() : 0);
         }
-        model_->Draw(materialCbvAddresses);
+        model_->Draw(materialCbvAddresses, hasTextureOverride_ ? &textureOverride_ : nullptr);
     }
 }
 
