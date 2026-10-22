@@ -163,10 +163,6 @@ void GameplayHud::DrawSprite()
         return;
     }
     world_.run.expeditionPointerCursor_ = 0;
-
-    if (!world_.run.expeditionRun_ && !world_.gameplayQueries->IsTutorialCombatSuppressed()) {
-        world_.resources.enemy_->DrawSprite();
-    }
     world_.combat.followHpBarIndex_ = 0;
     for (auto& vertices : world_.combat.hpBarBackgroundVertices_) {
         vertices.clear();

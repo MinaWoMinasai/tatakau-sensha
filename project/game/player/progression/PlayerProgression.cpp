@@ -53,7 +53,7 @@ void PlayerProgression::AddExp(int amount)
 
         if (player_.ui_->arenaUiEnabled_ && GetRankFromLevel(player_.level_) > previousRank &&
             !(player_.runModifiers_.enabled && player_.runCheckpointEvolution_)) {
-            player_.isChangeMode = true;
+            player_.isChangeMode_ = true;
             // AddExpはPlayer::Update後の衝突処理から呼ばれる場合があるため、
             // 同じフレームの初回描画より先に遅延フォント更新を完了させる。
             player_.playerEvolution_->PrepareStaticEvolutionTextTextures();
@@ -79,7 +79,7 @@ void PlayerProgression::SetRunCurrencyMode(bool enabled)
         player_.exp_ = 0;
         player_.skillPoints_ = 0;
         player_.nextLevelExp_ = GetNextLevelExp();
-        player_.isChangeMode = false;
+        player_.isChangeMode_ = false;
     }
 }
 
@@ -200,7 +200,7 @@ bool PlayerProgression::ChooseRunAuthoredClass(const std::string& id)
     player_.weaponGroupCooldowns_.clear();
     player_.drones_.clear();
     player_.runSupportDroneTimer_ = 0;
-    player_.isChangeMode = false;
+    player_.isChangeMode_ = false;
     RecalculateStatsFromBase(false);
     player_.hp_ = (std::clamp)(previousHp, 0, player_.GetMaxHp());
     player_.InitializeBarrels();
@@ -561,7 +561,7 @@ void PlayerProgression::PrepareRunEvolution()
     if (!player_.runModifiers_.enabled || player_.isDead_) {
         return;
     }
-    player_.isChangeMode = false;
+    player_.isChangeMode_ = false;
     player_.evolutionConfirmedEvent_ = false;
     player_.evolutionCancelledEvent_ = false;
     if (player_.runCheckpointEvolution_) {
@@ -658,7 +658,7 @@ bool PlayerProgression::ChooseRunEvolution(const std::string& id)
         player_.runSupportDroneTimer_ = 0.0f;
         player_.InitializeBarrels();
         player_.UpdateBarrelLayout();
-        player_.isChangeMode = false;
+        player_.isChangeMode_ = false;
         player_.evolutionConfirmedEvent_ = true;
         return true;
     }
@@ -756,7 +756,6 @@ void PlayerProgression::ResetRunRoomState(const myEngine::Vector3& position)
     player_.isStealth_ = false;
     player_.stealthTimer_ = 0.0f;
     player_.stealthAlpha_ = 1.0f;
-    player_.summonTimer_ = 0.0f;
     player_.stats_.stamina = player_.stats_.maxStamina;
     player_.invincibleTimer_ = 0.45f;
     player_.damageFeedbackTimer_ = 0.0f;
@@ -766,7 +765,7 @@ void PlayerProgression::ResetRunRoomState(const myEngine::Vector3& position)
     player_.statUpgradePerformedEvent_ = false;
     player_.evolutionConfirmedEvent_ = false;
     player_.evolutionCancelledEvent_ = false;
-    player_.isChangeMode = false;
+    player_.isChangeMode_ = false;
     player_.ui_->upgradeHudMouseCaptured_ = false;
     for (auto& barrel : player_.barrels_) {
         barrel.recoilOffset = 0.0f;
@@ -888,7 +887,7 @@ void PlayerProgression::EvolveById(const std::string& classId)
     player_.InitializeBarrels();
     player_.UpdateBarrelLayout();
 
-    player_.isChangeMode = false;
+    player_.isChangeMode_ = false;
 }
 
 bool PlayerProgression::IsRunCompatibleClass(const PlayerClassConfig& config) const

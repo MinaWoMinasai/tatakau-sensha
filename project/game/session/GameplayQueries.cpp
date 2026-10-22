@@ -270,11 +270,6 @@ bool GameplayQueries::IsFinished() const
 }
 
 /// @brief BallOBJ形式を返す。
-myEngine::Object3d* GameplayQueries::GetBallObj()
-{
-    return world_.resources.ballObj_.get();
-}
-
 /// @brief 最終差分時間を返す。
 float GameplayQueries::GetFinalDeltaTime() const
 {

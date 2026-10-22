@@ -4,10 +4,6 @@
 #include <nlohmann/json.hpp>
 #include "game/session/TitleDemoStatus.h"
 
-namespace myEngine {
-class Object3d;
-}
-
 namespace gameplay {
 class GameSession;
 }
@@ -45,9 +41,6 @@ public:
 
     /// @brief 終了済みであるか判定する。
     bool IsFinished() const override;
-
-    /// @brief BallOBJ形式を返す。
-    myEngine::Object3d* GetBallObj();
 
     /// @brief 最終差分時間を返す。
     float GetFinalDeltaTime() const override;
@@ -90,13 +83,13 @@ public:
     /// @brief タイトルデモのフェードの量を返す。
     float GetTitleDemoFade() const;
 
-    /// @brief タイトルデモ計測を要求を予約する。
+    /// @brief タイトルデモの画面を、指定した名前でPNGに保存するよう予約する。
     void RequestTitleDemoCapture(const std::string& name);
 
-    /// @brief タイトルデモ計測をコピーする。
+    /// @brief タイトルデモの画面を、保存用にコピーする。
     void CopyTitleDemoCapture();
 
-    /// @brief タイトルデモ計測を予約分を処理する。
+    /// @brief 予約していたタイトルデモの画面を、PNGに書き出す。
     void FlushTitleDemoCapture();
 
     /// @brief タイトルデモ強化ビルドを返す。

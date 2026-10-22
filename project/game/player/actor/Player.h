@@ -385,7 +385,7 @@ public:
     /// @param uiDeltaTime UI用の経過秒。戦闘のスローと分けて渡す。
     /// @note 進化画面を操作したフレームは戦闘入力へ流さない。
     /// 初期化後、有効なカメラと弾管理先を渡す。経過時間は非負とする。
-    void Update(myEngine::Camera* viewProjection, Stage& stage, BulletManager* BulletManager, float deltaTime, float uiDeltaTime);
+    void Update(myEngine::Camera* viewProjection, Stage& stage, BulletManager* bulletManager, float deltaTime, float uiDeltaTime);
 
     /// @brief 通常モデルを使うドローンと、指定に応じて自機本体・砲塔を描画する。
     /// @param drawBody 自機本体・砲塔も描画するか。ドローンの描画には影響しない。
@@ -514,7 +514,7 @@ public:
         demoShoot_ = shoot;
         demoDash_ = dash;
         if (enabled) {
-            isChangeMode = false;
+            isChangeMode_ = false;
             runRoomAwaitInputRelease_ = false;
         }
     }
@@ -702,11 +702,11 @@ public:
     /// @brief 入力・装備・発射待ち時間に従って主攻撃を処理し、反動と実行イベントを更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     /// @note 初期化後に有効な弾管理先を渡す。内部でAddが拒否した場合も、攻撃の集計は登録弾数を保証しない。
-    void Attack(BulletManager* BulletManager, float deltaTime);
+    void Attack(BulletManager* bulletManager, float deltaTime);
 
     /// @brief ドローン数と待ち時間の条件を満たせば、ドローンを1機生成して弾管理先を設定する。
     /// @note この関数自体は弾を発射しない。ドローンの射撃は各ドローンの更新で行う。
-    void DroneShoot(BulletManager* BulletManager);
+    void DroneShoot(BulletManager* bulletManager);
 
     /// @brief Smasherの押下中の突進力を蓄積し、入力を離したときに突進速度を設定する。
     /// @param deltaTime この処理で進める経過時間（秒）。
@@ -923,7 +923,7 @@ public:
     /// @brief 進化選択画面を開いているかを返す。
     bool IsChangeMode()
     {
-        return isChangeMode;
+        return isChangeMode_;
     }
 
     /// @brief チュートリアルの進行に合わせて進化画面を閉じる。
@@ -1225,9 +1225,6 @@ private:
     /// @brief ステルスを更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateStealth(float deltaTime);
-    /// @brief 旧Summonerの待ち時間を更新する。現在はこの関数からドローンを生成しない。
-    /// @param deltaTime この処理で進める経過時間（秒）。
-    void UpdateSummoner(float deltaTime);
 
 private:
     /// @brief 死亡用パーティクルを発生させ、本体の溜め時間と演出終了タイマーを設定する。
@@ -1238,9 +1235,6 @@ private:
 
     /// @brief 移動方向の後方へ煙とネオンの移動演出を発生させる。
     void SpawnAfterimage();
-    /// @brief 互換用の空処理。現在は引数を使わず、状態を変更しない。
-    /// @param deltaTime 互換用の経過時間（秒）。現在は未使用。
-    void UpdateP(float deltaTime);
     /// @brief バフ継続中の煙パーティクルを自機位置へ出す。
     void SpawnBuffParticle();
     /// @brief ワールド座標をカメラの画面座標へ変換する。
@@ -1291,23 +1285,16 @@ private:
 
     myEngine::Vector2 mousePosition_;
 
-    bool isChangeMode = false;
+    bool isChangeMode_ = false;
     bool evolutionConfirmedEvent_ = false;
     bool evolutionCancelledEvent_ = false;
     bool statUpgradePerformedEvent_ = false;
     int evolutionSelectedIndex_ = 0;
     float evolutionUiTimer_ = 0.0f;
 
-    std::unique_ptr<myEngine::Sprite> sprite;
-
     float stealthAlpha_ = 1.0f; // ステルス時の透明度 (1.0:不透明, 0.0:透明)
     bool isStealth_ = false;    // 現在ステルス中か
     float stealthTimer_ = 0.0f; // ステルス移行までの待機時間
-
-    // Summoner用：ドローンリスト
-    const int kMaxSummonerDrones = 4;
-
-    float summonTimer_;
 
     std::unique_ptr<PlayerUiState> ui_;
     std::unique_ptr<PlayerHud> playerHud_;

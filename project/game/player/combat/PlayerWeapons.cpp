@@ -306,7 +306,7 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
     }
 }
 
-void PlayerWeapons::DroneShoot(BulletManager* BulletManager)
+void PlayerWeapons::DroneShoot(BulletManager* bulletManager)
 {
     // 旧ドローン生成の待ち時間は呼び出しごとに1を減らす。Attackの秒単位の更新とは異なる。
     player_.bulletCoolTime--;
@@ -331,7 +331,7 @@ void PlayerWeapons::DroneShoot(BulletManager* BulletManager)
 
         auto drone = std::make_unique<PlayerDrone>();
         drone->Initialize(player_.dir_ * 0.3f + player_.worldTransform_.translate, velocity);
-        drone->SetAttackControllerBulletManager(BulletManager);
+        drone->SetAttackControllerBulletManager(bulletManager);
         ConfigureRunDrone(*drone);
         player_.drones_.push_back(std::move(drone));
 

@@ -81,9 +81,6 @@ public:
     /// @brief 機体だけを描画する。死亡後は演出中だけ表示し、描画用に変えた色・姿勢・ライティングを復元する。
     void DrawBodyOnly();
 
-    /// @brief スプライト描画の互換用入口。現在は描画しない。
-    void DrawSprite();
-
     /// @brief 生存中の有効な遭遇戦で、Player方向への単発弾を弾管理へ渡す。
     void Fire();
 
@@ -558,8 +555,8 @@ private:
     float wallFollowTimer_ = 0.0f;
     myEngine::Vector3 wallFollowDir_;
 
-    // 通常射撃の待ち時間（秒）
-    float kFireTimerMax_ = 0.15f;
+    // 通常射撃の間隔（秒）。攻撃設定の cooldown から決まる。
+    float fireInterval_ = 0.15f;
     float fireTimer_ = 0.0f;
     BossAttackConfig bossAttackConfig_{};
     EnemyProgressConfig enemyProgressConfig_{};
@@ -618,10 +615,6 @@ private:
     float steeringNoiseTimer_ = 0.0f;
     float hesitationTimer_ = 0.0f;
     float hesitationCooldown_ = 1.0f;
-
-    std::unique_ptr<myEngine::Sprite> bossHpFont;
-    std::unique_ptr<myEngine::Sprite> sprite;
-    std::unique_ptr<myEngine::Sprite> bossHpRed;
 
     int hp_ = 200;
     int maxHP_ = 200;

@@ -50,11 +50,11 @@ public:
     /// @brief 入力・装備・発射待ち時間に従って主攻撃を処理し、反動と実行イベントを更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     /// @note 初期化後に有効な弾管理先を渡す。内部でAddが拒否した場合も、攻撃の集計は登録弾数を保証しない。
-    void Attack(BulletManager* BulletManager, float deltaTime);
+    void Attack(BulletManager* bulletManager, float deltaTime);
 
     /// @brief ドローン数と待ち時間の条件を満たせば、ドローンを1機生成して弾管理先を設定する。
     /// @note この関数自体は弾を発射しない。ドローンの射撃は各ドローンの更新で行う。
-    void DroneShoot(BulletManager* BulletManager);
+    void DroneShoot(BulletManager* bulletManager);
 
     /// @brief Smasherの押下中の突進力を蓄積し、入力を離したときに突進速度を設定する。
     /// @param deltaTime この処理で進める経過時間（秒）。

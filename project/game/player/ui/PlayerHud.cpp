@@ -498,7 +498,7 @@ void PlayerHud::InitializeUpgradeHudBatch()
 void PlayerHud::UpdateUpgradeHud(float uiDeltaTime)
 {
     ui_.upgradeHudMouseCaptured_ = false;
-    if (!ui_.arenaUiEnabled_ || !ui_.upgradeHudVisible_ || player_.isChangeMode || player_.isDead_) {
+    if (!ui_.arenaUiEnabled_ || !ui_.upgradeHudVisible_ || player_.isChangeMode_ || player_.isDead_) {
         return;
     }
     const float safeUiDeltaTime = (std::max)(0.0f, uiDeltaTime);
@@ -674,7 +674,7 @@ void PlayerHud::UpdateUpgradeHud(float uiDeltaTime)
 void PlayerHud::DrawUpgradeHud()
 {
     ui_.upgradeHudProfile_ = {};
-    if (!ui_.arenaUiEnabled_ || !ui_.upgradeHudVisible_ || player_.isChangeMode || player_.isDead_) {
+    if (!ui_.arenaUiEnabled_ || !ui_.upgradeHudVisible_ || player_.isChangeMode_ || player_.isDead_) {
         return;
     }
     ui_.upgradeHudProfile_.visible = true;
@@ -1010,7 +1010,7 @@ void PlayerHud::DrawUpgradeHud()
 
 void PlayerHud::AppendGameplayNeonTextLabels(std::vector<myEngine::TextLabel*>& labels) const
 {
-    if (player_.isChangeMode) {
+    if (player_.isChangeMode_) {
         return;
     }
     if (ui_.upgradeHudDrawBottomText_ && ui_.upgradeHudLevelLabel_) {
@@ -1389,7 +1389,7 @@ void PlayerHud::DrawUpgradeHudAfterPostEffects()
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     drawSegmentBars = drawSegmentBars && ui_.upgradeHudSegmentedBarBloomEnabled_;
 #endif
-    if (!ui_.upgradeHudVisible_ || player_.isChangeMode || player_.isDead_ || !ui_.upgradeHudBarBloomEffect_ ||
+    if (!ui_.upgradeHudVisible_ || player_.isChangeMode_ || player_.isDead_ || !ui_.upgradeHudBarBloomEffect_ ||
         (!drawBottomBars && !drawSegmentBars)) {
         return;
     }
@@ -1439,8 +1439,8 @@ Player::UpgradeHudDebugSnapshot PlayerHud::GetUpgradeHudDebugSnapshot() const
             ui_.upgradeHudUseSegmentedUpgradeBars_,
             ui_.upgradeHudSegmentedBarBloomEnabled_,
             ui_.upgradeHudListTextBloomEnabled_,
-            ui_.upgradeHudVisible_ && !player_.isChangeMode && !player_.isDead_ && ui_.upgradeHudListVisibility_ > 0.01f,
-            player_.isChangeMode,
+            ui_.upgradeHudVisible_ && !player_.isChangeMode_ && !player_.isDead_ && ui_.upgradeHudListVisibility_ > 0.01f,
+            player_.isChangeMode_,
             player_.isDead_,
             player_.maxEnhancePoint};
 }

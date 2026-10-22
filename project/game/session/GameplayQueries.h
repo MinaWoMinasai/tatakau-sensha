@@ -11,9 +11,6 @@ public:
     /// @brief 終了済みであるか判定する。
     bool IsFinished() const;
 
-    /// @brief BallOBJ形式を返す。
-    myEngine::Object3d* GetBallObj();
-
     /// @brief 最終差分時間を返す。
     float GetFinalDeltaTime() const;
 
