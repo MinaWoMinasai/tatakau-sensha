@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="DirectX\engine\ui">
+      <UniqueIdentifier>{7d3f2a10-5b8e-4c61-9a2f-1e4b6c8d0f37}</UniqueIdentifier>
+    </Filter>
     <Filter Include="DirectX\engine\ecs">
       <UniqueIdentifier>{32416152-f3d4-4058-a900-c89449e921ee}</UniqueIdentifier>
     </Filter>
@@ -97,6 +100,15 @@
     </ClCompile>
     <ClCompile Include="DirectX\engine\input\Input.cpp">
       <Filter>DirectX\engine\input</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\ui\GlyphAtlas.cpp">
+      <Filter>DirectX\engine\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\ui\UiBatch.cpp">
+      <Filter>DirectX\engine\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\ui\UiContext.cpp">
+      <Filter>DirectX\engine\ui</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\2d\DynamicTexture.cpp">
       <Filter>DirectX\engine\2d</Filter>
@@ -274,6 +286,15 @@
     </ClInclude>
     <ClInclude Include="DirectX\engine\2d\SpriteCommon.h">
       <Filter>DirectX\engine\2d</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ui\GlyphAtlas.h">
+      <Filter>DirectX\engine\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ui\UiBatch.h">
+      <Filter>DirectX\engine\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ui\UiContext.h">
+      <Filter>DirectX\engine\ui</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\2d\DynamicTexture.h">
       <Filter>DirectX\engine\2d</Filter>
