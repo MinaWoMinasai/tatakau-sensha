@@ -8,7 +8,7 @@ public:
     /// @brief 借用するワールドを設定する。
     explicit PlayerAttackEffects(GameWorld& world) : world_(world) {}
 
-    /// @brief 自機ネオンAfterimagesを更新する。
+    /// @brief 自機のネオンの残像を更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdatePlayerNeonAfterimages(float deltaTime);
 
@@ -20,7 +20,7 @@ public:
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdatePlayerLasers(float deltaTime);
 
-    /// @brief 自機Lasersを後で処理するために予約する。
+    /// @brief 自機のレーザーを描画待ちに積む。
     void QueuePlayerLasers(const myEngine::Vector3& cameraForward);
 
     /// @brief 発射イベントから地雷の位置・威力・待機時間・寿命を登録する。
@@ -34,7 +34,7 @@ public:
     /// @param index 現在の地雷配列の添字。範囲外なら何もしない。
     void DetonatePlayerMine(size_t index);
 
-    /// @brief 自機Minesを後で処理するために予約する。
+    /// @brief 自機の地雷を描画待ちに積む。
     void QueuePlayerMines(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp, const myEngine::Vector3& cameraForward);
 
     /// @brief 斬撃イベントから予備動作・振り・回復動作と命中履歴を持つ斬撃状態を登録する。
@@ -46,7 +46,7 @@ public:
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdatePlayerMeleeSlashes(float deltaTime);
 
-    /// @brief 自機近接攻撃Slashesを後で処理するために予約する。
+    /// @brief 自機の近接攻撃の斬撃を描画待ちに積む。
     void QueuePlayerMeleeSlashes();
 
     /// @brief 強化/特殊戦闘のイベントを消費して演出へ写し、既存演出の経過時間と特殊弾の表示情報を更新する。
@@ -54,7 +54,7 @@ public:
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateSpecialCombatPresentation(float deltaTime);
 
-    /// @brief 特殊戦闘画面演出を後で処理するために予約する。
+    /// @brief 特殊戦闘の演出を描画待ちに積む。
     void QueueSpecialCombatPresentation();
 
     /// @brief 自機近接攻撃軌跡設定を作成して返す。

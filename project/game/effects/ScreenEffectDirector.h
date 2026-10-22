@@ -89,19 +89,19 @@ public:
     void SetLowHpRatio(float ratio);
     /// @brief 敵撃破を発動させる。
     void TriggerEnemyDefeat(const myEngine::Vector2& screenPosition, float importance);
-    /// @brief ボスEntryを発動させる。
+    /// @brief ボス登場の演出を始める。
     void TriggerBossEntry();
-    /// @brief ボス段階Changeを発動させる。
+    /// @brief ボスの段階が変わったときの演出を始める。
     void TriggerBossPhaseChange();
     /// @brief ボス撃破を発動させる。
     void TriggerBossDefeat(const myEngine::Vector2& screenPosition);
-    /// @brief 強化メニューOpenを設定する。
+    /// @brief 強化メニューが開いているかを設定する。
     void SetUpgradeMenuOpen(bool open);
-    /// @brief 強化Confirmedを発動させる。
+    /// @brief 強化を決定したときの演出を始める。
     void TriggerUpgradeConfirmed(const myEngine::Vector2& screenPosition);
     /// @brief ダッシュを発動させる。
     void TriggerDash(const myEngine::Vector2& screenPosition);
-    /// @brief ゲームOverを発動させる。
+    /// @brief ゲームオーバーの演出を始める。
     void TriggerGameOver();
 
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
@@ -110,7 +110,7 @@ public:
     /// @brief へのを現在の状態へ適用する。
     void ApplyTo(myEngine::BloomParam& param) const;
 
-    /// @brief 時間倍率Multiplierを返す。
+    /// @brief 演出による時間の倍率を返す。
     float GetTimeScaleMultiplier() const;
     /// @brief 有効であるか判定する。
     bool IsActive() const;

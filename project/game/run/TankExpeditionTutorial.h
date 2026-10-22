@@ -7,7 +7,7 @@
 namespace tankexp {
 // Automated gameplay probes normally must not alter the player's local history.
 // Submission validation opts in only inside its isolated staged game directory.
-/// @brief SaveチュートリアルCompletionが必要か判定する。
+/// @brief チュートリアルの完了を保存すべきかを判定する。デモ・検証・単独提出では保存しない。
 inline constexpr bool ShouldSaveTutorialCompletion(bool demo, bool validation, bool isolatedSubmission)
 {
     return !demo && (!validation || isolatedSubmission);

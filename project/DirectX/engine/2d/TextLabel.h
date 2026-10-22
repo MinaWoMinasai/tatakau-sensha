@@ -39,7 +39,7 @@ public:
 
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(SpriteCommon* spriteCommon, const std::string& text, const TextStyle& style = {});
-    /// @brief からのJsonを初期化する。
+    /// @brief JSONの設定ファイルから、指定したIDのラベルとして初期化する。
     bool InitializeFromJson(SpriteCommon* spriteCommon, const std::string& configPath, const std::string& labelId);
     /// @brief 文字を設定する。
     void SetText(const std::string& text);
@@ -51,7 +51,7 @@ public:
     void SetAnchorPoint(const Vector2& anchorPoint);
     /// @brief 透明度を設定する。
     void SetAlpha(float alpha);
-    /// @brief 用の描画を利用前に準備する。
+    /// @brief フォントか操作案内が変わっていたら、描画の前に文字テクスチャを作り直す。
     void PrepareForDraw();
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
     void Draw();

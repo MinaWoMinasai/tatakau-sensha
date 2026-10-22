@@ -99,8 +99,8 @@ bool UiBatch::CreatePipeline()
 
     Microsoft::WRL::ComPtr<IDxcBlob> vertexShader;
     Microsoft::WRL::ComPtr<IDxcBlob> pixelShader;
-    vertexShader.Attach(dxCommon_->CompileShader(ResourcePaths::EngineShader(L"Ui.VS.hlsl"), L"vs_6_0"));
-    pixelShader.Attach(dxCommon_->CompileShader(ResourcePaths::EngineShader(L"Ui.PS.hlsl"), L"ps_6_0"));
+    vertexShader = dxCommon_->CompileShader(ResourcePaths::EngineShader(L"Ui.VS.hlsl"), L"vs_6_0");
+    pixelShader = dxCommon_->CompileShader(ResourcePaths::EngineShader(L"Ui.PS.hlsl"), L"ps_6_0");
     if (!vertexShader || !pixelShader) {
         LogWrite().Log("[UiBatch] Failed to compile the UI shaders.\n");
         return false;

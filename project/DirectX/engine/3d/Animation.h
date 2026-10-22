@@ -115,7 +115,7 @@ private:
 /// @brief Assimpのアニメーションをエンジンのキーフレーム表現へ変換する。
 class AnimationLoader {
 public:
-    /// @brief からのファイルを読み込む。
+    /// @brief ファイルからアニメーションを読み込む。
     static Animation LoadFromFile(const std::string& filePath, uint32_t animationIndex = 0);
     /// @brief 全体からのファイルを読み込む。
     static std::vector<Animation> LoadAllFromFile(const std::string& filePath);

@@ -6,7 +6,7 @@
 // ゲームワールドと報酬プレビューの両方がこの形状処理を呼ぶ。頂点を追加するだけで、
 // アクター、全体の乱数、カメラは参照しない。
 namespace tankneon {
-/// @brief 機体輪郭を後で処理するために予約する。
+/// @brief 機体の輪郭を描画待ちに積む。
 inline void QueueBodyOutline(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& center, float radius, float lineWidth,
                              int segments, float rotation, const myEngine::Vector2& scale, const myEngine::Vector4& color,
                              const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp, bool luminousContour = false)
@@ -35,7 +35,7 @@ inline void QueueBodyOutline(myEngine::NeonGridRenderer& renderer, const myEngin
     }
 }
 
-/// @brief 砲塔輪郭を後で処理するために予約する。
+/// @brief 砲身の輪郭を描画待ちに積む。
 inline void QueueBarrelOutline(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& base, const myEngine::Vector3& tip,
                                const myEngine::Vector3& right, float halfWidth, float lineWidth, const myEngine::Vector4& color,
                                bool trapezoid, bool luminousContour = false, const myEngine::Vector3& cameraForward = {0, 0, 1})
@@ -57,7 +57,7 @@ struct BladeStyle {
     float outerWidth = 2.8f, haloWidth = 1.0f, coreWidth = 0.24f;
 };
 
-/// @brief 近接攻撃刃を後で処理するために予約する。
+/// @brief 近接攻撃の刃を描画待ちに積む。
 inline void QueueMeleeBlade(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& hilt, const myEngine::Vector3& direction,
                             float length, float width, const myEngine::Vector4& color, float coreAlpha, const BladeStyle& style)
 {

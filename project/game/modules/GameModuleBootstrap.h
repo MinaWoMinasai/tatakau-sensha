@@ -2,5 +2,5 @@
 
 class GameModuleRegistry;
 
-/// @brief 利用可能ゲームModulesを登録する。
+/// @brief 使えるゲームモジュールをすべて登録する。
 bool RegisterAvailableGameModules(GameModuleRegistry& registry);

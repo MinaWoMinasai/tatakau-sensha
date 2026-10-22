@@ -26,7 +26,7 @@ public:
     /// @brief 経験値検証を記録する。
     void CaptureExperienceValidation(const std::string& name);
 
-    /// @brief 経験値検証Reportを書き込む。
+    /// @brief 経験値検証の結果をレポートに書き出す。
     void WriteExperienceValidationReport(bool completed);
 
     /// @brief 経験値近接攻撃検証用を開始する。

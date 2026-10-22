@@ -308,7 +308,7 @@ private:
     void SetGpuParticleComputeRoot(DirectXCommon::PSO& pso);
     /// @brief GPU粒子を初期化する。
     void InitializeGpuParticles();
-    /// @brief GPU発生源を後で処理するために予約する。
+    /// @brief GPUパーティクルの発生を、次の更新まで積んでおく。
     void QueueGpuEmitter(const ParticleEmitterConfig& config, const Vector3& position, uint32_t count);
     /// @brief UavBarrierを追加する。
     void AddUavBarrier(std::initializer_list<ID3D12Resource*> resources);
@@ -320,9 +320,9 @@ private:
     void EmitBatch(const std::vector<Particle>& particles);
     /// @brief 粒子を作成して返す。
     Particle MakeParticle(const ParticleEmitterConfig& config);
-    /// @brief ネオン死亡破裂Nowを発生させる。
+    /// @brief ネオンの撃破時の破裂を、待たずにすぐ発生させる。
     void EmitNeonDeathBurstNow(const Vector3& position, const Vector4& primaryColor, const Vector4& secondaryColor, float strength);
-    /// @brief 予約中死亡Burstsを更新する。
+    /// @brief 積んでおいた撃破時の破裂を進め、時間が来たものを発生させる。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdatePendingDeathBursts(float deltaTime);
 

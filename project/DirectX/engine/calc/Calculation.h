@@ -46,7 +46,7 @@ float DotQuaternion(const Quaternion& q0, const Quaternion& q1);
 Quaternion NormalizeQuaternion(const Quaternion& quaternion);
 /// @brief 2つのクォータニオンを球面線形補間して返す。
 Quaternion SlerpQuaternion(const Quaternion& q0, const Quaternion& q1, float t);
-/// @brief 回転Axis角度クォータニオンを作成して返す。
+/// @brief 回転軸と角度からクォータニオンを作って返す。
 Quaternion MakeRotateAxisAngleQuaternion(const Vector3& axis, float angle);
 
 // ベクトル変換
@@ -305,7 +305,7 @@ Vector3 SlideLeft(const Vector3& dir);
 /// @brief 指定した値を右方向への動きに変換する。
 Vector3 SlideRight(const Vector3& dir);
 
-/// @brief 球VsOBBを確認する。
+/// @brief 球とOBBの衝突を判定する。
 CollisionResult CheckSphereVsOBB(const Sphere& s, const OBB& o);
 
 // 影用の行列を計算する関数例

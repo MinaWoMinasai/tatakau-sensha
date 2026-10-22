@@ -25,14 +25,14 @@ public:
     /// @brief 追従スタミナバーを描画する。
     void DrawFollowStaminaBar(const myEngine::Vector3& worldPos, float stamina, float maxStamina, float width, float yOffset);
 
-    /// @brief HPバー四角形を後で処理するために予約する。
+    /// @brief HPバーの四角形を描画待ちに積む。
     void QueueHpBarQuad(std::vector<myEngine::VertexData>& vertices, const myEngine::Vector2& center, const myEngine::Vector2& size);
 
     /// @brief HPバー一括処理を描画する。
     void DrawHpBarBatch(uint32_t startVertex, uint32_t vertexCount, const std::string& textureFilePath,
                         const HpBarMaterialBuffer& material);
 
-    /// @brief HPバーBatchesを描画する。
+    /// @brief 積んでおいたHPバーをまとめて描画する。
     void DrawHpBarBatches();
 
     /// @brief ワールド座標をカメラの画面座標へ変換する。

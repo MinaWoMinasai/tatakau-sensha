@@ -61,7 +61,7 @@ bool RebuildPreview(tankexp::MapDefinition& map, int& selected, std::string& err
     return true;
 }
 
-/// @brief 遠征マップの生成条件一覧を返す。
+/// @brief 遠征マップの生成条件を編集するImGuiの欄を表示する。変更があればtrueを返す。
 bool GenerationRules(tankexp::MapDefinition& map, int& selected, const tankexp::RoomCatalog& rooms)
 {
     bool changed = false;

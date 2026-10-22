@@ -19,7 +19,7 @@ public:
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateNeonTriangleParticles(float deltaTime);
 
-    /// @brief ネオン三角形粒子を後で処理するために予約する。
+    /// @brief ネオンの三角形のパーティクルを描画待ちに積む。
     void QueueNeonTriangleParticles(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp,
                                     const myEngine::Vector3& cameraForward);
 

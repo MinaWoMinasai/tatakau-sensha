@@ -10,31 +10,29 @@ namespace myEngine {
 /// @brief ルートパラメーターと静的サンプラーの配置を保持する。
 class Root {
 public:
-    /// @brief オブジェクトを向けに初期化する。
-    void InitalizeForObject();
-    /// @brief 粒子を向けに初期化する。
-    void InitalizeForParticle();
-    /// @brief モデル粒子を向けに初期化する。
-    void InitalizeForModelParticle();
-    /// @brief 用の後処理演出を初期化する。
+    /// @brief 3Dモデル（Object3d・スキニング）用の配置にする。
+    void InitializeForObject();
+    /// @brief 板ポリゴンのパーティクル用の配置にする。
+    void InitializeForParticle();
+    /// @brief モデルを使うパーティクル用の配置にする。
+    void InitializeForModelParticle();
+    /// @brief 全画面のポストエフェクト用の配置にする。
     void InitializeForPostEffect();
-    /// @brief 影を向けに初期化する。
-    void InitalizeForShadow();
-    /// @brief 用のスキニング影を初期化する。
+    /// @brief シャドウマップへの描画用の配置にする。
+    void InitializeForShadow();
+    /// @brief スキニングモデルのシャドウマップ描画用の配置にする。
     void InitializeForSkinningShadow();
-    /// @brief オブジェクトBeを向けに初期化する。
-    void InitalizeForObjectBe();
-    /// @brief 軌跡を向けに初期化する。
-    void InitalizeForTrail();
-    /// @brief 用の背景を初期化する。
+    /// @brief 軌跡（トレイル）用の配置にする。
+    void InitializeForTrail();
+    /// @brief スカイボックス用の配置にする。
     void InitializeForSkybox();
-    /// @brief 用の計算粒子を初期化する。
+    /// @brief GPUパーティクルのコンピュートシェーダー用の配置にする。
     void InitializeForComputeParticle();
 
-    /// @brief 指定条件でインスタンスまたはリソースを生成する。
+    /// @brief InitializeFor〜で決めた配置から、ルートシグネチャを作る。
     void Create(Microsoft::WRL::ComPtr<ID3D12Device>& device);
 
-    /// @brief Description識別情報を返す。
+    /// @brief ルートシグネチャの記述を返す。
     D3D12_ROOT_SIGNATURE_DESC GetDescriptionSignature()
     {
         return descriptionSignature_;
@@ -52,19 +50,19 @@ public:
         return descriptorRange_;
     }
 
-    /// @brief 識別情報Blobを返す。
+    /// @brief シリアライズしたルートシグネチャを返す。
     ID3DBlob* GetSignatureBlob()
     {
-        return signatureBlob_;
+        return signatureBlob_.Get();
     }
 
-    /// @brief エラーBlobを返す。
+    /// @brief シリアライズに失敗したときのエラーメッセージを返す。
     ID3DBlob* GetErrorBlob()
     {
-        return errorBlob_;
+        return errorBlob_.Get();
     }
 
-    /// @brief 識別情報を返す。
+    /// @brief ルートシグネチャを返す。
     Microsoft::WRL::ComPtr<ID3D12RootSignature> GetSignature()
     {
         return signature_;
@@ -76,8 +74,8 @@ private:
     D3D12_DESCRIPTOR_RANGE descriptorRange_[14] = {};
     D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing_[1] = {};
     D3D12_STATIC_SAMPLER_DESC staticSamplers_[2] = {};
-    ID3DBlob* signatureBlob_ = nullptr;
-    ID3DBlob* errorBlob_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob_;
+    Microsoft::WRL::ComPtr<ID3DBlob> errorBlob_;
     Microsoft::WRL::ComPtr<ID3D12RootSignature> signature_ = nullptr;
     LogWrite log;
 };

@@ -8,7 +8,7 @@ public:
     /// @brief 借用するワールドを設定する。
     explicit SpecialValidation(GameWorld& world) : world_(world) {}
 
-    /// @brief 特殊検証Fixtureを初期化する。
+    /// @brief 特殊攻撃検証の初期状態（フィクスチャ）を用意する。
     void InitializeSpecialValidationFixture();
 
     /// @brief 特殊検証を更新する。

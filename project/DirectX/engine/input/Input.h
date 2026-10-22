@@ -36,12 +36,12 @@ public:
     // 次のBeforeFrameDataで通常のポーリングに戻る。
     void OverrideValidationFrame(const Vector2& mousePosition);
 #endif
-    /// @brief 注目点Changedの通知を受けて、このオブジェクトの状態を反映する。
+    /// @brief ウィンドウのフォーカスが変わったときに、デバイスを取得し直すか手放し、キー・マウス・パッドの状態を消す。
     void OnFocusChanged(bool active);
     // Retain short key presses that begin and end between two game frames.
-    /// @brief キーDownを記録する。
+    /// @brief キーが押されたことを記録する。
     void RecordKeyDown(unsigned int scanCode, bool repeated);
-    /// @brief キーTriggeredであるか判定する。
+    /// @brief キーがこのフレームで押されたかを返す。
     bool IsKeyTriggered(uint8_t scanCode) const;
 
     // キーが押されている状態か
@@ -59,7 +59,7 @@ public:
     bool IsGamepadButtonPress(WORD button);
     /// @brief ゲームパッドボタン押下開始であるか判定する。
     bool IsGamepadButtonTrigger(WORD button);
-    /// @brief ゲームパッドボタンReleaseであるか判定する。
+    /// @brief ゲームパッドのボタンがこのフレームで離されたかを返す。
     bool IsGamepadButtonRelease(WORD button);
 
     /// @brief キーを返す。
@@ -92,9 +92,9 @@ public:
         return currentGamepadState_;
     }
 
-    /// @brief 左Stickを返す。
+    /// @brief 左スティックの傾きを返す。
     Vector2 GetLeftStick() const;
-    /// @brief 右Stickを返す。
+    /// @brief 右スティックの傾きを返す。
     Vector2 GetRightStick() const;
 
     /// @brief ウィンドウ内のマウス位置を返す。

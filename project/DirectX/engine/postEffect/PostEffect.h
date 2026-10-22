@@ -11,7 +11,7 @@ public:
     void Initialize(DirectXCommon* dxCommon, BloomConstantBuffer* bloomCB);
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
     void Draw(D3D12_GPU_DESCRIPTOR_HANDLE inputSRV, BlendMode blendMode, bool outputToHdr = true);
-    /// @brief ブルームExtractを描画する。
+    /// @brief ブルームの明るい部分を抽出して描画する。
     void DrawBloomExtract(D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV, D3D12_GPU_DESCRIPTOR_HANDLE materialSRV);
     /// @brief 合成を描画する。
     void DrawComposite(D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV, D3D12_GPU_DESCRIPTOR_HANDLE bloomSRV, D3D12_GPU_DESCRIPTOR_HANDLE depthSRV,

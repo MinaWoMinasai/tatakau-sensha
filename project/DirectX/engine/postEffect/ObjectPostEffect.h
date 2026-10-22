@@ -18,21 +18,21 @@ public:
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Update(float deltaTime = 1.0f / 60.0f);
 
-    /// @brief 計測を開始する。
+    /// @brief ここから描くオブジェクトを、専用の描画先へキャプチャし始める。
     void BeginCapture();
-    /// @brief 計測を含む現在深度を開始する。
+    /// @brief 今の深度バッファを使ったまま、キャプチャを始める。
     void BeginCaptureWithCurrentDepth(bool preserveFullResolution = false);
-    /// @brief 計測を終了する。
+    /// @brief キャプチャを終え、輪郭と発光を合成してシーン（HDR）へ加える。
     void EndCapture();
-    /// @brief 計測への背面バッファを終了する。
+    /// @brief キャプチャを終え、輪郭と発光を合成してバックバッファへ加える。
     void EndCaptureToBackBuffer();
-    /// @brief 計測Additive専用を終了する。
+    /// @brief キャプチャを終え、加算の合成だけを行う。
     void EndCaptureAdditiveOnly();
-    /// @brief 計測ブルーム専用を終了する。
+    /// @brief キャプチャを終え、ブルームだけをシーン（HDR）へ加える。
     void EndCaptureBloomOnly();
-    /// @brief 計測ブルーム専用への背面バッファを終了する。
+    /// @brief キャプチャを終え、ブルームだけをバックバッファへ加える。
     void EndCaptureBloomOnlyToBackBuffer();
-    /// @brief 計測ブルーム専用へのキャッシュを終了する。
+    /// @brief キャプチャを終え、ブルームの結果をDrawCachedBloom用に取っておく。
     void EndCaptureBloomOnlyToCache();
     /// @brief キャッシュ済みブルームを描画する。
     // An optional qualityCaptureScale requires a fresh capture when switching
@@ -62,7 +62,7 @@ private:
         BloomOnly,
         BloomOnlyCache,
     };
-    /// @brief 計測を終了する。
+    /// @brief キャプチャを終え、modeに応じて合成する。outputToHdrならシーン（HDR）へ、そうでなければバックバッファへ出す。
     void FinishCapture(FinishMode mode, bool outputToHdr);
     /// @brief キャプチャした画像からBloomを作成し、結果のSRVインデックスを返す。
     uint32_t RenderBloom(const BloomParam& drawParam);

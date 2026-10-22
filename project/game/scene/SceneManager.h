@@ -68,7 +68,7 @@ public:
     void RecordDeveloperFrame(myEngine::DirectXCommon& dx);
     /// @brief 開発者用にポストエフェクトのパラメータを記録する。
     void RecordDeveloperPostParameters(const myEngine::BloomParam& param);
-    /// @brief 水面後処理Process設定を返す。
+    /// @brief 水面のポストエフェクトの設定を返す。
     IScene::WaterPostProcessSettings GetWaterPostProcessSettings();
     /// @brief 現在シーンのアリーナ表示設定を返す。
     IScene::ArenaLookSettings GetArenaLookSettings();

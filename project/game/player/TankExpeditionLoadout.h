@@ -140,7 +140,7 @@ inline constexpr std::array<TankExpeditionSpecialization, 6> kTankExpeditionSpec
       "基本3機の重射撃ドローン\n各弾の威力2.7倍・高精度\n各機の発射間隔15%増\n追加機は主軸・改造ごとに1機", 1, 0.0f, false, 1.15f, 2.7f,
       1.55f, 0.0f, false, 3}}};
 
-/// @brief 戦車遠征Specializationを検索する。
+/// @brief IDから遠征の特化を探す。見つからなければnullptr。
 inline const TankExpeditionSpecialization* FindTankExpeditionSpecialization(std::string_view id)
 {
     for (const auto& specialization : kTankExpeditionSpecializations) {

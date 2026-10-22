@@ -240,7 +240,7 @@ void BloomPyramid::CreatePipeline()
                                                       IID_PPV_ARGS(&bundle->rootSignature)),
           "Cannot create BloomPyramid root signature.");
     Microsoft::WRL::ComPtr<IDxcBlob> vertex;
-    vertex.Attach(dxCommon_->CompileShader(ResourcePaths::EngineShader(L"FullScreen.VS.hlsl"), L"vs_6_0"));
+    vertex = dxCommon_->CompileShader(ResourcePaths::EngineShader(L"FullScreen.VS.hlsl"), L"vs_6_0");
     D3D12_GRAPHICS_PIPELINE_STATE_DESC description{};
     description.pRootSignature = bundle->rootSignature.Get();
     description.VS = {vertex->GetBufferPointer(), vertex->GetBufferSize()};
@@ -266,7 +266,7 @@ void BloomPyramid::CreatePipeline()
     Microsoft::WRL::ComPtr<ID3D12PipelineState>* pipelines[] = {&bundle->extract, &bundle->down, &bundle->up};
     for (uint32_t index = 0; index < 3; ++index) {
         Microsoft::WRL::ComPtr<IDxcBlob> pixel;
-        pixel.Attach(dxCommon_->CompileShader(files[index], L"ps_6_0"));
+        pixel = dxCommon_->CompileShader(files[index], L"ps_6_0");
         description.PS = {pixel->GetBufferPointer(), pixel->GetBufferSize()};
         Check(dxCommon_->GetDevice()->CreateGraphicsPipelineState(&description, IID_PPV_ARGS(pipelines[index]->GetAddressOf())),
               "Cannot create BloomPyramid graphics pipeline.");

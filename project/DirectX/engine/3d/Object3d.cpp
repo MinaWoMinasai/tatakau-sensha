@@ -7,7 +7,7 @@ namespace myEngine {
 
 namespace {
 
-/// @brief キャラクターSemantic材質を現在の状態へ適用する。
+/// @brief キャラクター向けの材質の意味づけ（金属・粗さなど）を、元の材質から反映する。
 void ApplyCharacterSemanticMaterial(Material& material, const MaterialData& sourceMaterial, bool userMetallicOverride,
                                     bool userRoughnessOverride, bool userAmbientOcclusionOverride)
 {

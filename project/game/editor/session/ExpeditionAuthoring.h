@@ -8,7 +8,7 @@ public:
     /// @brief 借用するワールドを設定する。
     explicit ExpeditionAuthoring(GameWorld& world) : world_(world) {}
 
-    /// @brief 遠征制作データHubを更新する。
+    /// @brief 遠征の制作データをまとめて編集する画面を更新する。
     void UpdateExpeditionAuthoringHub();
 
 private:

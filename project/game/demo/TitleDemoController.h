@@ -17,7 +17,7 @@ public:
     /// @brief タイトルデモ状態を返す。
     const TitleDemoStatus& GetTitleDemoStatus() const;
 
-    /// @brief タイトルデモFadeを返す。
+    /// @brief タイトルデモのフェードの量を返す。
     float GetTitleDemoFade() const;
 
     /// @brief タイトルデモ計測を要求を予約する。

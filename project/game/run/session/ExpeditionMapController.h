@@ -63,7 +63,7 @@ public:
     /// @brief 遠征の修理や整備に必要な価格を計算する。
     int ExpeditionServicePrice(const std::string& id) const;
 
-    /// @brief 遠征Blueprintを設定する。
+    /// @brief 使う遠征マップの設計図を、番号で選ぶ。
     void SetExpeditionBlueprint(int index);
 
     /// @brief 遠征マップ検証を更新する。

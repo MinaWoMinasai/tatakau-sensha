@@ -21,7 +21,7 @@ public:
     /// @brief 遠征通貨を描画する。
     void DrawExpeditionCredits();
 
-    /// @brief 遠征Vitalsを描画する。
+    /// @brief 遠征中の体力などの表示を描画する。
     void DrawExpeditionVitals();
 
     /// @brief ガイド付き遠征を更新する。
@@ -37,19 +37,19 @@ public:
     /// @brief ガイド付き遠征UIを最新の内容へ更新する。
     void RefreshGuidedExpeditionUi();
 
-    /// @brief ガイド付き遠征Pausedであるか判定する。
+    /// @brief ガイド付きの遠征が一時停止中かを返す。
     bool IsGuidedExpeditionPaused() const;
 
-    /// @brief 遠征衝撃を後で処理するために予約する。
+    /// @brief 遠征中の衝撃の演出を描画待ちに積む。
     void QueueExpeditionImpact(const myEngine::Vector3& position, const myEngine::Vector3& direction, bool finisher);
 
     /// @brief 遠征ポインターを描画する。
     void DrawExpeditionPointer(myEngine::Vector2 target, bool right = true);
 
-    /// @brief 通貨Iconを描画する。
+    /// @brief 通貨のアイコンを描画する。
     void DrawCurrencyIcon(myEngine::Vector2 center, float size = 30);
 
-    /// @brief 遠征Pointersを必要な状態を用意する。
+    /// @brief 方向を示す矢印のスプライトを、必要な数まで作っておく。
     void EnsureExpeditionPointers(size_t count);
 
 private:

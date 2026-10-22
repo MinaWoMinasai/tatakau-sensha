@@ -115,7 +115,7 @@ public:
         return true;
     }
 
-    /// @brief 報酬Doneを選ぶ。
+    /// @brief 報酬の選択を終える。報酬の段階でなければfalseを返す。
     bool ChooseRewardDone()
     {
         if (phase_ != Phase::Reward) {
@@ -219,37 +219,37 @@ public:
         return 5;
     }
 
-    /// @brief 進路Roundを返す。
+    /// @brief 今の進路選択が何回目か（0始まり）を返す。
     int GetRouteRound() const
     {
         return routeRound_;
     }
 
-    /// @brief 到達済み進路Indexesを返す。
+    /// @brief 通った進路の番号を返す。
     const std::array<int, 2>& GetVisitedRouteIndexes() const
     {
         return visitedRoutes_;
     }
 
-    /// @brief 進路Choiceを返す。
+    /// @brief 指定した回で選んだ進路を返す。
     int GetRouteChoice(int round) const
     {
         return round >= 0 && round < static_cast<int>(visitedRoutes_.size()) ? visitedRoutes_[static_cast<std::size_t>(round)] : -1;
     }
 
-    /// @brief イベントChoiceを返す。
+    /// @brief イベントで選んだ番号を返す。
     int GetEventChoice() const
     {
         return eventChoice_;
     }
 
-    /// @brief 報酬Rareを返す。
+    /// @brief 今回の報酬がレアかを返す。
     bool GetRewardRare() const
     {
         return phase_ == Phase::Reward && rewardRare_;
     }
 
-    /// @brief 報酬Affinityを返す。
+    /// @brief 報酬で優先する強化の種類を返す。
     tankrun::CardId GetRewardAffinity() const
     {
         return phase_ == Phase::Reward ? rewardAffinity_ : tankrun::CardId::Count;

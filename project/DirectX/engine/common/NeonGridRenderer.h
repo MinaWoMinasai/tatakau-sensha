@@ -29,13 +29,13 @@ public:
         geometry_.SetLineStyle(softEdgeRatio, coreIntensity);
     }
 
-    /// @brief 線を後で処理するために予約する。
+    /// @brief 線を描画待ちに積む。
     void QueueLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color)
     {
         geometry_.QueueLine(a, b, lineWidth, color);
     }
 
-    /// @brief カメラFacing線を後で処理するために予約する。
+    /// @brief 常にカメラの方を向く線を描画待ちに積む。
     void QueueCameraFacingLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color, const Vector3& cameraForward)
     {
         geometry_.QueueCameraFacingLine(a, b, lineWidth, color, cameraForward);
@@ -87,34 +87,34 @@ public:
         geometry_.QueueBillboardContourRectangle(center, size, rotationRad, lineWidth, color, cameraRight, cameraUp, cameraForward, style);
     }
 
-    /// @brief 三角形を後で処理するために予約する。
+    /// @brief 三角形を描画待ちに積む。
     void QueueTriangle(const Vector3& a, const Vector3& b, const Vector3& c, float lineWidth, const Vector4& color)
     {
         geometry_.QueueTriangle(a, b, c, lineWidth, color);
     }
 
-    /// @brief ビルボード三角形を後で処理するために予約する。
+    /// @brief カメラの方を向く三角形を描画待ちに積む。
     void QueueBillboardTriangle(const Vector3& center, float radius, float rotationRad, float lineWidth, const Vector4& color,
                                 const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward)
     {
         geometry_.QueueBillboardTriangle(center, radius, rotationRad, lineWidth, color, cameraRight, cameraUp, cameraForward);
     }
 
-    /// @brief ビルボードRectangleを後で処理するために予約する。
+    /// @brief カメラの方を向く長方形を描画待ちに積む。
     void QueueBillboardRectangle(const Vector3& center, const Vector2& size, float rotationRad, float lineWidth, const Vector4& color,
                                  const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward)
     {
         geometry_.QueueBillboardRectangle(center, size, rotationRad, lineWidth, color, cameraRight, cameraUp, cameraForward);
     }
 
-    /// @brief ビルボードDiscを後で処理するために予約する。
+    /// @brief カメラの方を向く円を描画待ちに積む。
     void QueueBillboardDisc(const Vector3& center, float radius, const Vector4& color, const Vector3& cameraRight, const Vector3& cameraUp,
                             int segments = 32)
     {
         geometry_.QueueBillboardDisc(center, radius, color, cameraRight, cameraUp, segments);
     }
 
-    /// @brief ビルボードRegularPolygon塗りつぶしを後で処理するために予約する。
+    /// @brief カメラの方を向く塗りつぶした正多角形を描画待ちに積む。
     void QueueBillboardRegularPolygonFill(const Vector3& center, int segments, float radius, float rotationRad, const Vector2& scale,
                                           const Vector4& color, const Vector3& cameraRight, const Vector3& cameraUp)
     {
@@ -141,26 +141,26 @@ public:
         geometry_.QueueShadedBox(base, tip, right, halfWidth, height, baseColor, tint);
     }
 
-    /// @brief ワールド格子を後で処理するために予約する。
+    /// @brief ワールド全体の格子を描画待ちに積む。
     void QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color,
                         float planeZ = -0.04f)
     {
         geometry_.QueueWorldGrid(minX, maxX, minY, maxY, spacing, lineWidth, color, planeZ);
     }
 
-    /// @brief Rectangleを後で処理するために予約する。
+    /// @brief 長方形の枠を描画待ちに積む。
     void QueueRectangle(const Vector3& center, const Vector3& size, float lineWidth, const Vector4& color)
     {
         geometry_.QueueRectangle(center, size, lineWidth, color);
     }
 
-    /// @brief 局所格子を後で処理するために予約する。
+    /// @brief 指定した範囲だけの格子を描画待ちに積む。
     void QueueLocalGrid(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color)
     {
         geometry_.QueueLocalGrid(center, radius, spacing, lineWidth, color);
     }
 
-    /// @brief 局所格子Clippedを後で処理するために予約する。
+    /// @brief 指定した範囲だけの格子を、範囲の端で切って描画待ちに積む。
     void QueueLocalGridClipped(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color, float minX,
                                float maxX, float minY, float maxY, float planeZ = -0.03f)
     {

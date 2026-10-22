@@ -140,7 +140,7 @@ private:
     static void Add(std::vector<Metric>& metrics, const char* name, double value);
     /// @brief ウィンドウを予約分を処理する。
     void FlushWindow();
-    /// @brief 計測Rowを書き込む。
+    /// @brief 計測結果を1行、記録ファイルへ書き込む。
     void WriteCaptureRow();
     static constexpr unsigned kMaxGpuScopes = 64;
     DirectXCommon* dx_ = nullptr;

@@ -69,7 +69,7 @@ struct SkinningPaletteEntry {
 /// @brief モデル・骨格・関節の重みを読み込み、スキニング用のアセットへ変換する。
 class SkinningModelLoader {
 public:
-    /// @brief からのファイルを読み込む。
+    /// @brief ファイルからスキニングモデルを読み込む。
     static SkinningModelAsset LoadFromFile(const std::string& filePath);
 };
 
@@ -99,7 +99,7 @@ public:
         return inverseBindPoseMatrices_;
     }
 
-    /// @brief 割り当て済みInfluence件数を返す。
+    /// @brief ボーンの影響を割り当てた頂点の数を返す。
     uint32_t GetAssignedInfluenceCount() const
     {
         return assignedInfluenceCount_;
@@ -183,7 +183,7 @@ public:
         animationPlayer_.SetLoop(loop);
     }
 
-    /// @brief アニメーションPlayback速度を設定する。
+    /// @brief アニメーションの再生速度を設定する。
     void SetAnimationPlaybackSpeed(float speed)
     {
         animationPlayer_.SetPlaybackSpeed(speed);
@@ -234,7 +234,7 @@ public:
         return animationPlayer_.IsPlaying();
     }
 
-    /// @brief 現在アニメーションLoopingであるか判定する。
+    /// @brief 再生中のアニメーションがループするかを返す。
     bool IsCurrentAnimationLooping() const
     {
         return animationPlayer_.IsLooping();

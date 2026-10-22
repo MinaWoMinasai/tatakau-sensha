@@ -8,7 +8,7 @@ public:
     /// @brief 借用するワールドを設定する。
     explicit CombatValidation(GameWorld& world) : world_(world) {}
 
-    /// @brief 戦闘検証Fixtureを初期化する。
+    /// @brief 戦闘検証の初期状態（フィクスチャ）を用意する。
     void InitializeCombatValidationFixture();
 
     /// @brief 戦闘検証を更新する。
@@ -21,7 +21,7 @@ public:
     /// @brief 戦闘検証検証用を終了する。
     void FinishCombatValidationProbe();
 
-    /// @brief 戦闘検証Reportを書き込む。
+    /// @brief 戦闘検証の結果をレポートに書き出す。
     void WriteCombatValidationReport(bool completed);
 
     /// @brief 戦闘検証を記録する。

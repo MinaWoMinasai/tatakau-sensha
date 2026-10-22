@@ -24,7 +24,7 @@ public:
     /// @brief 戦車遠征UIを描画する。
     void DrawTankRunUi();
 
-    /// @brief 戦車遠征攻撃予告を後で処理するために予約する。
+    /// @brief 攻撃の予告表示を描画待ちに積む。
     void QueueTankRunTelegraph();
 
     /// @brief 戦車遠征カードを現在の状態へ適用する。
@@ -37,7 +37,7 @@ public:
     /// @brief 戦車遠征リソース取得の通知を受けて、このオブジェクトの状態を反映する。
     void OnTankRunResourceClaim(size_t index, bool playerOwned);
 
-    /// @brief 戦車遠征敵Defeatedの通知を受けて、このオブジェクトの状態を反映する。
+    /// @brief 敵を倒したときに、通貨を落とし、回収数とコンボを加算する。
     void OnTankRunEnemyDefeated(const myEngine::Vector3& position);
 
     /// @brief 戦車遠征選択肢を選択する。
@@ -46,7 +46,7 @@ public:
     /// @brief 戦車遠征UIを最新の内容へ更新する。
     void RefreshTankRunUi();
 
-    /// @brief 戦車遠征メニューOpenであるか判定する。
+    /// @brief メニューが開いているかを返す。
     bool IsTankRunMenuOpen() const;
 
     /// @brief 戦車遠征計測を要求を予約する。

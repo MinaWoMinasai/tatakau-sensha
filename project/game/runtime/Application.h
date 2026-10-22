@@ -31,19 +31,19 @@ public:
         return activeProject_;
     }
 
-    /// @brief 有効プロジェクトLoadedからのFallbackであるか判定する。
+    /// @brief 指定したプロジェクトが読めず、代わりのプロジェクトを使ったかを返す。
     bool IsActiveProjectLoadedFromFallback() const
     {
         return activeProjectLoadedFromFallback_;
     }
 
-    /// @brief ゲームModuleUsingFallbackであるか判定する。
+    /// @brief 指定したゲームモジュールが見つからず、代わりのモジュールを使ったかを返す。
     bool IsGameModuleUsingFallback() const
     {
         return gameModuleUsedFallback_;
     }
 
-    /// @brief 起動時シーンUsingFallbackであるか判定する。
+    /// @brief 指定した起動シーンが見つからず、代わりのシーンを使ったかを返す。
     bool IsStartupSceneUsingFallback() const
     {
         return startupSceneUsedFallback_;
@@ -58,7 +58,7 @@ public:
 private:
     /// @brief 有効プロジェクトを読み込む。
     void LoadActiveProject(const GameProjectCommandLineOptions& projectOptions);
-    /// @brief ゲームModuleとシーンファクトリーを利用条件を設定する。
+    /// @brief ゲームモジュールを選び、シーンファクトリーを設定する。
     bool ConfigureGameModuleAndSceneFactory();
     /// @brief 起動時シーンを解決する。
     bool ResolveStartupScene();

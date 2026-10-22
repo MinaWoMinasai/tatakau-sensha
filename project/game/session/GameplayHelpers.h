@@ -37,7 +37,7 @@ inline void ApplyGameplayNeonBloomPreset(myEngine::BloomParam& param, float gain
     param.bloomRadius = 1.0f;
 }
 
-/// @brief 衝突開発表示色を返す。
+/// @brief 衝突属性に対応する、デバッグ表示の色を返す。
 inline myEngine::Vector4 GetCollisionDebugColor(uint32_t attribute)
 {
     if (attribute & kCollisionAttributePlayer) {
@@ -64,7 +64,7 @@ inline myEngine::Vector4 GetCollisionDebugColor(uint32_t attribute)
     return {1.0f, 1.0f, 1.0f, 0.7f};
 }
 
-/// @brief 弾Colliderであるか判定する。
+/// @brief 弾の衝突属性かを判定する。
 inline bool IsBulletCollider(uint32_t attribute)
 {
     return (attribute & (kCollisionAttributePlayerBullet | kCollisionAttributeEnemyBullet | kCollisionAttributeHostileExpEnemyBullet)) != 0;
@@ -86,7 +86,7 @@ inline const char* BulletOwnerName(BulletOwner owner)
 }
 
 #ifdef USE_IMGUI
-/// @brief 弾の所有者に対応する開発表示の色を返す。
+/// @brief 弾の持ち主に対応する、デバッグ表示の色を返す。
 inline ImU32 BulletOwnerDebugColor(BulletOwner owner)
 {
     switch (owner) {
@@ -129,7 +129,7 @@ inline bool TryGetItemModel(const std::string& prefab, std::string& model)
     return false;
 }
 
-/// @brief 独自設定Boolを読み取る。
+/// @brief 独自プロパティから真偽値を読み取る。なければfallbackを返す。
 inline bool ReadCustomBool(const nlohmann::json& customProperties, const char* key, bool fallback)
 {
     if (!customProperties.is_object() || !customProperties.contains(key) || !customProperties[key].is_boolean()) {
@@ -254,7 +254,7 @@ inline nlohmann::json WriteJsonVector4(const myEngine::Vector4& value)
     return {{"x", value.x}, {"y", value.y}, {"z", value.z}, {"w", value.w}};
 }
 
-/// @brief 弾軌跡設定Jsonを書き込む。
+/// @brief 弾の軌跡の設定をJSONへ書き出す。
 inline nlohmann::json WriteBulletTrailSettingsJson(const BulletTrailSettings& settings)
 {
     return {{"playerHalfWidth", settings.playerHalfWidth},
@@ -280,7 +280,7 @@ inline nlohmann::json WriteBulletTrailSettingsJson(const BulletTrailSettings& se
             {"reflectableEndColor", WriteJsonVector4(settings.reflectableEndColor)}};
 }
 
-/// @brief 弾軌跡設定Jsonを読み取る。
+/// @brief JSONから弾の軌跡の設定を読み取る。
 inline void ReadBulletTrailSettingsJson(const nlohmann::json& json, BulletTrailSettings& settings)
 {
     if (!json.is_object()) {
@@ -323,7 +323,7 @@ inline void ReadBulletTrailSettingsJson(const nlohmann::json& json, BulletTrailS
     }
 }
 
-/// @brief ブルームパラメーターJsonを書き込む。
+/// @brief ブルームのパラメーターをJSONへ書き出す。
 inline nlohmann::json WriteBloomParamJson(const myEngine::BloomParam& param)
 {
     return {{"threshold", param.threshold},
@@ -366,7 +366,7 @@ inline nlohmann::json WriteBloomParamJson(const myEngine::BloomParam& param)
             {"dissolveNoiseSpeed", param.dissolveNoiseSpeed}};
 }
 
-/// @brief ブルームパラメーターJsonを読み取る。
+/// @brief JSONからブルームのパラメーターを読み取る。
 inline void ReadBloomParamJson(const nlohmann::json& json, myEngine::BloomParam& param)
 {
     if (!json.is_object()) {
@@ -422,7 +422,7 @@ inline void ReadBloomParamJson(const nlohmann::json& json, myEngine::BloomParam&
     param.dissolveNoiseSpeed = ReadCustomFloat(json, "dissolveNoiseSpeed", param.dissolveNoiseSpeed);
 }
 
-/// @brief 衝突Ring設定を作成して返す。
+/// @brief 衝突範囲を示すリングの設定を作って返す。
 inline myEngine::RingEffectConfig MakeCollisionRingConfig(float radius, const myEngine::Vector4& color)
 {
     myEngine::RingEffectConfig config{};
@@ -438,7 +438,7 @@ inline myEngine::RingEffectConfig MakeCollisionRingConfig(float radius, const my
     return config;
 }
 
-/// @brief Collider開発表示Ringsを発生させる。
+/// @brief コライダーの範囲を示すデバッグ用のリングを出す。
 inline void EmitColliderDebugRings(myEngine::RingManager& ringManager, Collider& collider)
 {
     const myEngine::Vector4 color = GetCollisionDebugColor(collider.GetCollisionAttribute());

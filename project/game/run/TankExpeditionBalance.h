@@ -23,7 +23,7 @@ inline constexpr std::array<std::pair<const char*, float TankCombatStyleProfile:
      {"droneCatchupSpeed", &TankCombatStyleProfile::droneCatchupSpeed},
      {"droneResponse", &TankCombatStyleProfile::droneResponse}}};
 
-/// @brief 戦闘Stylesを保存用のJSONへ変換する。
+/// @brief 戦闘系統ごとの設定を、保存用のJSONへ変換する。
 inline nlohmann::json CombatStylesToJson(const TankCombatStyleBalances& profiles)
 {
     nlohmann::json result = nlohmann::json::object();
@@ -39,7 +39,7 @@ inline nlohmann::json CombatStylesToJson(const TankCombatStyleBalances& profiles
     return result;
 }
 
-/// @brief 戦闘外観Balancesを読み取る。
+/// @brief JSONから、戦闘系統ごとの見た目と性能を読み取る。
 inline TankCombatStyleBalances ReadCombatStyleBalances(const nlohmann::json& source)
 {
     const auto defaults = DefaultTankCombatStyleBalances();

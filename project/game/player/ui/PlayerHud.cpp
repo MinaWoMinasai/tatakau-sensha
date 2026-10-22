@@ -1421,7 +1421,7 @@ const Player::UiProfileStats& PlayerHud::GetUpgradeHudProfileStats() const
 }
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-/// @brief 強化HUD開発表示状態の写しを返す。
+/// @brief 強化HUDの状態の写しを、デバッグ用に返す。
 Player::UpgradeHudDebugSnapshot PlayerHud::GetUpgradeHudDebugSnapshot() const
 {
     return {player_.level_,

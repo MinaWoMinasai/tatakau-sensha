@@ -48,7 +48,7 @@ public:
     /// @brief 後続の描画で使う描画先・パイプラインを準備する。対応するPostDrawと組にして使う。
     void PreDraw();
 
-    /// @brief GraphicsルートディスクリプターTableを設定する。
+    /// @brief SRVの番号を、グラフィックスのルートパラメーターへディスクリプターテーブルとして設定する。
     void SetGraphicsRootDescriptorTable(UINT rootParameterIndex, uint32_t srvIndex);
 
     /// @brief SRVヒープを返す。

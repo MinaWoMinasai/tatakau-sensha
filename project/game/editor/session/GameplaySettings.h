@@ -8,7 +8,7 @@ public:
     /// @brief 借用するワールドを設定する。
     explicit GameplaySettings(GameWorld& world) : world_(world) {}
 
-    /// @brief 後処理演出パラメーターControlsを描画する。
+    /// @brief ポストエフェクトのパラメーターを編集するImGuiの欄を表示する。
     void DrawPostEffectParamControls(const char* labelPrefix, myEngine::BloomParam& param);
 
     /// @brief ゲーム後処理演出設定を読み込む。
@@ -35,10 +35,10 @@ public:
     /// @brief ゲーム表示設定を現在の状態へ適用する。
     void ApplyGameVisualConfig(const nlohmann::json& configJson);
 
-    /// @brief 性能調整編集画面からのJsonを読み込む。
+    /// @brief 性能調整のJSONを、編集画面の値へ読み込む。
     void LoadBalanceEditorFromJson(const nlohmann::json& balanceJson);
 
-    /// @brief 性能調整Jsonからの編集画面を組み立てる。
+    /// @brief 編集画面の値から、性能調整のJSONを組み立てる。
     nlohmann::json BuildBalanceJsonFromEditor() const;
 
     /// @brief 性能調整編集画面へのレベルファイルを保存する。

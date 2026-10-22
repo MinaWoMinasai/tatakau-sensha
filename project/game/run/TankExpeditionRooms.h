@@ -242,7 +242,7 @@ inline RoomDefinition* FindRoom(RoomCatalog& catalog, const std::string& id)
     return nullptr;
 }
 
-/// @brief 遠征マップRoomsを検証する。
+/// @brief 遠征マップが使う部屋が、すべて部屋の一覧にあるかを検証する。
 inline bool ValidateExpeditionMapRooms(const MapDefinition& map, const RoomCatalog& rooms, std::string& error,
                                        const std::vector<std::string>* enemyIds = nullptr)
 {

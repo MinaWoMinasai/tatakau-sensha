@@ -65,18 +65,6 @@ public:
         collisionMask_ = mask;
     }
 
-    /// @brief 状態Gardを設定する。
-    void SetIsGard(bool flag)
-    {
-        isAttack_ = flag;
-    }
-
-    /// @brief 状態攻撃を返す。
-    bool GetIsAttack()
-    {
-        return isAttack_;
-    }
-
     // 図形セット
     ColliderShape GetShape() const
     {
@@ -163,8 +151,6 @@ private:
     uint32_t collisionAttribute_ = 0xffffffff;
     // 衝突マスク
     uint32_t collisionMask_ = 0xffffffff;
-
-    bool isAttack_ = false;
 
     // 衝突図形
     ColliderShape shape_ = ColliderShape::Sphere;
