@@ -49,7 +49,8 @@ const char* BloomViewCaption(int view)
 void CombatFramePipeline::Update()
 {
     // 演出確認用: 実際のゲームでピラミッドBloomを比較する（[B]で表示切替、[Shift+B]で戻る、[V]で停止）。
-    if (!world_.demo.titleDemo_ && world_.resources.input_) {
+    // 開発ビルドだけで使う。Releaseでプレイ中に押しても、画面が変わったりゲームが止まったりしないようにする。
+    if (myEngine::kDeveloperTools && !world_.demo.titleDemo_ && world_.resources.input_) {
         auto& presentation = world_.presentation;
         const bool shift = world_.resources.input_->GetKey()[DIK_LSHIFT] || world_.resources.input_->GetKey()[DIK_RSHIFT];
         bool changed = false;

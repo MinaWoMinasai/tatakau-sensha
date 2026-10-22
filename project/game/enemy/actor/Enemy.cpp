@@ -199,19 +199,6 @@ void Enemy::Initialize(myEngine::Object3d* object, const myEngine::Vector3& posi
     SetDamage(35);
 
     stage_ = stage;
-
-    sprite = std::make_unique<myEngine::Sprite>();
-    sprite->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/bossHPGreen.png");
-    sprite->SetPosition({20.0f, 210.0f});
-
-    bossHpRed = std::make_unique<myEngine::Sprite>();
-    bossHpRed->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/bossHPRed.png");
-    bossHpRed->SetPosition({20.0f, 210.0f});
-
-    bossHpFont = std::make_unique<myEngine::Sprite>();
-    bossHpFont->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/BossHp.png");
-    bossHpFont->SetPosition({20.0f, 160.0f});
-    bossHpFont->SetSize({120.0f, 40.0f});
 }
 
 void Enemy::SetBossAttackConfig(const BossAttackConfig& config)
@@ -226,7 +213,7 @@ void Enemy::SetBossAttackConfig(const BossAttackConfig& config)
     bossAttackConfig_.cooldown = (std::max)(0.05f, bossAttackConfig_.cooldown);
     bossAttackConfig_.bulletHp = (std::max)(0.0f, bossAttackConfig_.bulletHp);
     bossAttackConfig_.bulletPenetration = (std::max)(0.0f, bossAttackConfig_.bulletPenetration);
-    kFireTimerMax_ = bossAttackConfig_.cooldown;
+    fireInterval_ = bossAttackConfig_.cooldown;
 }
 
 void Enemy::SetEnemyProgressConfig(const EnemyProgressConfig& config)
@@ -317,7 +304,7 @@ void Enemy::EnablePrototypeCombat(bool enabled)
     }
     prototypeCombatEnabled_ = enabled;
     prototypeCombat_.Reset();
-    fireTimer_ = kFireTimerMax_;
+    fireTimer_ = fireInterval_;
     if (enabled) {
         prototypeBaseMaxHp_ = (std::max)(1, maxHP_);
         prototypeFeedingHealBudget_ = prototypeBaseMaxHp_ / 2;
@@ -423,7 +410,7 @@ void Enemy::ResetRunEncounter(const myEngine::Vector3& position, int hp, int pre
     fireIntervalTimer = 0;
     time_ = 60;
     bulletCooldown_ = 0.5f;
-    fireTimer_ = kFireTimerMax_;
+    fireTimer_ = fireInterval_;
     alternatingShotIndex_ = 0;
     worldTransform_.translate = position;
     worldTransform_.rotate = {};
@@ -699,27 +686,21 @@ void Enemy::Update(float deltaTime)
         UpdateNeonDepthCombat(deltaTime);
     } else {
         if (expeditionRivalEnabled_) {
+            // ライバルは移動も発射もUpdateRivalCombatで行う（発射は残弾を消費する）。通常AIの射撃は重ねない。
             UpdateRivalCombat(deltaTime);
         } else {
             Move(deltaTime);
-        }
-
-        if (expeditionRivalEnabled_) {
-            // ライバルの発射はUpdateRivalCombatで残弾を消費して行う。通常AIの射撃を重ねない。
-        } else if (prototypeCombatEnabled_) {
-            UpdatePrototypeCombat(deltaTime);
-        } else if (!isDead_) {
-            if (HasLineOfSightToTarget(currentMoveTargetPosition_)) {
+            if (prototypeCombatEnabled_) {
+                UpdatePrototypeCombat(deltaTime);
+            } else if (HasLineOfSightToTarget(currentMoveTargetPosition_)) {
                 fireTimer_ -= deltaTime;
                 if (fireTimer_ <= 0.0f) {
                     ShotgunFire();
-                    fireTimer_ = kFireTimerMax_;
+                    fireTimer_ = fireInterval_;
                 }
-            } else {
+            } else if (fireTimer_ < fireInterval_) {
                 // 遮蔽中は発射せず、減っていた待ち時間を最大値へ向けて戻す。
-                if (fireTimer_ < kFireTimerMax_) {
-                    fireTimer_ += deltaTime;
-                }
+                fireTimer_ += deltaTime;
             }
         }
 
@@ -759,11 +740,6 @@ void Enemy::Update(float deltaTime)
     if (isExploding_) {
         UpdateParticles(deltaTime);
     }
-
-    sprite->SetSize(myEngine::Vector2(float(hp_), sprite->GetSize().y));
-    sprite->Update();
-    bossHpRed->Update();
-    bossHpFont->Update();
 }
 
 void Enemy::Draw(bool drawBody)
@@ -807,13 +783,6 @@ void Enemy::DrawBodyOnly()
 
     if (!isDead_) {
         object_->Draw();
-    }
-}
-
-void Enemy::DrawSprite()
-{
-    if (!runEncounterEnabled_) {
-        return;
     }
 }
 

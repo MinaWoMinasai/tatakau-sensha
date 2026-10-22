@@ -53,11 +53,6 @@ bool GameScene::IsFinished() const
     return session_->IsFinished();
 }
 
-myEngine::Object3d* GameScene::GetBallObj()
-{
-    return session_->GetBallObj();
-}
-
 float GameScene::GetFinalDeltaTime() const
 {
     return session_->GetFinalDeltaTime();

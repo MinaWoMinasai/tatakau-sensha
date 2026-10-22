@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <numbers>
 #include <nlohmann/json.hpp>
 
 #ifdef USE_IMGUI
@@ -152,6 +153,30 @@ float GetUpgradeHudTextAdvance(const myEngine::TextLabel* label, const myEngine:
     const float padding = std::ceil(style.padding + style.outlineThickness);
     const float fallback = style.fontSize * (label->GetText() == " " ? 0.34f : 0.55f);
     return (std::max)(fallback, label->GetSprite()->GetSize().x - padding * 2.0f);
+}
+
+/// @brief WASDから移動方向を読む。ゲームパッドを使っているときは、スティックの傾きで置き換える。
+myEngine::Vector3 ReadMoveInput(myEngine::Input* input)
+{
+    myEngine::Vector3 direction{};
+    if (input->IsPress(input->GetKey()[DIK_A])) {
+        direction.x -= 1.0f;
+    }
+    if (input->IsPress(input->GetKey()[DIK_D])) {
+        direction.x += 1.0f;
+    }
+    if (input->IsPress(input->GetKey()[DIK_W])) {
+        direction.y += 1.0f;
+    }
+    if (input->IsPress(input->GetKey()[DIK_S])) {
+        direction.y -= 1.0f;
+    }
+    if (input->IsGamepadActive()) {
+        // アナログスティック: 方向と傾き（長さは移動の1ステップで制限する）。
+        const myEngine::Vector2 move = input->GetGamepadMove();
+        direction = {move.x, move.y, 0};
+    }
+    return direction;
 }
 
 } // namespace
@@ -295,10 +320,6 @@ void Player::Initialize(myEngine::Object3d* object, const myEngine::Vector3& pos
     const bool baseline = GetEnvironmentVariableW(L"MYENGINE_STARTUP_CACHE", startupCacheFlag, 8) > 0 && startupCacheFlag[0] == L'0';
     ui_->arenaUiEnabled_ = arenaUi || baseline;
 
-    sprite = std::make_unique<myEngine::Sprite>();
-    sprite->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/fade.png");
-    sprite->SetColor(myEngine::Vector4(1.0f, 1.0f, 1.0f, 0.8f));
-
     object_ = object;
     baseVehicleColor_ = object_->GetColor();
 
@@ -350,17 +371,15 @@ void Player::Initialize(myEngine::Object3d* object, const myEngine::Vector3& pos
     }
 }
 
-void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManager* BulletManager, float deltaTime, float uiDeltaTime)
+void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManager* bulletManager, float deltaTime, float uiDeltaTime)
 {
-    sprite->Update();
-
     POINT mousePos;
     GetCursorPos(&mousePos);
     ScreenToClient(myEngine::WinApp::GetInstance()->GetHwnd(), &mousePos);
     mousePosition_ = {static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)};
     myEngine::WinApp::GetInstance()->ClientToLogical(mousePosition_.x, mousePosition_.y);
     // UIにはスローの影響を受けない時間を渡す。操作による開閉も同じフレーム内で判定する。
-    const bool evolutionUiWasOpen = isChangeMode;
+    const bool evolutionUiWasOpen = isChangeMode_;
     if (!demoInputEnabled_ && ui_->arenaUiEnabled_) {
         playerEvolution_->UpdateEncyclopedia(uiDeltaTime);
         playerHud_->UpdateUpgradeHud(uiDeltaTime);
@@ -368,18 +387,18 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
 
     if (ui_->arenaUiEnabled_ && !demoInputEnabled_ && !(runModifiers_.enabled && runCheckpointEvolution_) &&
         input_->IsTrigger(input_->GetKey()[DIK_C], input_->GetPreKey()[DIK_C])) {
-        if (isChangeMode) {
-            isChangeMode = false;
+        if (isChangeMode_) {
+            isChangeMode_ = false;
             evolutionCancelledEvent_ = true;
         } else {
-            isChangeMode = true;
+            isChangeMode_ = true;
             playerEvolution_->PrepareStaticEvolutionTextTextures();
             playerEvolution_->PrepareEvolutionCircuitTextTextures();
         }
     }
     // 進化UIを操作したクリックやキー入力を、そのまま射撃・移動へ流さない。
     // 確定やキャンセルでこのフレーム中に閉じた場合も、次フレームまでゲーム入力を抑止する。
-    if (evolutionUiWasOpen || isChangeMode) {
+    if (evolutionUiWasOpen || isChangeMode_) {
         ui_->machineGunBtnSprite_->Update();
         return;
     }
@@ -389,26 +408,13 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     }
 
     if (!demoInputEnabled_ && !runModifiers_.enabled && skillPoints_ > 0) {
-        if (input_->IsTrigger(input_->GetKey()[DIK_1], input_->GetPreKey()[DIK_1])) {
-            ApplyStatUpgrade(0);
-        }
-        if (input_->IsTrigger(input_->GetKey()[DIK_2], input_->GetPreKey()[DIK_2])) {
-            ApplyStatUpgrade(1);
-        }
-        if (input_->IsTrigger(input_->GetKey()[DIK_3], input_->GetPreKey()[DIK_3])) {
-            ApplyStatUpgrade(2);
-        }
-        if (input_->IsTrigger(input_->GetKey()[DIK_4], input_->GetPreKey()[DIK_4])) {
-            ApplyStatUpgrade(3);
-        }
-        if (input_->IsTrigger(input_->GetKey()[DIK_5], input_->GetPreKey()[DIK_5])) {
-            ApplyStatUpgrade(4);
-        }
-        if (input_->IsTrigger(input_->GetKey()[DIK_6], input_->GetPreKey()[DIK_6])) {
-            ApplyStatUpgrade(5);
-        }
-        if (input_->IsTrigger(input_->GetKey()[DIK_7], input_->GetPreKey()[DIK_7])) {
-            ApplyStatUpgrade(6);
+        // 1〜7キーが、それぞれ0〜6番目の能力の強化に対応する。
+        static constexpr std::array<uint8_t, 7> kStatUpgradeKeys = {DIK_1, DIK_2, DIK_3, DIK_4, DIK_5, DIK_6, DIK_7};
+        for (int index = 0; index < static_cast<int>(kStatUpgradeKeys.size()); ++index) {
+            const uint8_t key = kStatUpgradeKeys[static_cast<size_t>(index)];
+            if (input_->IsTrigger(input_->GetKey()[key], input_->GetPreKey()[key])) {
+                ApplyStatUpgrade(index);
+            }
         }
     }
 
@@ -457,26 +463,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     if (runModifiers_.enabled) {
         // ダッシュの前に現在の方向を読む。新たに押した移動キーで
         // 次のフレームではなく即座に加速の向きを変えるため。
-        inputDir_ = {};
-        if (input_->IsPress(input_->GetKey()[DIK_A])) {
-            inputDir_.x -= 1.0f;
-        }
-        if (input_->IsPress(input_->GetKey()[DIK_D])) {
-            inputDir_.x += 1.0f;
-        }
-        if (input_->IsPress(input_->GetKey()[DIK_W])) {
-            inputDir_.y += 1.0f;
-        }
-        if (input_->IsPress(input_->GetKey()[DIK_S])) {
-            inputDir_.y -= 1.0f;
-        }
-        if (input_->IsGamepadActive()) {
-            const myEngine::Vector2 move = input_->GetGamepadMove();
-            inputDir_ = {move.x, move.y, 0};
-        }
-        if (demoInputEnabled_) {
-            inputDir_ = {demoMove_.x, demoMove_.y, 0};
-        }
+        inputDir_ = demoInputEnabled_ ? myEngine::Vector3{demoMove_.x, demoMove_.y, 0} : ReadMoveInput(input_);
         RotateToMouse(viewProjection);
     }
     if ((!runModifiers_.enabled || !runRoomAwaitInputRelease_) &&
@@ -498,35 +485,12 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     }
 
     UpdateStealth(deltaTime);
-    UpdateSummoner(deltaTime);
 
     // ----------------------
     // 横入力
     // ----------------------
     RotateToMouse(viewProjection);
-    inputDir_ = {0, 0, 0};
-
-    if (input_->IsPress(input_->GetKey()[DIK_A])) {
-        inputDir_.x -= 1.0f;
-    }
-    if (input_->IsPress(input_->GetKey()[DIK_D])) {
-        inputDir_.x += 1.0f;
-    }
-    if (input_->IsPress(input_->GetKey()[DIK_W])) {
-        inputDir_.y += 1.0f;
-    }
-    if (input_->IsPress(input_->GetKey()[DIK_S])) {
-        inputDir_.y -= 1.0f;
-    }
-    if (input_->IsGamepadActive()) {
-        // アナログスティック: 方向と傾き（長さは移動の1ステップで制限する）。
-        const myEngine::Vector2 move = input_->GetGamepadMove();
-        inputDir_ = {move.x, move.y, 0};
-    }
-
-    if (demoInputEnabled_) {
-        inputDir_ = {demoMove_.x, demoMove_.y, 0};
-    }
+    inputDir_ = demoInputEnabled_ ? myEngine::Vector3{demoMove_.x, demoMove_.y, 0} : ReadMoveInput(input_);
     PlayerMovementInput movementInput{};
     movementInput.direction = inputDir_;
     movementInput.velocity = velocity_;
@@ -592,7 +556,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
         if (currentClass_ == ClassType::Smasher && !IsMeleeBuild()) {
             Smash(deltaTime);
         } else {
-            Attack(BulletManager, deltaTime);
+            Attack(bulletManager, deltaTime);
         }
 
         const PlayerClassConfig* activeClass = GetCurrentClassConfig();
@@ -602,7 +566,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
                                     (runModifiers_.drones ? static_cast<size_t>(TankEffectCount(runModifiers_, 6, 2)) : 0u) +
                                     (runModifiers_.core == TankRunCore::Drone ? 2u : 0u);
         if (IsDroneBuild()) {
-            runBulletManager_ = BulletManager;
+            runBulletManager_ = bulletManager;
             runSupportDroneTimer_ = (std::max)(0.0f, runSupportDroneTimer_ - deltaTime);
             if (runSupportDroneTimer_ <= 0.0f) {
                 EnsureExpeditionDrones();
@@ -612,13 +576,13 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
             if (drones_.size() < supportLimit && runSupportDroneTimer_ <= 0.0f) {
                 auto drone = std::make_unique<PlayerDrone>();
                 drone->Initialize(worldTransform_.translate + dir_ * 0.8f, dir_ * 0.1f);
-                drone->SetAttackControllerBulletManager(BulletManager);
+                drone->SetAttackControllerBulletManager(bulletManager);
                 ConfigureRunDrone(*drone);
                 drones_.push_back(std::move(drone));
                 runSupportDroneTimer_ = 1.2f;
             }
         }
-        const size_t bulletsBeforeDroneUpdates = BulletManager->GetBulletCount();
+        const size_t bulletsBeforeDroneUpdates = bulletManager->GetBulletCount();
         size_t companionIndex = 0;
         std::array<bool, 48> spreadUsed{};
         for (auto& drone : drones_) {
@@ -650,8 +614,9 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
                     drone->SetRunInput(aim, wantsAttack);
                 }
                 if (IsDroneBuild()) {
-                    const float orbit =
-                        static_cast<float>(companionIndex) * 6.2831853f / static_cast<float>((std::max)(size_t{1}, drones_.size()));
+                    // ドローンを機体の周りに等間隔で並べる角度（ラジアン）。
+                    const float orbit = static_cast<float>(companionIndex) * 2.0f * std::numbers::pi_v<float> /
+                                        static_cast<float>((std::max)(size_t{1}, drones_.size()));
                     const float radius =
                         GetCombatStyleProfile(tankbuild::Style::Drone).droneFormationRadius + (runModifiers_.droneLaserLink ? 2.0f : 0.0f);
                     drone->SetRunFollowOffset({std::cos(orbit) * radius, std::sin(orbit) * radius, 0});
@@ -661,7 +626,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
             drone->SetNeonDepthAimEnabled(neonDepthAimEnabled_);
             drone->Update(viewProjection, stage, worldTransform_.translate, runModifiers_.enabled ? deltaTime : 1.0f / 60.0f);
         }
-        if (runModifiers_.enabled && runCheckpointEvolution_ && BulletManager->GetBulletCount() > bulletsBeforeDroneUpdates) {
+        if (runModifiers_.enabled && runCheckpointEvolution_ && bulletManager->GetBulletCount() > bulletsBeforeDroneUpdates) {
             primaryAttackPerformedEvent_ = true;
             ++primaryAttackCount_;
         }
@@ -674,7 +639,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
         if (IsDroneBuild() && drones_.size() < static_cast<size_t>(GetExpeditionDroneLimit()) && runSupportDroneTimer_ <= 0.0f) {
             runSupportDroneTimer_ = 1.2f;
         }
-        UpdateRunProjectiles(BulletManager, deltaTime);
+        UpdateRunProjectiles(bulletManager, deltaTime);
     }
 
     ui_->machineGunBtnSprite_->Update();
@@ -1033,7 +998,7 @@ bool Player::ConsumeEvolutionConfirmed()
 
 void Player::CloseEvolutionUiForTutorial()
 {
-    isChangeMode = false;
+    isChangeMode_ = false;
 }
 
 bool Player::ConsumeEvolutionCancelled()
@@ -1211,11 +1176,6 @@ void Player::UpdateParticles(float deltaTime)
     }
 }
 
-void Player::UpdateP(float deltaTime)
-{
-    (void)deltaTime;
-}
-
 bool Player::ConsumeStatUpgradePerformedEvent()
 {
     const bool performed = statUpgradePerformedEvent_;
@@ -1261,23 +1221,6 @@ void Player::UpdateStealth(float deltaTime)
     for (BarrelModel& barrel : barrels_) {
         if (barrel.object) {
             barrel.object->SetAlpha(stealthAlpha_);
-        }
-    }
-}
-
-void Player::UpdateSummoner(float deltaTime)
-{
-    if (currentClass_ != ClassType::Summoner) {
-        return;
-    }
-
-    // ドローンの数が足りなければ生成
-    if (drones_.size() < kMaxSummonerDrones) {
-        summonTimer_ += deltaTime;
-        if (summonTimer_ > 2.0f) {
-            // この旧召喚タイマーでは生成しない。遠征の召喚は現在のドローン更新処理で行う。
-
-            summonTimer_ = 0.0f;
         }
     }
 }
@@ -1476,9 +1419,9 @@ void Player::Attack(BulletManager* bulletManager, float deltaTime)
     playerWeapons_->Attack(bulletManager, deltaTime);
 }
 
-void Player::DroneShoot(BulletManager* BulletManager)
+void Player::DroneShoot(BulletManager* bulletManager)
 {
-    playerWeapons_->DroneShoot(BulletManager);
+    playerWeapons_->DroneShoot(bulletManager);
 }
 
 void Player::Smash(float deltaTime)

@@ -286,7 +286,7 @@ void PlayerEvolution::InitializeEncyclopedia()
 
 void PlayerEvolution::UpdateEncyclopedia(float uiDeltaTime)
 {
-    if (!ui_.arenaUiEnabled_ || !player_.isChangeMode) {
+    if (!ui_.arenaUiEnabled_ || !player_.isChangeMode_) {
         return;
     }
     if (ui_.encyclopedia_.size() != player_.classCatalog_.OrderedIds().size()) {
@@ -403,15 +403,15 @@ void PlayerEvolution::DrawEncyclopedia()
     }
 
     ui_.evolutionUiProfile_ = {};
-    if (player_.isChangeMode && ShouldUseEvolutionCircuitPrototype()) {
+    if (player_.isChangeMode_ && ShouldUseEvolutionCircuitPrototype()) {
         DrawEvolutionCircuitPrototype();
         return;
     }
-    if (player_.isChangeMode && ShouldUseStaticEvolutionPrototype()) {
+    if (player_.isChangeMode_ && ShouldUseStaticEvolutionPrototype()) {
         DrawStaticEvolutionPrototype();
         return;
     }
-    if (player_.isChangeMode) {
+    if (player_.isChangeMode_) {
         ui_.evolutionUiProfile_.visible = true;
         const auto totalStart = std::chrono::steady_clock::now();
         if (ui_.encyclopedia_.empty()) {
@@ -969,7 +969,7 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
         return;
     }
     if (player_.input_ && player_.input_->IsTrigger(player_.input_->GetKey()[DIK_ESCAPE], player_.input_->GetPreKey()[DIK_ESCAPE])) {
-        player_.isChangeMode = false;
+        player_.isChangeMode_ = false;
         player_.evolutionCancelledEvent_ = true;
         return;
     }
@@ -1601,7 +1601,7 @@ void PlayerEvolution::UpdateStaticEvolutionPrototype()
         return;
     }
     if (player_.input_ && player_.input_->IsTrigger(player_.input_->GetKey()[DIK_ESCAPE], player_.input_->GetPreKey()[DIK_ESCAPE])) {
-        player_.isChangeMode = false;
+        player_.isChangeMode_ = false;
         player_.evolutionCancelledEvent_ = true;
         return;
     }
@@ -2767,7 +2767,7 @@ void PlayerEvolution::DrawStaticEvolutionPrototype()
 
 void PlayerEvolution::DrawEvolutionAfterPostEffects()
 {
-    if (!ui_.arenaUiEnabled_ || !player_.isChangeMode) {
+    if (!ui_.arenaUiEnabled_ || !player_.isChangeMode_) {
         return;
     }
     if (ShouldUseEvolutionCircuitPrototype()) {

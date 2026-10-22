@@ -51,11 +51,6 @@ bool GameSession::IsFinished() const
     return world_->gameplayQueries->IsFinished();
 }
 
-myEngine::Object3d* GameSession::GetBallObj()
-{
-    return world_->gameplayQueries->GetBallObj();
-}
-
 float GameSession::GetFinalDeltaTime() const
 {
     return world_->gameplayQueries->GetFinalDeltaTime();
