@@ -48,7 +48,7 @@ private:
     void UpdateFrameCameraParameters(bool advanceMotionHistory);
     /// @brief 時間方向射影ジッターへのCamerasを現在の状態へ適用する。
     void ApplyTemporalJitterToCameras();
-    /// @brief 時間方向Historyを初期状態へ戻す。
+    /// @brief 前のフレームの履歴（時間方向の合成に使う）を捨てる。
     void ResetTemporalHistory();
     /// @brief 一時的な画面効果を基準の設定と合成する。
     void ComposeTransientEffects();

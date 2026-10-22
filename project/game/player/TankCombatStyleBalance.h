@@ -17,7 +17,7 @@ struct TankCombatStyleProfile {
 
 using TankCombatStyleBalances = std::array<TankCombatStyleProfile, 3>;
 
-/// @brief 戦車戦闘外観Balancesの既定値を作成して返す。
+/// @brief 戦闘系統ごとの見た目と性能の既定値を作って返す。
 inline constexpr TankCombatStyleBalances DefaultTankCombatStyleBalances()
 {
     TankCombatStyleBalances profiles{};

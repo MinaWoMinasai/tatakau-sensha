@@ -99,7 +99,7 @@ public:
         camera_ = camera;
     }
 
-    /// @brief 開発表示カメラを設定する。
+    /// @brief デバッグカメラを設定する。
     void SetDebugCamera(DebugCamera* debugCamera)
     {
         debugCamera_ = debugCamera;
@@ -239,13 +239,13 @@ public:
         environmentMapIndex_ = srvIndex;
     }
 
-    /// @brief 環境Coefficientを設定する。
+    /// @brief 環境マップの映り込みの強さを設定する。
     void SetEnvironmentCoefficient(float coefficient)
     {
         materialData_->environmentCoefficient = coefficient;
     }
 
-    /// @brief 環境Coefficientを返す。
+    /// @brief 環境マップの映り込みの強さを返す。
     float GetEnvironmentCoefficient() const
     {
         return materialData_->environmentCoefficient;
@@ -297,7 +297,7 @@ public:
         materialData_->iblSpecularIntensity = specularIntensity;
     }
 
-    /// @brief IBL最大値Mipレベルを設定する。
+    /// @brief IBLで使う最大のミップレベルを設定する。
     void SetIBLMaxMipLevel(float maxMipLevel)
     {
         materialData_->iblMaxMipLevel = maxMipLevel;
@@ -309,13 +309,13 @@ public:
         materialData_->pbrEnvironmentMode = mode;
     }
 
-    /// @brief 影Receive強度を設定する。
+    /// @brief 影を受ける強さを設定する。
     void SetShadowReceiveStrength(float strength)
     {
         materialData_->shadowReceiveStrength = strength;
     }
 
-    /// @brief 法線Detailを設定する。
+    /// @brief ディテール法線の強さと拡大率を設定する。
     void SetNormalDetail(float strength, float scale)
     {
         materialData_->normalDetailStrength = strength;
@@ -361,7 +361,7 @@ public:
         materialData_->occlusionMapChannel = occlusionChannel;
     }
 
-    /// @brief 影Filterを設定する。
+    /// @brief 影のバイアスとPCFのぼかし半径を設定する。
     void SetShadowFilter(float depthBias, float slopeBias, float pcfRadius)
     {
         materialData_->shadowDepthBias = depthBias;
@@ -369,7 +369,7 @@ public:
         materialData_->shadowPcfRadius = pcfRadius;
     }
 
-    /// @brief 材質開発表示方式を設定する。
+    /// @brief 材質のデバッグ表示モードを設定する。
     void SetMaterialDebugMode(int32_t mode)
     {
         materialData_->materialDebugMode = static_cast<float>(mode);
@@ -389,11 +389,11 @@ public:
         materialData_->waterFarFlattenStrength = farFlattenStrength;
     }
 
-    /// @brief 海面Wakeデータを設定する。
+    /// @brief 海面に描く航跡の位置と向きを設定する。
     void SetOceanWakeData(const std::array<Vector4, 16>& wakePoints, const std::array<Vector4, 16>& wakeDirections,
                           const Vector4& parameters);
 
-    /// @brief キャラクターShadingを設定する。
+    /// @brief キャラクター用の陰影（回り込み・影の柔らかさ・リム）を設定する。
     void SetCharacterShading(float lightWrap, float shadowSoftness, float shadowStrength, float rimStrength, float rimPower,
                              float specularStrength, float specularPower)
     {
@@ -407,7 +407,7 @@ public:
     }
 
 private:
-    /// @brief 行列Constantsを更新する。
+    /// @brief ワールド行列から、シェーダーへ渡す行列の定数を更新する。
     void UpdateMatrixConstants(const Matrix4x4& worldMatrix);
     /// @brief モデル材質データを現在の状態へ適用する。
     void ApplyModelMaterialData();

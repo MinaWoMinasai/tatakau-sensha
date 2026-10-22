@@ -31,7 +31,7 @@ public:
     /// @brief 結果文字を更新する。
     void UpdateResultText();
 
-    /// @brief イベントCalloutを設定する。
+    /// @brief 画面に一時的に出すイベントの見出しを設定する。
     void SetEventCallout(const std::string& text, float duration);
 
 private:

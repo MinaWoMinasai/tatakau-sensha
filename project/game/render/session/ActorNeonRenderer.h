@@ -8,7 +8,7 @@ public:
     /// @brief 借用するワールドを設定する。
     explicit ActorNeonRenderer(GameWorld& world) : world_(world) {}
 
-    /// @brief アクターネオンBillboardsを後で処理するために予約する。
+    /// @brief 自機と敵のネオンのビルボードを描画待ちに積む。
     void QueueActorNeonBillboards(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp, bool drawBodies = true,
                                   bool drawBarrels = true);
 

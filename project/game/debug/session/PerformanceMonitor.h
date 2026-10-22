@@ -11,20 +11,20 @@ public:
     /// @brief 描画区間の計測値を設定する。
     void SetRenderProfile(const IScene::RenderProfile& profile);
 
-    /// @brief 後処理設定Entriesを初期状態へ戻す。
+    /// @brief ポストエフェクトの計測項目を空にする。
     void ResetPostProfileEntries();
 
-    /// @brief 後処理設定Entryを追加する。
+    /// @brief ポストエフェクトの計測項目を追加する。
     void AddPostProfileEntry(const char* name, float ms, bool active);
 
     /// @brief 後処理設定文字を更新する。
     void UpdatePostProfileText();
 
-    /// @brief 性能BreakdownImGUIを描画する。
+    /// @brief 処理時間の内訳をImGuiで表示する。
     void DrawPerformanceBreakdownImGui();
 
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-    /// @brief 性能計測ImGUIを描画する。
+    /// @brief 性能の記録を操作するImGuiの画面を表示する。
     void DrawPerformanceCaptureImGui();
 #endif
 
@@ -43,7 +43,7 @@ public:
     bool WritePerformanceCaptureFiles();
 #endif
 
-    /// @brief 後処理設定Category有効であるか判定する。
+    /// @brief ポストエフェクトの計測項目のうち、指定した分類が有効かを返す。
     bool IsPostProfileCategoryEnabled(const char* category) const;
 
     /// @brief 後処理設定方式名前を返す。

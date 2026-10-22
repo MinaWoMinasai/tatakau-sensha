@@ -14,7 +14,7 @@ public:
     /// @brief ステージ地形ブロックネオン描画パスを描画する。
     void DrawStageBlockNeonPass();
 
-    /// @brief ステージ地形ブロックネオンOutlinesを後で処理するために予約する。
+    /// @brief 地形ブロックのネオンの輪郭を描画待ちに積む。
     void QueueStageBlockNeonOutlines();
 
     /// @brief ステージ後処理キャッシュUV差分を返す。

@@ -10,9 +10,9 @@ public:
     /// @brief 初期化
     void Initialize();
 
-    /// @brief 用の軌跡を初期化する。
+    /// @brief 軌跡用の頂点レイアウトにする。
     void InitializeForTrail();
-    /// @brief 用のスキニングを初期化する。
+    /// @brief スキニング用の頂点レイアウトにする。
     void InitializeForSkinning();
 
     /// @brief Element記述情報を返す。

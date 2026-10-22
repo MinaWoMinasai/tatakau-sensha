@@ -771,8 +771,6 @@ void Application::Finalize()
     myEngine::TextRenderer::GetInstance()->Finalize();
     myEngine::ModelManager::GetInstance()->Finalize();
 
-    CloseHandle(dxCommon_->GetFenceEvent());
-
     dxCommon_->Release();
     myEngine::WinApp::GetInstance()->Finalize();
 

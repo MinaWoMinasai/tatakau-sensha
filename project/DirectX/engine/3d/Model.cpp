@@ -26,7 +26,7 @@ namespace {
 float Clamp01(float value);
 /// @brief ベクトルの最大成分を返す。
 float MaxComponent(const Vector3& value);
-/// @brief 既定値Primitive材質を作成して返す。
+/// @brief 材質の指定がない図形に使う、既定の材質を作って返す。
 MaterialData MakeDefaultPrimitiveMaterial();
 
 /// @brief 共有する頂点の法線を集計するための位置キーを表す。
@@ -128,7 +128,7 @@ Vector3 BuildFallbackTangent(const Vector3& normal)
     return NormalizeVector3(CrossVector3(up, normal));
 }
 
-/// @brief テクスチャFilenameを読み取る。
+/// @brief 材質ファイルの行から、テクスチャのファイル名を読み取る。
 std::string ReadTextureFilename(std::istringstream& stream)
 {
     std::string token;
@@ -502,7 +502,7 @@ bool ReadVector3(std::istringstream& stream, Vector3& value)
     return static_cast<bool>(stream >> value.x >> value.y >> value.z);
 }
 
-/// @brief 既定値Primitive材質を作成して返す。
+/// @brief 材質の指定がない図形に使う、既定の材質を作って返す。
 MaterialData MakeDefaultPrimitiveMaterial()
 {
     MaterialData material;
@@ -687,7 +687,7 @@ void ParseMtlMaterialLine(ParsedMaterialData& parsedMaterial, const std::string&
     }
 }
 
-/// @brief 材質TemplateLibraryを読み込む。
+/// @brief ディレクトリにある材質のテンプレートをすべて読み込む。
 std::vector<std::pair<std::string, MaterialData>> LoadMaterialTemplateLibrary(const std::string& directoryPath, const std::string& filename)
 {
     std::vector<std::pair<std::string, MaterialData>> materials;

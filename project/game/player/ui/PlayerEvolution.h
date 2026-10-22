@@ -103,7 +103,7 @@ public:
     /// @brief 固定進化文字テクスチャを利用前に準備する。
     void PrepareStaticEvolutionTextTextures();
 
-    /// @brief 固定配置の進化UIの座標・領域・解像度を、USE_IMGUIの開発表示へ重ねて描く。
+    /// @brief 固定配置の進化UIの座標・領域・解像度を、デバッグ表示（USE_IMGUI）へ重ねて描く。
     void DrawStaticEvolutionDebugOverlay();
 
     /// @brief 固定配置の進化UI用に次ランクの候補IDを集め、件数と選択添字を更新する。

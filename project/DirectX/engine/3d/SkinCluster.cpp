@@ -313,7 +313,7 @@ void ReadSkinningEmissive(const aiMaterial& sourceMaterial, MaterialData& materi
     materialData.hasEmissive = true;
 }
 
-/// @brief スキニングMaterialsを読み込む。
+/// @brief スキニングモデルの材質を読み込む。
 std::vector<MaterialData> LoadSkinningMaterials(SkinningModelAsset& asset, const aiScene& scene, const std::filesystem::path& sourcePath)
 {
     std::vector<MaterialData> materials;

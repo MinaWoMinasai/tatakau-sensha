@@ -10,7 +10,7 @@ namespace gameplay {
 #endif
 
 namespace {
-/// @brief 制作データJsonを保存する。
+/// @brief 制作データをJSONファイルへ保存する。
 bool SaveAuthoringJson(const char* path, const nlohmann::json& data, std::string& error)
 {
     try {

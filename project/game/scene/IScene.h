@@ -113,7 +113,7 @@ public:
         return {};
     }
 
-    /// @brief 水面後処理Process設定を返す。
+    /// @brief 水面のポストエフェクトの設定を返す。
     virtual WaterPostProcessSettings GetWaterPostProcessSettings() const
     {
         return {};

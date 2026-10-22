@@ -52,7 +52,7 @@ bool SameModel(const TankRewardCardModel& a, const TankRewardCardModel& b)
            a.growth.move == b.growth.move;
 }
 
-/// @brief 提示する報酬候補の一覧を返す。
+/// @brief カードの効果に指定した強化が含まれるかを返す。
 bool Offers(const TankRewardCardModel& m, tankrun::CardId effect)
 {
     return std::find(m.effects.begin(), m.effects.end(), effect) != m.effects.end();

@@ -94,7 +94,7 @@ public:
         }
     }
 
-    /// @brief 形状Revisionを返す。
+    /// @brief 形が変わるたびに増える番号を返す。
     uint64_t GetGeometryRevision() const
     {
         return geometryRevision_;
@@ -112,7 +112,7 @@ public:
         return isActive_;
     }
 
-    /// @brief 状態Permanentを設定する。
+    /// @brief 寿命で消えずに残り続けるかを設定する。
     void SetIsPermanent(bool permanent)
     {
         isPermanent_ = permanent;

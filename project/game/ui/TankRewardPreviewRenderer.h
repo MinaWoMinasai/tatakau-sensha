@@ -72,7 +72,7 @@ public:
 private:
     /// @brief 形状を組み立てる。
     void BuildGeometry();
-    /// @brief Laneを後で処理するために予約する。
+    /// @brief レーン1本分の表示を描画待ちに積む。
     void QueueLane(int lane, const tankreward::DemoSnapshot& state, bool fill);
     /// @brief 指定対象の表示位置を求める。
     myEngine::Vector3 Position(int lane, tankreward::Point point) const;

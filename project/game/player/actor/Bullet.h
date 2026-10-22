@@ -339,7 +339,7 @@ private:
     myEngine::TrailConfig MakeTrailConfig() const;
     /// @brief 弾色を返す。
     myEngine::Vector4 GetBulletColor() const;
-    /// @brief 衝撃分裂を後で処理するために予約する。
+    /// @brief 着弾時の分裂を、次の更新まで積んでおく。
     void QueueImpactSplit(const myEngine::Vector3& direction);
     /// @brief 帰還を開始する。
     void BeginReturn();

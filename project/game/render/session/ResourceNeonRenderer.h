@@ -14,7 +14,7 @@ public:
     /// @brief 経験値敵ネオン深度線を描画する。
     void DrawExpEnemyNeonDepthLines();
 
-    /// @brief 経験値敵ネオンShapesを後で処理するために予約する。
+    /// @brief 経験値敵のネオンの図形を描画待ちに積む。
     void QueueExpEnemyNeonShapes(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp,
                                  const myEngine::Vector3& cameraForward);
 

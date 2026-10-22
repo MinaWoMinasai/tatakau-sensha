@@ -62,7 +62,7 @@ public:
     /// @brief 後続の描画で使う描画先・パイプラインを準備する。対応するPostDrawと組にして使う。
     void PreDraw();
 
-    /// @brief テクスチャ添字Byファイルパスを返す。
+    /// @brief ファイルパスからテクスチャの番号を返す。
     uint32_t GetTextureIndexByFilePath(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
 
     /// @brief GPU側のSRVハンドルを返す。

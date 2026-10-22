@@ -69,7 +69,7 @@ inline Encounter GetEncounter(RoomKind room, int roomIndex = 0)
 
 // Passive salvage never blocks a combat room. A core objective cannot bypass
 // its guards, while the final rival remains the boss-room objective.
-/// @brief 部屋Objective完了であるか判定する。
+/// @brief 部屋の目標を達成したかを判定する。
 inline bool IsRoomObjectiveComplete(RoomKind room, int threats, int nodes, bool coreClaimed, bool bossDead)
 {
     if (room == RoomKind::Boss) {

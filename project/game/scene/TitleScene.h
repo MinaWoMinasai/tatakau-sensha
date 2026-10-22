@@ -82,7 +82,7 @@ public:
 private:
     /// @brief シーン利用可能であるか判定する。
     bool IsSceneAvailable(std::string_view name) const;
-    /// @brief 遷移If利用可能を開始する。
+    /// @brief 指定したシーンが使えるなら、そこへの遷移を始める。始めたらtrueを返す。
     bool StartTransitionIfAvailable(std::string_view name, float duration);
     /// @brief メニュー表示情報を更新する。
     void UpdateMenuVisuals();

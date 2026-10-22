@@ -158,7 +158,7 @@ struct GenerationRoomRule {
     std::string roomTemplate;
 };
 
-/// @brief 生成Roomsの既定値を作成して返す。
+/// @brief マップ生成で使う部屋の既定の一覧を作って返す。
 inline std::vector<GenerationRoomRule> DefaultGenerationRooms()
 {
     return {{NodeKind::Combat, 2, 7, 4, "outskirts"},      {NodeKind::Combat, 2, 7, 1, "crossfire"},
@@ -190,7 +190,7 @@ inline const MapNode* FindMapNode(const MapDefinition& map, const std::string& i
     return it == map.nodes.end() ? nullptr : &*it;
 }
 
-/// @brief マップIdentifierであるか判定する。
+/// @brief マップのIDとして使える文字列かを判定する。
 inline bool IsMapIdentifier(const std::string& text)
 {
     if (text.empty() || text.size() > 64) {
@@ -201,7 +201,7 @@ inline bool IsMapIdentifier(const std::string& text)
     });
 }
 
-/// @brief ThreeConsecutiveノードKindsが存在するか判定する。
+/// @brief 同じ種類のノードが3つ続く経路があるかを判定する。
 inline bool HasThreeConsecutiveNodeKinds(const MapDefinition& map)
 {
     for (const auto& first : map.nodes) {
@@ -910,7 +910,7 @@ public:
         return visited_;
     }
 
-    /// @brief ChosenノードID一覧を返す。
+    /// @brief これまでに選んだノードのIDの一覧を返す。
     const std::vector<std::string>& GetChosenNodeIds() const
     {
         return chosen_;
@@ -1012,7 +1012,7 @@ public:
         return true;
     }
 
-    /// @brief 通貨Grantを完了にする。
+    /// @brief 通貨の受け取りを完了にする。
     bool CompleteCurrencyGrant(bool grantReward = true)
     {
         const auto* node = GetActiveNode();

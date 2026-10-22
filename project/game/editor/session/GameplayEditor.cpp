@@ -567,7 +567,7 @@ void GameplayEditor::DrawGameplayDebugUi()
         }
 
         if (ImGui::BeginTabItem("バランス")) {
-            DrawLevelAIDitorBalanceLab(true);
+            DrawLevelAiEditorBalanceLab(true);
             ImGui::EndTabItem();
         }
 
@@ -672,7 +672,7 @@ void GameplayEditor::DrawBulletStatusDebugOverlay()
 #endif
 }
 
-void GameplayEditor::DrawLevelAIDitorBalanceLab(bool embedded)
+void GameplayEditor::DrawLevelAiEditorBalanceLab(bool embedded)
 {
 #ifdef USE_IMGUI
     if (!world_.resources.balanceEditor_.initialized && world_.resources.currentLevelData_.balance.is_object()) {

@@ -422,12 +422,12 @@ void NeonSkinnedRenderer::CreatePipeline()
     ComPtr<IDxcBlob> outlinePixelShader;
     ComPtr<IDxcBlob> stencilClearVertexShader;
     ComPtr<IDxcBlob> stencilClearPixelShader;
-    vertexShader.Attach(dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinned.VS.hlsl"), L"vs_6_0"));
-    pixelShader.Attach(dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinned.PS.hlsl"), L"ps_6_0"));
-    outlineVertexShader.Attach(dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinnedOutline.VS.hlsl"), L"vs_6_0"));
-    outlinePixelShader.Attach(dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinnedOutline.PS.hlsl"), L"ps_6_0"));
-    stencilClearVertexShader.Attach(dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinnedStencilClear.VS.hlsl"), L"vs_6_0"));
-    stencilClearPixelShader.Attach(dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinnedStencilClear.PS.hlsl"), L"ps_6_0"));
+    vertexShader = dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinned.VS.hlsl"), L"vs_6_0");
+    pixelShader = dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinned.PS.hlsl"), L"ps_6_0");
+    outlineVertexShader = dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinnedOutline.VS.hlsl"), L"vs_6_0");
+    outlinePixelShader = dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinnedOutline.PS.hlsl"), L"ps_6_0");
+    stencilClearVertexShader = dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinnedStencilClear.VS.hlsl"), L"vs_6_0");
+    stencilClearPixelShader = dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinnedStencilClear.PS.hlsl"), L"ps_6_0");
     if (!vertexShader || !pixelShader || !outlineVertexShader || !outlinePixelShader || !stencilClearVertexShader ||
         !stencilClearPixelShader) {
         throw std::runtime_error("Failed to compile NeonSkinnedRenderer shaders.");
@@ -481,7 +481,7 @@ void NeonSkinnedRenderer::CreatePipeline()
                 "Failed to create NeonSkinnedRenderer double-sided PSO.");
     if (geometryLinesSupported_) {
         ComPtr<IDxcBlob> geometryPixelShader;
-        geometryPixelShader.Attach(dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinnedGeometry.PS.hlsl"), L"ps_6_1"));
+        geometryPixelShader = dxCommon_->CompileShader(ResourcePaths::EngineShader(L"NeonSkinnedGeometry.PS.hlsl"), L"ps_6_1");
         if (!geometryPixelShader) {
             throw std::runtime_error(
                 "Native barycentrics are supported, but NeonSkinnedGeometry.PS.hlsl (ps_6_1) compilation failed. Check DXC diagnostics.");

@@ -47,9 +47,9 @@ public:
     void BeginFrame();
     /// @brief 線外観を設定する。
     void SetLineStyle(float softEdgeRatio, float coreIntensity);
-    /// @brief 線を後で処理するために予約する。
+    /// @brief 線を描画待ちに積む。
     void QueueLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color);
-    /// @brief カメラFacing線を後で処理するために予約する。
+    /// @brief 常にカメラの方を向く線を描画待ちに積む。
     void QueueCameraFacingLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color, const Vector3& cameraForward);
     // 淡いHDRの芯、色付きの肩、滑らかなハローを1つの連続したプロファイルで描く。
     // 多角形の継ぎ目は共有し、外側の角は丸める。独立した線の端は丸キャップにする。
@@ -73,18 +73,18 @@ public:
     void QueueBillboardContourRectangle(const Vector3& center, const Vector2& size, float rotationRad, float lineWidth,
                                         const Vector4& color, const Vector3& cameraRight, const Vector3& cameraUp,
                                         const Vector3& cameraForward, const NeonContourStyle& style = {});
-    /// @brief 三角形を後で処理するために予約する。
+    /// @brief 三角形を描画待ちに積む。
     void QueueTriangle(const Vector3& a, const Vector3& b, const Vector3& c, float lineWidth, const Vector4& color);
-    /// @brief ビルボード三角形を後で処理するために予約する。
+    /// @brief カメラの方を向く三角形を描画待ちに積む。
     void QueueBillboardTriangle(const Vector3& center, float radius, float rotationRad, float lineWidth, const Vector4& color,
                                 const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward);
-    /// @brief ビルボードRectangleを後で処理するために予約する。
+    /// @brief カメラの方を向く長方形を描画待ちに積む。
     void QueueBillboardRectangle(const Vector3& center, const Vector2& size, float rotationRad, float lineWidth, const Vector4& color,
                                  const Vector3& cameraRight, const Vector3& cameraUp, const Vector3& cameraForward);
-    /// @brief ビルボードDiscを後で処理するために予約する。
+    /// @brief カメラの方を向く円を描画待ちに積む。
     void QueueBillboardDisc(const Vector3& center, float radius, const Vector4& color, const Vector3& cameraRight, const Vector3& cameraUp,
                             int segments = 32);
-    /// @brief ビルボードRegularPolygon塗りつぶしを後で処理するために予約する。
+    /// @brief カメラの方を向く塗りつぶした正多角形を描画待ちに積む。
     void QueueBillboardRegularPolygonFill(const Vector3& center, int segments, float radius, float rotationRad, const Vector2& scale,
                                           const Vector4& color, const Vector3& cameraRight, const Vector3& cameraUp);
     // 暗い面と光の当たった斜面を、ネオンの縁の下にあるソリッドパスで描く。
@@ -97,14 +97,14 @@ public:
     /// @brief 視点側へ伸びる黒い箱（砲身など）を陰影つきで予約する。立体陰影の視点が必要。
     void QueueShadedBox(const Vector3& base, const Vector3& tip, const Vector3& right, float halfWidth, float height,
                         const Vector4& baseColor, const Vector4& tint);
-    /// @brief ワールド格子を後で処理するために予約する。
+    /// @brief ワールド全体の格子を描画待ちに積む。
     void QueueWorldGrid(float minX, float maxX, float minY, float maxY, float spacing, float lineWidth, const Vector4& color,
                         float planeZ = -0.04f);
-    /// @brief Rectangleを後で処理するために予約する。
+    /// @brief 長方形の枠を描画待ちに積む。
     void QueueRectangle(const Vector3& center, const Vector3& size, float lineWidth, const Vector4& color);
-    /// @brief 局所格子を後で処理するために予約する。
+    /// @brief 指定した範囲だけの格子を描画待ちに積む。
     void QueueLocalGrid(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color);
-    /// @brief 局所格子Clippedを後で処理するために予約する。
+    /// @brief 指定した範囲だけの格子を、範囲の端で切って描画待ちに積む。
     void QueueLocalGridClipped(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color, float minX,
                                float maxX, float minY, float maxY, float planeZ = -0.03f);
 
@@ -117,7 +117,7 @@ public:
 private:
     /// @brief 線四角形を追加する。
     void AddLineQuad(const Vector3& a, const Vector3& b, float width, const Vector4& color);
-    /// @brief カメラFacing線四角形を追加する。
+    /// @brief カメラの方を向く線を、四角形の頂点として追加する。
     void AddCameraFacingLineQuad(const Vector3& a, const Vector3& b, float width, const Vector4& color, const Vector3& cameraForward);
     /// @brief Soft線四角形を追加する。
     void AddSoftLineQuad(const Vector3& a, const Vector3& b, const Vector3& normalDir, float width, const Vector4& color);

@@ -120,9 +120,9 @@ public:
         InputDesc inputDesc_;
         Root root_;
         // Shaderをコンパイルする
-        IDxcBlob* vertexShaderBlob_ = nullptr;
-        IDxcBlob* pixelShaderBlob_ = nullptr;
-        IDxcBlob* computeShaderBlob_ = nullptr;
+        Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob_;
+        Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob_;
+        Microsoft::WRL::ComPtr<IDxcBlob> computeShaderBlob_;
         ShaderType shaderType_;
         std::wstring vsFilePath_;
         std::wstring psFilePath_;
@@ -146,7 +146,6 @@ public:
     /// @brief 描画後処理
     void PostDraw();
 
-    /// @brief
     /// @brief フレームのコマンドを送信して表示し、GPU完了後に記録領域を再利用する。
     void CommandListExecuteAndReset();
 
@@ -162,13 +161,13 @@ public:
     /// @brief 固定FPSを初期状態へ戻す。
     void ResetFixFPS();
 
-    /// @brief フレーム上限有効を設定する。
+    /// @brief 60FPSの上限で待つかどうかを設定する。
     void SetFrameLimitEnabled(bool enabled)
     {
         framePacer_.SetEnabled(enabled);
     }
 
-    /// @brief フレーム上限有効であるか判定する。
+    /// @brief 60FPSの上限で待つかを返す。
     bool IsFrameLimitEnabled() const
     {
         return framePacer_.IsEnabled();
@@ -186,31 +185,32 @@ public:
         return frameSubmitProfile_;
     }
 
-    /// @brief D3D12開発表示Layer有効であるか判定する。
+    /// @brief D3D12のデバッグレイヤーが有効かを返す。
     bool IsD3D12DebugLayerEnabled() const
     {
         return d3d12DebugLayerEnabled_;
     }
 
-    /// @brief GPUBased検証有効であるか判定する。
+    /// @brief GPUベースの検証が有効かを返す。
     bool IsGpuBasedValidationEnabled() const
     {
         return gpuBasedValidationEnabled_;
     }
 
-    /// @brief シェーダーをコンパイル
-    IDxcBlob* CompileShader(const std::wstring& filePath, const wchar_t* profile);
+    /// @brief シェーダーをコンパイルする。同じファイルとプロファイルの2回目以降は、メモリかディスクのキャッシュを返す。
+    /// @return 失敗したときは空のComPtr。
+    Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(const std::wstring& filePath, const wchar_t* profile);
 
     /// @brief 所有する資源を解放する。
     void Release();
 
-    /// @brief Deviceを返す。
+    /// @brief デバイスを返す。
     Microsoft::WRL::ComPtr<ID3D12Device>& GetDevice()
     {
         return device_;
     }
 
-    /// @brief Dxgiファクトリーを返す。
+    /// @brief DXGIファクトリーを返す。
     Microsoft::WRL::ComPtr<IDXGIFactory7>& GetDxgiFactory()
     {
         return dxgiFactory_;
@@ -222,19 +222,19 @@ public:
         return viewportRect_;
     }
 
-    /// @brief 描画を制限する矩形を返す。
-    D3D12_RECT GetSissorRect()
+    /// @brief シザー矩形を返す。
+    D3D12_RECT GetScissorRect()
     {
         return scissorRect_;
     };
 
-    /// @brief 交換Chainを返す。
+    /// @brief スワップチェーンを返す。
     Microsoft::WRL::ComPtr<IDXGISwapChain4>& GetSwapChain()
     {
         return swapChain_;
     }
 
-    /// @brief 交換Chain記述を返す。
+    /// @brief スワップチェーンの記述を返す。
     DXGI_SWAP_CHAIN_DESC1 GetSwapChainDesc()
     {
         return swapChainDesc_;
@@ -258,31 +258,25 @@ public:
         return fence_;
     }
 
-    /// @brief フェンスイベントを返す。
-    HANDLE GetFenceEvent()
-    {
-        return fenceEvent_;
-    }
-
-    /// @brief 予約を返す。
+    /// @brief コマンドキューを返す。
     Microsoft::WRL::ComPtr<ID3D12CommandQueue> GetQueue()
     {
         return queue_;
     }
 
-    /// @brief Allocatorを返す。
+    /// @brief コマンドアロケータを返す。
     Microsoft::WRL::ComPtr<ID3D12CommandAllocator> GetAllocator()
     {
         return allocator_;
     }
 
-    /// @brief 予約記述を返す。
+    /// @brief コマンドキューの記述を返す。
     D3D12_COMMAND_QUEUE_DESC GetQueueDesc()
     {
         return queueDesc_;
     }
 
-    /// @brief 一覧を返す。
+    /// @brief コマンドリストを返す。
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> GetList()
     {
         return list_;
@@ -294,25 +288,25 @@ public:
         return fenceValue_;
     }
 
-    /// @brief DxcUtilsを返す。
+    /// @brief DXCのユーティリティを返す。
     IDxcUtils* GetDxcUtils()
     {
-        return dxcUtils_;
+        return dxcUtils_.Get();
     }
 
-    /// @brief DxcCompilerを返す。
+    /// @brief DXCのコンパイラを返す。
     IDxcCompiler3* GetDxcCompiler()
     {
-        return dxcCompiler_;
+        return dxcCompiler_.Get();
     }
 
-    /// @brief include依存Handlerを返す。
+    /// @brief シェーダーの #include を解決するハンドラーを返す。
     IDxcIncludeHandler* GetIncludeHandler()
     {
-        return includeHandler_;
+        return includeHandler_.Get();
     }
 
-    /// @brief PSOオブジェクトを返す。
+    /// @brief ブレンドモードに対応する、バックバッファ（SDR）向けのPSOを返す。
     PSO& GetPSOObject(BlendMode blendMode = kAdd)
     {
         switch (blendMode) {
@@ -345,7 +339,7 @@ public:
             break;
 
         case kAdd_Bloom_Composite:
-            return conpositePSO;
+            return compositePSO;
             break;
         case kAdd_ObjectPost_Composite:
             return objectPostCompositePSO;
@@ -389,7 +383,7 @@ public:
         }
     }
 
-    /// @brief PSOオブジェクト用のシーンを返す。
+    /// @brief ブレンドモードに対応する、シーン（HDR）向けのPSOを返す。
     PSO& GetPSOObjectForScene(BlendMode blendMode = kAdd)
     {
         switch (blendMode) {
@@ -439,131 +433,133 @@ public:
     /// @brief 深度を持たないHDRキャプチャにはDSVなしの互換PSOを再利用する。
     ID3D12PipelineState* GetObjectScenePipeline(BlendMode blendMode);
 
-    /// @brief PSO粒子を返す。
+    /// @brief パーティクル用のPSOを返す。
     PSO& GetPSOParticle()
     {
         return psoParticle_;
     }
 
-    /// @brief PSOモデル粒子を返す。
+    /// @brief モデルパーティクル用のPSOを返す。
     PSO& GetPSOModelParticle()
     {
         return psoModelParticle_;
     }
 
-    /// @brief PSOモデル粒子用のシーンを返す。
+    /// @brief モデルパーティクルのシーン（HDR）用PSOを返す。
     PSO& GetPSOModelParticleForScene()
     {
         return psoModelParticle_HDR;
     }
 
-    /// @brief ガウシアンFilterPSOを返す。
+    /// @brief ガウシアンフィルター用のPSOを返す。
     const PSO& GetGaussianFilterPSO() const
     {
         return gaussianFilterPSO;
     }
 
-    /// @brief PSO計算粒子を返す。
+    /// @brief GPUパーティクルを更新するPSOを返す。
     PSO& GetPSOComputeParticle()
     {
         return psoComputeParticle_;
     }
 
-    /// @brief PSO粒子の詰める位置の計算を返す。
+    /// @brief GPUパーティクルの詰め先を数えるPSOを返す。
     PSO& GetPSOScanParticle()
     {
         return psoScanParticle_;
     }
 
-    /// @brief PSO粒子の詰め直しを返す。
+    /// @brief GPUパーティクルを詰め直すPSOを返す。
     PSO& GetPSOCompactParticle()
     {
         return psoCompactParticle_;
     }
 
-    /// @brief PSO初期化粒子を返す。
+    /// @brief GPUパーティクルを初期化するPSOを返す。
     PSO& GetPSOInitializeParticle()
     {
         return psoInitializeParticle_;
     }
 
-    /// @brief PSOEmit粒子を返す。
+    /// @brief GPUパーティクルを発生させるPSOを返す。
     PSO& GetPSOEmitParticle()
     {
         return psoEmitParticle_;
     }
 
-    /// @brief PSOEmit一括処理粒子を返す。
+    /// @brief GPUパーティクルをまとめて発生させるPSOを返す。
     PSO& GetPSOEmitBatchParticle()
     {
         return psoEmitBatchParticle_;
     }
 
-    /// @brief PSO軌跡を返す。
+    /// @brief 軌跡用のPSOを返す。
     PSO& GetPSOTrail()
     {
         return trailPSO;
     }
 
-    /// @brief PSO軌跡用のシーンを返す。
+    /// @brief 軌跡のシーン（HDR）用PSOを返す。
     PSO& GetPSOTrailForScene()
     {
         return trailPSO_HDR;
     }
 
-    /// @brief PSOHUD矩形を返す。
+    /// @brief 深度バッファなしでシーン（HDR）へ軌跡を描くパイプラインを作る。成功したらtrueを返す。
     bool InitializeTrailSceneNoDepthPipeline();
 
+    /// @brief InitializeTrailSceneNoDepthPipelineで作ったパイプラインを返す。
     ID3D12PipelineState* GetTrailSceneNoDepthPipeline() const
     {
         return trailSceneNoDepthPipeline_.Get();
     }
 
+    /// @brief HUDの矩形用のPSOを返す。
     PSO& GetPSOHudRect()
     {
         return hudRectPSO;
     }
 
-    /// @brief PSO背景を返す。
+    /// @brief スカイボックス用のPSOを返す。
     PSO& GetPSOSkybox()
     {
         return skyboxPSO_HDR;
     }
 
-    /// @brief PSOスキニングを返す。
+    /// @brief スキニング用のPSOを返す。
     PSO& GetPSOSkinning()
     {
         return skinningPSO;
     }
 
-    /// @brief PSOスキニング用のシーンを返す。
+    /// @brief スキニングのシーン（HDR）用PSOを返す。
     PSO& GetPSOSkinningForScene()
     {
         return skinningPSO_HDR;
     }
 
-    /// @brief PSOスキニング両面面を返す。
+    /// @brief 両面を描くスキニング用のPSOを返す。
     PSO& GetPSOSkinningDoubleSided()
     {
         return skinningDoubleSidedPSO;
     }
 
-    /// @brief PSOスキニング両面面用のシーンを返す。
+    /// @brief 両面を描くスキニングのシーン（HDR）用PSOを返す。
     PSO& GetPSOSkinningDoubleSidedForScene()
     {
         return skinningDoubleSidedPSO_HDR;
     }
 
-    /// @brief PSOスキニング影を返す。
+    /// @brief スキニングの影用のPSOを返す。
     PSO& GetPSOSkinningShadow()
     {
         return skinningShadowPSO;
     }
 
-    /// @brief ディスクリプターCPUハンドルを返す。
+    /// @brief ヒープのindex番目のCPUハンドルを返す。
     static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap,
                                                               uint32_t descriptorSize, uint32_t index);
-    /// @brief ディスクリプターGPUハンドルを返す。
+    /// @brief ヒープのindex番目のGPUハンドルを返す。
     static D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap,
                                                               uint32_t descriptorSize, uint32_t index);
 
@@ -571,7 +567,7 @@ public:
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors,
                                                                       bool shaderVisible);
 
-    /// @brief RTV記述を返す。
+    /// @brief RTVの記述を返す。
     D3D12_RENDER_TARGET_VIEW_DESC GetRtvDesc()
     {
         return rtvDesc_;
@@ -582,15 +578,15 @@ public:
                                                                  D3D12_RESOURCE_FLAGS flags, const D3D12_CLEAR_VALUE* clearValue,
                                                                  D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-    /// @brief 描画対象を設定する。
+    /// @brief 描画先を1枚と深度に設定する。
     void SetRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle);
-    /// @brief 描画対象を設定する。
+    /// @brief 描画先をカラー・法線の2枚と深度に設定する。
     void SetRenderTargets(D3D12_CPU_DESCRIPTOR_HANDLE colorRtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE normalRtvHandle,
                           D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle);
-    /// @brief 描画対象を設定する。
+    /// @brief 描画先をカラー・法線・マテリアルの3枚と深度に設定する。
     void SetRenderTargets(D3D12_CPU_DESCRIPTOR_HANDLE colorRtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE normalRtvHandle,
                           D3D12_CPU_DESCRIPTOR_HANDLE materialRtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle);
-    /// @brief 描画対象No深度を設定する。
+    /// @brief 深度なしで描画先を1枚設定する。
     void SetRenderTargetNoDepth(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
 
     // シーンカラーだけでなく、すべてのMRTとラスタ範囲を記録する。
@@ -608,36 +604,36 @@ public:
         return {currentRtvHandles_, currentRtvCount_, currentDsvHandle_, currentHasDsv_, viewportRect_, scissorRect_};
     }
 
-    /// @brief SaveRenderTargetStateで保存した描画先の状態に戻す。
+    /// @brief GetRenderTargetStateで取った描画先の状態に戻す。
     void RestoreRenderTargetState(const RenderTargetState& state);
 
-    /// @brief 現在RTVハンドルを返す。
+    /// @brief 現在のRTVハンドルを返す。
     D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRTVHandle() const
     {
         return currentRtvHandle_;
     }
 
-    /// @brief 現在DSVハンドルを返す。
+    /// @brief 現在のDSVハンドルを返す。
     D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentDSVHandle() const
     {
         return currentDsvHandle_;
     }
 
-    /// @brief 現在DSVが存在するか判定する。
+    /// @brief 現在DSVを設定しているかを返す。
     bool HasCurrentDSV() const
     {
         return currentHasDsv_;
     }
 
-    /// @brief 描画対象を消去する。
+    /// @brief 描画先を黒で消去する。
     void ClearRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle);
-    /// @brief 描画対象を消去する。
+    /// @brief 描画先を指定した色で消去する。
     void ClearRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle, const float clearColor[4]);
 
     /// @brief 深度バッファを消去する。
     void ClearDepthBuffer();
 
-    /// @brief 背面バッファを設定する。
+    /// @brief バックバッファを描画先にする。
     void SetBackBuffer();
     /// @brief バックバッファと同じ形式・深度を使う中間の提示先を描画先にする。
     void SetPresentTarget(D3D12_CPU_DESCRIPTOR_HANDLE rtv);
@@ -645,7 +641,7 @@ public:
     /// @brief ビューポートを設定する。
     void SetViewport(uint32_t width, uint32_t height);
 
-    /// @brief NewDSVハンドルを返す。
+    /// @brief DSVヒープから次のハンドルを1つ確保して返す。
     D3D12_CPU_DESCRIPTOR_HANDLE GetNewDsvHandle();
 
     /// @brief バッファリソースを生成する。
@@ -659,7 +655,7 @@ private:
     void InitializeDevice();
 
     /// @brief コマンドの初期化
-    void InititalizeCommand();
+    void InitializeCommand();
 
     /// @brief スワップチェーンの生成
     void CreateSwapChain();
@@ -683,7 +679,7 @@ private:
     void InitializeViewport();
 
     /// @brief シザリング矩形の初期化
-    void InitializeSissorRect();
+    void InitializeScissorRect();
 
     /// @brief DXCコンパイラの生成
     void CreateDXCCompiler();
@@ -697,19 +693,17 @@ private:
     /// @brief 固定FPSを更新する。
     void UpdateFixFPS();
 
-    /// @brief シェーダー共通基盤を生成する。
+    /// @brief PSOの種類とブレンドモードから、グラフィックスパイプラインを作る。
     void CreateShaderCommon(PSO& pso, BlendMode blendMode = kAdd, bool doubleSided = false,
                             DXGI_FORMAT renderTargetFormat = kBackBufferRenderTargetFormat);
-    /// @brief 計算シェーダー共通基盤を生成する。
+    /// @brief コンピュートパイプラインを作る。
     void CreateComputeShaderCommon(PSO& pso, const std::wstring& shaderPath);
-    /// @brief シェーダーを生成する。
+    /// @brief 残っているパイプラインをすべて作る。
     void CreateShader();
     /// @brief パイプラインを順番に作成するコルーチンを作る。
     InitializationTask BuildPipelines();
     InitializationTask pipelineTask_;
     bool pipelinesReady_ = false;
-    /// @brief Graphicsを生成する。
-    void CreateGraphics();
 
     Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_ = nullptr;
     Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdapter_ = nullptr;
@@ -726,7 +720,8 @@ private:
     FrameSubmitProfile frameSubmitProfile_{};
     bool d3d12DebugLayerEnabled_ = false;
     bool gpuBasedValidationEnabled_ = false;
-    HANDLE fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
+    // InitializeFence で作り、Release で閉じる。
+    HANDLE fenceEvent_ = nullptr;
     uint64_t fenceValue_ = 0;
     // ReleaseAfterExecution で預かった資源。コマンドリストの実行が終わったら解放する。
     std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> releaseAfterExecution_;
@@ -749,9 +744,9 @@ private:
     D3D12_VIEWPORT viewportRect_{};
     D3D12_RECT scissorRect_{};
 
-    IDxcUtils* dxcUtils_ = nullptr;
-    IDxcCompiler3* dxcCompiler_ = nullptr;
-    IDxcIncludeHandler* includeHandler_ = nullptr;
+    Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils_;
+    Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler_;
+    Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler_;
     std::unordered_map<std::wstring, Microsoft::WRL::ComPtr<IDxcBlob>> shaderCache_;
 
     // FPS固定変数
@@ -783,7 +778,7 @@ private:
     PSO blurHPSO_HDR;
     PSO blurVPSO_HDR;
     PSO gaussianFilterPSO;
-    PSO conpositePSO;
+    PSO compositePSO;
     PSO objectPostCompositePSO;
     PSO objectPostOutlineAddPSO;
     PSO objectPostBloomAddPSO;

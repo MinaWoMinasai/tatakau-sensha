@@ -8,11 +8,11 @@ public:
     /// @brief 借用するワールドを設定する。
     explicit GameplayEditor(GameWorld& world) : world_(world) {}
 
-    /// @brief ゲームシーン開発表示ImGUIを描画する。
+    /// @brief ゲームシーンのデバッグ用ImGuiを表示する。
     void DrawGameplayDebugUi();
 
-    /// @brief レベルAIDitor性能調整Labを描画する。
-    void DrawLevelAIDitorBalanceLab(bool embedded = false);
+    /// @brief レベルの敵AIと性能を調整する画面を表示する。
+    void DrawLevelAiEditorBalanceLab(bool embedded = false);
 
     /// @brief レベルオブジェクトを現在の状態へ適用する。
     void ApplyLevelObject(const LevelObject& levelObject, bool allowBossSpawn);
@@ -29,22 +29,22 @@ public:
     /// @brief ボス段階調整値を現在の状態へ適用する。
     void ApplyBossPhaseTuning(const LevelBossPhase& phase);
 
-    /// @brief レベル演出Presetを現在の状態へ適用する。
+    /// @brief レベルの演出のプリセットを反映する。
     void ApplyLevelEffectPreset(const nlohmann::json& effectJson);
 
-    /// @brief レベル編集画面プレビューを後で処理するために予約する。
+    /// @brief レベル編集のプレビューを描画待ちに積む。
     void QueueLevelEditorPreview();
 
-    /// @brief レベルオブジェクトプレビューを後で処理するために予約する。
+    /// @brief レベルのオブジェクトのプレビューを描画待ちに積む。
     void QueueLevelObjectPreview(const LevelObject& levelObject, const myEngine::Vector4& color);
 
-    /// @brief レベル出現範囲プレビューを後で処理するために予約する。
+    /// @brief レベルの出現範囲のプレビューを描画待ちに積む。
     void QueueLevelSpawnAreaPreview(const LevelSpawnArea& spawnArea, const myEngine::Vector4& color);
 
-    /// @brief 弾状態開発表示重ね表示を描画する。
+    /// @brief 弾の状態をデバッグ用に画面へ重ねて表示する。
     void DrawBulletStatusDebugOverlay();
 
-    /// @brief 弾状態開発表示Tableを描画する。
+    /// @brief 弾の状態をデバッグ用の表で表示する。
     void DrawBulletStatusDebugTable();
 
 private:

@@ -182,7 +182,7 @@ struct TankMeleeComboTuning {
     float knockback = 0.16f;
 };
 
-/// @brief 戦車近接攻撃Comboを作成して返す。
+/// @brief 近接攻撃の連撃の各段の性能を作って返す。
 inline constexpr TankMeleeComboTuning MakeTankMeleeCombo(int step, bool reach, bool impact, bool tempo = false, bool finisherCharge = false)
 {
     TankMeleeComboTuning result{};
@@ -219,7 +219,7 @@ inline constexpr TankMeleeComboTuning MakeTankMeleeCombo(int step, bool reach, b
     return result;
 }
 
-/// @brief 戦車近接攻撃Comboを作成して返す。
+/// @brief 強化の状態から、近接攻撃の連撃の各段の性能を作って返す。
 inline constexpr TankMeleeComboTuning MakeTankMeleeCombo(int step, const TankRunModifiers& modifiers)
 {
     auto result = MakeTankMeleeCombo(step, false, false);
@@ -317,7 +317,7 @@ struct TankRunSynergy {
     float explosionDamageScale = 2.0f;
 };
 
-/// @brief 戦車遠征Synergyを作成して返す。
+/// @brief 強化の組み合わせによる相乗効果を作って返す。
 inline constexpr TankRunSynergy MakeTankRunSynergy(const TankRunModifiers& modifiers, bool overdriveActive)
 {
     TankRunSynergy result{};

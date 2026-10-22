@@ -219,7 +219,7 @@ void StoreFloatCubePixel(const DirectX::Image* imageData, size_t x, size_t y, Fl
     pixel[3] = 1.0f;
 }
 
-/// @brief 浮動小数キューブPixelを読み取る。
+/// @brief 浮動小数のキューブマップから1画素を読み取る。
 Float3 ReadFloatCubePixel(const DirectX::Image* imageData, size_t x, size_t y)
 {
     assert(imageData != nullptr);
@@ -405,7 +405,7 @@ Float3 SampleLatLongEnvironment(const DirectX::Image* imageData, Float3 directio
     return SampleFloat2DImageBilinear(imageData, u, v, true);
 }
 
-/// @brief キューブからのLatLongテクスチャを組み立てる。
+/// @brief 正距円筒（LatLong）画像からキューブマップを組み立てる。
 bool BuildCubeFromLatLongTexture(const DirectX::ScratchImage& latLongImage, DirectX::ScratchImage& outCube)
 {
     const DirectX::Image* sourceImage = latLongImage.GetImage(0, 0, 0);
@@ -484,7 +484,7 @@ bool DirectionToCubeFaceUv(Float3 direction, size_t& face, float& u, float& v)
     return true;
 }
 
-/// @brief 浮動小数キューブMipをサンプリングする。
+/// @brief 浮動小数のキューブマップの指定ミップを、方向からサンプリングする。
 Float3 SampleFloatCubeMip(const DirectX::ScratchImage& cubeImage, Float3 direction, size_t mip)
 {
     const DirectX::TexMetadata& metadata = cubeImage.GetMetadata();
@@ -578,7 +578,7 @@ bool BuildSolidColorCube(Float3 color, size_t cubeSize, size_t mipLevels, Direct
     return true;
 }
 
-/// @brief 環境キューブAs浮動小数を読み込む。
+/// @brief 環境キューブマップを浮動小数の形式で読み込む。
 bool LoadEnvironmentCubeAsFloat(const std::string& filePath, DirectX::ScratchImage& outImage)
 {
     DirectX::ScratchImage loaded{};

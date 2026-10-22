@@ -57,7 +57,7 @@ void SetSolidSprite(myEngine::Sprite* sprite, const myEngine::Vector2& position,
     sprite->Update();
 }
 
-/// @brief カプセルSegmentsを設定する。
+/// @brief カプセル形のバーを、左端・中央・右端の3つのスプライトで配置する。
 void SetCapsuleSegments(myEngine::Sprite* left, myEngine::Sprite* center, myEngine::Sprite* right, const myEngine::Vector2& position,
                         const myEngine::Vector2& size, const myEngine::Vector4& color, bool closeRight)
 {

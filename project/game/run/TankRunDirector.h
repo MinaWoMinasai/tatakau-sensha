@@ -369,19 +369,19 @@ public:
         return drafts_;
     }
 
-    /// @brief 最大値Draftsを返す。
+    /// @brief 強化を選べる最大の回数を返す。
     int GetMaxDrafts() const
     {
         return config_.maxDrafts;
     }
 
-    /// @brief 自機Claimsを返す。
+    /// @brief 自機が取った強化の数を返す。
     int GetPlayerClaims() const
     {
         return playerClaims_;
     }
 
-    /// @brief ライバルClaimsを返す。
+    /// @brief ライバルが取った強化の数を返す。
     int GetRivalClaims() const
     {
         return rivalClaims_;

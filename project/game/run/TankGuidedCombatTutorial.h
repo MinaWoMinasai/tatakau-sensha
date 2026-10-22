@@ -51,7 +51,7 @@ public:
         return stage_ == Stage::Upgrade || stage_ == Stage::Complete;
     }
 
-    /// @brief FailedダッシュAttemptsを返す。
+    /// @brief ダッシュに失敗した回数を返す。
     int GetFailedDashAttempts() const
     {
         return failedDashes_;
@@ -87,7 +87,7 @@ public:
         return purchased_;
     }
 
-    /// @brief ダッシュAttempt有効であるか判定する。
+    /// @brief ダッシュの練習中かを返す。
     bool IsDashAttemptActive() const
     {
         return dashAttempt_;
@@ -128,7 +128,7 @@ public:
         AdvanceCombat();
     }
 
-    /// @brief 通貨Collectedを記録する。
+    /// @brief 通貨を拾ったことを記録する。
     void RecordCurrencyCollected(int amount)
     {
         if ((stage_ != Stage::ShootKill && stage_ != Stage::Collect) || amount <= 0) {

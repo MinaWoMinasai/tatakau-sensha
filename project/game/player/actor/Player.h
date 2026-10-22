@@ -872,7 +872,7 @@ public:
     /// @brief 進化UIの処理時間と描画件数への読み取り専用参照を返す。
     const UiProfileStats& GetEvolutionUiProfileStats() const;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-    /// @brief 強化HUDの状態を開発表示・検証へ渡す。
+    /// @brief 強化HUDの状態を、デバッグ表示と検証へ渡すための写し。
     struct UpgradeHudDebugSnapshot {
         int playerLevel = 0;
         int exp = 0;
@@ -895,7 +895,7 @@ public:
         int maxEnhancePoint = 0;
     };
 
-    /// @brief 強化HUD開発表示状態の写しを返す。
+    /// @brief 強化HUDの状態の写しを、デバッグ用に返す。
     UpgradeHudDebugSnapshot GetUpgradeHudDebugSnapshot() const;
 
     /// @brief 主攻撃入力を継続させる開発用設定を切り替える。

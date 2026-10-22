@@ -101,7 +101,7 @@ myEngine::InitializationTask ArenaRunController::BuildInitialization()
     world_.resources.enemy_->SetPrototypeResourceFocus(true);
     world_.presentation.debugPlayerNoDamage_ = world_.run.tankRunAutoTest_;
     world_.presentation.showPostProfileOverlay_ = false;
-    world_.presentation.showLevelAIDitorPreview_ = false;
+    world_.presentation.showLevelAiEditorPreview_ = false;
     world_.presentation.showGameDebugConsole_ = false;
     world_.runVisualSettings->InitializeTankRunVisuals();
     if (world_.run.tankRunAutoTest_ && !world_.run.expeditionRun_) {

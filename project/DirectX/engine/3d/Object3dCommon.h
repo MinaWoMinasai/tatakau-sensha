@@ -20,13 +20,13 @@ public:
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update();
 
-    /// @brief 開発表示UI有効を設定する。
+    /// @brief デバッグUIを表示するかを設定する。
     void SetDebugUiEnabled(bool enabled)
     {
         debugUiEnabled_ = enabled;
     }
 
-    /// @brief 開発表示UI有効を返す。
+    /// @brief デバッグUIを表示するかを返す。
     bool GetDebugUiEnabled() const
     {
         return debugUiEnabled_;
@@ -53,25 +53,25 @@ public:
         return defaultCamera_;
     }
 
-    /// @brief 開発表示既定値カメラを設定する。
+    /// @brief 既定のデバッグカメラを設定する。
     void SetDebugDefaultCamera(DebugCamera* debugCamera)
     {
         debugDefaultCamera_ = debugCamera;
     }
 
-    /// @brief 開発表示カメラを返す。
+    /// @brief デバッグカメラを返す。
     DebugCamera* GetDebugCamera()
     {
         return debugDefaultCamera_;
     }
 
-    /// @brief 状態開発表示カメラを返す。
+    /// @brief デバッグカメラを使っているかを返す。
     bool& GetIsDebugCamera()
     {
         return isDebugCamera_;
     }
 
-    /// @brief 状態開発表示カメラを設定する。
+    /// @brief デバッグカメラを使うかを設定する。
     void SetIsDebugCamera(bool isDebugCamera)
     {
         isDebugCamera_ = isDebugCamera;
@@ -101,7 +101,7 @@ public:
         return shadowMap_;
     }
 
-    /// @brief ライトDirを返す。
+    /// @brief 平行光源の向きを返す。
     Vector3& GetLightDir()
     {
         return lightDir_;

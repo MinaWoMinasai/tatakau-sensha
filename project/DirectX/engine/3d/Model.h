@@ -9,9 +9,9 @@ class Model {
 public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize(ModelCommon* modelCommon, const std::string& directorypath, const std::string& filename);
-    /// @brief からのモデルデータを初期化する。
+    /// @brief 読み込み済みのモデルデータから初期化する。
     void InitializeFromModelData(ModelCommon* modelCommon, const ModelData& modelData);
-    /// @brief 滑らかなNormalsを現在の条件から再計算する。
+    /// @brief 面の向きから、なめらかな頂点法線を計算し直す。
     void RecalculateSmoothNormals();
 
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
@@ -22,7 +22,7 @@ public:
     /// @brief 専用メッシュを描画する。
     void DrawOnlyMesh();
 
-    /// @brief 材質Templateファイルを読み込む。
+    /// @brief 材質のテンプレートファイルを読み込む。
     static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 
     /// @brief OBJ形式ファイルを読み込む。

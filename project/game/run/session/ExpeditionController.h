@@ -13,7 +13,7 @@ public:
     /// @param dt この処理で進める経過時間（秒）。
     void UpdateTankExpeditionTutorial(float dt);
 
-    /// @brief 遠征チュートリアルCompletionを保存する。
+    /// @brief 遠征のチュートリアルを終えたことを保存する。
     void SaveExpeditionTutorialCompletion();
 
     /// @brief 戦車遠征チュートリアル検証を更新する。

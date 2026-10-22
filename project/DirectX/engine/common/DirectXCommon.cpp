@@ -29,7 +29,7 @@ void DirectXCommon::Initialize(WinApp* winApp, bool titleFirst)
         StartupTrace::Scope scope("DirectXCommon.Device");
         InitializeDevice();
     }
-    InititalizeCommand();
+    InitializeCommand();
     CreateSwapChain();
     CreateDepthBuffer();
     CreateDescriptorHeap();
@@ -109,18 +109,18 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
     // 1. 各タイプごとのシェーダーパスとルートシグネチャ初期化
     switch (pso.shaderType_) {
     case Object:
-        pso.root_.InitalizeForObject();
+        pso.root_.InitializeForObject();
         pso.vsFilePath_ = ResourcePaths::EngineShader(L"Object3d.VS.hlsl");
         pso.psFilePath_ = usesSceneNormalTarget ? ResourcePaths::EngineShader(L"Object3d.Scene.PS.hlsl")
                                                 : ResourcePaths::EngineShader(L"Object3d.PS.hlsl");
         break;
     case Particle:
-        pso.root_.InitalizeForParticle();
+        pso.root_.InitializeForParticle();
         pso.vsFilePath_ = ResourcePaths::EngineShader(L"Particle.VS.hlsl");
         pso.psFilePath_ = ResourcePaths::EngineShader(L"Particle.PS.hlsl");
         break;
     case ModelParticle:
-        pso.root_.InitalizeForModelParticle();
+        pso.root_.InitializeForModelParticle();
         pso.vsFilePath_ = ResourcePaths::EngineShader(L"ModelParticle.VS.hlsl");
         pso.psFilePath_ = usesSceneNormalTarget ? ResourcePaths::EngineShader(L"ModelParticle.Scene.PS.hlsl")
                                                 : ResourcePaths::EngineShader(L"ModelParticle.PS.hlsl");
@@ -129,7 +129,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
         assert(false);
         break;
     case Shadow:
-        pso.root_.InitalizeForShadow();
+        pso.root_.InitializeForShadow();
         pso.vsFilePath_ = ResourcePaths::EngineShader(L"Shadow.VS.hlsl");
         pso.psFilePath_ = L"";
         break;
@@ -194,7 +194,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
         }
         break;
     case Trail:
-        pso.root_.InitalizeForTrail(); // 上で作った関数
+        pso.root_.InitializeForTrail(); // 上で作った関数
         pso.vsFilePath_ = ResourcePaths::EngineShader(L"Trail.VS.hlsl");
         pso.psFilePath_ =
             usesSceneNormalTarget ? ResourcePaths::EngineShader(L"Trail.Scene.PS.hlsl") : ResourcePaths::EngineShader(L"Trail.PS.hlsl");
@@ -206,7 +206,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
             usesSceneNormalTarget ? ResourcePaths::EngineShader(L"Skybox.Scene.PS.hlsl") : ResourcePaths::EngineShader(L"Skybox.PS.hlsl");
         break;
     case Skinning:
-        pso.root_.InitalizeForObject();
+        pso.root_.InitializeForObject();
         pso.vsFilePath_ = ResourcePaths::EngineShader(L"SkinningObject3d.VS.hlsl");
         pso.psFilePath_ = usesSceneNormalTarget ? ResourcePaths::EngineShader(L"Object3d.Scene.PS.hlsl")
                                                 : ResourcePaths::EngineShader(L"Object3d.PS.hlsl");
@@ -236,7 +236,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
     pso.vertexShaderBlob_ = CompileShader(pso.vsFilePath_, L"vs_6_0");
     assert(pso.vertexShaderBlob_ != nullptr);
 
-    pso.pixelShaderBlob_ = nullptr;
+    pso.pixelShaderBlob_.Reset();
     if (pso.shaderType_ != Shadow && pso.shaderType_ != SkinningShadow && !pso.psFilePath_.empty()) {
         pso.pixelShaderBlob_ = CompileShader(pso.psFilePath_, L"ps_6_0");
         assert(pso.pixelShaderBlob_ != nullptr);
@@ -467,7 +467,7 @@ InitializationTask DirectXCommon::BuildPipelines()
     blurHPSO_HDR.shaderType_ = PostEffect;
     blurVPSO_HDR.shaderType_ = PostEffect;
     gaussianFilterPSO.shaderType_ = PostEffect;
-    conpositePSO.shaderType_ = PostEffect;
+    compositePSO.shaderType_ = PostEffect;
     objectPostCompositePSO.shaderType_ = PostEffect;
     objectPostOutlineAddPSO.shaderType_ = PostEffect;
     objectPostBloomAddPSO.shaderType_ = PostEffect;
@@ -507,7 +507,7 @@ InitializationTask DirectXCommon::BuildPipelines()
     blurHPSO_HDR.postEffectType_ = Bloom_BlurH;
     blurVPSO_HDR.postEffectType_ = Bloom_BlurV;
     gaussianFilterPSO.postEffectType_ = Gaussian_Filter;
-    conpositePSO.postEffectType_ = Bloom_Composite;
+    compositePSO.postEffectType_ = Bloom_Composite;
     objectPostCompositePSO.postEffectType_ = ObjectPost_Composite;
     objectPostOutlineAddPSO.postEffectType_ = ObjectPost_OutlineAdd;
     objectPostBloomAddPSO.postEffectType_ = ObjectPost_BloomAdd;
@@ -571,7 +571,7 @@ InitializationTask DirectXCommon::BuildPipelines()
     co_await std::suspend_always{};
     CreateShaderCommon(gaussianFilterPSO, kNone);
     co_await std::suspend_always{};
-    CreateShaderCommon(conpositePSO, kAdd);
+    CreateShaderCommon(compositePSO, kAdd);
     co_await std::suspend_always{};
     CreateShaderCommon(objectPostCompositePSO, kNormal);
     co_await std::suspend_always{};
@@ -674,8 +674,6 @@ ID3D12PipelineState* DirectXCommon::GetObjectScenePipeline(BlendMode blendMode)
     return pipeline.Get();
 }
 
-void DirectXCommon::CreateGraphics() {}
-
 void DirectXCommon::InitializeDevice()
 {
     HRESULT hr;
@@ -686,17 +684,17 @@ void DirectXCommon::InitializeDevice()
     // 未設定と "1" は従来どおりON。明示的な "0" だけOFFにする。
     const bool debugLayerRequested = !(debugLayerValueLength == 1 && debugLayerValue[0] == '0');
 
-    Microsoft::WRL::ComPtr<ID3D12Debug1> debugComtroller = nullptr;
-    if (debugLayerRequested && SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugComtroller)))) {
+    Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
+    if (debugLayerRequested && SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
         // デバッグレイヤーを有効化する
-        debugComtroller->EnableDebugLayer();
+        debugController->EnableDebugLayer();
         d3d12DebugLayerEnabled_ = true;
         // GPU-Based Validation は描画命令数に比例して極端に重くなるため、必要時のみ有効化する。
         char gpuValidationValue[8]{};
         const DWORD valueLength =
             GetEnvironmentVariableA("MYENGINE_GPU_BASED_VALIDATION", gpuValidationValue, static_cast<DWORD>(std::size(gpuValidationValue)));
         gpuBasedValidationEnabled_ = valueLength > 0 && gpuValidationValue[0] == '1';
-        debugComtroller->SetEnableGPUBasedValidation(gpuBasedValidationEnabled_ ? TRUE : FALSE);
+        debugController->SetEnableGPUBasedValidation(gpuBasedValidationEnabled_ ? TRUE : FALSE);
     }
 
     hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory_));
@@ -769,7 +767,7 @@ void DirectXCommon::InitializeDevice()
 #endif
 }
 
-void DirectXCommon::InititalizeCommand()
+void DirectXCommon::InitializeCommand()
 {
     HRESULT hr;
 
@@ -915,7 +913,7 @@ void DirectXCommon::InitializeViewport()
     viewportRect_.MaxDepth = 1.0f;
 }
 
-void DirectXCommon::InitializeSissorRect()
+void DirectXCommon::InitializeScissorRect()
 {
     //基本的にビューポートと同じ矩形が構成されるようにする
     scissorRect_.left = 0;
@@ -1004,7 +1002,8 @@ void DirectXCommon::CommandListExecuteAndReset()
 void DirectXCommon::ExecuteCommandListAndWait()
 {
     // Close
-    list_->Close();
+    HRESULT hr = list_->Close();
+    assert(SUCCEEDED(hr));
 
     // 実行
     ID3D12CommandList* lists[] = {list_.Get()};
@@ -1012,26 +1011,29 @@ void DirectXCommon::ExecuteCommandListAndWait()
 
     // Fence
     fenceValue_++;
-    queue_->Signal(fence_.Get(), fenceValue_);
+    hr = queue_->Signal(fence_.Get(), fenceValue_);
+    assert(SUCCEEDED(hr));
     if (fence_->GetCompletedValue() < fenceValue_) {
-        fence_->SetEventOnCompletion(fenceValue_, fenceEvent_);
+        hr = fence_->SetEventOnCompletion(fenceValue_, fenceEvent_);
+        assert(SUCCEEDED(hr));
         WaitForSingleObject(fenceEvent_, INFINITE);
     }
     releaseAfterExecution_.clear();
 
     // Reset
-    allocator_->Reset();
-    list_->Reset(allocator_.Get(), nullptr);
+    hr = allocator_->Reset();
+    assert(SUCCEEDED(hr));
+    hr = list_->Reset(allocator_.Get(), nullptr);
+    assert(SUCCEEDED(hr));
 }
 
-IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar_t* profile)
+Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(const std::wstring& filePath, const wchar_t* profile)
 {
     const std::wstring cacheKey = filePath + L"|" + profile;
     const auto cached = shaderCache_.find(cacheKey);
     if (cached != shaderCache_.end() && cached->second) {
         StartupTrace::Count("shader.memoryHit");
-        cached->second->AddRef();
-        return cached->second.Get();
+        return cached->second;
     }
 
     const auto shaderNameUtf8 = std::filesystem::path(filePath).filename().u8string();
@@ -1064,24 +1066,24 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
     if (ShaderDiskCache::Enabled()) {
         StartupTrace::Scope cacheScope("ShaderCache::" + shaderName);
         diskKey = diskCache.MakeKey(filePath, shaderSourceBuffer.Ptr, shaderSourceBuffer.Size, arguments, _countof(arguments));
-        auto diskBlob = diskCache.Load(diskKey, includeHandler_, dxcUtils_);
+        auto diskBlob = diskCache.Load(diskKey, includeHandler_.Get(), dxcUtils_.Get());
         if (diskBlob) {
             StartupTrace::Count("shader.diskHit");
             shaderCache_[cacheKey] = diskBlob;
-            return diskBlob.Detach();
+            return diskBlob;
         }
         StartupTrace::Count("shader.diskMiss");
     }
 
     Microsoft::WRL::ComPtr<ShaderDiskCache::IncludeRecorder> includes;
     if (!diskKey.empty()) {
-        includes = Microsoft::WRL::Make<ShaderDiskCache::IncludeRecorder>(includeHandler_);
+        includes = Microsoft::WRL::Make<ShaderDiskCache::IncludeRecorder>(includeHandler_.Get());
     }
     Microsoft::WRL::ComPtr<IDxcResult> shaderResult;
     {
         StartupTrace::Scope compileScope("CompileShader::" + shaderName);
         StartupTrace::Count("shader.compile");
-        hr = dxcCompiler_->Compile(&shaderSourceBuffer, arguments, _countof(arguments), includes ? includes.Get() : includeHandler_,
+        hr = dxcCompiler_->Compile(&shaderSourceBuffer, arguments, _countof(arguments), includes ? includes.Get() : includeHandler_.Get(),
                                    IID_PPV_ARGS(&shaderResult));
     }
     if (FAILED(hr) || !shaderResult) {
@@ -1109,7 +1111,7 @@ IDxcBlob* DirectXCommon::CompileShader(const std::wstring& filePath, const wchar
         diskCache.Store(diskKey, *includes.Get(), shaderBlob.Get());
     }
     shaderCache_[cacheKey] = shaderBlob;
-    return shaderBlob.Detach();
+    return shaderBlob;
 }
 
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors,
@@ -1381,94 +1383,15 @@ void DirectXCommon::UpdateFixFPS()
 void DirectXCommon::Release()
 {
     pipelineTask_ = {}; // すべてのPSOが揃う前にタイトルが閉じられることがある。
-    const auto releaseIfCreated = [](IUnknown* object) {
-        if (object) {
-            object->Release();
-        }
-    };
-
-    releaseIfCreated(objectPSO_None.root_.GetSignatureBlob());
-    if (objectPSO_None.root_.GetErrorBlob()) {
-        objectPSO_None.root_.GetErrorBlob()->Release();
+    // シェーダーとルートシグネチャのBlobはComPtrが持つので、ここではDXCとフェンスのイベントだけを手放す。
+    shaderCache_.clear();
+    includeHandler_.Reset();
+    dxcCompiler_.Reset();
+    dxcUtils_.Reset();
+    if (fenceEvent_) {
+        CloseHandle(fenceEvent_);
+        fenceEvent_ = nullptr;
     }
-    releaseIfCreated(objectPSO_None.pixelShaderBlob_);
-    releaseIfCreated(objectPSO_None.vertexShaderBlob_);
-
-    releaseIfCreated(objectPSO_Alpha.root_.GetSignatureBlob());
-    if (objectPSO_Alpha.root_.GetErrorBlob()) {
-        objectPSO_Alpha.root_.GetErrorBlob()->Release();
-    }
-    releaseIfCreated(objectPSO_Alpha.pixelShaderBlob_);
-    releaseIfCreated(objectPSO_Alpha.vertexShaderBlob_);
-
-    releaseIfCreated(shadowPSO.root_.GetSignatureBlob());
-    if (shadowPSO.root_.GetErrorBlob()) {
-        shadowPSO.root_.GetErrorBlob()->Release();
-    }
-    releaseIfCreated(shadowPSO.vertexShaderBlob_);
-
-    releaseIfCreated(bloomPSO.root_.GetSignatureBlob());
-    if (bloomPSO.root_.GetErrorBlob()) {
-        bloomPSO.root_.GetErrorBlob()->Release();
-    }
-    releaseIfCreated(bloomPSO.pixelShaderBlob_);
-    releaseIfCreated(bloomPSO.vertexShaderBlob_);
-
-    releaseIfCreated(downsamplePSO.root_.GetSignatureBlob());
-    if (downsamplePSO.root_.GetErrorBlob()) {
-        downsamplePSO.root_.GetErrorBlob()->Release();
-    }
-    releaseIfCreated(downsamplePSO.pixelShaderBlob_);
-    releaseIfCreated(downsamplePSO.vertexShaderBlob_);
-
-    releaseIfCreated(blurHPSO.root_.GetSignatureBlob());
-    if (blurHPSO.root_.GetErrorBlob()) {
-        blurHPSO.root_.GetErrorBlob()->Release();
-    }
-    releaseIfCreated(blurHPSO.pixelShaderBlob_);
-    releaseIfCreated(blurHPSO.vertexShaderBlob_);
-
-    releaseIfCreated(blurVPSO.root_.GetSignatureBlob());
-    if (blurVPSO.root_.GetErrorBlob()) {
-        blurVPSO.root_.GetErrorBlob()->Release();
-    }
-    releaseIfCreated(blurVPSO.pixelShaderBlob_);
-    releaseIfCreated(blurVPSO.vertexShaderBlob_);
-
-    releaseIfCreated(gaussianFilterPSO.root_.GetSignatureBlob());
-    if (gaussianFilterPSO.root_.GetErrorBlob()) {
-        gaussianFilterPSO.root_.GetErrorBlob()->Release();
-    }
-    releaseIfCreated(gaussianFilterPSO.pixelShaderBlob_);
-    releaseIfCreated(gaussianFilterPSO.vertexShaderBlob_);
-
-    releaseIfCreated(conpositePSO.root_.GetSignatureBlob());
-    if (conpositePSO.root_.GetErrorBlob()) {
-        conpositePSO.root_.GetErrorBlob()->Release();
-    }
-    releaseIfCreated(conpositePSO.pixelShaderBlob_);
-    releaseIfCreated(conpositePSO.vertexShaderBlob_);
-
-    releaseIfCreated(randomPSO.root_.GetSignatureBlob());
-    if (randomPSO.root_.GetErrorBlob()) {
-        randomPSO.root_.GetErrorBlob()->Release();
-    }
-    releaseIfCreated(randomPSO.pixelShaderBlob_);
-    releaseIfCreated(randomPSO.vertexShaderBlob_);
-
-    releaseIfCreated(trailPSO.root_.GetSignatureBlob());
-    if (trailPSO.root_.GetErrorBlob()) {
-        trailPSO.root_.GetErrorBlob()->Release();
-    }
-    releaseIfCreated(trailPSO.pixelShaderBlob_);
-    releaseIfCreated(trailPSO.vertexShaderBlob_);
-
-    releaseIfCreated(hudRectPSO.root_.GetSignatureBlob());
-    if (hudRectPSO.root_.GetErrorBlob()) {
-        hudRectPSO.root_.GetErrorBlob()->Release();
-    }
-    releaseIfCreated(hudRectPSO.pixelShaderBlob_);
-    releaseIfCreated(hudRectPSO.vertexShaderBlob_);
 }
 
 } // namespace myEngine

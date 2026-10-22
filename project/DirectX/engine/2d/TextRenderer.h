@@ -63,13 +63,13 @@ public:
         return fontOverride_;
     }
 
-    /// @brief フォントRevisionを返す。
+    /// @brief フォントが変わるたびに増える番号を返す。
     unsigned long long GetFontRevision() const
     {
         return fontRevision_;
     }
 #if defined(USE_IMGUI) && !defined(NDEBUG)
-    /// @brief 前回のGetOrCreateテクスチャ設定を返す。
+    /// @brief 直前のGetOrCreateTextureにかかった時間の内訳を返す。
     const GetOrCreateTextureProfile& GetLastGetOrCreateTextureProfile() const
     {
         return lastGetOrCreateTextureProfile_;
@@ -90,7 +90,7 @@ private:
     std::wstring Utf8ToWide(const std::string& text) const;
     /// @brief キャッシュパスを組み立てる。
     std::string BuildCachePath(const std::string& utf8Text, const TextStyle& style) const;
-    /// @brief 文字Pngを保存する。
+    /// @brief 文字列を描いた画像をPNGで保存する。
     bool SaveTextPng(const std::wstring& text, const TextStyle& style, const std::string& path);
     /// @brief 外観を解決する。
     TextStyle ResolveStyle(const TextStyle& style) const;
