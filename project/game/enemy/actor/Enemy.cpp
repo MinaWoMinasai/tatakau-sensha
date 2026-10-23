@@ -14,8 +14,6 @@
 #include "Stage.h"
 using namespace DirectX;
 
-static constexpr float kDeltaTime = 1.0f / 60.0f;
-
 namespace {
 /// @brief 係数を0〜1に制限し、2つのRGBA色を線形補間して返す。
 myEngine::Vector4 LerpColor(const myEngine::Vector4& a, const myEngine::Vector4& b, float t)
