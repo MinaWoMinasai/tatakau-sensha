@@ -240,6 +240,15 @@
     <ClInclude Include="DirectX\engine\2d\Sprite.h" />
     <ClInclude Include="DirectX\engine\2d\SpriteCommon.h" />
     <ClInclude Include="DirectX\engine\struct\Struct.h" />
+    <ClInclude Include="DirectX\engine\struct\MathTypes.h" />
+    <ClInclude Include="DirectX\engine\struct\GeometryTypes.h" />
+    <ClInclude Include="DirectX\engine\struct\MaterialTypes.h" />
+    <ClInclude Include="DirectX\engine\struct\ModelTypes.h" />
+    <ClInclude Include="DirectX\engine\struct\GpuBufferTypes.h" />
+    <ClInclude Include="DirectX\engine\struct\BloomParam.h" />
+    <ClInclude Include="DirectX\engine\struct\BlendMode.h" />
+    <ClInclude Include="DirectX\engine\struct\ParticleTypes.h" />
+    <ClInclude Include="DirectX\engine\struct\WaveFileTypes.h" />
     <ClInclude Include="DirectX\engine\common\Texture.h" />
     <ClInclude Include="DirectX\engine\common\WinApp.h" />
     <ClInclude Include="DirectX\engine\2d\TextureManager.h" />

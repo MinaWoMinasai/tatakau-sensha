@@ -341,6 +341,33 @@
     <ClInclude Include="DirectX\engine\struct\Struct.h">
       <Filter>DirectX\engine\struct</Filter>
     </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\MathTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\GeometryTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\MaterialTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\ModelTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\GpuBufferTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\BloomParam.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\BlendMode.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\ParticleTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\WaveFileTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
     <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h">
       <Filter>DirectX\engine\debugCamera</Filter>
     </ClInclude>

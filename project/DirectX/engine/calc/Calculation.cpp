@@ -850,24 +850,6 @@ Particle MakeParticle(const Vector3& position, const Vector4& baseColor)
     return particle;
 }
 
-TornadoParticle MakeTornadoParticle(const Vector3& center)
-{
-    TornadoParticle p;
-
-    p.angle = Rand(0.0f, 6.28f);
-    p.height = Rand(0.0f, 3.0f); // ← 初期高さランダム
-    p.baseRadius = Rand(0.5f, 1.0f);
-    p.rotateSpeed = Rand(2.0f, 5.0f);
-    p.upSpeed = Rand(0.4f, 0.8f);
-    p.maxHeight = 10.0f; // ← この高さでループ
-
-    p.color = {0.8f, 0.9f, 1.0f, 0.4f};
-
-    p.pos = center;
-
-    return p;
-}
-
 Vector3 ScreenToWorld2D(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth,
                         float windowHeight)
 {

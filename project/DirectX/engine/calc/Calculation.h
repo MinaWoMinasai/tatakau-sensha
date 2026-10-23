@@ -120,8 +120,6 @@ Vector3 Rand(const Vector3& min, const Vector3& max);
 Vector4 Rand(const Vector4& min = {0.0f, 0.0f, 0.0f, 1.0f}, const Vector4& max = {1.0f, 1.0f, 1.0f, 1.0f});
 /// @brief 粒子を作成して返す。
 Particle MakeParticle(const Vector3& position, const Vector4& baseColor);
-/// @brief Tornado粒子を作成して返す。
-TornadoParticle MakeTornadoParticle(const Vector3& center);
 
 // 球と平面の衝突判定
 bool IsCollision(const Sphere& sphere, const Plane& plane);
