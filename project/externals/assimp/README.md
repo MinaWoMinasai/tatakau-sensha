@@ -1,22 +1,29 @@
-# Assimp for CG2
+# Assimp for MyEngine
 
-This directory contains the headers and build instructions for the Assimp 5.4.3
-runtime used by CG2. Generated libraries are kept locally and are not committed
-to the repository.
+This directory contains the headers and a prebuilt copy of the Assimp 5.4.3
+runtime used by MyEngine, so the solution builds right after cloning or
+downloading the repository as a ZIP.
 
-- Built locally with Visual Studio 2026 (`v145`) by default, x64.
-- Shared-library build to keep the repository and executable small.
-- Only the glTF/glb importer is enabled for the animation pipeline.
-- The rebuild script creates `lib/assimp-vc145-mt.lib` and
-  `runtime/assimp-vc145-mt.dll` locally.
-- `runtime/assimp-vc145-mt.dll` is copied to `$(TargetDir)` automatically when
-  CG2 is built.
+- Committed binaries: `lib/assimp-vc143-mt.lib` and `runtime/assimp-vc143-mt.dll`,
+  built with Visual Studio 2022 (`v143`), x64. They work with both the `v143`
+  and `v145` toolsets.
+- Shared-library build with a static CRT (`USE_STATIC_CRT=ON`), to keep the
+  repository and executable small.
+- Only the glTF/glb importer is enabled for the animation pipeline
+  (`ASSIMP_BUILD_ZLIB=ON`, no exporter, no Draco).
+- `runtime/assimp-vc*-mt.dll` is copied to `$(TargetDir)` automatically when
+  the game is built.
 
-The source archive and generated binaries are not vendored. Obtain the official
-Assimp 5.4.3 source, then run from the repository root to rebuild the local dependencies:
+To rebuild Assimp locally (for example with Visual Studio 2026, which produces
+`assimp-vc145-mt`), run from the repository root:
 
 ```powershell
-.\project\build\build_assimp_vs2026.ps1 -SourceDir C:\path\to\assimp-5.4.3
+.\project\build\bootstrap_dependencies.ps1 -Force
 ```
+
+Locally rebuilt binaries other than the committed `vc143` pair stay untracked,
+and a local `assimp-vc145-mt.lib` takes precedence when it exists. Run the script
+from a short, ASCII-only path; CMake can fail under very long paths or when the
+current directory contains non-ASCII characters.
 
 Assimp is distributed under the BSD 3-Clause license. See `LICENSE.txt`.
