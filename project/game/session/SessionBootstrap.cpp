@@ -177,9 +177,9 @@ myEngine::InitializationTask SessionBootstrap::Build()
 
         co_await std::suspend_always{};
         world_.resources.bulletTrailPostEffect_ = std::make_unique<myEngine::ObjectPostEffect>();
-        world_.resources.bulletTrailPostEffect_->Initialize(
-            myEngine::Object3dCommon::GetInstance()->GetDxCommon(), myEngine::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f,
-            1.0f // Quality/OFFは弾の芯をフル解像度で保ち、Legacyは元のサイズのままにする。
+        world_.resources.bulletTrailPostEffect_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
+                                                            myEngine::Object3dCommon::GetInstance()->GetSrvManager(), nullptr, 0.5f,
+                                                            1.0f // Quality/OFFは弾の芯をフル解像度で保ち、Legacyは元のサイズのままにする。
         );
         {
             myEngine::BloomParam& bulletTrailPost = world_.resources.bulletTrailPostEffect_->GetParam();

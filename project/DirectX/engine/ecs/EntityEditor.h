@@ -145,6 +145,7 @@ public:
     /// @brief BeginTransformEdit から今までの変更を、1つの操作として履歴に残す。
     /// @return 変化があって記録したらtrue。
     bool EndTransformEdit(const std::string& label);
+
     /// @brief Transform の連続した変更の途中か。途中は元に戻す・やり直すをしない。
     bool IsEditingTransform() const
     {

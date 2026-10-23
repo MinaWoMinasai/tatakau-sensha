@@ -23,7 +23,8 @@ float SrgbToLinear(float value)
 
 Vector4 UiColor(uint32_t rgb, float alpha)
 {
-    return {SrgbToLinear(((rgb >> 16) & 0xFF) / 255.0f), SrgbToLinear(((rgb >> 8) & 0xFF) / 255.0f), SrgbToLinear((rgb & 0xFF) / 255.0f), alpha};
+    return {SrgbToLinear(((rgb >> 16) & 0xFF) / 255.0f), SrgbToLinear(((rgb >> 8) & 0xFF) / 255.0f), SrgbToLinear((rgb & 0xFF) / 255.0f),
+            alpha};
 }
 
 UiBatch::UiBatch() : screenSize_{float(WinApp::kClientWidth), float(WinApp::kClientHeight)} {}

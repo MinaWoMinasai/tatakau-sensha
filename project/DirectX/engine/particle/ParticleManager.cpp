@@ -191,8 +191,7 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     groupCountsResource_ =
         dxCommon_->CreateUAVBufferResource(sizeof(uint32_t) * 4 * kUpdateGroupCount, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     uavIndexGroupCounts_ = srvManager_->Allocate();
-    srvManager_->CreateUAVforStructuredBuffer(uavIndexGroupCounts_, groupCountsResource_.Get(), kUpdateGroupCount,
-                                              sizeof(uint32_t) * 4);
+    srvManager_->CreateUAVforStructuredBuffer(uavIndexGroupCounts_, groupCountsResource_.Get(), kUpdateGroupCount, sizeof(uint32_t) * 4);
 
     // 5. 定数バッファ
     computeConfigResource_ = dxCommon_->CreateBufferResource(sizeof(GlobalConfig));
