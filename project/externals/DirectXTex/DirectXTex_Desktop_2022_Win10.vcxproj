@@ -48,6 +48,10 @@
     <CharacterSet>Unicode</CharacterSet>
     <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
+  <!-- MyEngine.Configuration.props と同じく、VS 2022 で開いたときは v143 を使う。 -->
+  <PropertyGroup Condition="'$(VisualStudioVersion)'=='17.0'">
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings" />
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'" Label="PropertySheets">

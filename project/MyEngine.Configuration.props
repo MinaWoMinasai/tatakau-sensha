@@ -20,4 +20,9 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
+  <!-- 既定は VS 2026 の v145。VS 2022（VisualStudioVersion 17.0）で開いたときは、そこに入っている v143 を使う。
+       コマンドラインの /p:PlatformToolset はこれより優先される。 -->
+  <PropertyGroup Condition="'$(VisualStudioVersion)'=='17.0'">
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
 </Project>

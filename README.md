@@ -56,9 +56,9 @@ Windows / x64、C++20、DirectX 12を使用します。「C++によるデスク�
 .\project\build\bootstrap_dependencies.ps1
 ```
 
-標準スクリプトはVS 2022のC++ / CMake / Ninjaを探し、Assimp v5.4.3のglTF importerをビルドします。生成するライブラリとDLLはGit管理対象外です。既存のローカルバイナリがある場合は準備を省略します。VS 2026のみの環境では、[Assimpの案内](project/externals/assimp/README.md)と[VS 2026用スクリプト](project/build/build_assimp_vs2026.ps1)を確認してください。
+スクリプトはインストール済みのVisual Studio（2026・2022のどちらでも、新しいほうを優先）からC++ / CMake / Ninjaを探し、Assimp v5.4.3のglTF importerをビルドします。生成するライブラリとDLLはGit管理対象外です。既存のローカルバイナリがある場合は準備を省略します。Git管理しているAssimpヘッダーは上書きしません（`-Force`を付けたときだけ取り直します）。
 
-初回準備ではAssimpヘッダーもコピーされるため、実行後に差分を確認してください。通常の準備に`-Force`は不要です。
+クローン先のパスが長すぎると、AssimpのCMakeが失敗することがあります（オブジェクトファイルのパスが250文字を超えるため）。`C:\dev\tatakau-sensha`のような短い場所にクローンしてください。
 
 ### 2. Releaseをビルドする
 
@@ -72,7 +72,7 @@ MSBuild.exe project/MyEngine.sln /m /p:Configuration=Release /p:Platform=x64 /p:
 MSBuild.exe project/MyEngine.sln /m /p:Configuration=Release /p:Platform=x64 /p:MyEngineDeveloperTools=false
 ```
 
-GUIでは`project/MyEngine.sln`を開き、Release / x64を選びます。VS 2022では両プロジェクトのツールセットをv143へ合わせる必要があります。
+GUIでは`project/MyEngine.sln`を開き、Release / x64を選びます。ツールセットは、VS 2026で開くとv145、VS 2022で開くとv143が自動で選ばれます（変更や再ターゲットは不要です）。
 
 | ソリューション構成 | 実際のプロジェクト構成 | 開発機能の標準値 |
 | --- | --- | --- |
