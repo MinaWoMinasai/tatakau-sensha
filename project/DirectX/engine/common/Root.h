@@ -69,6 +69,10 @@ public:
     }
 
 private:
+    /// @brief 決めた配置をシリアライズして、signatureBlob_ に入れる。
+    /// @note 失敗したら、エラーの内容があればログへ出して assert で止める。
+    void SerializeSignature();
+
     D3D12_ROOT_SIGNATURE_DESC descriptionSignature_{};
     D3D12_ROOT_PARAMETER Parameters_[19]{};
     D3D12_DESCRIPTOR_RANGE descriptorRange_[14] = {};
