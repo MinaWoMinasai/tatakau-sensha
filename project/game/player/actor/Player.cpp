@@ -444,9 +444,10 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
         const PlayerClassConfig* activeClass = GetCurrentClassConfig();
         const size_t authoredSupport =
             runEvolutionActive_ && runAuthoredEvolutionActive_ ? static_cast<size_t>((std::max)(0, runEvolutionConfig_.maxDrones)) : 0u;
-        const size_t supportLimit = authoredSupport +
-                                    (runModifiers_.drones ? static_cast<size_t>(TankEffectCount(runModifiers_, 6, 2)) : 0u) +
-                                    (runModifiers_.core == TankRunCore::Drone ? 2u : 0u);
+        const size_t supportLimit =
+            authoredSupport +
+            (runModifiers_.drones ? static_cast<size_t>(TankEffectCount(runModifiers_, tankrun::CardId::Drones, 2)) : 0u) +
+            (runModifiers_.core == TankRunCore::Drone ? 2u : 0u);
         if (IsDroneBuild()) {
             runBulletManager_ = bulletManager;
             runSupportDroneTimer_ = (std::max)(0.0f, runSupportDroneTimer_ - deltaTime);
@@ -645,20 +646,20 @@ bool Player::TryPerfectDodgeFromHostileContact(bool dodgeable)
 {
     if (!isJustEvaded_ && isDashing_ &&
         TankCanPerfectDodge(runModifiers_.enabled && runModifiers_.perfectDodge, dodgeable, kDashDuration - dashTimer_,
-                            TankEffectPower(runModifiers_, 15))) {
+                            TankEffectPower(runModifiers_, tankrun::CardId::PerfectDodge))) {
         requestSlow_ = true;
         isJustEvaded_ = true;
         ++perfectDodgeCount_;
         invincibleTimer_ = dashTimer_;
-        buffTimer_ = kBuffDuration * TankEffectPower(runModifiers_, 15);
+        buffTimer_ = kBuffDuration * TankEffectPower(runModifiers_, tankrun::CardId::PerfectDodge);
         if (runModifiers_.enabled && runModifiers_.capacitor) {
-            const float power = TankEffectPower(runModifiers_, 4);
+            const float power = TankEffectPower(runModifiers_, tankrun::CardId::Capacitor);
             buffTimer_ += 1.5f * power;
             stats_.stamina = (std::min)(stats_.maxStamina, stats_.stamina + power);
             HealRunPlayer((std::max)(1, static_cast<int>(std::round(4.0f * power))));
         }
         if (runModifiers_.enabled && runModifiers_.overdrive) {
-            runOverdriveTimer_ = 2.4f * TankEffectPower(runModifiers_, 11);
+            runOverdriveTimer_ = 2.4f * TankEffectPower(runModifiers_, tankrun::CardId::Overdrive);
             runOverdriveCooldown_ = 4.0f;
         }
         isBuffActive_ = !runCheckpointEvolution_ || runModifiers_.capacitor;
@@ -763,7 +764,7 @@ bool Player::TryDashImpact(Collider* target)
     }
     direction = myEngine::Normalize(direction);
     const bool powered = runModifiers_.enabled && runModifiers_.impactDrive;
-    const float strength = powered ? 1.0f + 0.5f * TankEffectPower(runModifiers_, 14) : 1.0f;
+    const float strength = powered ? 1.0f + 0.5f * TankEffectPower(runModifiers_, tankrun::CardId::ImpactDrive) : 1.0f;
     const uint32_t damage =
         static_cast<uint32_t>((std::max)(1.0f, std::round((stats_.bulletDamage * 2.5f + stats_.bodyDamage) * strength)));
     // 速度だけを与え、位置の更新と壁への補正は各敵の通常移動に任せる。

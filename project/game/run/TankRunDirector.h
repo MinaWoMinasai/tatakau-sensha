@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+#include "TankCardId.h"
 
 namespace tankrun {
 /// @brief ランの進行段階。
@@ -24,53 +25,6 @@ enum class CoreId {
     Drone,
     Count
 };
-/// @brief ランで得られるカード。
-enum class CardId {
-    Ricochet,
-    Heavy,
-    Rapid,
-    Thrusters,
-    Capacitor,
-    Repair,
-    Drones,
-    Pierce,
-    ScatterShot,
-    Homing,
-    DashBurst,
-    Overdrive,
-    MeleeBlade,
-    BladeReach,
-    ImpactDrive,
-    PerfectDodge,
-    DroneFocus,
-    DroneGuard,
-    MeleeTempo,
-    FinisherCharge,
-    RailCannon,
-    DroneLaserLink,
-    SlashWave,
-    ParryBlade,
-    ExtraBarrel1,
-    ExtraBarrel2,
-    FanMount,
-    AlternatingFire,
-    HeavyDroneCore,
-    LightBladeActuator,
-    HeavyBladeEdge,
-    ChainLightning,
-    MarkDetonation,
-    BoomerangShell,
-    KillBurst,
-    DroneCharge,
-    DroneRebuildBomb,
-    TargetPainter,
-    AutonomousSpread,
-    DashSlash,
-    SpinBlade,
-    WallSmash,
-    Count
-};
-constexpr std::size_t CardCount = static_cast<std::size_t>(CardId::Count);
 
 // 旧来の数値 ID は保つが、廃止した拡散射撃のモジュールは候補に出さない。
 /// @brief 利用可能カードであるか判定する。

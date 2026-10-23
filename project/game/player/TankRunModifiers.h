@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <algorithm>
+#include "../run/TankCardId.h"
 
 /// @brief ランで選ぶコアの種類。
 enum class TankRunCore {
@@ -58,24 +59,25 @@ struct TankRunModifiers {
     bool dashSlash = false;
     bool spinBlade = false;
     bool wallSmash = false;
-    std::array<float, 42> effectPower = [] {
-        std::array<float, 42> p{};
+    std::array<float, tankrun::CardCount> effectPower = [] {
+        std::array<float, tankrun::CardCount> p{};
         p.fill(1);
         return p;
     }();
 };
 
 /// @brief 指定した強化効果の強度を返す。
-inline constexpr float TankEffectPower(const TankRunModifiers& modifiers, size_t index)
+inline constexpr float TankEffectPower(const TankRunModifiers& modifiers, tankrun::CardId card)
 {
+    const size_t index = tankrun::CardIndex(card);
     const float p = index < modifiers.effectPower.size() ? modifiers.effectPower[index] : 1.0f;
     return p == p ? (std::clamp)(p, 0.1f, 5.0f) : 1.0f;
 }
 
 /// @brief 指定した強化効果の取得数を返す。
-inline constexpr int TankEffectCount(const TankRunModifiers& modifiers, size_t index, int base = 1)
+inline constexpr int TankEffectCount(const TankRunModifiers& modifiers, tankrun::CardId card, int base = 1)
 {
-    return (std::max)(1, static_cast<int>(static_cast<float>(base) * TankEffectPower(modifiers, index) + 0.5f));
+    return (std::max)(1, static_cast<int>(static_cast<float>(base) * TankEffectPower(modifiers, card) + 0.5f));
 }
 
 /// @brief 遠征中の行動に基づく成長値を集計する。
@@ -117,20 +119,21 @@ inline constexpr TankRunTuning MakeTankRunTuning(const TankRunModifiers& modifie
     }
     // 敵弾の打ち消しは、敵に与えたダメージとは独立している。
     result.bulletHp = 1.0f;
-    result.bulletInterception = modifiers.pierce ? 1.0f + 2.0f * TankEffectPower(modifiers, 7) : 1.0f;
+    result.bulletInterception = modifiers.pierce ? 1.0f + 2.0f * TankEffectPower(modifiers, tankrun::CardId::Pierce) : 1.0f;
     result.dashSpeed = 1.85f;
     result.reflects = modifiers.ricochet || modifiers.core == TankRunCore::Ricochet;
     if (modifiers.expedition) {
-        result.maxWallBounces = modifiers.core == TankRunCore::Ricochet ? 2 + (modifiers.ricochet ? TankEffectCount(modifiers, 0, 2) : 0)
-                                                                        : (modifiers.ricochet ? TankEffectCount(modifiers, 0) : 0);
-        result.actorPierceCount = modifiers.pierce ? TankEffectCount(modifiers, 7) : 0;
+        result.maxWallBounces = modifiers.core == TankRunCore::Ricochet
+                                    ? 2 + (modifiers.ricochet ? TankEffectCount(modifiers, tankrun::CardId::Ricochet, 2) : 0)
+                                    : (modifiers.ricochet ? TankEffectCount(modifiers, tankrun::CardId::Ricochet) : 0);
+        result.actorPierceCount = modifiers.pierce ? TankEffectCount(modifiers, tankrun::CardId::Pierce) : 0;
         result.impactSplitCount = 0; // 旧来の拡散データで弾数が増えることはもう無い。
     }
     if (modifiers.core == TankRunCore::Ricochet) {
         result.damage *= 1.20f;
         result.bulletSpeed *= 1.25f;
         if (modifiers.ricochet) {
-            result.bulletSpeed *= 1.0f + 0.2f * TankEffectPower(modifiers, 0);
+            result.bulletSpeed *= 1.0f + 0.2f * TankEffectPower(modifiers, tankrun::CardId::Ricochet);
         }
     } else if (modifiers.core == TankRunCore::Assault) {
         result.damage *= 1.80f;
@@ -138,25 +141,25 @@ inline constexpr TankRunTuning MakeTankRunTuning(const TankRunModifiers& modifie
         result.reloadInterval *= 1.6f;
     }
     if (modifiers.heavy) {
-        const float p = TankEffectPower(modifiers, 1);
+        const float p = TankEffectPower(modifiers, tankrun::CardId::Heavy);
         result.damage *= 1.0f + (modifiers.expedition ? growth.damage : 0.7f) * p;
         result.bulletSpeed *= modifiers.expedition ? 1.0f + growth.bulletSpeed * p : (std::max)(0.05f, 1.0f - 0.28f * p);
         result.reloadInterval *= 1.0f + (modifiers.expedition ? 0.1f : 0.2f) * p;
     }
     if (modifiers.rapid) {
-        const float p = TankEffectPower(modifiers, 2);
+        const float p = TankEffectPower(modifiers, tankrun::CardId::Rapid);
         result.damage *= modifiers.expedition ? 1.0f : (std::max)(0.05f, 1.0f - 0.2f * p);
         result.reloadInterval *= (std::max)(0.05f, 1.0f - (modifiers.expedition ? growth.reload : 0.35f) * p);
     }
     if (modifiers.thrusters) {
-        const float p = TankEffectPower(modifiers, 3);
+        const float p = TankEffectPower(modifiers, tankrun::CardId::Thrusters);
         result.moveSpeed = 1.0f + (modifiers.expedition ? growth.move : 0.18f) * p;
         result.staminaRecovery = 1.0f + 0.25f * p;
         result.dashSpeed *= 1.0f + 0.25f * p;
         result.dashCooldown = (std::max)(0.05f, 1.0f - 0.2f * p);
     }
     if (modifiers.repair) {
-        result.maxHp = 1.0f + (modifiers.expedition ? growth.hp : 0.25f) * TankEffectPower(modifiers, 5);
+        result.maxHp = 1.0f + (modifiers.expedition ? growth.hp : 0.25f) * TankEffectPower(modifiers, tankrun::CardId::Repair);
     }
     return result;
 }
@@ -227,26 +230,26 @@ inline constexpr TankMeleeComboTuning MakeTankMeleeCombo(int step, const TankRun
         return result;
     }
     if (modifiers.bladeReach) {
-        const float p = TankEffectPower(modifiers, 13);
+        const float p = TankEffectPower(modifiers, tankrun::CardId::BladeReach);
         result.range *= 1.0f + .3f * p;
         result.damage *= 1.0f + .2f * p;
     }
     if (modifiers.impactDrive) {
-        result.knockback *= 1.0f + .5f * TankEffectPower(modifiers, 14);
+        result.knockback *= 1.0f + .5f * TankEffectPower(modifiers, tankrun::CardId::ImpactDrive);
     }
     if (modifiers.meleeTempo) {
-        const float rate = (std::max)(.05f, 1.0f - .18f * TankEffectPower(modifiers, 18));
+        const float rate = (std::max)(.05f, 1.0f - .18f * TankEffectPower(modifiers, tankrun::CardId::MeleeTempo));
         result.windup *= rate;
         result.duration *= rate;
         result.recovery *= rate;
     }
     if (modifiers.finisherCharge && step == 2) {
-        const float p = TankEffectPower(modifiers, 19);
+        const float p = TankEffectPower(modifiers, tankrun::CardId::FinisherCharge);
         result.damage *= 1.0f + .5f * p;
         result.knockback *= 1.0f + .2f * p;
     }
     if (modifiers.lightBladeActuator) {
-        const float p = TankEffectPower(modifiers, 29);
+        const float p = TankEffectPower(modifiers, tankrun::CardId::LightBladeActuator);
         result.damage *= (std::max)(.1f, 1 - .05f * p);
         const float speed = (std::max)(.2f, 1 - .15f * p);
         result.windup *= speed;
@@ -254,7 +257,7 @@ inline constexpr TankMeleeComboTuning MakeTankMeleeCombo(int step, const TankRun
         result.recovery *= speed;
     }
     if (modifiers.heavyBladeEdge) {
-        const float p = TankEffectPower(modifiers, 30);
+        const float p = TankEffectPower(modifiers, tankrun::CardId::HeavyBladeEdge);
         result.damage *= 1 + .45f * p;
         const float speed = 1 + .18f * p;
         result.windup *= speed;
@@ -286,7 +289,7 @@ inline constexpr TankDroneTuning MakeTankDroneTuning(const TankRunModifiers& mod
         return result;
     }
     if (modifiers.droneFocus) {
-        const float p = TankEffectPower(modifiers, 16);
+        const float p = TankEffectPower(modifiers, tankrun::CardId::DroneFocus);
         result.damageScale *= 1.0f + (modifiers.expedition ? .15f : .4f) * p;
         if (!modifiers.expedition) {
             result.reloadSeconds *= 1.0f + .15f * p;
@@ -294,14 +297,14 @@ inline constexpr TankDroneTuning MakeTankDroneTuning(const TankRunModifiers& mod
         result.spreadDegrees = 0;
     }
     if (modifiers.heavyDroneCore) {
-        const float p = TankEffectPower(modifiers, 28);
+        const float p = TankEffectPower(modifiers, tankrun::CardId::HeavyDroneCore);
         result.damageScale *= 1.0f + .45f * p;
         result.reloadSeconds *= 1.0f + .2f * p;
         result.sizeScale = 1 + .2f * p;
         result.trailScale = 1 + .25f * p;
     }
     if (modifiers.droneGuard) {
-        result.bulletHp = 1.0f + 2.0f * TankEffectPower(modifiers, 17);
+        result.bulletHp = 1.0f + 2.0f * TankEffectPower(modifiers, tankrun::CardId::DroneGuard);
         result.interception = result.bulletHp;
     }
     return result;
@@ -325,10 +328,10 @@ inline constexpr TankRunSynergy MakeTankRunSynergy(const TankRunModifiers& modif
         return result;
     }
     if (modifiers.homing) {
-        result.homingTurnRate =
-            (modifiers.expedition && modifiers.overdrive && overdriveActive ? 3.2f : 1.6f) * TankEffectPower(modifiers, 9);
+        result.homingTurnRate = (modifiers.expedition && modifiers.overdrive && overdriveActive ? 3.2f : 1.6f) *
+                                TankEffectPower(modifiers, tankrun::CardId::Homing);
     }
     result.dashExplosion = modifiers.expedition && modifiers.heavy && modifiers.dashBurst;
-    result.explosionDamageScale = (result.dashExplosion ? 2.0f : 1.4f) * TankEffectPower(modifiers, 10);
+    result.explosionDamageScale = (result.dashExplosion ? 2.0f : 1.4f) * TankEffectPower(modifiers, tankrun::CardId::DashBurst);
     return result;
 }
