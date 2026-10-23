@@ -202,11 +202,7 @@ void Root::InitializeForObject()
     descriptionSignature_.pStaticSamplers = staticSamplers_;
     descriptionSignature_.NumStaticSamplers = 2; // サンプラー数を更新
     // シリアライズしてバイナリにする
-    HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
-    if (FAILED(hr)) {
-        log.Log(reinterpret_cast<char*>(errorBlob_->GetBufferPointer()));
-        assert(false);
-    }
+    SerializeSignature();
 }
 
 void Root::InitializeForParticle()
@@ -269,11 +265,7 @@ void Root::InitializeForParticle()
     descriptionSignature_.pStaticSamplers = staticSamplers_;
     descriptionSignature_.NumStaticSamplers = 1;
 
-    HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
-    if (FAILED(hr)) {
-        log.Log(reinterpret_cast<char*>(errorBlob_->GetBufferPointer()));
-        assert(false);
-    }
+    SerializeSignature();
 }
 
 void Root::InitializeForModelParticle()
@@ -333,11 +325,7 @@ void Root::InitializeForModelParticle()
     descriptionSignature_.NumStaticSamplers = 1;
 
     // シリアライズと生成
-    HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
-    if (FAILED(hr)) {
-        log.Log(reinterpret_cast<char*>(errorBlob_->GetBufferPointer()));
-        assert(false);
-    }
+    SerializeSignature();
 }
 
 void Root::InitializeForPostEffect()
@@ -457,12 +445,7 @@ void Root::InitializeForPostEffect()
     descriptionSignature_.NumStaticSamplers = 1;
 
     // -------- シリアライズ
-    HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
-
-    if (FAILED(hr)) {
-        log.Log(reinterpret_cast<char*>(errorBlob_->GetBufferPointer()));
-        assert(false);
-    }
+    SerializeSignature();
 }
 
 void Root::InitializeForShadow()
@@ -481,7 +464,7 @@ void Root::InitializeForShadow()
     descriptionSignature_.pStaticSamplers = nullptr;
     descriptionSignature_.NumStaticSamplers = 0;
 
-    HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
+    SerializeSignature();
 }
 
 void Root::InitializeForSkinningShadow()
@@ -504,13 +487,7 @@ void Root::InitializeForSkinningShadow()
     descriptionSignature_.NumParameters = 2;
     descriptionSignature_.pStaticSamplers = nullptr;
     descriptionSignature_.NumStaticSamplers = 0;
-    const HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
-    if (FAILED(hr)) {
-        if (errorBlob_) {
-            log.Log(reinterpret_cast<char*>(errorBlob_->GetBufferPointer()));
-        }
-        assert(false);
-    }
+    SerializeSignature();
 }
 
 void Root::InitializeForTrail()
@@ -553,7 +530,7 @@ void Root::InitializeForTrail()
     descriptionSignature_.pStaticSamplers = staticSamplers_;
     descriptionSignature_.NumStaticSamplers = 1;
 
-    HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
+    SerializeSignature();
 }
 
 void Root::InitializeForSkybox()
@@ -595,10 +572,7 @@ void Root::InitializeForSkybox()
     descriptionSignature_.pStaticSamplers = staticSamplers_;
     descriptionSignature_.NumStaticSamplers = 1;
 
-    HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
-    if (FAILED(hr)) {
-        assert(false);
-    }
+    SerializeSignature();
 }
 
 void Root::InitializeForComputeParticle()
@@ -653,9 +627,16 @@ void Root::InitializeForComputeParticle()
     descriptionSignature_.pStaticSamplers = nullptr;
     descriptionSignature_.NumStaticSamplers = 0;
 
-    HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
+    SerializeSignature();
+}
+
+void Root::SerializeSignature()
+{
+    const HRESULT hr = D3D12SerializeRootSignature(&descriptionSignature_, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob_, &errorBlob_);
     if (FAILED(hr)) {
-        log.Log(reinterpret_cast<char*>(errorBlob_->GetBufferPointer()));
+        if (errorBlob_) {
+            log.Log(reinterpret_cast<char*>(errorBlob_->GetBufferPointer()));
+        }
         assert(false);
     }
 }
