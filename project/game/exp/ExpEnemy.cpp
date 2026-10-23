@@ -630,7 +630,7 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
                 combatRepathTimer_ = 0.32f;
             }
             const myEngine::Vector3 waypoint = combatWaypoint_ - origin;
-            desired = myEngine::Length(waypoint) > 0.08f ? myEngine::Normalize(waypoint) : myEngine::Vector3{};
+            desired = myEngine::NormalizeOr(waypoint, myEngine::Vector3{}, 0.08f);
         }
         desiredMoveVelocity = desired * (speed * authoredMoveSpeedScale_);
         movingToTarget = pathToTarget;
@@ -1202,7 +1202,7 @@ uint32_t ExpEnemy::ResolveShieldDamage(uint32_t amount, const myEngine::Vector3&
     if (result < amount) {
         ++shieldBlockCount_;
         if (shieldFlashTimer_ <= 0.0f) {
-            const myEngine::Vector3 normal = myEngine::Length(offset) > 0.0001f ? myEngine::Normalize(offset) : aimDirection_;
+            const myEngine::Vector3 normal = myEngine::NormalizeOr(offset, aimDirection_);
             myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(GetWorldPosition() + normal * 1.25f, normal,
                                                                            {0.30f, 1.40f, 1.90f, 0.95f}, 4);
         }

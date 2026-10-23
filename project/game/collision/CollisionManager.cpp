@@ -136,7 +136,7 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
             }
             const myEngine::Vector3 source =
                 victim->GetWorldPosition() -
-                (myEngine::Length(movement) > .0001f ? myEngine::Normalize(movement) : myEngine::Vector3{1, 0, 0});
+                myEngine::NormalizeOr(movement, myEngine::Vector3{1, 0, 0});
             if (armor->TryReflectProjectile(source)) {
                 activeBulletManager_->QueueArmorReflection(*shot, victim->GetWorldPosition());
                 shot->Die();

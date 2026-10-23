@@ -39,6 +39,8 @@ Vector3 Cross(const Vector3& v1, const Vector3& v2);
 
 // 正規化
 Vector3 Normalize(const Vector3& v);
+/// @brief 長さが minLength より大きければ正規化した値を、そうでなければ fallback を返す。長さ0でもNaNにならない。
+Vector3 NormalizeOr(const Vector3& v, const Vector3& fallback = {}, float minLength = 0.0001f);
 
 /// @brief クォータニオンの内積を返す。
 float DotQuaternion(const Quaternion& q0, const Quaternion& q1);

@@ -107,6 +107,11 @@ Vector3 Normalize(const Vector3& v)
     return result;
 }
 
+Vector3 NormalizeOr(const Vector3& v, const Vector3& fallback, float minLength)
+{
+    return Length(v) > minLength ? Normalize(v) : fallback;
+}
+
 float DotQuaternion(const Quaternion& q0, const Quaternion& q1)
 {
     return q0.x * q1.x + q0.y * q1.y + q0.z * q1.z + q0.w * q1.w;

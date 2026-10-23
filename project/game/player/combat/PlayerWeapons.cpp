@@ -79,7 +79,7 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
                                                 (player_.expeditionCombatStyleSelected_ ? profile.attackIntervalSeconds / 0.33f : 1.0f));
             MeleeSlashEvent event{};
             event.origin = player_.GetWorldPosition();
-            event.direction = myEngine::Length(player_.dir_) > 0.001f ? myEngine::Normalize(player_.dir_) : myEngine::Vector3{1, 0, 0};
+            event.direction = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1, 0, 0}, 0.001f);
             event.range = (player_.expeditionCombatStyleSelected_ ? profile.meleeRange : 4.3f) * combo.range;
             event.arcDeg = combo.arc;
             event.width = step == 2 ? 0.38f : 0.26f;
@@ -100,7 +100,7 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
                 event.windupDuration = 0;
                 event.duration = .18f;
                 event.recoveryDuration = .12f;
-                event.direction = myEngine::Length(player_.velocity_) > .001f ? myEngine::Normalize(player_.velocity_) : event.direction;
+                event.direction = myEngine::NormalizeOr(player_.velocity_, event.direction, .001f);
                 player_.dashSlashActive_ = true;
                 player_.dashSlashTimer_ = .22f;
                 player_.dashSlashPrevious_ = player_.GetWorldPosition();
@@ -427,7 +427,7 @@ float PlayerWeapons::GetRunFireIntervalScale() const
 
 myEngine::Vector3 PlayerWeapons::GetRailChargeMuzzle() const
 {
-    const myEngine::Vector3 aim = myEngine::Length(player_.dir_) > .001f ? myEngine::Normalize(player_.dir_) : myEngine::Vector3{1, 0, 0};
+    const myEngine::Vector3 aim = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1, 0, 0}, .001f);
     const auto* config = player_.GetCurrentClassConfig();
     if (config && !config->barrels.empty()) {
         const auto& mount = config->barrels.front();
@@ -451,7 +451,7 @@ void PlayerWeapons::AttackRailCannon(BulletManager* bullets, bool pressed, float
         return;
     }
     const auto* config = player_.GetCurrentClassConfig();
-    const myEngine::Vector3 aim = myEngine::Length(player_.dir_) > .001f ? myEngine::Normalize(player_.dir_) : myEngine::Vector3{1, 0, 0};
+    const myEngine::Vector3 aim = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1, 0, 0}, .001f);
     const myEngine::Vector3 side{-aim.y, aim.x, 0};
     AttackParam param{};
     param.damage = static_cast<uint32_t>(
@@ -931,7 +931,7 @@ void PlayerWeapons::TriggerSaberCounter(const PlayerClassConfig& config)
 
     const WeaponMountConfig& mount = *mountIt;
     const myEngine::Vector3 forward =
-        myEngine::Length(player_.dir_) > 0.0001f ? myEngine::Normalize(player_.dir_) : myEngine::Vector3{1.0f, 0.0f, 0.0f};
+        myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1.0f, 0.0f, 0.0f});
     const myEngine::Vector3 right = {-forward.y, forward.x, 0.0f};
     MeleeSlashEvent event{};
     event.origin = player_.worldTransform_.translate + forward * mount.offset.x + right * mount.offset.y +
@@ -1054,7 +1054,7 @@ bool PlayerWeapons::FireConfiguredClass(const PlayerClassConfig& config, BulletM
     }
 
     const myEngine::Vector3 forward =
-        myEngine::Length(player_.dir_) > 0.0001f ? myEngine::Normalize(player_.dir_) : myEngine::Vector3{1.0f, 0.0f, 0.0f};
+        myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1.0f, 0.0f, 0.0f});
     const myEngine::Vector3 right = {-forward.y, forward.x, 0.0f};
     bool firesMelee = false;
     float meleeComboResetTime = 0.90f;
@@ -1381,7 +1381,7 @@ void PlayerWeapons::UpdateAdditionalAbilities(Stage& stage, BulletManager* bulle
             enemy->TakeDirectionalDamage(amount, source, melee);
             if (knockback > 0) {
                 const auto difference = enemy->GetWorldPosition() - source;
-                enemy->ApplyKnockback(myEngine::Length(difference) > .001f ? myEngine::Normalize(difference) : myEngine::Vector3{1, 0, 0},
+                enemy->ApplyKnockback(myEngine::NormalizeOr(difference, myEngine::Vector3{1, 0, 0}, .001f),
                                       knockback);
                 if (melee) {
                     ArmWallSmash(enemy, 1);

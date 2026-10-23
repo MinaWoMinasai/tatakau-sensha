@@ -579,7 +579,7 @@ void Enemy::UpdateRivalCombat(float deltaTime)
         // 予告の起点は現在位置を使う一方、固定済みの照準角は行動状態が保持する。
         velocity_ = velocity_ * std::exp(-3.5f * deltaTime);
     }
-    dir_ = myEngine::Length(velocity_) > 0.001f ? myEngine::Normalize(velocity_) : myEngine::Vector3{};
+    dir_ = myEngine::NormalizeOr(velocity_, myEngine::Vector3{}, 0.001f);
     worldTransform_.rotate.z = (phase == Phase::Locked || phase == Phase::Volley || phase == Phase::Tracking)
                                    ? rivalCombat_.GetAimAngle()
                                    : std::atan2(toward.y, toward.x);

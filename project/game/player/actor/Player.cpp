@@ -986,7 +986,7 @@ void Player::UpdateBarrelLayout()
         return;
     }
 
-    const myEngine::Vector3 forward = myEngine::Length(dir_) > 0.0001f ? myEngine::Normalize(dir_) : myEngine::Vector3{1.0f, 0.0f, 0.0f};
+    const myEngine::Vector3 forward = myEngine::NormalizeOr(dir_, myEngine::Vector3{1.0f, 0.0f, 0.0f});
     const myEngine::Vector3 right = {-forward.y, forward.x, 0.0f};
     const PlayerClassConfig* config = GetCurrentClassConfig();
     const float recoilReturn = 0.055f;
