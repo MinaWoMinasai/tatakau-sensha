@@ -10,7 +10,7 @@ enum class TankRunCore {
     Drone
 };
 
-// Run-local choices. An empty value leaves the original game rules unchanged.
+// その遠征の間だけの選択。空の値なら、元のゲームのルールは変わらない。
 /// @brief 遠征で取得した強化効果と補正値を保持する。
 struct TankRunModifiers {
     bool enabled = false;
@@ -87,7 +87,7 @@ struct TankRunGrowth {
     float move = 0.12f;
 };
 
-// Compose from neutral values on every change; repeated application never stacks.
+// 変更のたびに初期値から組み立て直すので、何度適用しても効果は重ならない。
 /// @brief 遠征全体の強化倍率や制限値を指定する。
 struct TankRunTuning {
     float damage = 1.0f;
@@ -161,8 +161,8 @@ inline constexpr TankRunTuning MakeTankRunTuning(const TankRunModifiers& modifie
     return result;
 }
 
-// Shared by the actor and graphics-free regression tests. Momentum is preserved
-// in both axes, so a sideways dash bends a moving tank's path instead of snapping.
+// アクターと、描画を使わない回帰テストで共有する。勢いは両方の軸で保つので、横向きの
+// ダッシュは、動いている戦車の進路を急に切り替えずに曲げる。
 /// @brief 強化状態に応じたダッシュの勢いを返す。
 inline constexpr float TankDashMomentum(float previous, float direction, float speed)
 {
@@ -264,8 +264,8 @@ inline constexpr TankMeleeComboTuning MakeTankMeleeCombo(int step, const TankRun
     return result;
 }
 
-// The actor and card demonstrations share the same attack tradeoffs. These
-// scales compose with the owner's damage, speed and reload upgrades.
+// アクターとカードのデモで、同じ攻撃のトレードオフを使う。これらの倍率は、
+// 持ち主の攻撃力・弾速・リロードの強化と掛け合わせる。
 /// @brief ドローンの移動・攻撃・特殊能力の調整値を指定する。
 struct TankDroneTuning {
     float damageScale = 0.35f, reloadSeconds = 0.75f, spreadDegrees = 6.0f;
@@ -307,8 +307,8 @@ inline constexpr TankDroneTuning MakeTankDroneTuning(const TankRunModifiers& mod
     return result;
 }
 
-// Cross-card effects compose at the moment of firing/dashing. Keeping the
-// transient Overdrive state separate prevents a permanent stronger homing buff.
+// カードをまたぐ効果は、発射・ダッシュの瞬間に組み合わせる。一時的な Overdrive の状態を
+// 分けておくことで、追尾の強化が永続してしまうのを防ぐ。
 /// @brief 取得済みの強化の組み合わせによる相乗効果を表す。
 struct TankRunSynergy {
     float homingTurnRate = 0.0f;

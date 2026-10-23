@@ -60,7 +60,7 @@ public:
         return preview_ ? preview_->GetGeometryVertexCount() : 0;
     }
 
-    // Safe to call each Update; an equal model does not rebuild any text.
+    // 毎回の Update で呼んでよい。内容が同じモデルなら、文字を作り直さない。
     /// @brief モデルを設定する。
     void SetModel(const TankRewardCardModel& model);
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
@@ -70,8 +70,8 @@ public:
     void PlayAcquire();
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
     void Draw();
-    // Optional scene bloom pass. Draw() already includes the small edge glow
-    // textures; an additional full-screen effect is not required for these cards.
+    // 必要なときだけ使う、シーンのブルーム用の描画。Draw() に小さな縁の光のテクスチャは
+    // 含まれているので、このカードのために全画面の効果を追加する必要はない。
     /// @brief ブルーム元データを描画する。
     void DrawBloomSource();
 

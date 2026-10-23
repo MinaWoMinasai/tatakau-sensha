@@ -35,8 +35,8 @@ public:
     /// @brief キャプチャを終え、ブルームの結果をDrawCachedBloom用に取っておく。
     void EndCaptureBloomOnlyToCache();
     /// @brief キャッシュ済みブルームを描画する。
-    // An optional qualityCaptureScale requires a fresh capture when switching
-    // between Legacy and the other modes; source resolution is chosen at BeginCapture.
+    /// @note qualityCaptureScale を指定した場合、Legacy とほかのモードを切り替えたらキャプチャを
+    /// 取り直す必要がある。元の解像度は BeginCapture の時点で決まる。
     void DrawCachedBloom(const Vector2& uvOffset);
 
     /// @brief パラメーターを返す。

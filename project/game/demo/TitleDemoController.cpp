@@ -27,9 +27,9 @@ bool ClearShot(Stage& stage, const myEngine::Vector3& from, const myEngine::Vect
     return true;
 }
 
-// A tiny fixed-grid path is enough to prevent the attract player from spending
-// its whole scene shooting a wall. Combat, bullets and collisions remain real.
-/// @brief デモパスを検索する。
+// タイトルのデモの自機が、壁を撃ち続けるだけで場面を終えないよう、小さな固定グリッドで経路を探す。
+// 戦闘・弾・衝突は本物の処理を使う。
+/// @brief デモの自機が目標へ向かう経路を探す。
 std::vector<myEngine::Vector3> FindDemoPath(Stage& stage, const myEngine::Vector3& from, const myEngine::Vector3& target)
 {
     constexpr int width = 44, height = 28, count = width * height;

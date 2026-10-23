@@ -146,8 +146,8 @@ inline bool WithinLane(Point p)
     return std::isfinite(p.x) && std::isfinite(p.y) && p.x >= 0.05f && p.x <= 0.95f && p.y >= 0.08f && p.y <= 0.92f;
 }
 
-// A fixed-step, angle-limited projectile makes homing visibly fallible. The
-// direction is never snapped onto a target; no bounce creates another bullet.
+// 固定の刻みで曲がり、曲がる角度にも上限がある弾なので、追尾が外れることも見て分かる。
+// 向きを目標へ一気に合わせることはなく、跳ね返りで弾が増えることもない。
 /// @brief 投射物をサンプリングする。
 inline Bullet SampleProjectile(Point start, Point target, float age, float initialAngle, bool homing, bool bounce, bool pierce,
                                int* hitMask = nullptr, float speedScale = 1.0f, float homingPower = 1.0f)

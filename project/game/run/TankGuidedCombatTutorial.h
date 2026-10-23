@@ -2,8 +2,8 @@
 #include <algorithm>
 
 namespace tankexp {
-// Pure progression: the scene supplies actual combat/pickup/dash events. Merely
-// pressing an input, waiting, or acknowledging text cannot complete a dash task.
+// 進行だけを扱う。実際の戦闘・取得・ダッシュのイベントはシーンが渡す。入力を押す・待つ・
+// 文を確認するだけでは、ダッシュの課題は達成にならない。
 /// @brief 戦闘中の操作課題と次の説明へ進む条件を管理する。
 class GuidedCombatTutorial {
 public:
@@ -149,8 +149,8 @@ public:
         }
     }
 
-    // Observe once per active gameplay frame, after damage/collision processing.
-    // HP dips stay latched even if a healing pickup restores HP before dash end.
+    // 戦闘が動いているフレームごとに、ダメージと衝突の処理の後で1回だけ呼ぶ。
+    // ダッシュの終わりまでに回復アイテムで HP が戻っても、HP が減ったことは記録したまま残る。
     /// @brief ダッシュの実行結果をチュートリアルの達成条件へ反映する。
     void ObserveDash(bool actualDashing, int hp)
     {

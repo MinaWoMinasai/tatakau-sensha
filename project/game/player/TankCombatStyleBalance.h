@@ -4,8 +4,8 @@
 #include <cmath>
 #include "../run/TankBuildStyle.h"
 
-// Direct base values for the three expedition families. Evolution and purchased
-// modifiers compose on top; they never overwrite this authoring configuration.
+// 遠征の3系統それぞれの基礎値。進化と購入した改造はこの上に重ねて適用し、
+// この制作用の設定そのものは書き換えない。
 /// @brief 戦闘系統ごとの基礎性能と操作上の特徴を指定する。
 struct TankCombatStyleProfile {
     float maxHp = 120.0f, moveSpeed = 0.23f, maxStamina = 3.0f, staminaRecovery = 0.9f, bodyDamage = 3.0f;

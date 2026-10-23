@@ -72,7 +72,7 @@ enum class CardId {
 };
 constexpr std::size_t CardCount = static_cast<std::size_t>(CardId::Count);
 
-// Preserve legacy numeric IDs, but never offer the retired multi-shot module.
+// 旧来の数値 ID は保つが、廃止した拡散射撃のモジュールは候補に出さない。
 /// @brief 利用可能カードであるか判定する。
 constexpr bool IsAvailableCard(CardId card)
 {
@@ -81,9 +81,8 @@ constexpr bool IsAvailableCard(CardId card)
 
 constexpr std::size_t AvailableCardCount = CardCount - 1;
 
-// The old arena/prototype draft has no combat-style filter. Its original pool
-// stays unchanged; expedition workshops grant the new effects through catalog
-// eligibility and GrantExpeditionModules instead.
+// 旧アリーナ・試作版の抽選には戦闘系統による絞り込みがなく、元の候補はそのまま残す。
+// 遠征の工房では、新しい効果をカタログの取得条件と GrantExpeditionModules で付与する。
 /// @brief 候補選択カードであるか判定する。
 constexpr bool IsDraftCard(CardId card)
 {
@@ -106,8 +105,8 @@ struct Config {
     int maxDrafts = 6;
 };
 
-// Resources earn optional refits; waiting never awards a card.
-// All menu states freeze the contest and preserve the current combat phase.
+// 資源で任意の改修を得る。待っているだけでカードがもらえることはない。
+// メニューを開いている間は戦いを止め、現在の戦闘の段階を保つ。
 /// @brief 遠征中の通貨・報酬候補・強化選択・部屋進行を管理する。
 class RunDirector {
 public:
@@ -234,8 +233,8 @@ public:
         return true;
     }
 
-    // Expedition room rewards use the same card pool without spending salvage
-    // or consuming the arena's banked rare credits. The scene controls the rooms.
+    // 遠征の部屋の報酬は同じカードの候補を使うが、資材は消費せず、アリーナで貯めたレアの
+    // クレジットも使わない。部屋の進行はシーンが受け持つ。
     /// @brief 報酬候補を用意し、強化選択を開始する。
     bool OpenRewardDraft(bool rare, CardId preferred = CardId::Count)
     {
@@ -248,8 +247,8 @@ public:
         return true;
     }
 
-    // The first room always offers a noticeable foundation; special behavior
-    // enters the pool after the player has learned movement and single shots.
+    // 最初の部屋では必ず分かりやすい基礎の強化を出す。特殊な動きの強化は、移動と単発の
+    // 射撃を覚えた後で候補に入る。
     /// @brief 遠征の報酬候補を用意し、強化選択を開始する。
     bool OpenExpeditionRewardDraft(int roomIndex, bool rare, CardId preferred = CardId::Count)
     {
@@ -280,8 +279,8 @@ public:
         return true;
     }
 
-    // A catalog entry can bundle several existing modules. Grant the complete
-    // bundle atomically; already owned modules never stack or consume a slot.
+    // カタログの1項目に、既存のモジュールを複数まとめられる。まとめた分は一度に全部付与し、
+    // すでに持っているモジュールは重ねず、枠も使わない。
     /// @brief 遠征の進行に応じた強化モジュールを付与する。
     bool GrantExpeditionModules(const std::vector<CardId>& effects)
     {

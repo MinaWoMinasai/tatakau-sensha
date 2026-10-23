@@ -87,7 +87,7 @@ public:
         capsuleRadius_ = r;
     }
 
-    /// @brief 区切りを返す。
+    /// @brief カプセルの軸の線分を返す。
     const myEngine::Segment& GetSegment() const
     {
         return segment_;
@@ -124,8 +124,8 @@ public:
     }
 
 private:
-    // Actor allocations may reuse an address while a piercing projectile lives.
-    // Copies get a new identity; assigning state does not change an actor's ID.
+    // 貫通弾が生きている間に、アクターのメモリが同じアドレスで再利用されることがある。
+    // コピーには新しい識別子を割り当てる。状態を代入しても、アクターの ID は変わらない。
     /// @brief コライダーを世代付きで識別する。破棄後に同じ領域を使っても元の相手と混同しない。
     struct Identity {
         static inline std::atomic<uint64_t> next{1};

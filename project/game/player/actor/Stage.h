@@ -48,8 +48,8 @@ public:
     /// @brief 45列・30行、各セル0～2のCSVを検証してからマップを差し替え、既存ブロックを消去して生成し直す。
     /// @return 読み込み・検証に成功した場合true。失敗時は既存の地形を保持する。
     /// @note フレーム間で呼ぶ。成功すると取得済みのブロック要素へのポインター・参照は無効になる。
-    // deferBlockBuild is only for hidden scene initialization: drain BuildBlocks()
-    // before updating, drawing or querying collisions in that world.
+    /// @param deferBlockBuild 見えないシーンの初期化専用。そのワールドで更新・描画・衝突判定を
+    /// 行う前に BuildBlocks() を呼んで、生成を済ませること。
     bool LoadRunMap(const std::string& csvPath, bool deferBlockBuild = false);
     /// @brief 更新の互換用入口。現在は何もしない。
     void Update();

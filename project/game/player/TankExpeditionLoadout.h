@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-// Per-expedition progression. No renderer or persistent progression state.
+// 遠征1回ごとの進行。描画や、遠征をまたいで残る進行状態は持たない。
 /// @brief 遠征の修理・整備による効果と費用を表す。
 class TankExpeditionMaintenance {
 public:

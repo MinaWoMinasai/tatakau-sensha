@@ -2,8 +2,8 @@
 #include "game/run/TankExpeditionContent.h"
 
 namespace tankcontent {
-// Draw only after ImGui::NewFrame. A true result means the scene should inject
-// the updated catalog into its player/enemy systems. Unapplied edits stay local.
+// ImGui::NewFrame の後でだけ描画する。true が返ったら、シーンは更新後のカタログを
+// 自機・敵の処理へ反映する。適用していない編集はエディターの中にとどまる。
 /// @brief 遠征の敵・強化・機体の制作データを編集・保存する。
 class ContentEditor {
 public:

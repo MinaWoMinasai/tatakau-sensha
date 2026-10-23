@@ -33,7 +33,7 @@ void InputDesc::InitializeForTrail()
     ElementDescs_[0].Format = DXGI_FORMAT_R32G32B32_FLOAT; // Vector3
     ElementDescs_[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
-    // 1: 頂点カラー (COLOR) ★これが重要！
+    // 1: 頂点カラー (COLOR)
     ElementDescs_[1].SemanticName = "COLOR";
     ElementDescs_[1].SemanticIndex = 0;
     ElementDescs_[1].Format = DXGI_FORMAT_R32G32B32A32_FLOAT; // Vector4 (RGBA)

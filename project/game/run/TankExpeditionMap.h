@@ -404,7 +404,7 @@ inline MapDefinition DefaultExpeditionMap()
     return map;
 }
 
-// Stable integer PRNG makes a captured seed reproduce identically across builds.
+// 整数の安定した疑似乱数を使うので、記録したシードはどのビルドでも同じ結果を再現する。
 /// @brief 生成条件が検証済みである前提で遠征ルートを生成する。
 inline MapDefinition GenerateExpeditionMapUnchecked(uint32_t seed, const MapDefinition& settings, int tutorialCombatClearReward,
                                                     int tutorialEnemyCredits)

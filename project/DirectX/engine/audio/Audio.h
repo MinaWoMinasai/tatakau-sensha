@@ -65,15 +65,11 @@ public:
     static constexpr size_t kMaxPcmWaveBytes = 16 * 1024 * 1024;
     static constexpr size_t kMaxVoicesPerSound = 16;
     static constexpr size_t kMaxLoadedVoices = 128;
-    // Generated RIFF/WAVE PCM16 only (mono/stereo, 8-192 kHz), no Media Foundation
-    // decoder. A failed load preserves the previous bank and its active voices.
     /// @brief 生成したRIFF/WAVEのPCM16音源を読む。失敗時は既存の音源と再生を保つ。
     /// @param maxConcurrency 同時に使うボイス数。
     /// @return 対応する音源を読み込んで登録できた場合true。
     /// @note モノラル／ステレオ、8〜192kHzが対象。Media Foundationのデコーダーは使わない。
     bool TryLoadPcmWave(const std::wstring& soundName, const std::wstring& soundPath, size_t maxConcurrency = 1);
-    // Gain is clamped to 0..1, pitch ratio to 0.25..2 (changes playback speed too).
-    // Pool saturation steals its next voice. Old handles cannot control the reuse.
     /// @brief 音源を再生し、この再生の世代付きハンドルを返す。
     /// @param volume 音量。0〜1へ制限する。
     /// @param pitch 再生速度も変わる周波数比。0.25〜2へ制限する。

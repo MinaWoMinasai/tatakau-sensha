@@ -5,8 +5,8 @@
 #include "TankRunDirector.h"
 
 namespace tankexp {
-// Automated gameplay probes normally must not alter the player's local history.
-// Submission validation opts in only inside its isolated staged game directory.
+// 自動のゲームプレイ検証では、通常はプレイヤーの手元の履修記録を変えてはいけない。
+// 提出版の検証だけは、隔離した提出用のゲームフォルダの中に限って保存する。
 /// @brief チュートリアルの完了を保存すべきかを判定する。デモ・検証・単独提出では保存しない。
 inline constexpr bool ShouldSaveTutorialCompletion(bool demo, bool validation, bool isolatedSubmission)
 {
@@ -32,8 +32,8 @@ struct TutorialValidationState {
     unsigned observedSteps = 0;
 };
 
-// Input events are latched: a quick player cannot lose a kill or menu selection
-// while the previous step's success message is being shown.
+// 入力のイベントは保持しておくので、前の手順の成功メッセージを表示している間に素早く
+// 敵を倒したりメニューを選んだりしても、取りこぼさない。
 /// @brief 遠征の導入手順と履修状態の保存を管理する。
 class ExpeditionTutorial {
 public:
@@ -159,8 +159,8 @@ public:
         return maySkip_ && IsVisible();
     }
 
-    // Keep an emptied first room playable until the movement/dash lessons are done.
-    /// @brief LeaveFirst部屋が可能か判定する。
+    // 移動とダッシュの手順が終わるまでは、敵がいなくなった最初の部屋でも遊べるようにしておく。
+    /// @brief 最初の部屋を出てよいかを返す。
     bool CanLeaveFirstRoom() const
     {
         return step_ >= TutorialStep::ClearRoom;
@@ -179,7 +179,7 @@ private:
     bool success_ = false, completed_ = false, maySkip_ = false;
 };
 
-// Keep only two ordinary upgrades on the battlefield; rare upgrades remain visible.
+// 戦場に表示する通常の強化は2つまでにする。レアな強化は常に表示する。
 /// @brief 表示対象の強化カードを整理して一覧にする。
 inline std::array<bool, tankrun::CardCount> CompactBuildCards(const tankrun::CardCounts& cards)
 {

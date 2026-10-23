@@ -30,9 +30,9 @@ enum class RoomKind {
     Boss
 };
 
-// A short expedition has five fights, two route choices, and one event.
-// Rendering, card acquisition, enemy objectives, and HP costs belong to the scene.
-// No menu advances the combat clocks, and no deadline completes a room by itself.
+// 短い遠征は、戦闘5回・進路の選択2回・イベント1回で構成する。
+// 描画・カードの取得・敵の目標・HP の消費はシーンが受け持つ。
+// メニューが戦闘の時間を進めることはなく、時間切れで部屋が勝手にクリアになることもない。
 /// @brief 遠征の部屋開始・戦闘終了・報酬・進路選択の進行を管理する。
 class ExpeditionDirector {
 public:
@@ -42,8 +42,7 @@ public:
         *this = ExpeditionDirector{};
     }
 
-    // Authored expeditions use the same combat clocks/objectives, with their
-    // routing and economy owned by ExpeditionMapRun.
+    // 制作した遠征も同じ戦闘の時間と目標を使い、進路と経済は ExpeditionMapRun が受け持つ。
     /// @brief 遠征ルートの選択画面へ進む。
     bool OpenMap()
     {

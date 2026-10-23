@@ -56,8 +56,8 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, const std::string& textureFi
     materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
     *materialData = MakeDefaultMaterial();
 
-    // 用のTransformationMatrix用のリソースを作る。Matrix4x41つ分のサイズを用意する
-    // Sprites use Object3d.VS, whose transform includes LightWVP (256 bytes).
+    // 変換行列用の定数バッファを作る。スプライトは Object3d.VS を使い、その変換行列には
+    // LightWVP も含まれるので、TransformationMatrixWithShadow（256バイト）分を確保する。
     transformationMatrixResource =
         texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(TransformationMatrixWithShadow));
     // 書き込むためのアドレスを取得

@@ -31,8 +31,8 @@ public:
         std::string digest;
     };
 
-    // DXC calls this for each include candidate, including unsuccessful probes.
-    // Recording missing candidates also catches a newly created, higher-priority include.
+    // DXC は include の候補ごとにこれを呼ぶ（見つからなかった候補も含む）。見つからなかった
+    // 候補も記録しておくと、優先度の高い include が後から作られたときにも気づける。
     /// @brief シェーダーのinclude読み込みを記録し、キャッシュの依存情報へ渡す。
     class IncludeRecorder final
         : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDxcIncludeHandler> {
@@ -102,8 +102,8 @@ public:
         return result;
     }
 
-    // Source bytes and the entire command line are part of the key. Compiler and
-    // validator DLL contents are fingerprinted once, not merely their timestamps.
+    // キーには、ソースのバイト列とコマンドライン全体を含める。コンパイラーと検証器の DLL は、
+    // 更新日時ではなく中身から一度だけ指紋を取る。
     /// @brief キーを作成して返す。
     std::string MakeKey(const std::wstring& path, const void* source, size_t size, LPCWSTR const* arguments, size_t count) noexcept
     {

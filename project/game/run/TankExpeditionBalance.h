@@ -138,8 +138,8 @@ inline nlohmann::json DefaultBalance()
               {"bossAimTurnHalfSeconds", 1.0f}}}};
 }
 
-// Each accepted key has a finite bound. Missing/wrong-type/non-finite values
-// recover independently, so a hand-edited bad field cannot poison the simulation.
+// 受け付けるキーには、それぞれ有限の範囲がある。欠けている・型が違う・有限でない値は項目ごとに
+// 既定値へ戻すので、手で書き換えた不正な項目がシミュレーション全体を壊すことはない。
 /// @brief 部屋の調整値を対応範囲内へ補正する。
 inline nlohmann::json SanitizeBalance(const nlohmann::json& source)
 {

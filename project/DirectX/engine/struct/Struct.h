@@ -191,8 +191,8 @@ struct OBB {
     Vector3 orientation[3]; // 正規化済み
 };
 
-// GPU constant-buffer layout. Keep this field order exactly synchronized with
-// Material in resources/shaders/Object3d.PS.hlsl.
+// GPU の定数バッファの配置。フィールドの順番は resources/shaders/Object3d.PS.hlsl の
+// Material と完全に一致させること。
 /// @brief シェーダーへ渡す材質・色・ライティング設定を表す。
 struct alignas(16) Material {
     Vector4 color;
