@@ -121,10 +121,8 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
                             {{1.22f, 1.36f, 0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     contourData.indices = {0, 1, 2, 1, 3, 2};
     contourData.material.textureFilePath = ResourcePaths::DefaultWhiteTexture();
-    contourModelCommon_ = std::make_unique<ModelCommon>();
-    contourModelCommon_->Initialize(dxCommon_);
     contourModel_ = std::make_unique<Model>();
-    contourModel_->InitializeFromModelData(contourModelCommon_.get(), contourData);
+    contourModel_->InitializeFromModelData(dxCommon_, contourData);
     model_ = contourModel_.get();
 
     // 1. インスタンシング用。CPU更新した行列を毎フレーム書き込むためUploadにする。

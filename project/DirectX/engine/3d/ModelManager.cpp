@@ -19,13 +19,12 @@ void ModelManager::Finalize()
     pendingModels_.clear();
     texturePreloadsQueued_.clear();
     models.clear();
-    modelCommon.reset();
+    dxCommon_ = nullptr;
 }
 
 void ModelManager::Initialize(DirectXCommon* dxCommon)
 {
-    modelCommon = std::make_unique<ModelCommon>();
-    modelCommon->Initialize(dxCommon);
+    dxCommon_ = dxCommon;
 }
 
 void ModelManager::PreloadObjModel(const std::string& filePath)
@@ -96,15 +95,15 @@ void ModelManager::LoadModel(const std::string& filePath)
         auto result = pending->second;
         pendingModels_.erase(pending);
         try {
-            model->InitializeFromModelData(modelCommon.get(), result.get());
+            model->InitializeFromModelData(dxCommon_, result.get());
             StartupTrace::Count("Models.BackgroundUsed");
         }
         catch (const std::exception& error) {
             LogWrite().Log("[BackgroundLoader] Model fallback: " + std::string(error.what()) + "\n");
-            model->Initialize(modelCommon.get(), ResourcePaths::GameRoot(), filePath);
+            model->Initialize(dxCommon_, ResourcePaths::GameRoot(), filePath);
         }
     } else {
-        model->Initialize(modelCommon.get(), ResourcePaths::GameRoot(), filePath);
+        model->Initialize(dxCommon_, ResourcePaths::GameRoot(), filePath);
     }
 
     // モデルをmapコンテナに格納する
@@ -132,7 +131,7 @@ void ModelManager::CreateModelFromData(const std::string& modelName, const Model
         return;
     }
     auto model = std::make_unique<Model>();
-    model->InitializeFromModelData(modelCommon.get(), data);
+    model->InitializeFromModelData(dxCommon_, data);
     models.emplace(modelName, std::move(model));
 }
 

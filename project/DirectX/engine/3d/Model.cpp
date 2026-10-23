@@ -826,18 +826,18 @@ void GenerateModelTangents(ModelData& modelData)
 }
 } // namespace
 
-void Model::Initialize(ModelCommon* modelCommon, const std::string& directorypath, const std::string& filename)
+void Model::Initialize(DirectXCommon* dxCommon, const std::string& directorypath, const std::string& filename)
 {
     if (IsObjModel(filename)) {
-        InitializeFromModelData(modelCommon, LoadObjFile(directorypath, filename));
+        InitializeFromModelData(dxCommon, LoadObjFile(directorypath, filename));
         return;
     }
-    InitializeFromModelData(modelCommon, LoadAssimpFile(directorypath, filename));
+    InitializeFromModelData(dxCommon, LoadAssimpFile(directorypath, filename));
 }
 
-void Model::InitializeFromModelData(ModelCommon* modelCommon, const ModelData& modelData)
+void Model::InitializeFromModelData(DirectXCommon* dxCommon, const ModelData& modelData)
 {
-    modelCommon_ = modelCommon;
+    dxCommon_ = dxCommon;
     modelData_ = modelData;
     TextureManager::GetInstance()->CreateFlatNormalTexture();
     TextureManager::GetInstance()->CreateBrdfLutTexture();
@@ -930,7 +930,7 @@ void Model::CreateGpuResources()
 {
     // 用の頂点リソースを作る
     vertexResource =
-        texture.CreateBufferResource(modelCommon_->GetDxCommon()->GetDevice(), sizeof(VertexData) * modelData_.vertices.size());
+        texture.CreateBufferResource(dxCommon_->GetDevice(), sizeof(VertexData) * modelData_.vertices.size());
 
     // リソースの先端のアドレスから使う
     vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
@@ -945,7 +945,7 @@ void Model::CreateGpuResources()
 
     // IndexBufferを作成する。Skinningでは頂点とWeightを一対一で対応させるため、
     // 面ごとに頂点を複製せずIndexで共有する形を標準とする。
-    indexResource = texture.CreateBufferResource(modelCommon_->GetDxCommon()->GetDevice(), sizeof(uint32_t) * modelData_.indices.size());
+    indexResource = texture.CreateBufferResource(dxCommon_->GetDevice(), sizeof(uint32_t) * modelData_.indices.size());
     indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress();
     indexBufferView.SizeInBytes = UINT(sizeof(uint32_t) * modelData_.indices.size());
     indexBufferView.Format = DXGI_FORMAT_R32_UINT;
@@ -960,39 +960,39 @@ void Model::Draw()
 
 void Model::Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddresses, const D3D12_GPU_DESCRIPTOR_HANDLE* baseColorTexture)
 {
-    modelCommon_->GetDxCommon()->GetList()->IASetVertexBuffers(0, 1, &vertexBufferView); //VBVを設定
-    modelCommon_->GetDxCommon()->GetList()->IASetIndexBuffer(&indexBufferView);
+    dxCommon_->GetList()->IASetVertexBuffers(0, 1, &vertexBufferView); //VBVを設定
+    dxCommon_->GetList()->IASetIndexBuffer(&indexBufferView);
 
     auto drawSubmesh = [&](const ModelSubmesh& submesh) {
         const uint32_t materialIndex = submesh.materialIndex < modelData_.materials.size() ? submesh.materialIndex : 0u;
         const MaterialData& material = modelData_.materials.empty() ? modelData_.material : modelData_.materials[materialIndex];
 
         if (materialIndex < materialCbvAddresses.size() && materialCbvAddresses[materialIndex] != 0) {
-            modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(0, materialCbvAddresses[materialIndex]);
-            modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootConstantBufferView(10, materialCbvAddresses[materialIndex]);
+            dxCommon_->GetList()->SetGraphicsRootConstantBufferView(0, materialCbvAddresses[materialIndex]);
+            dxCommon_->GetList()->SetGraphicsRootConstantBufferView(10, materialCbvAddresses[materialIndex]);
         }
 
-        modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+        dxCommon_->GetList()->SetGraphicsRootDescriptorTable(
             2, baseColorTexture ? *baseColorTexture : TextureManager::GetInstance()->GetSrvHandleGPU(material.textureFilePath));
-        modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+        dxCommon_->GetList()->SetGraphicsRootDescriptorTable(
             11,
             TextureManager::GetInstance()->GetSrvHandleGPU(material.normalTextureFilePath, TextureManager::TextureColorSpace::LinearData));
-        modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+        dxCommon_->GetList()->SetGraphicsRootDescriptorTable(
             12, TextureManager::GetInstance()->GetSrvHandleGPU(material.metallicRoughnessTextureFilePath,
                                                                TextureManager::TextureColorSpace::LinearData));
-        modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+        dxCommon_->GetList()->SetGraphicsRootDescriptorTable(
             13, TextureManager::GetInstance()->GetSrvHandleGPU(material.occlusionTextureFilePath,
                                                                TextureManager::TextureColorSpace::LinearData));
-        modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+        dxCommon_->GetList()->SetGraphicsRootDescriptorTable(
             14, TextureManager::GetInstance()->GetSrvHandleGPU(TextureManager::GetBrdfLutTexturePath(),
                                                                TextureManager::TextureColorSpace::LinearData));
-        modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+        dxCommon_->GetList()->SetGraphicsRootDescriptorTable(
             15, TextureManager::GetInstance()->GetSrvHandleGPU(TextureManager::GetPbrIrradianceTexturePath(),
                                                                TextureManager::TextureColorSpace::LinearData));
-        modelCommon_->GetDxCommon()->GetList()->SetGraphicsRootDescriptorTable(
+        dxCommon_->GetList()->SetGraphicsRootDescriptorTable(
             16, TextureManager::GetInstance()->GetSrvHandleGPU(TextureManager::GetPbrPrefilteredEnvironmentTexturePath(),
                                                                TextureManager::TextureColorSpace::LinearData));
-        modelCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(submesh.indexCount, 1, submesh.startIndex, 0, 0);
+        dxCommon_->GetList()->DrawIndexedInstanced(submesh.indexCount, 1, submesh.startIndex, 0, 0);
     };
 
     if (modelData_.submeshes.empty()) {
@@ -1007,13 +1007,13 @@ void Model::Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCbvAddres
 void Model::DrawOnlyMesh()
 {
     // 頂点バッファのセットと描画コマンドのみ
-    modelCommon_->GetDxCommon()->GetList()->IASetVertexBuffers(0, 1, &vertexBufferView);
-    modelCommon_->GetDxCommon()->GetList()->IASetIndexBuffer(&indexBufferView);
+    dxCommon_->GetList()->IASetVertexBuffers(0, 1, &vertexBufferView);
+    dxCommon_->GetList()->IASetIndexBuffer(&indexBufferView);
     if (modelData_.submeshes.empty()) {
-        modelCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(UINT(modelData_.indices.size()), 1, 0, 0, 0);
+        dxCommon_->GetList()->DrawIndexedInstanced(UINT(modelData_.indices.size()), 1, 0, 0, 0);
     } else {
         for (const ModelSubmesh& submesh : modelData_.submeshes) {
-            modelCommon_->GetDxCommon()->GetList()->DrawIndexedInstanced(submesh.indexCount, 1, submesh.startIndex, 0, 0);
+            dxCommon_->GetList()->DrawIndexedInstanced(submesh.indexCount, 1, submesh.startIndex, 0, 0);
         }
     }
 }

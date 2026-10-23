@@ -345,7 +345,6 @@ private:
     NeonTriangleEffectMode neonTriangleEffectMode_ = NeonTriangleEffectMode::Outline;
     Model* model_ = nullptr;
     // 手続き的な輪郭は余白付きの四角形を自前で持つ。共有のOBJ素材は変更しない。
-    std::unique_ptr<ModelCommon> contourModelCommon_;
     std::unique_ptr<Model> contourModel_;
     std::vector<ActiveParticle> activeParticles_;
     uint32_t instanceCount_ = 0;

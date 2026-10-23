@@ -1,5 +1,5 @@
 #pragma once
-#include "ModelCommon.h"
+#include "DirectXCommon.h"
 #include "TextureManager.h"
 
 namespace myEngine {
@@ -8,9 +8,9 @@ namespace myEngine {
 class Model {
 public:
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
-    void Initialize(ModelCommon* modelCommon, const std::string& directorypath, const std::string& filename);
+    void Initialize(DirectXCommon* dxCommon, const std::string& directorypath, const std::string& filename);
     /// @brief 読み込み済みのモデルデータから初期化する。
-    void InitializeFromModelData(ModelCommon* modelCommon, const ModelData& modelData);
+    void InitializeFromModelData(DirectXCommon* dxCommon, const ModelData& modelData);
     /// @brief 面の向きから、なめらかな頂点法線を計算し直す。
     void RecalculateSmoothNormals();
 
@@ -71,7 +71,7 @@ private:
     /// @brief GPUリソースを生成する。
     void CreateGpuResources();
 
-    ModelCommon* modelCommon_;
+    DirectXCommon* dxCommon_ = nullptr;
 
     // Objファイルのデータ
     ModelData modelData_;

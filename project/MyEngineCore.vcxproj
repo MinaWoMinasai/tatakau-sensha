@@ -167,7 +167,6 @@
     <ClCompile Include="DirectX\engine\3d\Skeleton.cpp" />
     <ClCompile Include="DirectX\engine\3d\SkinCluster.cpp" />
     <ClCompile Include="DirectX\engine\3d\Model.cpp" />
-    <ClCompile Include="DirectX\engine\3d\ModelCommon.cpp" />
     <ClCompile Include="DirectX\engine\3d\ModelManager.cpp" />
     <ClCompile Include="DirectX\engine\common\SrvManager.cpp" />
     <ClCompile Include="DirectX\engine\particle\ParticleManager.cpp" />
@@ -247,7 +246,6 @@
     <ClInclude Include="DirectX\engine\3d\Skeleton.h" />
     <ClInclude Include="DirectX\engine\3d\SkinCluster.h" />
     <ClInclude Include="DirectX\engine\3d\Model.h" />
-    <ClInclude Include="DirectX\engine\3d\ModelCommon.h" />
     <ClInclude Include="DirectX\engine\3d\ModelManager.h" />
     <ClInclude Include="DirectX\engine\common\SrvManager.h" />
     <ClInclude Include="game\runtime\Application.h" />
