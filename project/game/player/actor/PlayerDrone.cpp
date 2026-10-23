@@ -204,9 +204,8 @@ void PlayerDrone::Update(myEngine::Camera* viewProjection, Stage& stage, const m
     myEngine::Vector3 followDirection = distance < 0.01f ? myEngine::Vector3{} : myEngine::Normalize(toPlayer);
 
     // 追従速度は距離に応じて増やし、追い付き速度の設定値を上限にする。
-    const float followSpeed = mission_.GetPhase() == tankspecial::DronePhase::Charging
-                                  ? .90f
-                                  : (std::min)(runCatchupSpeed_, runFollowSpeed_ + distance * 0.035f);
+    const float followSpeed =
+        mission_.GetPhase() == tankspecial::DronePhase::Charging ? .90f : (std::min)(runCatchupSpeed_, runFollowSpeed_ + distance * 0.035f);
     myEngine::Vector3 targetVelocity = followDirection * (followSpeed * (std::min)(1.0f, distance / 1.2f));
 
     // 追従は秒数を使った指数補間。突撃は目標速度へ直接切り替え、予告では速度を0にする。

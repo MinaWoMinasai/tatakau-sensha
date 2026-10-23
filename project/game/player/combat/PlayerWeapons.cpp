@@ -313,9 +313,9 @@ void PlayerWeapons::DroneShoot(BulletManager* bulletManager)
 
     const PlayerClassConfig* config = player_.GetCurrentClassConfig();
     int droneLimit = (std::max)(0, config ? config->maxDrones : 7);
-    droneLimit = TankExpeditionDroneLimit(player_.runEvolutionActive_ ? FindTankExpeditionSpecialization(player_.runEvolutionConfig_.id)
-                                                                      : nullptr,
-                                          droneLimit, player_.runModifiers_.drones, player_.runModifiers_.core == TankRunCore::Drone);
+    droneLimit =
+        TankExpeditionDroneLimit(player_.runEvolutionActive_ ? FindTankExpeditionSpecialization(player_.runEvolutionConfig_.id) : nullptr,
+                                 droneLimit, player_.runModifiers_.drones, player_.runModifiers_.core == TankRunCore::Drone);
     const size_t maxDrones = static_cast<size_t>(droneLimit);
     if (player_.drones_.size() >= maxDrones) {
         player_.bulletCoolTime = 0.0f;
@@ -912,8 +912,7 @@ void PlayerWeapons::TriggerSaberCounter(const PlayerClassConfig& config)
     }
 
     const WeaponMountConfig& mount = *mountIt;
-    const myEngine::Vector3 forward =
-        myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1.0f, 0.0f, 0.0f});
+    const myEngine::Vector3 forward = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1.0f, 0.0f, 0.0f});
     const myEngine::Vector3 right = {-forward.y, forward.x, 0.0f};
     MeleeSlashEvent event{};
     event.origin = player_.worldTransform_.translate + forward * mount.offset.x + right * mount.offset.y +
@@ -1035,8 +1034,7 @@ bool PlayerWeapons::FireConfiguredClass(const PlayerClassConfig& config, BulletM
         return false;
     }
 
-    const myEngine::Vector3 forward =
-        myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1.0f, 0.0f, 0.0f});
+    const myEngine::Vector3 forward = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1.0f, 0.0f, 0.0f});
     const myEngine::Vector3 right = {-forward.y, forward.x, 0.0f};
     bool firesMelee = false;
     float meleeComboResetTime = 0.90f;
@@ -1361,8 +1359,7 @@ void PlayerWeapons::UpdateAdditionalAbilities(Stage& stage, BulletManager* bulle
             enemy->TakeDirectionalDamage(amount, source, melee);
             if (knockback > 0) {
                 const auto difference = enemy->GetWorldPosition() - source;
-                enemy->ApplyKnockback(myEngine::NormalizeOr(difference, myEngine::Vector3{1, 0, 0}, .001f),
-                                      knockback);
+                enemy->ApplyKnockback(myEngine::NormalizeOr(difference, myEngine::Vector3{1, 0, 0}, .001f), knockback);
                 if (melee) {
                     ArmWallSmash(enemy, 1);
                 }

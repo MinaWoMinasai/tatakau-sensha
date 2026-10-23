@@ -151,8 +151,7 @@ void Model::InitializeFromModelData(DirectXCommon* dxCommon, const ModelData& mo
 void Model::CreateGpuResources()
 {
     // 用の頂点リソースを作る
-    vertexResource =
-        texture.CreateBufferResource(dxCommon_->GetDevice(), sizeof(VertexData) * modelData_.vertices.size());
+    vertexResource = texture.CreateBufferResource(dxCommon_->GetDevice(), sizeof(VertexData) * modelData_.vertices.size());
 
     // リソースの先端のアドレスから使う
     vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();

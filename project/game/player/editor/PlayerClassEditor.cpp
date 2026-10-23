@@ -823,7 +823,8 @@ void PlayerClassEditor::DrawPlayerClassEditor()
                             : (config->fireAllBarrels ? "全砲同時" : "砲塔交互"));
             if (config->id == player_.GetCurrentClassId() && !player_.GetWeaponGroupCooldowns().empty()) {
                 ImGui::Text("実行中グループCD: ");
-                for (size_t groupIndex = 0; groupIndex < groups.size() && groupIndex < player_.GetWeaponGroupCooldowns().size(); ++groupIndex) {
+                for (size_t groupIndex = 0; groupIndex < groups.size() && groupIndex < player_.GetWeaponGroupCooldowns().size();
+                     ++groupIndex) {
                     ImGui::SameLine();
                     ImGui::Text("[%d %.2f]", groups[groupIndex], player_.GetWeaponGroupCooldowns()[groupIndex]);
                 }
