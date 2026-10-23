@@ -25,62 +25,60 @@ if (-not $Force -and $existingLib -and $existingDll) {
     exit 0
 }
 
+# Visual Studio installations with the C++ tools, newest first (vswhere ships with every VS 2017+ installer),
+# followed by the fixed VS 2022 locations used before.
+function Get-VisualStudioRoots {
+    $roots = @()
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+    if (Test-Path -LiteralPath $vswhere) {
+        $found = & $vswhere -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -sort -property installationPath
+        if ($LASTEXITCODE -eq 0 -and $found) {
+            $roots += @($found)
+        }
+    }
+    foreach ($edition in @("Community", "Professional", "Enterprise", "BuildTools")) {
+        $roots += "C:\Program Files\Microsoft Visual Studio\2022\$edition"
+    }
+    return @($roots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path -LiteralPath $_) } | Select-Object -Unique)
+}
+
+$visualStudioRoots = Get-VisualStudioRoots
+
+function Find-InVisualStudio([string]$RelativePath) {
+    foreach ($root in $visualStudioRoots) {
+        $candidate = Join-Path $root $RelativePath
+        if (Test-Path -LiteralPath $candidate) {
+            return $candidate
+        }
+    }
+    return ""
+}
+
 $cmakeCommand = Get-Command cmake -ErrorAction SilentlyContinue
 $cmakePath = if ($cmakeCommand) { $cmakeCommand.Source } else { "" }
 if ([string]::IsNullOrWhiteSpace($cmakePath)) {
-    $candidateCMakePaths = @(
-        "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe",
-        "C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe",
-        "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe",
-        "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
-    )
-    foreach ($candidate in $candidateCMakePaths) {
-        if (Test-Path -LiteralPath $candidate) {
-            $cmakePath = $candidate
-            break
-        }
-    }
+    $cmakePath = Find-InVisualStudio "Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
 }
 if ([string]::IsNullOrWhiteSpace($cmakePath)) {
-    throw "CMake was not found. Install Visual Studio 2022 with C++ CMake tools, or add cmake.exe to PATH."
+    throw "CMake was not found. Install Visual Studio 2022 or 2026 with C++ CMake tools, or add cmake.exe to PATH."
 }
 
 $ninjaCommand = Get-Command ninja -ErrorAction SilentlyContinue
 $ninjaPath = if ($ninjaCommand) { $ninjaCommand.Source } else { "" }
 if ([string]::IsNullOrWhiteSpace($ninjaPath)) {
-    $candidateNinjaPaths = @(
-        "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe",
-        "C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe",
-        "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe",
-        "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe"
-    )
-    foreach ($candidate in $candidateNinjaPaths) {
-        if (Test-Path -LiteralPath $candidate) {
-            $ninjaPath = $candidate
-            break
-        }
-    }
+    $ninjaPath = Find-InVisualStudio "Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe"
 }
 if ([string]::IsNullOrWhiteSpace($ninjaPath)) {
-    throw "Ninja was not found. Install Visual Studio 2022 with C++ CMake tools, or add ninja.exe to PATH."
+    throw "Ninja was not found. Install Visual Studio 2022 or 2026 with C++ CMake tools, or add ninja.exe to PATH."
 }
 
-$vcvarsPath = ""
-$candidateVcvarsPaths = @(
-    "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat",
-    "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat",
-    "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat",
-    "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
-)
-foreach ($candidate in $candidateVcvarsPaths) {
-    if (Test-Path -LiteralPath $candidate) {
-        $vcvarsPath = $candidate
-        break
-    }
-}
+$vcvarsPath = Find-InVisualStudio "VC\Auxiliary\Build\vcvarsall.bat"
 if ([string]::IsNullOrWhiteSpace($vcvarsPath)) {
-    throw "Visual Studio vcvarsall.bat was not found. Install Visual Studio 2022 with Desktop development with C++."
+    throw "Visual Studio vcvarsall.bat was not found. Install Visual Studio 2022 or 2026 with Desktop development with C++."
 }
+Write-Host "Using Visual Studio tools:"
+Write-Host "  $vcvarsPath"
+Write-Host "  $cmakePath"
 
 function Invoke-VsCMake([string[]]$Arguments) {
     $quotedArgs = $Arguments | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }
@@ -157,15 +155,21 @@ Copy-Item -LiteralPath $builtLib.FullName -Destination $assimpLibDir -Force
 Copy-Item -LiteralPath $builtDll.FullName -Destination $assimpRuntimeDir -Force
 
 $includeTarget = Join-Path $vendorRoot "include\assimp"
-New-Item -ItemType Directory -Force -Path $includeTarget | Out-Null
-Copy-Item -Path (Join-Path $sourceDir "include\assimp\*") -Destination $includeTarget -Recurse -Force
-$generatedConfig = Get-ChildItem -LiteralPath $buildDir -Recurse -Filter "config.h" | Where-Object { $_.FullName -match "\\include\\assimp\\config\.h$" } | Select-Object -First 1
-$generatedRevision = Get-ChildItem -LiteralPath $buildDir -Recurse -Filter "revision.h" | Where-Object { $_.FullName -match "\\include\\assimp\\revision\.h$" } | Select-Object -First 1
-if ($generatedConfig) {
-    Copy-Item -LiteralPath $generatedConfig.FullName -Destination $includeTarget -Force
-}
-if ($generatedRevision) {
-    Copy-Item -LiteralPath $generatedRevision.FullName -Destination $includeTarget -Force
+# The headers are committed. Overwriting them would only change line endings (and revision.h) in a fresh clone,
+# so copy them only when they are missing, or when -Force asks for a refresh.
+if ($Force -or -not (Test-Path -LiteralPath (Join-Path $includeTarget "version.h"))) {
+    New-Item -ItemType Directory -Force -Path $includeTarget | Out-Null
+    Copy-Item -Path (Join-Path $sourceDir "include\assimp\*") -Destination $includeTarget -Recurse -Force
+    $generatedConfig = Get-ChildItem -LiteralPath $buildDir -Recurse -Filter "config.h" | Where-Object { $_.FullName -match "\\include\\assimp\\config\.h$" } | Select-Object -First 1
+    $generatedRevision = Get-ChildItem -LiteralPath $buildDir -Recurse -Filter "revision.h" | Where-Object { $_.FullName -match "\\include\\assimp\\revision\.h$" } | Select-Object -First 1
+    if ($generatedConfig) {
+        Copy-Item -LiteralPath $generatedConfig.FullName -Destination $includeTarget -Force
+    }
+    if ($generatedRevision) {
+        Copy-Item -LiteralPath $generatedRevision.FullName -Destination $includeTarget -Force
+    }
+} else {
+    Write-Host "Assimp headers already exist; kept the committed copy."
 }
 
 Write-Host "Assimp local binaries are ready:"
