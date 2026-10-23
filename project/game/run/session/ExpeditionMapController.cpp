@@ -720,7 +720,6 @@ void ExpeditionMapController::CompleteExpeditionMapCombat()
     if (!node || node->kind == NK::Boss) {
         return;
     }
-    const int reward = node->clearReward;
     if (!world_.run.expeditionMapRun_.CompleteCombat(false)) {
         return;
     }

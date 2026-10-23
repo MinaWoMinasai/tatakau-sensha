@@ -32,7 +32,6 @@
 namespace {
 using playerui::ReadVector2Object;
 using playerui::SetLabel;
-using playerui::Vector4ToJson;
 using playerui::WriteVector2Object;
 
 /// @brief 係数を0〜1に制限し、2つのRGBA色を線形補間して返す。
@@ -40,22 +39,6 @@ myEngine::Vector4 LerpColor(const myEngine::Vector4& a, const myEngine::Vector4&
 {
     t = (std::clamp)(t, 0.0f, 1.0f);
     return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t};
-}
-
-/// @brief 機体の種類に対応する画像パスを返す。
-const char* ClassTexturePath(ClassType type)
-{
-    switch (type) {
-    case ClassType::Twin:
-        return "resources/twin.png";
-    case ClassType::MachineGun:
-        return "resources/machineGun.png";
-    case ClassType::Overseer:
-    case ClassType::Summoner:
-        return "resources/drone.png";
-    default:
-        return "resources/normalTank.png";
-    }
 }
 
 /// @brief 強化HUDの項目名一覧を返す。

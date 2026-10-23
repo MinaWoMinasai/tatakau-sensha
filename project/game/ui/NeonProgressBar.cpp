@@ -342,7 +342,6 @@ void NeonProgressBar::UpdateSprites()
         const myEngine::Vector2 roundedInnerSize = {(std::max)(0.0f, size_.x - roundedOutlineInset * 2.0f),
                                                     (std::max)(0.0f, size_.y - roundedOutlineInset * 2.0f)};
         const myEngine::Vector4 bloomFillColor = MultiplyBrightness(style_.fillColor, style_.bloomBrightness, style_.bloomAlpha);
-        const myEngine::Vector4 bloomOutlineColor = MultiplyBrightness(style_.outlineColor, style_.bloomBrightness, style_.bloomAlpha);
         const bool fillComplete = displayValue_ >= 0.999f;
         const bool delayedComplete = delayedValue_ >= 0.999f;
         const myEngine::Vector2 fillSize = {roundedInnerSize.x * displayValue_, roundedInnerSize.y};
