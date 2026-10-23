@@ -61,6 +61,7 @@ public:
     void SetHeight(float height);
     /// @brief 注視点が動ける範囲（地面上の x, z）を設定する。
     void SetBounds(const Vector2& min, const Vector2& max);
+
     /// @brief 範囲の制限をなくす。
     void ClearBounds()
     {
@@ -81,6 +82,7 @@ public:
     float GetPitch() const;
     /// @brief カメラの位置。
     Vector3 GetPosition() const;
+
     /// @brief カメラの向き（Camera と同じ Rx * Ry * Rz の角度。x: 見下ろす角度、y・z: 0）。
     Vector3 GetRotate() const
     {

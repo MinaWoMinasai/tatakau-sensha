@@ -133,7 +133,8 @@ int GlyphAtlas::RegisterStyle(const Style& style)
     if (!data->family || data->family->GetLastStatus() != Gdiplus::Ok || !data->family->IsAvailable()) {
         return -1;
     }
-    data->fontStyle = style.bold && data->family->IsStyleAvailable(Gdiplus::FontStyleBold) ? Gdiplus::FontStyleBold : Gdiplus::FontStyleRegular;
+    data->fontStyle =
+        style.bold && data->family->IsStyleAvailable(Gdiplus::FontStyleBold) ? Gdiplus::FontStyleBold : Gdiplus::FontStyleRegular;
     data->font = std::make_unique<Gdiplus::Font>(data->family.get(), style.size, data->fontStyle, Gdiplus::UnitPixel);
     if (data->font->GetLastStatus() != Gdiplus::Ok) {
         return -1;

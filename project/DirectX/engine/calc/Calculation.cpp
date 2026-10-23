@@ -622,8 +622,8 @@ bool DecomposeAffineMatrix(const Matrix4x4& matrix, Vector3& scale, Vector3& rot
     // 行ベクトルの規約では、各行が「拡大縮小 × 回転行列の行」になっている。
     float axisScale[3];
     for (int row = 0; row < 3; ++row) {
-        axisScale[row] = std::sqrt(matrix.m[row][0] * matrix.m[row][0] + matrix.m[row][1] * matrix.m[row][1] +
-                                   matrix.m[row][2] * matrix.m[row][2]);
+        axisScale[row] =
+            std::sqrt(matrix.m[row][0] * matrix.m[row][0] + matrix.m[row][1] * matrix.m[row][1] + matrix.m[row][2] * matrix.m[row][2]);
     }
     scale = {axisScale[0], axisScale[1], axisScale[2]};
     constexpr float kMinScale = 1.0e-6f;

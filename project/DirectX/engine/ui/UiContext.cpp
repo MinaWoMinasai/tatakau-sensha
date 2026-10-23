@@ -86,7 +86,8 @@ void UiContext::Text(const Vector2& position, std::string_view text, int style, 
             continue;
         }
         // 文字の画像は画素の境目に合わせて置き、にじみを抑える。
-        const UiRect rect{std::round(position.x + placed.position.x), std::round(position.y + placed.position.y), glyph.size.x, glyph.size.y};
+        const UiRect rect{std::round(position.x + placed.position.x), std::round(position.y + placed.position.y), glyph.size.x,
+                          glyph.size.y};
         batch_.AddQuad(rect, glyph.uvMin, glyph.uvMax, color, page->GetSrvHandleGPU());
     }
 }
@@ -121,7 +122,10 @@ bool UiContext::Button(std::string_view id, const UiRect& rect, std::string_view
         activeId_ = 0;
     }
 
-    const Vector4& background = !enabled ? look.disabled : (activeId_ == key && hovered) ? look.pressed : hovered ? look.hovered : look.normal;
+    const Vector4& background = !enabled                        ? look.disabled
+                                : (activeId_ == key && hovered) ? look.pressed
+                                : hovered                       ? look.hovered
+                                                                : look.normal;
     batch_.AddRect(rect, background);
     TextCentered(rect, label, style, enabled ? look.text : look.disabledText);
     return clicked;
