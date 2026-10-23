@@ -1,6 +1,6 @@
 #pragma once
 #include "Collider.h"
-#include <list>
+#include <vector>
 
 class Enemy;
 class Player;
@@ -28,13 +28,13 @@ public:
 
     /// @brief 最後に登録した衝突対象一覧への読み取り専用参照を返す。要素の所有権は持たない。
     /// @note 弾・敵・ドローンの削除後は要素を利用しない。次の走査で一覧を作り直す。
-    const std::list<Collider*>& GetColliders() const
+    const std::vector<Collider*>& GetColliders() const
     {
         return colliders_;
     }
 
 private:
     BulletManager* activeBulletManager_ = nullptr;
-    // コライダーリスト
-    std::list<Collider*> colliders_;
+    // コライダーの一覧。毎フレーム作り直すが、容量は使い回す。
+    std::vector<Collider*> colliders_;
 };

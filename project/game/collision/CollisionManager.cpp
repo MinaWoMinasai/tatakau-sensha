@@ -12,22 +12,15 @@ void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletMa
     bulletManager->SetCombatContext(player, enemy, enemyManager);
 
     // この走査で借用する一覧を作り直す。通知が終わるまで弾・敵・ドローンを削除しない。
+    // clearは容量を残すので、毎フレームの確保を避けられる。
     colliders_.clear();
 
     SetColliders(player, enemy, bulletManager, enemyManager);
 
-    // 同じ組を重複して調べないよう、後ろの要素だけと組み合わせる。
-    std::list<Collider*>::iterator itrA = colliders_.begin();
-    for (; itrA != colliders_.end(); ++itrA) {
-        Collider* colliderA = *itrA;
-
-        std::list<Collider*>::iterator itrB = itrA;
-        itrB++;
-
-        for (; itrB != colliders_.end(); ++itrB) {
-            Collider* colliderB = *itrB;
-
-            CheckCollisionPair(colliderA, colliderB);
+    // 同じ組を重複して調べないよう、後ろの要素だけと組み合わせる。通知中に一覧へ追加しない。
+    for (size_t indexA = 0; indexA < colliders_.size(); ++indexA) {
+        for (size_t indexB = indexA + 1; indexB < colliders_.size(); ++indexB) {
+            CheckCollisionPair(colliders_[indexA], colliders_[indexB]);
         }
     }
     // 通知中は生成を予約し、全ペアの走査後に反映する。追加による弾配列の再確保を走査へ持ち込まない。
@@ -37,6 +30,14 @@ void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletMa
 
 void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* colliderB)
 {
+    // どちらかのマスクが相手を許可すれば、後続で双方へ通知する。マスクごとに通知を分ける処理ではない。
+    // 属性だけで決まるので、型の確認や距離の計算より先に、当たらない組を除外する。
+    const bool canA = (colliderA->GetCollisionMask() & colliderB->GetCollisionAttribute());
+    const bool canB = (colliderB->GetCollisionMask() & colliderA->GetCollisionAttribute());
+    if (!(canA || canB)) {
+        return;
+    }
+
     // 前のペアで消費された弾は対象外。死亡判定は入口だけで行い、成立した接触では双方へ通知する。
     // 片方のOnCollisionで弾が死亡しても、もう片方がダメージや命中処理を受け取れるようにする。
     const Bullet* bulletA = dynamic_cast<const Bullet*>(colliderA);
@@ -89,13 +90,6 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
     }
 
     if (!hit) {
-        return;
-    }
-
-    // どちらかのマスクが相手を許可すれば、後続で双方へ通知する。マスクごとに通知を分ける処理ではない。
-    bool canA = (colliderA->GetCollisionMask() & colliderB->GetCollisionAttribute());
-    bool canB = (colliderB->GetCollisionMask() & colliderA->GetCollisionAttribute());
-    if (!(canA || canB)) {
         return;
     }
 
