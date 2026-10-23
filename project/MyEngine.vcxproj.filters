@@ -705,6 +705,9 @@
     <ClInclude Include="game\player\editor\PlayerClassEditor.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="game\player\editor\PlayerClassEditorTarget.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\player\ui\PlayerUiState.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

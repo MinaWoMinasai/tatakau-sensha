@@ -1299,10 +1299,12 @@ private:
     std::unique_ptr<PlayerUiState> ui_;
     std::unique_ptr<PlayerHud> playerHud_;
     std::unique_ptr<PlayerEvolution> playerEvolution_;
+    // 機体設定の制作画面へ渡す窓口。入れ子クラスなので非公開メンバを使えるが、制作画面からは窓口の操作しか見えない。
+    class ClassEditorTarget;
+    std::unique_ptr<ClassEditorTarget> classEditorTarget_;
     std::unique_ptr<PlayerClassEditor> playerClassEditor_;
     friend class PlayerHud;
     friend class PlayerEvolution;
-    friend class PlayerClassEditor;
     std::unique_ptr<PlayerWeapons> playerWeapons_;
     std::unique_ptr<PlayerProgression> playerProgression_;
     friend class PlayerWeapons;

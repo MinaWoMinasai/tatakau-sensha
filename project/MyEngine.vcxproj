@@ -575,6 +575,7 @@
     <ClInclude Include="game\player\ui\PlayerHud.h" />
     <ClInclude Include="game\player\ui\PlayerEvolution.h" />
     <ClInclude Include="game\player\editor\PlayerClassEditor.h" />
+    <ClInclude Include="game\player\editor\PlayerClassEditorTarget.h" />
     <ClInclude Include="game\player\ui\PlayerUiState.h" />
     <ClInclude Include="game\player\ui\PlayerPresentation.h" />
   </ItemGroup>

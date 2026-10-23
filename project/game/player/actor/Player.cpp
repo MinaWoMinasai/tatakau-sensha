@@ -63,6 +63,64 @@ myEngine::Vector3 ReadMoveInput(myEngine::Input* input)
 
 } // namespace
 
+/// @brief 機体設定の制作画面に渡す窓口。必要な操作だけを自機の非公開メンバへ中継する。
+class Player::ClassEditorTarget final : public PlayerClassEditorTarget {
+public:
+    explicit ClassEditorTarget(Player& player) : player_(player) {}
+
+    PlayerClassCatalog& GetClassCatalog() override
+    {
+        return player_.classCatalog_;
+    }
+    const std::string& GetCurrentClassId() const override
+    {
+        return player_.currentClassId_;
+    }
+    const std::vector<float>& GetWeaponGroupCooldowns() const override
+    {
+        return player_.weaponGroupCooldowns_;
+    }
+    const char* GetCurrentClassName() const override
+    {
+        return player_.GetCurrentClassName();
+    }
+    const PlayerClassConfig* GetClassConfig(const std::string& classId) const override
+    {
+        return player_.GetClassConfig(classId);
+    }
+    PlayerClassConfig* GetMutableClassConfig(const std::string& classId) override
+    {
+        return player_.GetMutableClassConfig(classId);
+    }
+    PlayerClassConfig CreateDefaultClassConfig(ClassType type) const override
+    {
+        return player_.CreateDefaultClassConfig(type);
+    }
+    bool LoadPlayerClassConfigs() override
+    {
+        return player_.LoadPlayerClassConfigs();
+    }
+    void SavePlayerClassConfigs() const override
+    {
+        player_.SavePlayerClassConfigs();
+    }
+    void EvolveById(const std::string& classId) override
+    {
+        player_.EvolveById(classId);
+    }
+    void InitializeBarrels() override
+    {
+        player_.InitializeBarrels();
+    }
+    void UpdateBarrelLayout() override
+    {
+        player_.UpdateBarrelLayout();
+    }
+
+private:
+    Player& player_;
+};
+
 Player::~Player() {}
 
 bool Player::ConsumePrimaryAttackPerformedEvent()
@@ -1203,7 +1261,8 @@ myEngine::Vector2 Player::WorldToScreen(const myEngine::Vector3& worldPos, myEng
 Player::Player()
     : ui_(std::make_unique<PlayerUiState>()), playerHud_(std::make_unique<PlayerHud>(*this, *ui_)),
       playerEvolution_(std::make_unique<PlayerEvolution>(*this, *ui_)),
-      playerClassEditor_(std::make_unique<PlayerClassEditor>(*this, *ui_)), playerWeapons_(std::make_unique<PlayerWeapons>(*this)),
+      classEditorTarget_(std::make_unique<ClassEditorTarget>(*this)),
+      playerClassEditor_(std::make_unique<PlayerClassEditor>(*classEditorTarget_, *ui_)), playerWeapons_(std::make_unique<PlayerWeapons>(*this)),
       playerProgression_(std::make_unique<PlayerProgression>(*this))
 {
 }
