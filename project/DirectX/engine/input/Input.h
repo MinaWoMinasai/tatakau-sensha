@@ -38,7 +38,7 @@ public:
 #endif
     /// @brief ウィンドウのフォーカスが変わったときに、デバイスを取得し直すか手放し、キー・マウス・パッドの状態を消す。
     void OnFocusChanged(bool active);
-    // Retain short key presses that begin and end between two game frames.
+    // 2つのゲームフレームの間に押して離した短いキー入力も、取りこぼさないよう記録する。
     /// @brief キーが押されたことを記録する。
     void RecordKeyDown(unsigned int scanCode, bool repeated);
     /// @brief キーがこのフレームで押されたかを返す。

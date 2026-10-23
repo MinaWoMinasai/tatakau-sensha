@@ -8,7 +8,7 @@ struct TutorialCopy {
     const char* detail;
 };
 
-// One current action per panel. Later systems are explained when they are used.
+// 1つのパネルには、今やる操作を1つだけ出す。ほかの仕組みは使う場面で説明する。
 /// @brief 戦闘中の操作課題に対応する説明文を返す。
 inline constexpr TutorialCopy GuidedTutorialCopy(GuidedCombatTutorial::Stage stage, bool /*retry*/ = false)
 {

@@ -166,9 +166,9 @@ inline const PlayerVariant* FindPlayer(const Catalog& c, const std::string& id)
     return FindDefinition(c.players, id);
 }
 
-// Only known retired standard IDs are removed. User-created composite effects
-// remain supported; legacy player designs remain available as authoring data.
-/// @brief RetiredStandard強化であるか判定する。
+// 消すのは、廃止したと分かっている標準の ID だけ。ユーザーが作った複合効果は引き続き使え、
+// 旧来の機体デザインも制作用のデータとして残る。
+/// @brief 廃止した標準強化の ID かを判定する。
 inline bool IsRetiredStandardUpgrade(const std::string& id)
 {
     constexpr std::array<const char*, 8> retired{"BankshotKit",     "DashBomberKit",  "BreachBladeKit",     "ArcBladeKit",
@@ -390,8 +390,8 @@ inline std::vector<std::string> BuildShopOffers(const Catalog& catalog, tankbuil
     return result;
 }
 
-// Both introduction paths share one run seed and the same three foundations.
-// This RNG is local: hovering, combat, or opening the other path cannot reroll it.
+// 2つの導入経路は、遠征1回分の同じシードと、同じ3つの基礎強化を共有する。この乱数は
+// 局所的なので、カーソルを合わせる・戦闘する・もう一方の経路を開くなどしても引き直されない。
 /// @brief 導入で提示する強化IDの一覧を返す。
 inline std::vector<std::string> IntroUpgradeIds(const Catalog& catalog, std::uint32_t seed)
 {

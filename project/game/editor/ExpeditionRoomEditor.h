@@ -5,7 +5,8 @@ namespace tankexp {
 /// @brief 遠征部屋の地形・出現配置を編集・保存する。
 class ExpeditionRoomEditor {
 public:
-    // An accepted Apply/Save/Reload returns true. Invalid edits never replace applied.
+    // 適用・保存・再読込が受け付けられたら true を返す。不正な編集で、適用済みのデータが
+    // 置き換わることはない。
     /// @brief 現在の状態を描画する。描画先と対応するパイプラインの準備後に呼ぶ。
     bool Draw(bool* open, RoomCatalog& applied, const std::vector<std::string>& enemyIds, const MapDefinition* map = nullptr,
               const MapDefinition* activeMap = nullptr);

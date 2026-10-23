@@ -53,7 +53,7 @@ public:
         }
     }
 
-    // Pass the same fixed dt for both A/B runs, irrespective of wall-clock FPS.
+    // A/B の両方の実行に同じ固定 dt を渡す。実時間の FPS には左右されない。
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update(float fixedDeltaTime)
     {
@@ -101,7 +101,7 @@ public:
         return manager_ ? manager_->GetDrawStats() : TrailManager::DrawStats{};
     }
 
-    // Like other renderers, destroy only between frames / after GPU completion.
+    // ほかの描画クラスと同じく、破棄はフレームの間か GPU の完了後に限る。
     /// @brief 利用を終了し、保持している資源と計測状態を解放する。
     void Shutdown()
     {

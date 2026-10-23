@@ -126,7 +126,7 @@ private:
     bool geometryDirty_ = true;
     bool batchingEnabled_ = true;
 
-    // Each draw gets immutable constants until its submission fence completes.
+    // 各描画の定数は、その描画を送信したフェンスが完了するまで書き換えない。
     /// @brief 軌跡描画で使うビュー・射影行列の定数バッファを保持する。
     struct ViewProjectionBuffer {
         Microsoft::WRL::ComPtr<ID3D12Resource> resource;

@@ -8,9 +8,9 @@
 #include <filesystem>
 #include <string>
 
-// Scene-owned original audio. Update during reward/pause screens as well so the
-// music ducks smoothly without restarting its phrase at every room boundary.
-// No engine master gain, unrelated bank, or AudioManager BGM is changed here.
+// シーンが持つ独自の音声。報酬・一時停止の画面でも Update を呼ぶので、部屋の境目ごとに
+// フレーズを最初からやり直さず、音楽を滑らかに下げられる。
+// ここでは、エンジンの全体音量・無関係なバンク・AudioManager の BGM は変えない。
 /// @brief 遠征中のイベントに応じてSEとBGMを再生し、音声設定を管理する。
 class TankExpeditionAudio {
 public:
@@ -135,8 +135,8 @@ public:
         audio->SetVolume(intensityVoice_, intensityGain_);
     }
 
-    // One scene call per volley/impact is preferred. These independent global
-    // limits also protect the mix when scatter or chains emit many callbacks.
+    // 一斉射撃・着弾ごとに、シーンから1回呼ぶのが望ましい。それとは別に全体の上限を設けて、
+    // 拡散や連鎖でコールバックが大量に来たときにも、音が混ざりすぎないようにしている。
     /// @brief 射撃に対応するSEを再生する。
     void Shot()
     {
@@ -209,7 +209,7 @@ public:
         Play(DashClip, 0.12f, 0.38f, 1.45f);
     }
 
-    // Keep the enemy warning voice/cooldown free while the player charges.
+    // 自機がチャージしている間も、敵の警告音のボイスとクールダウンは空けておく。
     /// @brief レール砲のチャージに対応するSEを再生する。
     void RailCharge(bool full)
     {

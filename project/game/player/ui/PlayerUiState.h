@@ -4,15 +4,14 @@
 /// @brief 自機のHUD・進化画面・図鑑の表示資源と操作状態。戦闘状態は保持しない。
 struct PlayerUiState {
     using UiProfileStats = Player::UiProfileStats;
+    // ボタンの見た目
     std::unique_ptr<myEngine::Sprite> machineGunBtnSprite_ = nullptr;
 
-    // ボタンの見た目
+    // ボタンの位置
     myEngine::Vector2 btnPos_ = {50.0f, 200.0f};
 
-    // ボタンの位置（画面左下あたり）
-    myEngine::Vector2 btnSize_ = {100.0f, 50.0f};
-
     // ボタンのサイズ
+    myEngine::Vector2 btnSize_ = {100.0f, 50.0f};
 
     // 図鑑の並び順（表示したい順番に定義）
     std::vector<TankData> encyclopedia_;

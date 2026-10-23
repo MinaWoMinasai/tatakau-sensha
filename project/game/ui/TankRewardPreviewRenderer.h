@@ -26,8 +26,8 @@ struct TankRewardPreviewAppearance {
     myEngine::Vector2 currentBodyScale{1, 1};
 };
 
-// A small private scene cache. It owns its vertex/trail buffers and 4 small RTs;
-// the only global GPU operation is recording commands on the existing list.
+// 小さな専用のシーンのキャッシュ。頂点・軌跡のバッファと小さな RT を4枚持つ。
+// 外部の GPU の状態に対して行うのは、既存のコマンドリストへの記録だけ。
 /// @brief 報酬の効果を機体・弾・軌跡の短いデモとして描画する。
 class TankRewardPreviewRenderer {
 public:
@@ -39,9 +39,9 @@ public:
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update(const tankreward::DemoSnapshot& before, const tankreward::DemoSnapshot& after, bool compare, bool beforeReflect,
                 bool afterReflect, bool melee, bool animate, float elapsed, bool force);
-    // Called after the main post effects, before card sprites are drawn. The
-    // caller must have one RTV bound (normally the back buffer), not an MRT set.
-    // Restores RTV, DSV, viewport and scissor; subsequent draws bind their PSO.
+    // 主なポストエフェクトの後、カードのスプライトを描く前に呼ぶ。呼び出し側は RTV を1枚だけ
+    // （通常はバックバッファ）設定しておくこと。MRT は使えない。
+    // RTV・DSV・ビューポート・シザーは元に戻す。後の描画は、それぞれ自分の PSO を設定する。
     /// @brief 準備したデモの現在状態を描画する。
     void Render();
 

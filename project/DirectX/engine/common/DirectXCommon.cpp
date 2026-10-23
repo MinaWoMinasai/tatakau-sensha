@@ -199,8 +199,8 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
         pso.psFilePath_ =
             usesSceneNormalTarget ? ResourcePaths::EngineShader(L"Trail.Scene.PS.hlsl") : ResourcePaths::EngineShader(L"Trail.PS.hlsl");
         break;
-    case Skybox:                         // ★追加
-        pso.root_.InitializeForSkybox(); // 前回作成した関数
+    case Skybox:
+        pso.root_.InitializeForSkybox();
         pso.vsFilePath_ = ResourcePaths::EngineShader(L"Skybox.VS.hlsl");
         pso.psFilePath_ =
             usesSceneNormalTarget ? ResourcePaths::EngineShader(L"Skybox.Scene.PS.hlsl") : ResourcePaths::EngineShader(L"Skybox.PS.hlsl");
@@ -297,7 +297,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
         pso.graphicsDesc_.RTVFormats[0] = renderTargetFormat;
         pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-        // ★ Skybox用の特殊設定
+        // Skybox用の設定
         pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;                // 中から見るのでカリングしない
         pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // 奥行きを更新しない（常に背景）
         pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
@@ -335,7 +335,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
         pso.graphicsDesc_.RTVFormats[0] = renderTargetFormat;
         pso.graphicsDesc_.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-        // ★ 軌跡用の特殊設定
+        // 軌跡用の設定
         pso.graphicsDesc_.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;                // 両面描画
         pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // 深度は塗らない
 
@@ -360,7 +360,7 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool doubl
 
         pso.inputDesc_.Initialize();
         pso.graphicsDesc_.InputLayout = pso.inputDesc_.GetLayout();
-        // ★ここを確実に設定！
+        // 深度テストと深度の書き込みを有効にする。
         pso.graphicsDesc_.DepthStencilState.DepthEnable = TRUE;
         pso.graphicsDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
         pso.graphicsDesc_.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
@@ -726,16 +726,15 @@ void DirectXCommon::InitializeDevice()
     for (size_t i = 0; i < _countof(featureLevels); ++i) {
         // 採用したアダプターでデバイスを生成
         hr = D3D12CreateDevice(useAdapter_.Get(), featureLevels[i], IID_PPV_ARGS(&device_));
-        // 指定した操縦レベルでデバイスが生成できたかを確認
+        // 指定した機能レベルでデバイスを生成できたかを確認する
         if (SUCCEEDED(hr)) {
-            // 生成できたのでログ出力を行ってループを抜ける
+            // 生成できたのでループを抜ける
 
             break;
         }
     }
     // デバイスの生成が上手くいかなかったので起動できない
     assert(device_ != nullptr);
-    //Log("Complete create D3D12Device!!!\n");// 初期化完了のログを出す
 
 #ifdef _DEBUG
 

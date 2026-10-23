@@ -5,8 +5,7 @@ namespace myEngine {
 void Root::InitializeForObject()
 {
     // --- RootParameterの拡張 ---
-    // 既存: [0]:Material(b0), [1]:Transform(b0-VS), [2]:DescriptorTable(t0...), [3]:Light(b1), [4]:Camera(b2)
-    // 追加: [5]:PointLight(b3)
+    // [0]:Material(b0), [1]:Transform(b0-VS), [2]:DescriptorTable(t0...), [3]:Light(b1), [4]:Camera(b2), [5]:PointLight(b3)
 
     descriptionSignature_.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
@@ -41,7 +40,7 @@ void Root::InitializeForObject()
     Parameters_[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     Parameters_[4].Descriptor.ShaderRegister = 2;
 
-    // [5] PointLight (Pixel b3) ★追加
+    // [5] PointLight (Pixel b3)
     Parameters_[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     Parameters_[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     Parameters_[5].Descriptor.ShaderRegister = 3;
@@ -50,7 +49,7 @@ void Root::InitializeForObject()
     Parameters_[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX; // VS用
     Parameters_[6].Descriptor.ShaderRegister = 1;                     // register(b1)
 
-    // [7] DescriptorTable (シャドウマップ t1) ★新規追加
+    // [7] DescriptorTable (シャドウマップ t1)
     descriptorRange_[1].BaseShaderRegister = 1;
     descriptorRange_[1].NumDescriptors = 1;
     descriptorRange_[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -190,7 +189,7 @@ void Root::InitializeForObject()
     staticSamplers_[0].ShaderRegister = 0;
     staticSamplers_[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-    // [1] シャドウ用比較サンプラー (s1) ★追加
+    // [1] シャドウ用比較サンプラー (s1)
     staticSamplers_[1].Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR; // 比較用フィルタ
     staticSamplers_[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;        // 範囲外は境界色
     staticSamplers_[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
@@ -223,7 +222,7 @@ void Root::InitializeForParticle()
     descriptorRange_[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     descriptorRange_[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    // インスタンシングバッファ用 (t1) ★ここをシェーダーの register(t1) に合わせる
+    // インスタンシングバッファ用 (t1)。シェーダーの register(t1) と一致させる。
     descriptorRangeForInstancing_[0].BaseShaderRegister = 1; // t1を指定
     descriptorRangeForInstancing_[0].NumDescriptors = 1;
     descriptorRangeForInstancing_[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -323,7 +322,7 @@ void Root::InitializeForModelParticle()
     descriptionSignature_.pParameters = Parameters_;
     descriptionSignature_.NumParameters = 5;
 
-    // サンプラー設定 (既存のものを利用)
+    // サンプラー設定（線形補間・WRAP）
     staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
     staticSamplers_[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
     staticSamplers_[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -353,7 +352,7 @@ void Root::InitializeForPostEffect()
     Parameters_[0].Descriptor.ShaderRegister = 0; // b0
     Parameters_[0].Descriptor.RegisterSpace = 0;
 
-    // -------- RootParameter 1 : SRV DescriptorTable (Scene/Object RT)
+    // -------- ルートパラメーター1: SRV のディスクリプターテーブル（シーン／物体の RT）
     descriptorRange_[0].BaseShaderRegister = 0; // t0
     descriptorRange_[0].NumDescriptors = 1;
     descriptorRange_[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -364,7 +363,7 @@ void Root::InitializeForPostEffect()
     Parameters_[1].DescriptorTable.pDescriptorRanges = descriptorRange_;
     Parameters_[1].DescriptorTable.NumDescriptorRanges = 1;
 
-    // -------- RootParameter 2 : SRV DescriptorTable (Bloom RT)
+    // -------- ルートパラメーター2: SRV のディスクリプターテーブル（ブルームの RT）
     descriptorRange_[1].BaseShaderRegister = 1; // t1
     descriptorRange_[1].NumDescriptors = 1;
     descriptorRange_[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -375,7 +374,7 @@ void Root::InitializeForPostEffect()
     Parameters_[2].DescriptorTable.pDescriptorRanges = &descriptorRange_[1];
     Parameters_[2].DescriptorTable.NumDescriptorRanges = 1;
 
-    // -------- RootParameter 3 : SRV DescriptorTable (Depth RT)
+    // -------- ルートパラメーター3: SRV のディスクリプターテーブル（深度の RT）
     descriptorRange_[2].BaseShaderRegister = 2; // t2
     descriptorRange_[2].NumDescriptors = 1;
     descriptorRange_[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -386,7 +385,7 @@ void Root::InitializeForPostEffect()
     Parameters_[3].DescriptorTable.pDescriptorRanges = &descriptorRange_[2];
     Parameters_[3].DescriptorTable.NumDescriptorRanges = 1;
 
-    // -------- RootParameter 4 : SRV DescriptorTable (Normal RT)
+    // -------- ルートパラメーター4: SRV のディスクリプターテーブル（法線の RT）
     descriptorRange_[3].BaseShaderRegister = 3; // t3
     descriptorRange_[3].NumDescriptors = 1;
     descriptorRange_[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -397,7 +396,7 @@ void Root::InitializeForPostEffect()
     Parameters_[4].DescriptorTable.pDescriptorRanges = &descriptorRange_[3];
     Parameters_[4].DescriptorTable.NumDescriptorRanges = 1;
 
-    // -------- RootParameter 5 : SRV DescriptorTable (SSR Resolve RT)
+    // -------- ルートパラメーター5: SRV のディスクリプターテーブル（SSR の解決結果の RT）
     descriptorRange_[4].BaseShaderRegister = 4; // t4
     descriptorRange_[4].NumDescriptors = 1;
     descriptorRange_[4].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -408,7 +407,7 @@ void Root::InitializeForPostEffect()
     Parameters_[5].DescriptorTable.pDescriptorRanges = &descriptorRange_[4];
     Parameters_[5].DescriptorTable.NumDescriptorRanges = 1;
 
-    // -------- RootParameter 6 : SRV DescriptorTable (Material RT)
+    // -------- ルートパラメーター6: SRV のディスクリプターテーブル（マテリアルの RT）
     descriptorRange_[5].BaseShaderRegister = 5; // t5
     descriptorRange_[5].NumDescriptors = 1;
     descriptorRange_[5].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -419,7 +418,7 @@ void Root::InitializeForPostEffect()
     Parameters_[6].DescriptorTable.pDescriptorRanges = &descriptorRange_[5];
     Parameters_[6].DescriptorTable.NumDescriptorRanges = 1;
 
-    // -------- RootParameter 7 : SRV DescriptorTable (SSAO RT)
+    // -------- ルートパラメーター7: SRV のディスクリプターテーブル（SSAO の RT）
     descriptorRange_[6].BaseShaderRegister = 6; // t6
     descriptorRange_[6].NumDescriptors = 1;
     descriptorRange_[6].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -430,7 +429,7 @@ void Root::InitializeForPostEffect()
     Parameters_[7].DescriptorTable.pDescriptorRanges = &descriptorRange_[6];
     Parameters_[7].DescriptorTable.NumDescriptorRanges = 1;
 
-    // -------- RootParameter 8 : SRV DescriptorTable (Motion Vector RT)
+    // -------- ルートパラメーター8: SRV のディスクリプターテーブル（モーションベクトルの RT）
     descriptorRange_[7].BaseShaderRegister = 7; // t7
     descriptorRange_[7].NumDescriptors = 1;
     descriptorRange_[7].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -444,7 +443,7 @@ void Root::InitializeForPostEffect()
     descriptionSignature_.pParameters = Parameters_;
     descriptionSignature_.NumParameters = 9;
 
-    // -------- Static Sampler (s0)
+    // -------- 静的サンプラー（s0）
     staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
     staticSamplers_[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
     staticSamplers_[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -543,7 +542,7 @@ void Root::InitializeForTrail()
     descriptionSignature_.pParameters = Parameters_;
     descriptionSignature_.NumParameters = 3;
 
-    // サンプラー設定 (既存の staticSamplers_[0] と同様)
+    // サンプラー設定（線形補間・WRAP）
     staticSamplers_[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
     staticSamplers_[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
     staticSamplers_[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -571,7 +570,7 @@ void Root::InitializeForSkybox()
     Parameters_[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
     Parameters_[1].Descriptor.ShaderRegister = 0;
 
-    // [2] DescriptorTable (CubeMap Texture t0) ★ここが重要
+    // [2] DescriptorTable (キューブマップのテクスチャ t0)
     descriptorRange_[0].BaseShaderRegister = 0;
     descriptorRange_[0].NumDescriptors = 1;
     descriptorRange_[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;

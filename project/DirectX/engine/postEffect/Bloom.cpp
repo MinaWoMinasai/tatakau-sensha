@@ -1148,7 +1148,7 @@ void Bloom::PostDraw()
     D3D12_GPU_DESCRIPTOR_HANDLE extractSource = bloomRT_Half_->GetGPUHandle();
     const bool fullScreenSmoothing = bloomParam_.gaussianIntensity > 0.0f || bloomParam_.fullScreenBoxBlurBlend > 0.0f;
     if (bloomParam_.bloomMode == 1 || fullScreenSmoothing) {
-        // Legacy path and unrelated whole-scene smoothing retain their filters.
+        // 旧方式（Legacy）と、ブルームとは別の画面全体のぼかしでは、従来のフィルターを使う。
         // --- F. 抽出パス (SceneRT -> BloomHalf) ---
         Transition(bloomRT_Half_->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
         dxCommon_->SetRenderTargetNoDepth(bloomRT_Half_->GetRTVHandle());

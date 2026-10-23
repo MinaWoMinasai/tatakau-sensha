@@ -4,10 +4,10 @@
 
 #include "Struct.h"
 
-// Gameplay-facing coordinator for the existing full-screen post effects.
+// ゲーム側から、既存の全画面ポストエフェクトを扱うための調整役。
 //
-// Game code only raises semantic events here. The director owns interpolation,
-// priority and clamping, then writes one transient BloomParam for the renderer.
+// ゲームのコードは、ここへ意味のあるイベントを送るだけにする。補間・優先度・範囲の制限は
+// この調整役が受け持ち、描画側には一時的な BloomParam を1つ書き出す。
 /// @brief 複数の一時的な画面演出を時間に応じて合成する。
 class ScreenEffectDirector {
 public:

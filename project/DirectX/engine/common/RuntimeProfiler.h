@@ -12,7 +12,7 @@ namespace myEngine {
 
 class DirectXCommon;
 
-// Optional diagnostics. GPU samples use the existing frame fence, never an extra wait.
+// 必要なときだけ使う診断機能。GPU の計測は既存のフレームのフェンスを使い、待機を追加しない。
 /// @brief CPU区間とGPU区間の所要時間を収集し、実行時の性能表示へ提供する。
 class RuntimeProfiler {
 public:
