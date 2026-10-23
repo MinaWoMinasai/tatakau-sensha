@@ -48,17 +48,20 @@ Windows / x64、C++20、DirectX 12を使用します。「C++によるデスク�
 
 プロジェクト既定はVisual Studio 2026 / MSVC v145、GitHub ActionsはVisual Studio 2022 / MSVC v143です。
 
-### 1. 外部依存を準備する
+### 1. 外部依存について
 
-リポジトリのルートで実行します。初回はAssimpのダウンロードにネットワーク接続が必要です。
+Assimp v5.4.3（glTF importerのみ）は、VS 2022（v143）でビルドした`project/externals/assimp/lib/assimp-vc143-mt.lib`と`runtime/assimp-vc143-mt.dll`を同梱しています。クローンやZIPのダウンロード後、追加の準備なしでビルドできます（VS 2026でもそのまま使えます）。
+
+Assimpを手元で作り直したい場合だけ、リポジトリのルートで次を実行します（初回はAssimpのダウンロードにネットワーク接続が必要です）。
 
 ```powershell
-.\project\build\bootstrap_dependencies.ps1
+.\project\build\bootstrap_dependencies.ps1 -Force
 ```
 
-スクリプトはインストール済みのVisual Studio（2026・2022のどちらでも、新しいほうを優先）からC++ / CMake / Ninjaを探し、Assimp v5.4.3のglTF importerをビルドします。生成するライブラリとDLLはGit管理対象外です。既存のローカルバイナリがある場合は準備を省略します。Git管理しているAssimpヘッダーは上書きしません（`-Force`を付けたときだけ取り直します）。
+スクリプトはインストール済みのVisual Studio（2026・2022のどちらでも、新しいほうを優先）からC++ / CMake / Ninjaを探してビルドします。作り直したライブラリ（VS 2026なら`assimp-vc145-mt`）はGit管理対象外で、あればそちらが優先されます。次のパスではCMakeが失敗することがあるため、短い英数字だけのパス（例：`C:\dev\tatakau-sensha`）で実行してください。
 
-クローン先のパスが長すぎると、AssimpのCMakeが失敗することがあります（オブジェクトファイルのパスが250文字を超えるため）。`C:\dev\tatakau-sensha`のような短い場所にクローンしてください。
+- パスが長すぎる場合（オブジェクトファイルのパスが250文字を超えるため）
+- 日本語などを含むパスから実行した場合
 
 ### 2. Releaseをビルドする
 

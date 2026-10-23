@@ -27,6 +27,10 @@ generated/
 *.lib
 *.a
 *.o
+# ZIP でダウンロードしてもそのままビルドできるよう、VS 2022 (v143) でビルドした Assimp だけは同梱する。
+# v145 版などローカルで作り直したものは、引き続き Git 管理外。
+!project/externals/assimp/lib/assimp-vc143-mt.lib
+!project/externals/assimp/runtime/assimp-vc143-mt.dll
 
 # Local dependency/build caches. These are regenerated and must not be committed.
 project/vcpkg_installed/
