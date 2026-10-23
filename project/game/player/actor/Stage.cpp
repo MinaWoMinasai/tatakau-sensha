@@ -520,9 +520,7 @@ myEngine::InitializationTask Stage::BuildBlocks()
                 block.obb.center = pos;
 
                 block.obb.halfExtents = {mapChip_->kBlockWidth * 0.5f, mapChip_->kBlockHeight * 0.5f, mapChip_->kBlockWidth * 0.5f};
-                float rad = 45.0f * (3.14159265f / 180.0f);
-
-                // 衝突OBBの軸はワールド軸と一致させる。直前のradはこの形状には使わない。
+                // 衝突OBBの軸はワールド軸と一致させる。
                 block.obb.orientation[0] = {1, 0, 0};
                 block.obb.orientation[1] = {0, 1, 0};
                 block.obb.orientation[2] = {0, 0, 1};

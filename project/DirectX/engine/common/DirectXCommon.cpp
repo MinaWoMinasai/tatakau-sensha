@@ -706,7 +706,7 @@ void DirectXCommon::InitializeDevice()
          ++i) {
         // アダプターの情報を取得する
         DXGI_ADAPTER_DESC3 adapterDesc{};
-        HRESULT hr = useAdapter_->GetDesc3(&adapterDesc);
+        hr = useAdapter_->GetDesc3(&adapterDesc);
         assert(SUCCEEDED(hr)); // 取得できないのは一大事
         // ソフトウェアアダプタでなければ採用!
         if (!(adapterDesc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE)) {

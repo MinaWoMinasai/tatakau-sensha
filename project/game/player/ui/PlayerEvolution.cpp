@@ -30,18 +30,6 @@
 #endif
 
 namespace {
-using playerui::ReadVector2Object;
-using playerui::SetLabel;
-using playerui::Vector4ToJson;
-using playerui::WriteVector2Object;
-
-/// @brief 係数を0〜1に制限し、2つのRGBA色を線形補間して返す。
-myEngine::Vector4 LerpColor(const myEngine::Vector4& a, const myEngine::Vector4& b, float t)
-{
-    t = (std::clamp)(t, 0.0f, 1.0f);
-    return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t};
-}
-
 /// @brief 機体の種類に対応する画像パスを返す。
 const char* ClassTexturePath(ClassType type)
 {
@@ -58,130 +46,7 @@ const char* ClassTexturePath(ClassType type)
     }
 }
 
-/// @brief 強化HUDの項目名一覧を返す。
-const std::array<const char*, 7>& UpgradeHudNames()
-{
-    static const std::array<const char*, 7> names = {"自動回復", "最大HP", "体当たり", "弾速", "弾ダメージ", "リロード", "移動速度"};
-    return names;
-}
-
-/// @brief 強化HUDの行ごとの表示色を返す。
-const std::array<myEngine::Vector4, 7>& UpgradeHudRowColors()
-{
-    // diepio風の能力ごとの色分け。ゲーム内のネオン表現と衝突しないよう、
-    // 発光は塗り全体ではなく、セルと細い外周に限定する。
-    static const std::array<myEngine::Vector4, 7> colors = {{
-        {0.90f, 0.36f, 0.86f, 1.0f}, // 自動回復
-        {0.67f, 0.36f, 0.95f, 1.0f}, // 最大HP
-        {0.49f, 0.39f, 0.98f, 1.0f}, // 体当たり
-        {0.35f, 0.58f, 1.00f, 1.0f}, // 弾速
-        {1.00f, 0.86f, 0.24f, 1.0f}, // 弾ダメージ
-        {1.00f, 0.38f, 0.42f, 1.0f}, // リロード
-        {0.32f, 1.00f, 0.56f, 1.0f}  // 移動速度
-    }};
-    return colors;
-}
-
-/// @brief 強化HUD区切り外観を作成して返す。
-NeonSegmentedBarStyle MakeUpgradeHudSegmentStyle(int index)
-{
-    const myEngine::Vector4 baseColor = UpgradeHudRowColors()[(std::clamp)(index, 0, 6)];
-    NeonSegmentedBarStyle style{};
-    // 外周の半円部にも未取得セルと同じ不透明な色を入れ、端だけが薄く
-    // 見えないようにする。
-    style.backgroundColor = {baseColor.x * 0.16f, baseColor.y * 0.16f, baseColor.z * 0.16f, 0.98f};
-    style.emptyColor = {baseColor.x * 0.16f, baseColor.y * 0.16f, baseColor.z * 0.16f, 0.92f};
-    style.filledColor = baseColor;
-    style.outlineColor = {baseColor.x * 0.82f + 0.12f, baseColor.y * 0.82f + 0.12f, baseColor.z * 0.82f + 0.12f, 0.94f};
-    // 連続バーと同じく、丸端の外枠より内側へセルを収める。
-    // 枠へ重ねないため、端部のはみ出し・細い線の乱れを防ぐ。
-    style.innerPadding = 3.0f;
-    style.segmentGap = 1.5f;
-    style.bloomBrightness = 1.55f;
-    style.bloomAlpha = 0.58f;
-    style.backdropBloomBrightness = 1.70f;
-    style.backdropBloomAlpha = 0.18f;
-    style.roundedFrame = true;
-    return style;
-}
-
-/// @brief 強化HUD下端バー文字外観を作成して返す。
-myEngine::TextStyle MakeUpgradeHudBottomBarTextStyle()
-{
-    myEngine::TextStyle style{};
-    style.fontFamily = "Meiryo";
-    style.fontSize = 15.0f;
-    style.color = {0.90f, 0.94f, 1.0f, 1.0f};
-    style.outlineColor = {0.0f, 0.0f, 0.0f, 0.92f};
-    style.outlineThickness = 1.0f;
-    style.padding = 3.0f;
-    style.preserveOutline = true;
-    return style;
-}
-
-/// @brief 強化HUDSmall文字外観を作成して返す。
-myEngine::TextStyle MakeUpgradeHudSmallTextStyle()
-{
-    myEngine::TextStyle style{};
-    style.fontFamily = "Meiryo";
-    style.fontSize = 15.0f;
-    style.color = {0.90f, 0.94f, 1.0f, 1.0f};
-    style.outlineColor = {0.0f, 0.03f, 0.05f, 0.95f};
-    style.outlineThickness = 2.0f;
-    style.padding = 5.0f;
-    return style;
-}
-
-/// @brief 強化HUD重ね表示文字外観を作成して返す。
-myEngine::TextStyle MakeUpgradeHudOverlayTextStyle()
-{
-    myEngine::TextStyle style = MakeUpgradeHudSmallTextStyle();
-    style.outlineColor = {0.0f, 0.0f, 0.0f, 0.92f};
-    style.outlineThickness = 1.0f;
-    style.padding = 3.0f;
-    style.preserveOutline = true;
-    return style;
-}
-
-/// @brief 強化HUD文字進行を返す。
-float GetUpgradeHudTextAdvance(const myEngine::TextLabel* label, const myEngine::TextStyle& style)
-{
-    if (!label || !label->GetSprite()) {
-        return style.fontSize * 0.55f;
-    }
-    const float padding = std::ceil(style.padding + style.outlineThickness);
-    const float fallback = style.fontSize * (label->GetText() == " " ? 0.34f : 0.55f);
-    return (std::max)(fallback, label->GetSprite()->GetSize().x - padding * 2.0f);
-}
-
 } // namespace
-
-#include "game/weapon/CombatTypes.h"
-#include "Player.h"
-#include "PlayerUiHelpers.h"
-#include "StartupTrace.h"
-#include "Stage.h"
-#include "game/exp/ExpEnemy.h"
-#include "game/enemy/actor/Enemy.h"
-#include "game/exp/EnemyManager.h"
-#include "Audio.h"
-#include "game/ui/TankButtonUI.h"
-#include "game/ui/NeonTextEffect.h"
-#include "ObjectPostEffect.h"
-#include <algorithm>
-#include <cmath>
-#include <chrono>
-#include <cctype>
-#include <cstdio>
-#include <cstring>
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <nlohmann/json.hpp>
-
-#ifdef USE_IMGUI
-#include "externals/imgui/imgui.h"
-#endif
 
 // 進化画面専用のJSON読取を、この翻訳単位に閉じ込める。
 namespace {
