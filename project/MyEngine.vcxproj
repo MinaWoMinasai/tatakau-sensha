@@ -272,6 +272,7 @@
     <ClInclude Include="game\debug\GameplayScenario.h" />
     <ClInclude Include="game\debug\GameplayScenarioSession.h" />
     <ClInclude Include="game\run\TankRunDirector.h" />
+    <ClInclude Include="game\run\TankCardId.h" />
     <ClInclude Include="game\run\TankRunCopy.h" />
     <ClInclude Include="game\run\TankExpeditionDirector.h" />
     <ClInclude Include="game\run\TankExpeditionEncounters.h" />

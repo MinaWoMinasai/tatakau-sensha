@@ -382,7 +382,7 @@ int PlayerProgression::GetExpeditionDroneLimit() const
     const auto* config = GetCurrentClassConfig();
     return TankCombatStyleDroneCount(player_.GetCombatStyleProfile(tankbuild::Style::Drone).droneCount, config ? config->maxDrones : 3,
                                      player_.runEvolutionActive_,
-                                     player_.runModifiers_.drones ? TankEffectCount(player_.runModifiers_, 6, 2) : 0);
+                                     player_.runModifiers_.drones ? TankEffectCount(player_.runModifiers_, tankrun::CardId::Drones, 2) : 0);
 }
 
 void PlayerProgression::EnsureExpeditionDrones()
@@ -821,10 +821,12 @@ Player::RunCombatSnapshot PlayerProgression::GetRunCombatSnapshot() const
                            (player_.isBuffActive_ ? 0.7f : 1.0f);
     if (player_.IsDroneBuild()) {
         const auto tuning = MakeTankDroneTuning(player_.runModifiers_, true);
-        result.shotDamage = (std::max)(1.0f, player_.stats_.bulletDamage * config->bulletDamageScale * tuning.damageScale *
-                                                 (player_.runModifiers_.autonomousSpread
-                                                      ? (std::max)(.2f, 1.0f - .18f * TankEffectPower(player_.runModifiers_, 38))
-                                                      : 1.0f));
+        result.shotDamage =
+            (std::max)(1.0f,
+                       player_.stats_.bulletDamage * config->bulletDamageScale * tuning.damageScale *
+                           (player_.runModifiers_.autonomousSpread
+                                ? (std::max)(.2f, 1.0f - .18f * TankEffectPower(player_.runModifiers_, tankrun::CardId::AutonomousSpread))
+                                : 1.0f));
         result.reloadSeconds =
             (std::max)(.05f, player_.GetCombatStyleProfile(tankbuild::Style::Drone).attackIntervalSeconds * tuning.reloadSeconds / .5f *
                                  player_.stats_.reloadSpeed / GetRunBaseReloadFrames() * config->reloadScale *

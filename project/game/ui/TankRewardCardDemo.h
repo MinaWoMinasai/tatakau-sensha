@@ -337,8 +337,11 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
     if (c.kind == DemoKind::ImpactDrive) {
         s.player = Mix({0.19f, 0.54f}, {0.48f, 0.54f}, Ease((t - 0.82f) / 0.20f));
         s.dashing = t >= 0.82f && t < 1.05f;
-        s.targets[0] = {(std::min)(.90f, 0.55f + .15f * (c.impactDrive ? 1 + .5f * c.effectPower[14] : 1) * Ease((t - 0.98f) / 0.24f)),
-                        0.54f};
+        s.targets[0] = {
+            (std::min)(.90f, 0.55f + .15f *
+                                         (c.impactDrive ? 1 + .5f * c.effectPower[tankrun::CardIndex(tankrun::CardId::ImpactDrive)] : 1) *
+                                         Ease((t - 0.98f) / 0.24f)),
+            0.54f};
         s.hit[0] = HitPulse(t, 0.98f);
         return s;
     }
@@ -384,7 +387,7 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
             const Point target = s.targets[0];
             int mask = 0;
             s.bullets[n] = SampleProjectile(launch, target, t - at, std::atan2(target.y - launch.y, target.x - launch.x), c.homing, false,
-                                            false, &mask, c.bulletSpeedScale, c.effectPower[9]);
+                                            false, &mask, c.bulletSpeedScale, c.effectPower[tankrun::CardIndex(tankrun::CardId::Homing)]);
             if (mask) {
                 s.hit[0] = (std::max)(s.hit[0],
                                       HitPulse(t, at + Length({target.x - launch.x, target.y - launch.y}) / (0.57f * c.bulletSpeedScale)));
@@ -458,8 +461,9 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
         }
         for (int n = 0; n < 2; ++n) {
             if (hits[n]) {
-                s.damage[n] =
-                    .4f * c.damageScale * tankspecial::RailDamageScale(1, c.effectPower[20]) * hits[n] * (c.alternate ? s.barrelCount : 1);
+                s.damage[n] = .4f * c.damageScale *
+                              tankspecial::RailDamageScale(1, c.effectPower[tankrun::CardIndex(tankrun::CardId::RailCannon)]) * hits[n] *
+                              (c.alternate ? s.barrelCount : 1);
                 s.hit[n] = .8f;
             }
         }
@@ -504,7 +508,7 @@ inline DemoSnapshot SampleBaseDemo(const DemoConfig& input, float time)
             continue;
         }
         s.bullets[n] = SampleProjectile(origin, s.targets[0], t - at, angle + s.barrelAngles[n], c.homing, c.ricochet, c.pierce, &shotHits,
-                                        c.bulletSpeedScale, c.effectPower[9]);
+                                        c.bulletSpeedScale, c.effectPower[tankrun::CardIndex(tankrun::CardId::Homing)]);
         for (int target = 0; target < s.targetCount; ++target) {
             if (shotHits & (1 << target)) {
                 ++hits[target];
@@ -556,7 +560,7 @@ inline DemoSnapshot SampleDemo(const DemoConfig& input, float time)
             s.chainPoints = s.targets;
             for (int i = 1; i < 3; ++i) {
                 s.hit[i] = HitPulse(t, 1.3f);
-                s.damage[i] = .25f * c.effectPower[31];
+                s.damage[i] = .25f * c.effectPower[tankrun::CardIndex(tankrun::CardId::ChainLightning)];
             }
         }
     } else if (kind == DemoKind::MarkDetonation) {
@@ -575,7 +579,7 @@ inline DemoSnapshot SampleDemo(const DemoConfig& input, float time)
             if (hits == 4) {
                 s.blast = HitPulse(t, 1.5f);
                 s.blastPosition = s.targets[0];
-                s.damage[0] += .32f * c.effectPower[32];
+                s.damage[0] += .32f * c.effectPower[tankrun::CardIndex(tankrun::CardId::MarkDetonation)];
             }
         }
     } else if (kind == DemoKind::BoomerangShell && c.boomerangShell) {

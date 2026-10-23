@@ -108,7 +108,7 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
                 player_.dashSlashDamage_ = static_cast<uint32_t>(
                     (std::max)(1.0f, std::round(player_.stats_.bulletDamage * 3.8f * MakeTankMeleeCombo(0, player_.runModifiers_).damage *
                                                 (config ? config->bulletDamageScale : 1.0f) * 1.2f *
-                                                TankEffectPower(player_.runModifiers_, 39))));
+                                                TankEffectPower(player_.runModifiers_, tankrun::CardId::DashSlash))));
                 player_.dashSlashTargets_.clear();
                 player_.velocity_ += event.direction * .28f;
                 player_.recentDashTimer_ = 0;
@@ -384,10 +384,10 @@ void PlayerWeapons::ApplyRunProjectileRules(AttackParam& param, bool applyFan) c
         param.shooterMark = player_.runModifiers_.markDetonation;
         param.shooterBoomerang = player_.runModifiers_.boomerangShell;
         param.shooterKillBurst = player_.runModifiers_.killBurst;
-        param.shooterChainPower = TankEffectPower(player_.runModifiers_, 31);
-        param.shooterMarkPower = TankEffectPower(player_.runModifiers_, 32);
-        param.shooterBoomerangPower = TankEffectPower(player_.runModifiers_, 33);
-        param.shooterKillBurstPower = TankEffectPower(player_.runModifiers_, 34);
+        param.shooterChainPower = TankEffectPower(player_.runModifiers_, tankrun::CardId::ChainLightning);
+        param.shooterMarkPower = TankEffectPower(player_.runModifiers_, tankrun::CardId::MarkDetonation);
+        param.shooterBoomerangPower = TankEffectPower(player_.runModifiers_, tankrun::CardId::BoomerangShell);
+        param.shooterKillBurstPower = TankEffectPower(player_.runModifiers_, tankrun::CardId::KillBurst);
     }
     param.reflect = param.reflect || tuning.reflects;
     param.bulletHp = tuning.bulletHp;
@@ -417,7 +417,8 @@ float PlayerWeapons::GetRunFireIntervalScale() const
         return 1.0f;
     }
     // 発射頻度の増加を間隔の逆数へ変換する。1未満の値ほど次の射撃までの待ち時間が短い。
-    float scale = player_.runOverdriveTimer_ > 0.0f ? 1.0f / (1.0f + TankEffectPower(player_.runModifiers_, 11)) : 1.0f;
+    float scale =
+        player_.runOverdriveTimer_ > 0.0f ? 1.0f / (1.0f + TankEffectPower(player_.runModifiers_, tankrun::CardId::Overdrive)) : 1.0f;
     if (player_.runModifiers_.core == TankRunCore::Assault && player_.runDashAttackTimer_ > 0.0f) {
         scale *= 0.65f;
     }
@@ -454,8 +455,9 @@ void PlayerWeapons::AttackRailCannon(BulletManager* bullets, bool pressed, float
     const myEngine::Vector3 side{-aim.y, aim.x, 0};
     AttackParam param{};
     param.damage = static_cast<uint32_t>(
-        (std::max)(1.0f, std::round(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) *
-                                    tankspecial::RailDamageScale(charge, TankEffectPower(player_.runModifiers_, 20)))));
+        (std::max)(1.0f,
+                   std::round(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) *
+                              tankspecial::RailDamageScale(charge, TankEffectPower(player_.runModifiers_, tankrun::CardId::RailCannon)))));
     param.bulletSpeed = player_.stats_.bulletSpeed * (config ? config->bulletSpeedScale : 1.0f) * tankspecial::RailSpeedScale(charge);
     param.reflect = config && config->reflect;
     param.penetrate = true;
@@ -555,7 +557,7 @@ void PlayerWeapons::UpdateSpecialCombat(Stage& stage, BulletManager* bullets, En
         const auto tuning = MakeTankDroneTuning(player_.runModifiers_, true);
         const auto* config = player_.GetCurrentClassConfig();
         const float baseDamage = player_.stats_.bulletDamage * tuning.damageScale * (config ? config->bulletDamageScale : 1.0f) * .45f *
-                                 TankEffectPower(player_.runModifiers_, 21);
+                                 TankEffectPower(player_.runModifiers_, tankrun::CardId::DroneLaserLink);
         auto contact = [&](Collider* target, bool bossTarget) {
             if (!target) {
                 return;
@@ -616,8 +618,8 @@ void PlayerWeapons::UpdateSpecialCombat(Stage& stage, BulletManager* bullets, En
         if (!blocked(player_.GetWorldPosition(), origin)) {
             auto wave = std::make_unique<Bullet>();
             wave->Initialize(origin, swing.direction * speed,
-                             tankspecial::SlashDamage(swing.damage, TankEffectPower(player_.runModifiers_, 22)), kPlayer, false, 10.0f,
-                             tankspecial::kOrdinaryEnemyBulletHp);
+                             tankspecial::SlashDamage(swing.damage, TankEffectPower(player_.runModifiers_, tankrun::CardId::SlashWave)),
+                             kPlayer, false, 10.0f, tankspecial::kOrdinaryEnemyBulletHp);
             wave->ConfigureGrowth(0, 2, 0);
             // 60基準フレームの速度を秒単位へ直し、移動距離から寿命を求める。
             wave->ConfigureSpecial(Bullet::SpecialKind::SlashWave, radius, swing.range * 1.5f / (speed * 60.0f));
@@ -653,8 +655,8 @@ void PlayerWeapons::UpdateSpecialCombat(Stage& stage, BulletManager* bullets, En
         }
         // 耐久ダメージが0の場合も履歴へ記録し、同じ振りでは再判定しない。
         player_.specialParriedBullets_.push_back(bullet->GetCollisionId());
-        const float durability =
-            tankspecial::ParryDurabilityDamage(bullet->GetBulletHp(), perfect, TankEffectPower(player_.runModifiers_, 23));
+        const float durability = tankspecial::ParryDurabilityDamage(bullet->GetBulletHp(), perfect,
+                                                                    TankEffectPower(player_.runModifiers_, tankrun::CardId::ParryBlade));
         if (durability <= 0) {
             continue;
         }
@@ -788,11 +790,12 @@ void PlayerWeapons::ConfigureRunDrone(PlayerDrone& drone) const
                                                                             : (isSwarm ? 10.0f : 6.0f);
     param.randomSpread = param.spreadAngleDeg > 0.0f;
     param.reflect = config && config->reflect;
-    param.damage = static_cast<uint32_t>(
-        (std::max)(1.0f, std::round(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * droneTuning.damageScale *
-                                    (primaryStyle && player_.runModifiers_.autonomousSpread
-                                         ? (std::max)(.2f, 1.0f - .18f * TankEffectPower(player_.runModifiers_, 38))
-                                         : 1.0f))));
+    param.damage = static_cast<uint32_t>((
+        std::max)(1.0f,
+                  std::round(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * droneTuning.damageScale *
+                             (primaryStyle && player_.runModifiers_.autonomousSpread
+                                  ? (std::max)(.2f, 1.0f - .18f * TankEffectPower(player_.runModifiers_, tankrun::CardId::AutonomousSpread))
+                                  : 1.0f))));
     if (player_.isBuffActive_) {
         param.reflect = true;
     }
@@ -817,10 +820,11 @@ void PlayerWeapons::ConfigureRunDrone(PlayerDrone& drone) const
     // 例えば3×0.82を毎回整数へ切り捨てて2にする場合の、過剰な威力低下を避ける。
     drone.SetRunExactDamage(
         primaryStyle
-            ? (std::max)(1.0f, player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * droneTuning.damageScale *
-                                   (player_.runModifiers_.autonomousSpread
-                                        ? (std::max)(.2f, 1.0f - .18f * TankEffectPower(player_.runModifiers_, 38))
-                                        : 1.0f))
+            ? (std::max)(1.0f,
+                         player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * droneTuning.damageScale *
+                             (player_.runModifiers_.autonomousSpread
+                                  ? (std::max)(.2f, 1.0f - .18f * TankEffectPower(player_.runModifiers_, tankrun::CardId::AutonomousSpread))
+                                  : 1.0f))
             : 0.0f);
     if (primaryStyle) {
         const auto& profile = player_.GetCombatStyleProfile(tankbuild::Style::Drone);
@@ -888,7 +892,7 @@ bool PlayerWeapons::ActivatePerfectDodge(const PlayerClassConfig& config)
             std::fill(player_.weaponGroupCooldowns_.begin(), player_.weaponGroupCooldowns_.end(), 0.0f);
         }
         if (player_.runModifiers_.overdrive && player_.runOverdriveCooldown_ <= 0.0f) {
-            player_.runOverdriveTimer_ = 1.2f * TankEffectPower(player_.runModifiers_, 11);
+            player_.runOverdriveTimer_ = 1.2f * TankEffectPower(player_.runModifiers_, tankrun::CardId::Overdrive);
             player_.runOverdriveCooldown_ = 4.0f;
         }
         if (player_.runModifiers_.core == TankRunCore::Drone) {
@@ -1286,9 +1290,10 @@ uint32_t PlayerWeapons::NotifyDroneHit(int drone, Collider* target, uint32_t ori
             player_.pendingSpecialCombatEvents_.push_back({SpecialEventKind::TargetLock, target->GetWorldPosition(), {}, 1});
         }
     }
-    return static_cast<uint32_t>(
-        (std::max)(1.0f, std::round(static_cast<float>(originalDamage) *
-                                    entry->DamageScale(boss != nullptr, TankEffectPower(player_.runModifiers_, 37)))));
+    return static_cast<uint32_t>((
+        std::max)(1.0f,
+                  std::round(static_cast<float>(originalDamage) *
+                             entry->DamageScale(boss != nullptr, TankEffectPower(player_.runModifiers_, tankrun::CardId::TargetPainter)))));
 }
 
 float PlayerWeapons::GetDroneTargetDamageScale(const Collider* target, bool boss) const
@@ -1298,7 +1303,7 @@ float PlayerWeapons::GetDroneTargetDamageScale(const Collider* target, bool boss
     }
     for (const auto& lock : player_.painterLocks_) {
         if (lock.id == target->GetCollisionId()) {
-            return lock.DamageScale(boss, TankEffectPower(player_.runModifiers_, 37));
+            return lock.DamageScale(boss, TankEffectPower(player_.runModifiers_, tankrun::CardId::TargetPainter));
         }
     }
     return 1;
@@ -1466,8 +1471,8 @@ void PlayerWeapons::UpdateAdditionalAbilities(Stage& stage, BulletManager* bulle
             const bool bomb = drone->GetRunMission().IsBomb();
             const auto origin = drone->GetWorldPosition();
             const float radius = bomb ? 4.5f : 2.2f;
-            const float scale =
-                bomb ? 8.0f * TankEffectPower(player_.runModifiers_, 36) : 3.0f * TankEffectPower(player_.runModifiers_, 35);
+            const float scale = bomb ? 8.0f * TankEffectPower(player_.runModifiers_, tankrun::CardId::DroneRebuildBomb)
+                                     : 3.0f * TankEffectPower(player_.runModifiers_, tankrun::CardId::DroneCharge);
             if (bomb) {
                 ++player_.specialCombatStats_.droneBombs;
                 emit(SpecialEventKind::DroneBomb, origin, {}, radius);
@@ -1533,7 +1538,8 @@ void PlayerWeapons::UpdateAdditionalAbilities(Stage& stage, BulletManager* bulle
         swing.duration = .18f;
         swing.recoveryDuration = 0;
         swing.comboStep = -1;
-        swing.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(baseMelee * .30f * TankEffectPower(player_.runModifiers_, 40))));
+        swing.damage = static_cast<uint32_t>(
+            (std::max)(1.0f, std::round(baseMelee * .30f * TankEffectPower(player_.runModifiers_, tankrun::CardId::SpinBlade))));
         swing.knockback = .07f;
         swing.color = {.8f, .3f, 1.6f, 1};
         player_.pendingMeleeSlashes_.push_back(swing);
@@ -1558,8 +1564,8 @@ void PlayerWeapons::UpdateAdditionalAbilities(Stage& stage, BulletManager* bulle
                     }
                     pending.seconds = 0;
                     const auto origin = target->GetWorldPosition();
-                    const auto amount =
-                        static_cast<uint32_t>(tankspecial::WallSmashDamage(baseMelee, TankEffectPower(player_.runModifiers_, 41)));
+                    const auto amount = static_cast<uint32_t>(
+                        tankspecial::WallSmashDamage(baseMelee, TankEffectPower(player_.runModifiers_, tankrun::CardId::WallSmash)));
                     target->TakeDirectionalDamage(amount, origin, true);
                     ++player_.specialCombatStats_.wallSmashes;
                     emit(SpecialEventKind::WallSmash, origin, {}, 2.8f);

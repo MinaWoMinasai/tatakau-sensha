@@ -258,6 +258,9 @@
     <ClInclude Include="game\run\TankRunDirector.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="game\run\TankCardId.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\player\actor\PlayerDrone.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

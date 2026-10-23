@@ -410,8 +410,10 @@ tankreward::DemoConfig TankRewardCard::DemoConfig(bool after) const
     }
     c.profile = SanitizeTankCombatStyleProfile(model_.profile);
     c.useProfile = true;
-    c.droneCount = (std::max)(1, (after ? model_.drones : model_.currentDrones) +
-                                     (has(C::Drones) ? static_cast<int>(std::lround(2 * c.effectPower[6])) : 0));
+    c.droneCount =
+        (std::max)(1, (after ? model_.drones : model_.currentDrones) +
+                          (has(C::Drones) ? static_cast<int>(std::lround(2 * c.effectPower[tankrun::CardIndex(tankrun::CardId::Drones)]))
+                                          : 0));
     c.barrels = (std::max)(1, after ? model_.barrels : model_.currentBarrels);
     c.fanAngle = after ? model_.fanAngle : model_.currentFanAngle;
     c.alternate = after ? model_.alternate : model_.currentAlternate;
