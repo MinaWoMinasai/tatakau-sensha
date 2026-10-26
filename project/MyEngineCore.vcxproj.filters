@@ -95,6 +95,9 @@
     <ClCompile Include="DirectX\engine\common\ShaderCompiler.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\common\PipelineLibrary.cpp">
+      <Filter>DirectX\engine\common</Filter>
+    </ClCompile>
     <ClCompile Include="DirectX\engine\dumpClass\Dump.cpp">
       <Filter>DirectX\engine\dump</Filter>
     </ClCompile>
@@ -285,6 +288,12 @@
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\common\ShaderCompiler.h">
+      <Filter>DirectX\engine\common</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\common\PipelineLibrary.h">
+      <Filter>DirectX\engine\common</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\common\RenderTargetFormats.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\dumpClass\Dump.h">

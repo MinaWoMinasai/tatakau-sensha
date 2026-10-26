@@ -86,6 +86,10 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
+    <ClCompile Include="DirectX\engine\common\PipelineLibrary.cpp">
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
+      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
+    </ClCompile>
     <ClCompile Include="DirectX\engine\dumpClass\Dump.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
@@ -205,6 +209,8 @@
     <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h" />
     <ClInclude Include="DirectX\engine\common\DirectXCommon.h" />
     <ClInclude Include="DirectX\engine\common\ShaderCompiler.h" />
+    <ClInclude Include="DirectX\engine\common\PipelineLibrary.h" />
+    <ClInclude Include="DirectX\engine\common\RenderTargetFormats.h" />
     <ClInclude Include="DirectX\engine\dumpClass\Dump.h" />
     <ClInclude Include="DirectX\engine\easing\Easing.h" />
     <ClInclude Include="externals\imgui\imconfig.h">
