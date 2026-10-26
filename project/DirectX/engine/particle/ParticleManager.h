@@ -401,6 +401,8 @@ private:
     ParticleEmitterConfig editorConfig_;
     bool useGpuUpdate_ = true;
     bool gpuDrawReady_ = false;
+    // 描画の前に2回目以降の固定ステップが来たとき、ディスパッチせずにためておく経過時間（秒）。
+    float deferredGpuDeltaTime_ = 0.0f;
 };
 
 } // namespace myEngine

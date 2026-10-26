@@ -131,6 +131,29 @@ void Input::BeforeFrameData()
     UpdateVibration();
 }
 
+void Input::RepeatFrameData()
+{
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    validationFrame_ = false;
+#endif
+    ZeroMemory(frameKeyPress_, sizeof(frameKeyPress_));
+    memcpy(preKey_, key_, sizeof(key_));
+    memcpy(&preMouseState_, &mouseState_, sizeof(DIMOUSESTATE));
+    // 相対移動とホイールは1回目のステップで使い切っている。
+    mouseState_.lX = 0;
+    mouseState_.lY = 0;
+    mouseState_.lZ = 0;
+    previousGamepadState_ = currentGamepadState_;
+
+    // ゲームパッドの割り当ては、ステップごとの文脈（戦闘中かメニューか）とオートリピートの間隔に合わせて進める。
+    gameplayContext_ = gameplayContextRequested_;
+    gameplayContextRequested_ = false;
+    if (gamepadConnected_) {
+        TranslateGamepad();
+    }
+    UpdateVibration();
+}
+
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 bool Input::PollFakeGamepad()
 {

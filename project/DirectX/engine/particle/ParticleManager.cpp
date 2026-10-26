@@ -455,6 +455,17 @@ void ParticleManager::DispatchGpu(float deltaTime, const Matrix4x4& viewProjecti
         return;
     }
 
+    if (gpuDrawReady_) {
+        // 同じ描画フレームの中で2回目以降の固定ステップ。描画の前にもう一度ディスパッチすると、資源の状態遷移が重なり、
+        // 定数バッファも後の値で上書きされる。経過時間をためておき、放出の予約と合わせて次のディスパッチで進める。
+        deferredGpuDeltaTime_ += deltaTime;
+        return;
+    }
+    if (deferredGpuDeltaTime_ > 0.0f) {
+        deltaTime += deferredGpuDeltaTime_;
+        deferredGpuDeltaTime_ = 0.0f;
+    }
+
     auto commandList = dxCommon_->GetList();
 
     gpuTime_ += deltaTime;
