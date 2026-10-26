@@ -21,10 +21,10 @@ public:
     /// @brief デストラクタ
     ~PlayerDrone();
 
-    /// @brief 遠征では護衛中に設定した射撃を行い、旧方式ではマウス入力で射撃する。
+    /// @brief 護衛中に、ConfigureRunAttackで設定した射撃を行う。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void Attack(float deltaTime = 1.0f / 60.0f);
-    /// @brief 遠征射撃を有効にし、射撃設定をコピーする。1回の弾数は1に固定する。
+    /// @brief 射撃設定をコピーする。1回の弾数は1に固定する。
     /// @param reloadSeconds 発射間隔（秒）。最低0.05秒に補正する。
     void ConfigureRunAttack(const AttackParam& param, float reloadSeconds);
 
@@ -160,7 +160,7 @@ public:
     /// @brief ネオン銃口フラッシュ比率を返す。
     float GetNeonMuzzleFlashRatio() const
     {
-        if (!runAttackEnabled_ || runShotCooldown_ <= 0.0f) {
+        if (runShotCooldown_ <= 0.0f) {
             return 0.0f;
         }
         const float flashSeconds = (std::min)(0.075f, runReloadSeconds_);
@@ -258,9 +258,6 @@ private:
     float kCharacterSpeed = 0.2f;
     myEngine::Vector3 move_;
 
-    const int kBulletTime = 30;
-    int bulletCoolTime = 0;
-    bool runAttackEnabled_ = false;
     AttackParam runAttackParam_{};
     float runExactDamage_ = 0, runDamageRemainder_ = 0;
     float runReloadSeconds_ = 0.5f;
@@ -278,10 +275,6 @@ private:
 
     myEngine::Vector3 velocity_{0, 0, 0}; // 現在速度
     myEngine::Vector3 inputDir_{0, 0, 0}; // 入力方向
-
-    float maxSpeed_ = 0.25f; // 最高速度
-    float accel_ = 0.7f;     // 加速
-    float decel_ = 3.5f;     // 減速（ブレーキ）
 
     myEngine::Transform hpTransform_;
 

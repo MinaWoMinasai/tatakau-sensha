@@ -117,6 +117,9 @@
     <ClCompile Include="game\collision\CollisionManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\collision\CombatCollisionRules.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\enemy\actor\Enemy.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -215,6 +218,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\collision\CollisionManager.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\collision\CombatCollisionRules.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\enemy\actor\Enemy.h">
@@ -703,6 +709,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\player\editor\PlayerClassEditor.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\editor\PlayerClassEditorTarget.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\player\ui\PlayerUiState.h">

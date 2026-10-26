@@ -64,7 +64,7 @@ private:
     // モデルデータ
     std::map<std::string, std::unique_ptr<Model>> models;
 
-    std::unique_ptr<ModelCommon> modelCommon;
+    DirectXCommon* dxCommon_ = nullptr;
     std::map<std::string, std::shared_future<ModelData>> pendingModels_;
     std::set<std::string> texturePreloadsQueued_;
 };

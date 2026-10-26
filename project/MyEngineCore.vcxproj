@@ -167,7 +167,9 @@
     <ClCompile Include="DirectX\engine\3d\Skeleton.cpp" />
     <ClCompile Include="DirectX\engine\3d\SkinCluster.cpp" />
     <ClCompile Include="DirectX\engine\3d\Model.cpp" />
-    <ClCompile Include="DirectX\engine\3d\ModelCommon.cpp" />
+    <ClCompile Include="DirectX\engine\3d\ModelLoader.cpp" />
+    <ClCompile Include="DirectX\engine\3d\ModelPrimitives.cpp" />
+    <ClCompile Include="DirectX\engine\3d\ModelTangents.cpp" />
     <ClCompile Include="DirectX\engine\3d\ModelManager.cpp" />
     <ClCompile Include="DirectX\engine\common\SrvManager.cpp" />
     <ClCompile Include="DirectX\engine\particle\ParticleManager.cpp" />
@@ -238,6 +240,15 @@
     <ClInclude Include="DirectX\engine\2d\Sprite.h" />
     <ClInclude Include="DirectX\engine\2d\SpriteCommon.h" />
     <ClInclude Include="DirectX\engine\struct\Struct.h" />
+    <ClInclude Include="DirectX\engine\struct\MathTypes.h" />
+    <ClInclude Include="DirectX\engine\struct\GeometryTypes.h" />
+    <ClInclude Include="DirectX\engine\struct\MaterialTypes.h" />
+    <ClInclude Include="DirectX\engine\struct\ModelTypes.h" />
+    <ClInclude Include="DirectX\engine\struct\GpuBufferTypes.h" />
+    <ClInclude Include="DirectX\engine\struct\BloomParam.h" />
+    <ClInclude Include="DirectX\engine\struct\BlendMode.h" />
+    <ClInclude Include="DirectX\engine\struct\ParticleTypes.h" />
+    <ClInclude Include="DirectX\engine\struct\WaveFileTypes.h" />
     <ClInclude Include="DirectX\engine\common\Texture.h" />
     <ClInclude Include="DirectX\engine\common\WinApp.h" />
     <ClInclude Include="DirectX\engine\2d\TextureManager.h" />
@@ -247,7 +258,7 @@
     <ClInclude Include="DirectX\engine\3d\Skeleton.h" />
     <ClInclude Include="DirectX\engine\3d\SkinCluster.h" />
     <ClInclude Include="DirectX\engine\3d\Model.h" />
-    <ClInclude Include="DirectX\engine\3d\ModelCommon.h" />
+    <ClInclude Include="DirectX\engine\3d\ModelInternal.h" />
     <ClInclude Include="DirectX\engine\3d\ModelManager.h" />
     <ClInclude Include="DirectX\engine\common\SrvManager.h" />
     <ClInclude Include="game\runtime\Application.h" />

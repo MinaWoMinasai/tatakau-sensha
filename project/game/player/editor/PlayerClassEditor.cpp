@@ -67,12 +67,12 @@ void PlayerClassEditor::DrawPlayerClassEditor()
         "目的: C++を直接編集してビルドし直す手間を減らし、JSON化したプレイヤー機体データを画面上で確認・編集・保存できるようにする。");
     ImGui::Separator();
 
-    if (player_.classCatalog_.OrderedIds().empty()) {
+    if (player_.GetClassCatalog().OrderedIds().empty()) {
         player_.LoadPlayerClassConfigs();
     }
     ui_.editorSelectedClassIndex_ =
-        (std::clamp)(ui_.editorSelectedClassIndex_, 0, static_cast<int>(player_.classCatalog_.OrderedIds().size()) - 1);
-    std::string selectedId = player_.classCatalog_.OrderedIds()[ui_.editorSelectedClassIndex_];
+        (std::clamp)(ui_.editorSelectedClassIndex_, 0, static_cast<int>(player_.GetClassCatalog().OrderedIds().size()) - 1);
+    std::string selectedId = player_.GetClassCatalog().OrderedIds()[ui_.editorSelectedClassIndex_];
     PlayerClassConfig* config = player_.GetMutableClassConfig(selectedId);
     if (!config) {
         ImGui::Text("機体設定が見つかりません。");
@@ -89,7 +89,7 @@ void PlayerClassEditor::DrawPlayerClassEditor()
     auto refreshEditorBaselines = [&]() {
         editorBaselineConfigs.clear();
         editorBaselineLabels.clear();
-        for (const std::string& id : player_.classCatalog_.OrderedIds()) {
+        for (const std::string& id : player_.GetClassCatalog().OrderedIds()) {
             if (const PlayerClassConfig* baselineConfig = player_.GetClassConfig(id)) {
                 editorBaselineConfigs[id] = *baselineConfig;
                 editorBaselineLabels[id] = "JSON保存時";
@@ -102,12 +102,12 @@ void PlayerClassEditor::DrawPlayerClassEditor()
     }
     auto makeUniqueId = [this](const std::string& baseId) {
         const std::string prefix = baseId.empty() ? "CustomTank" : baseId;
-        if (!player_.classCatalog_.Find(prefix)) {
+        if (!player_.GetClassCatalog().Find(prefix)) {
             return prefix;
         }
         for (int i = 1; i < 1000; ++i) {
             const std::string candidate = prefix + "_" + std::to_string(i);
-            if (!player_.classCatalog_.Find(candidate)) {
+            if (!player_.GetClassCatalog().Find(candidate)) {
                 return candidate;
             }
         }
@@ -126,8 +126,8 @@ void PlayerClassEditor::DrawPlayerClassEditor()
             PlayerClassConfig newConfig = player_.CreateDefaultClassConfig(ClassType::Basic);
             newConfig.id = makeUniqueId("CustomTank");
             newConfig.displayName = newConfig.id;
-            player_.classCatalog_.InsertOrAssign(newConfig);
-            ui_.editorSelectedClassIndex_ = static_cast<int>(player_.classCatalog_.OrderedIds().size()) - 1;
+            player_.GetClassCatalog().InsertOrAssign(newConfig);
+            ui_.editorSelectedClassIndex_ = static_cast<int>(player_.GetClassCatalog().OrderedIds().size()) - 1;
             selectedId = newConfig.id;
             config = player_.GetMutableClassConfig(selectedId);
             editorBaselineConfigs[newConfig.id] = newConfig;
@@ -140,8 +140,8 @@ void PlayerClassEditor::DrawPlayerClassEditor()
             PlayerClassConfig newConfig = *config;
             newConfig.id = makeUniqueId(config->id + "_Copy");
             newConfig.displayName = newConfig.id;
-            player_.classCatalog_.InsertOrAssign(newConfig);
-            ui_.editorSelectedClassIndex_ = static_cast<int>(player_.classCatalog_.OrderedIds().size()) - 1;
+            player_.GetClassCatalog().InsertOrAssign(newConfig);
+            ui_.editorSelectedClassIndex_ = static_cast<int>(player_.GetClassCatalog().OrderedIds().size()) - 1;
             selectedId = newConfig.id;
             config = player_.GetMutableClassConfig(selectedId);
             editorBaselineConfigs[newConfig.id] = sourceConfig;
@@ -152,12 +152,12 @@ void PlayerClassEditor::DrawPlayerClassEditor()
         const bool isLegacyId = config->id == ClassTypeToString(config->type);
         if (!isLegacyId && ImGui::Button("削除")) {
             const std::string deletingId = config->id;
-            const bool deletingCurrent = player_.currentClassId_ == deletingId;
-            player_.classCatalog_.Erase(deletingId);
+            const bool deletingCurrent = player_.GetCurrentClassId() == deletingId;
+            player_.GetClassCatalog().Erase(deletingId);
             editorBaselineConfigs.erase(deletingId);
             editorBaselineLabels.erase(deletingId);
             ui_.editorSelectedClassIndex_ =
-                (std::clamp)(ui_.editorSelectedClassIndex_, 0, static_cast<int>(player_.classCatalog_.OrderedIds().size()) - 1);
+                (std::clamp)(ui_.editorSelectedClassIndex_, 0, static_cast<int>(player_.GetClassCatalog().OrderedIds().size()) - 1);
             if (deletingCurrent) {
                 player_.EvolveById("Basic");
             }
@@ -176,8 +176,8 @@ void PlayerClassEditor::DrawPlayerClassEditor()
             // 読み込みでカタログは置き換わる。インデックスによるエディタの選択は保つが、
             // このフレームの処理を続ける前に設定を取得し直す。
             ui_.editorSelectedClassIndex_ =
-                (std::clamp)(ui_.editorSelectedClassIndex_, 0, static_cast<int>(player_.classCatalog_.OrderedIds().size()) - 1);
-            selectedId = player_.classCatalog_.OrderedIds()[ui_.editorSelectedClassIndex_];
+                (std::clamp)(ui_.editorSelectedClassIndex_, 0, static_cast<int>(player_.GetClassCatalog().OrderedIds().size()) - 1);
+            selectedId = player_.GetClassCatalog().OrderedIds()[ui_.editorSelectedClassIndex_];
             config = player_.GetMutableClassConfig(selectedId);
             refreshEditorBaselines();
             rebuildBarrels = true;
@@ -287,8 +287,8 @@ void PlayerClassEditor::DrawPlayerClassEditor()
 
     if (ImGui::CollapsingHeader("基本情報", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::BeginCombo("編集する機体", config->displayName.c_str())) {
-            for (int i = 0; i < static_cast<int>(player_.classCatalog_.OrderedIds().size()); ++i) {
-                const std::string& id = player_.classCatalog_.OrderedIds()[i];
+            for (int i = 0; i < static_cast<int>(player_.GetClassCatalog().OrderedIds().size()); ++i) {
+                const std::string& id = player_.GetClassCatalog().OrderedIds()[i];
                 const PlayerClassConfig* itemConfig = player_.GetClassConfig(id);
                 const char* label = itemConfig ? itemConfig->displayName.c_str() : id.c_str();
                 const bool selected = i == ui_.editorSelectedClassIndex_;
@@ -821,11 +821,12 @@ void PlayerClassEditor::DrawPlayerClassEditor()
                         (config->alternateBarrels && !config->fireAllBarrels && groups.size() > 1)
                             ? "グループ交互"
                             : (config->fireAllBarrels ? "全砲同時" : "砲塔交互"));
-            if (config->id == player_.currentClassId_ && !player_.weaponGroupCooldowns_.empty()) {
+            if (config->id == player_.GetCurrentClassId() && !player_.GetWeaponGroupCooldowns().empty()) {
                 ImGui::Text("実行中グループCD: ");
-                for (size_t groupIndex = 0; groupIndex < groups.size() && groupIndex < player_.weaponGroupCooldowns_.size(); ++groupIndex) {
+                for (size_t groupIndex = 0; groupIndex < groups.size() && groupIndex < player_.GetWeaponGroupCooldowns().size();
+                     ++groupIndex) {
                     ImGui::SameLine();
-                    ImGui::Text("[%d %.2f]", groups[groupIndex], player_.weaponGroupCooldowns_[groupIndex]);
+                    ImGui::Text("[%d %.2f]", groups[groupIndex], player_.GetWeaponGroupCooldowns()[groupIndex]);
                 }
             }
         }
@@ -918,7 +919,7 @@ void PlayerClassEditor::DrawPlayerClassEditor()
         }
     }
 
-    if (config && config->id == player_.currentClassId_ && (rebuildBarrels || relayoutBarrels)) {
+    if (config && config->id == player_.GetCurrentClassId() && (rebuildBarrels || relayoutBarrels)) {
         if (rebuildBarrels) {
             player_.InitializeBarrels();
         }

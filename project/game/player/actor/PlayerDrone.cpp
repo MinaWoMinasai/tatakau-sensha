@@ -8,7 +8,6 @@ PlayerDrone::~PlayerDrone() {}
 
 void PlayerDrone::ConfigureRunAttack(const AttackParam& param, float reloadSeconds)
 {
-    runAttackEnabled_ = true;
     runAttackParam_ = param;
     runAttackParam_.bulletCount = 1;
     runReloadSeconds_ = (std::max)(0.05f, reloadSeconds);
@@ -19,61 +18,32 @@ void PlayerDrone::Attack(float deltaTime)
     if (isDead_ || hp_ <= 0) {
         return;
     }
-    if (runAttackEnabled_) {
-        runShotCooldown_ = (std::max)(0.0f, runShotCooldown_ - deltaTime);
-        // 待ち時間は任務中も減らすが、通常射撃は護衛中だけ受け付ける。
-        if (mission_.GetPhase() != tankspecial::DronePhase::Escort) {
-            return;
-        }
-        const bool wantsAttack =
-            runInputOverride_ ? runWantsAttack_ : (runRallyShotPending_ || input_->IsPress(input_->GetMouseState().rgbButtons[0]));
-        if (runShotCooldown_ <= 0.0f && wantsAttack && runBulletManager_ &&
-            runBulletManager_->GetBulletCounts().player + static_cast<size_t>(runAttackParam_.bulletCount) <= 240) {
-            auto shot = runAttackParam_;
-            // 整数化で失う小数を次の射撃へ繰り越し、継続射撃で設定した威力へ近づける。
-            if (runExactDamage_ >= 1) {
-                const float accrued = runExactDamage_ + runDamageRemainder_;
-                shot.damage = static_cast<uint32_t>(std::floor(accrued));
-                runDamageRemainder_ = accrued - static_cast<float>(shot.damage);
-            }
-            attackController_.Fire(GetWorldPosition(), dir, shot, BulletOwner::kPlayer);
-            runShotCooldown_ = runReloadSeconds_;
-            runRallyShotPending_ = false;
-        }
+    runShotCooldown_ = (std::max)(0.0f, runShotCooldown_ - deltaTime);
+    // 待ち時間は任務中も減らすが、通常射撃は護衛中だけ受け付ける。
+    if (mission_.GetPhase() != tankspecial::DronePhase::Escort) {
         return;
     }
-
-    // 旧方式の待ち時間は呼び出し1回ごとに1減らす。遠征の秒単位の待ち時間とは分けて保持する。
-    bulletCoolTime--;
-
-    if (input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
-        if (bulletCoolTime <= 0) {
-            // 発射位置
-            myEngine::Vector3 origin = GetWorldPosition();
-
-            // 攻撃パラメータを設定
-            AttackParam param{};
-            param.bulletSpeed = 0.4f;
-            param.bulletCount = 1;
-            param.spreadAngleDeg = 20.0f;
-            param.randomSpread = true;
-
-            param.reflect = false;
-            param.penetrate = false;
-            param.cooldown = 1.0f;
-            param.damage = 1;
-
-            // 発射
-            attackController_.Fire(origin, dir, param, BulletOwner::kPlayer);
-            bulletCoolTime = kBulletTime;
+    const bool wantsAttack =
+        runInputOverride_ ? runWantsAttack_ : (runRallyShotPending_ || input_->IsPress(input_->GetMouseState().rgbButtons[0]));
+    if (runShotCooldown_ <= 0.0f && wantsAttack && runBulletManager_ &&
+        runBulletManager_->GetBulletCounts().player + static_cast<size_t>(runAttackParam_.bulletCount) <= 240) {
+        auto shot = runAttackParam_;
+        // 整数化で失う小数を次の射撃へ繰り越し、継続射撃で設定した威力へ近づける。
+        if (runExactDamage_ >= 1) {
+            const float accrued = runExactDamage_ + runDamageRemainder_;
+            shot.damage = static_cast<uint32_t>(std::floor(accrued));
+            runDamageRemainder_ = accrued - static_cast<float>(shot.damage);
         }
+        attackController_.Fire(GetWorldPosition(), dir, shot, BulletOwner::kPlayer);
+        runShotCooldown_ = runReloadSeconds_;
+        runRallyShotPending_ = false;
     }
 }
 
 void PlayerDrone::RotateToMouse(myEngine::Camera* viewProjection)
 {
     // 自機が渡した照準位置を使う場合はマウス座標の逆変換を省く。ほぼ同位置なら前の向きを保つ。
-    if (runAttackEnabled_ && runInputOverride_) {
+    if (runInputOverride_) {
         const myEngine::Vector3 aim = runAimTarget_ - worldTransform_.translate;
         if (myEngine::Length(aim) > 0.001f) {
             dir = myEngine::Normalize(aim);
@@ -195,34 +165,32 @@ void PlayerDrone::Update(myEngine::Camera* viewProjection, Stage& stage, const m
         Die();
         return;
     }
-    // 遠征は渡された秒数、旧方式は呼び出しごとに固定1/60秒で進める。
-    const float dt = runAttackEnabled_ ? (std::max)(0.0f, deltaTime) : 1.0f / 60.0f;
+    // 渡された秒数で進める。
+    const float dt = (std::max)(0.0f, deltaTime);
     invincibleTimer_ -= dt;
-    if (runAttackEnabled_) {
-        // Stepは時間による遷移と再構築完了を扱う。到着時のダメージはここではなく自機の追加能力更新で行う。
-        const auto previous = mission_.GetPhase();
-        const bool home = myEngine::Length(playerPosition + runFollowOffset_ - GetWorldPosition()) < 1.2f;
-        if (mission_.Step(dt, home)) {
-            rebuilt_ = true;
-            hp_ = kMaxHp;
-            SetWorldPosition(playerPosition);
-        }
-        // 更新開始時に再構築中なら、完了した回も配置だけにする。移動・射撃の再開は次の更新から。
-        if (previous == tankspecial::DronePhase::Rebuilding) {
-            SetWorldPosition(playerPosition + runFollowOffset_ * .45f);
-            velocity_ = {};
-            return;
-        }
+    // Stepは時間による遷移と再構築完了を扱う。到着時のダメージはここではなく自機の追加能力更新で行う。
+    const auto previousPhase = mission_.GetPhase();
+    const bool home = myEngine::Length(playerPosition + runFollowOffset_ - GetWorldPosition()) < 1.2f;
+    if (mission_.Step(dt, home)) {
+        rebuilt_ = true;
+        hp_ = kMaxHp;
+        SetWorldPosition(playerPosition);
+    }
+    // 更新開始時に再構築中なら、完了した回も配置だけにする。移動・射撃の再開は次の更新から。
+    if (previousPhase == tankspecial::DronePhase::Rebuilding) {
+        SetWorldPosition(playerPosition + runFollowOffset_ * .45f);
+        velocity_ = {};
+        return;
     }
 
     RotateToMouse(viewProjection);
 
-    myEngine::Vector3 toPlayer = playerPosition + (runAttackEnabled_ ? runFollowOffset_ : myEngine::Vector3{}) - worldTransform_.translate;
+    myEngine::Vector3 toPlayer = playerPosition + runFollowOffset_ - worldTransform_.translate;
     // 予告中は停止し、突撃中は登録した位置へ向かう。通常の帰還・護衛は自機の追従位置を使う。
-    if (runAttackEnabled_ && mission_.GetPhase() == tankspecial::DronePhase::Warning) {
+    if (mission_.GetPhase() == tankspecial::DronePhase::Warning) {
         toPlayer = {};
     }
-    if (runAttackEnabled_ && mission_.GetPhase() == tankspecial::DronePhase::Charging) {
+    if (mission_.GetPhase() == tankspecial::DronePhase::Charging) {
         toPlayer = missionTarget_ - GetWorldPosition();
         if (myEngine::Length(toPlayer) < 1.1f) {
             mission_.Arrive();
@@ -231,28 +199,23 @@ void PlayerDrone::Update(myEngine::Camera* viewProjection, Stage& stage, const m
     }
 
     float distance = myEngine::Length(toPlayer);
-    if (distance < 0.01f && !runAttackEnabled_) {
-        return;
-    }
 
-    // 遠征では自機付近で静止していても、後段の任務到着・射撃処理まで進める。
+    // 自機付近で静止していても、後段の任務到着・射撃処理まで進める。
     myEngine::Vector3 followDirection = distance < 0.01f ? myEngine::Vector3{} : myEngine::Normalize(toPlayer);
 
     // 追従速度は距離に応じて増やし、追い付き速度の設定値を上限にする。
-    const float followSpeed = runAttackEnabled_ && mission_.GetPhase() == tankspecial::DronePhase::Charging ? .90f
-                              : runAttackEnabled_ ? (std::min)(runCatchupSpeed_, runFollowSpeed_ + distance * 0.035f)
-                                                  : maxSpeed_;
-    myEngine::Vector3 targetVelocity =
-        followDirection * (runAttackEnabled_ ? followSpeed * (std::min)(1.0f, distance / 1.2f) : followSpeed);
+    const float followSpeed =
+        mission_.GetPhase() == tankspecial::DronePhase::Charging ? .90f : (std::min)(runCatchupSpeed_, runFollowSpeed_ + distance * 0.035f);
+    myEngine::Vector3 targetVelocity = followDirection * (followSpeed * (std::min)(1.0f, distance / 1.2f));
 
-    // 遠征の追従は秒数を使った指数補間。突撃は目標速度へ直接切り替え、予告では速度を0にする。
-    float accel = runAttackEnabled_ ? runFollowResponse_ : ((myEngine::Length(followDirection) > 0.0f) ? accel_ : decel_);
+    // 追従は秒数を使った指数補間。突撃は目標速度へ直接切り替え、予告では速度を0にする。
+    float accel = runFollowResponse_;
 
-    velocity_ += (targetVelocity - velocity_) * (runAttackEnabled_ ? 1.0f - std::exp(-accel * dt) : accel * dt);
-    if (runAttackEnabled_ && mission_.GetPhase() == tankspecial::DronePhase::Charging) {
+    velocity_ += (targetVelocity - velocity_) * (1.0f - std::exp(-accel * dt));
+    if (mission_.GetPhase() == tankspecial::DronePhase::Charging) {
         velocity_ = targetVelocity;
     }
-    if (runAttackEnabled_ && mission_.GetPhase() == tankspecial::DronePhase::Warning) {
+    if (mission_.GetPhase() == tankspecial::DronePhase::Warning) {
         velocity_ = {};
     }
 
@@ -273,7 +236,7 @@ void PlayerDrone::Update(myEngine::Camera* viewProjection, Stage& stage, const m
         SetWorldPosition(playerPos);
         stage.ResolvePlayerDroneCollision(*this, myEngine::Y);
         // 小刻みな移動の間に目標を通り過ぎた場合も、線分の接触でArriveを通知する。
-        if (runAttackEnabled_ && mission_.GetPhase() == tankspecial::DronePhase::Charging) {
+        if (mission_.GetPhase() == tankspecial::DronePhase::Charging) {
             const auto p = GetWorldPosition();
             if (tankspecial::SegmentTouches(previous.x, previous.y, p.x, p.y, missionTarget_.x, missionTarget_.y, 1.1f)) {
                 mission_.Arrive();

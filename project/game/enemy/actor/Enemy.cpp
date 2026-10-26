@@ -14,8 +14,6 @@
 #include "Stage.h"
 using namespace DirectX;
 
-static constexpr float kDeltaTime = 1.0f / 60.0f;
-
 namespace {
 /// @brief 係数を0〜1に制限し、2つのRGBA色を線形補間して返す。
 myEngine::Vector4 LerpColor(const myEngine::Vector4& a, const myEngine::Vector4& b, float t)
@@ -581,7 +579,7 @@ void Enemy::UpdateRivalCombat(float deltaTime)
         // 予告の起点は現在位置を使う一方、固定済みの照準角は行動状態が保持する。
         velocity_ = velocity_ * std::exp(-3.5f * deltaTime);
     }
-    dir_ = myEngine::Length(velocity_) > 0.001f ? myEngine::Normalize(velocity_) : myEngine::Vector3{};
+    dir_ = myEngine::NormalizeOr(velocity_, myEngine::Vector3{}, 0.001f);
     worldTransform_.rotate.z = (phase == Phase::Locked || phase == Phase::Volley || phase == Phase::Tracking)
                                    ? rivalCombat_.GetAimAngle()
                                    : std::atan2(toward.y, toward.x);

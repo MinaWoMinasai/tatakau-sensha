@@ -447,7 +447,7 @@ void NeonGridGeometry::SetBodyShadingEye(const Vector3* eye)
 Vector4 NeonGridGeometry::ShadeBody(const Vector3& position, const Vector3& normal, const Vector4& baseColor, const Vector4& tint) const
 {
     Vector3 toEye = bodyEye_ - position;
-    toEye = Length(toEye) > 0.0001f ? Normalize(toEye) : Vector3{0.0f, 0.0f, -1.0f};
+    toEye = NormalizeOr(toEye, Vector3{0.0f, 0.0f, -1.0f});
     // キーライトは左上から、XYのゲームプレイ平面のカメラ側に置く。
     const Vector3 light = Normalize(Vector3{-0.45f, 0.55f, -0.70f});
     const float facing = std::clamp(Dot(normal, toEye), 0.0f, 1.0f);
@@ -539,7 +539,7 @@ void NeonGridGeometry::QueueShadedBody(const Vector3* points, uint32_t count, co
         const float length = Length(radial);
         const Vector3 direction = length > 0.0001f ? radial / length : Vector3{};
         const Vector3 n = direction * (std::cos(t) * domeHeight) + up * (length * std::sin(t));
-        return Length(n) > 0.0001f ? Normalize(n) : up;
+        return NormalizeOr(n, up);
     };
     for (int ring = 0; ring + 1 < rings; ++ring) {
         for (uint32_t i = 0; i < count; ++i) {

@@ -33,7 +33,7 @@
 void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
 {
     // 部屋移動後の入力解除待ちでは、射撃だけでなく発射間隔の時計も進めない。
-    if (player_.runModifiers_.enabled && player_.runRoomAwaitInputRelease_) {
+    if (player_.runRoomAwaitInputRelease_) {
         return;
     }
 
@@ -48,7 +48,7 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     wantsPrimaryAttack = wantsPrimaryAttack || player_.debugAutoFireEnabled_;
 #endif
-    if (player_.runModifiers_.enabled && player_.runModifiers_.railCannon && player_.expeditionCombatStyleSelected_ &&
+    if (player_.runModifiers_.railCannon && player_.expeditionCombatStyleSelected_ &&
         player_.expeditionCombatStyle_ == tankbuild::Style::Shooter) {
         AttackRailCannon(bulletManager, wantsPrimaryAttack && !player_.ui_->upgradeHudMouseCaptured_, deltaTime);
         return;
@@ -79,7 +79,7 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
                                                 (player_.expeditionCombatStyleSelected_ ? profile.attackIntervalSeconds / 0.33f : 1.0f));
             MeleeSlashEvent event{};
             event.origin = player_.GetWorldPosition();
-            event.direction = myEngine::Length(player_.dir_) > 0.001f ? myEngine::Normalize(player_.dir_) : myEngine::Vector3{1, 0, 0};
+            event.direction = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1, 0, 0}, 0.001f);
             event.range = (player_.expeditionCombatStyleSelected_ ? profile.meleeRange : 4.3f) * combo.range;
             event.arcDeg = combo.arc;
             event.width = step == 2 ? 0.38f : 0.26f;
@@ -100,7 +100,7 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
                 event.windupDuration = 0;
                 event.duration = .18f;
                 event.recoveryDuration = .12f;
-                event.direction = myEngine::Length(player_.velocity_) > .001f ? myEngine::Normalize(player_.velocity_) : event.direction;
+                event.direction = myEngine::NormalizeOr(player_.velocity_, event.direction, .001f);
                 player_.dashSlashActive_ = true;
                 player_.dashSlashTimer_ = .22f;
                 player_.dashSlashPrevious_ = player_.GetWorldPosition();
@@ -313,11 +313,9 @@ void PlayerWeapons::DroneShoot(BulletManager* bulletManager)
 
     const PlayerClassConfig* config = player_.GetCurrentClassConfig();
     int droneLimit = (std::max)(0, config ? config->maxDrones : 7);
-    if (player_.runModifiers_.enabled) {
-        droneLimit = TankExpeditionDroneLimit(player_.runEvolutionActive_ ? FindTankExpeditionSpecialization(player_.runEvolutionConfig_.id)
-                                                                          : nullptr,
-                                              droneLimit, player_.runModifiers_.drones, player_.runModifiers_.core == TankRunCore::Drone);
-    }
+    droneLimit =
+        TankExpeditionDroneLimit(player_.runEvolutionActive_ ? FindTankExpeditionSpecialization(player_.runEvolutionConfig_.id) : nullptr,
+                                 droneLimit, player_.runModifiers_.drones, player_.runModifiers_.core == TankRunCore::Drone);
     const size_t maxDrones = static_cast<size_t>(droneLimit);
     if (player_.drones_.size() >= maxDrones) {
         player_.bulletCoolTime = 0.0f;
@@ -427,7 +425,7 @@ float PlayerWeapons::GetRunFireIntervalScale() const
 
 myEngine::Vector3 PlayerWeapons::GetRailChargeMuzzle() const
 {
-    const myEngine::Vector3 aim = myEngine::Length(player_.dir_) > .001f ? myEngine::Normalize(player_.dir_) : myEngine::Vector3{1, 0, 0};
+    const myEngine::Vector3 aim = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1, 0, 0}, .001f);
     const auto* config = player_.GetCurrentClassConfig();
     if (config && !config->barrels.empty()) {
         const auto& mount = config->barrels.front();
@@ -440,7 +438,7 @@ myEngine::Vector3 PlayerWeapons::GetRailChargeMuzzle() const
 
 void PlayerWeapons::AttackRailCannon(BulletManager* bullets, bool pressed, float dt)
 {
-    if (!player_.runModifiers_.enabled || !player_.runModifiers_.railCannon || !player_.expeditionCombatStyleSelected_ ||
+    if (!player_.runModifiers_.railCannon || !player_.expeditionCombatStyleSelected_ ||
         player_.expeditionCombatStyle_ != tankbuild::Style::Shooter) {
         player_.railCharge_.Reset();
         return;
@@ -451,7 +449,7 @@ void PlayerWeapons::AttackRailCannon(BulletManager* bullets, bool pressed, float
         return;
     }
     const auto* config = player_.GetCurrentClassConfig();
-    const myEngine::Vector3 aim = myEngine::Length(player_.dir_) > .001f ? myEngine::Normalize(player_.dir_) : myEngine::Vector3{1, 0, 0};
+    const myEngine::Vector3 aim = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1, 0, 0}, .001f);
     const myEngine::Vector3 side{-aim.y, aim.x, 0};
     AttackParam param{};
     param.damage = static_cast<uint32_t>(
@@ -518,7 +516,7 @@ void PlayerWeapons::UpdateSpecialCombat(Stage& stage, BulletManager* bullets, En
 {
     // 表示用の接続線は毎回作り直す。更新対象外でも前回の接触表示を残さない。
     player_.droneLaserLinks_.clear();
-    if (!player_.runModifiers_.enabled || player_.isDead_ || !bullets || dt <= 0) {
+    if (player_.isDead_ || !bullets || dt <= 0) {
         return;
     }
     UpdateAdditionalAbilities(stage, bullets, boss, enemies, dt);
@@ -697,8 +695,7 @@ void PlayerWeapons::SetRunHomingTargets(const std::vector<myEngine::Vector3>& ta
 
 void PlayerWeapons::UpdateRunProjectiles(BulletManager* bulletManager, float deltaTime)
 {
-    if (!player_.runModifiers_.enabled ||
-        (!player_.runModifiers_.homing && !player_.runModifiers_.droneFocus && !player_.runModifiers_.targetPainter) || deltaTime <= 0.0f ||
+    if ((!player_.runModifiers_.homing && !player_.runModifiers_.droneFocus && !player_.runModifiers_.targetPainter) || deltaTime <= 0.0f ||
         player_.runHomingTargets_.empty()) {
         return;
     }
@@ -838,20 +835,7 @@ bool PlayerWeapons::TryActivateSpecialAction()
     if (!config || player_.dashCooldown_ > 0.0f) {
         return false;
     }
-    if (player_.runModifiers_.enabled) {
-        return ActivatePerfectDodge(*config);
-    }
-    if (config->specialActionId == "none") {
-        return false;
-    }
-    if (config->specialActionId == "perfect_dodge") {
-        return ActivatePerfectDodge(*config);
-    }
-    if (config->specialActionId == "saber_counter") {
-        return ActivateSaberCounter(*config);
-    }
-    // charge_beamを含む未対応のIDでは、特殊行動を開始せずfalseを返す。
-    return false;
+    return ActivatePerfectDodge(*config);
 }
 
 bool PlayerWeapons::ActivatePerfectDodge(const PlayerClassConfig& config)
@@ -883,22 +867,20 @@ bool PlayerWeapons::ActivatePerfectDodge(const PlayerClassConfig& config)
     player_.recentDashTimer_ = .30f;
     player_.dashCooldown_ = player_.kDashCooldown * (std::max)(0.05f, config.specialActionCooldownScale) * runTuning.dashCooldown;
     player_.stats_.stamina = (std::max)(0.0f, player_.stats_.stamina - staminaCost);
-    if (player_.runModifiers_.enabled) {
-        player_.runDashAttackTimer_ = 1.0f;
-        // 追加射撃はPlayer::Updateの攻撃処理まで保留し、その時点の向きで生成する。
-        player_.runDashBurstPending_ = player_.runModifiers_.dashBurst;
-        if (player_.runModifiers_.core == TankRunCore::Assault) {
-            player_.bulletCoolTime = 0.0f;
-            std::fill(player_.weaponGroupCooldowns_.begin(), player_.weaponGroupCooldowns_.end(), 0.0f);
-        }
-        if (player_.runModifiers_.overdrive && player_.runOverdriveCooldown_ <= 0.0f) {
-            player_.runOverdriveTimer_ = 1.2f * TankEffectPower(player_.runModifiers_, tankrun::CardId::Overdrive);
-            player_.runOverdriveCooldown_ = 4.0f;
-        }
-        if (player_.runModifiers_.core == TankRunCore::Drone) {
-            for (auto& drone : player_.drones_) {
-                drone->RallyRunAttack();
-            }
+    player_.runDashAttackTimer_ = 1.0f;
+    // 追加射撃はPlayer::Updateの攻撃処理まで保留し、その時点の向きで生成する。
+    player_.runDashBurstPending_ = player_.runModifiers_.dashBurst;
+    if (player_.runModifiers_.core == TankRunCore::Assault) {
+        player_.bulletCoolTime = 0.0f;
+        std::fill(player_.weaponGroupCooldowns_.begin(), player_.weaponGroupCooldowns_.end(), 0.0f);
+    }
+    if (player_.runModifiers_.overdrive && player_.runOverdriveCooldown_ <= 0.0f) {
+        player_.runOverdriveTimer_ = 1.2f * TankEffectPower(player_.runModifiers_, tankrun::CardId::Overdrive);
+        player_.runOverdriveCooldown_ = 4.0f;
+    }
+    if (player_.runModifiers_.core == TankRunCore::Drone) {
+        for (auto& drone : player_.drones_) {
+            drone->RallyRunAttack();
         }
     }
     return true;
@@ -930,8 +912,7 @@ void PlayerWeapons::TriggerSaberCounter(const PlayerClassConfig& config)
     }
 
     const WeaponMountConfig& mount = *mountIt;
-    const myEngine::Vector3 forward =
-        myEngine::Length(player_.dir_) > 0.0001f ? myEngine::Normalize(player_.dir_) : myEngine::Vector3{1.0f, 0.0f, 0.0f};
+    const myEngine::Vector3 forward = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1.0f, 0.0f, 0.0f});
     const myEngine::Vector3 right = {-forward.y, forward.x, 0.0f};
     MeleeSlashEvent event{};
     event.origin = player_.worldTransform_.translate + forward * mount.offset.x + right * mount.offset.y +
@@ -968,7 +949,7 @@ bool PlayerWeapons::FireConfiguredClass(const PlayerClassConfig& config, BulletM
         return true;
     }
     // この内訳は削除待ちの死亡弾も含む。遠征の受付上限は生存数によるAddの上限とは別に判定する。
-    if (player_.runModifiers_.enabled && bulletManager->GetBulletCounts().player >= 240) {
+    if (bulletManager->GetBulletCounts().player >= 240) {
         return false;
     }
 
@@ -981,7 +962,7 @@ bool PlayerWeapons::FireConfiguredClass(const PlayerClassConfig& config, BulletM
     param.penetrate = config.penetrate;
     param.cooldown = 1.0f;
     const float shotDamage = player_.stats_.bulletDamage * config.bulletDamageScale;
-    param.damage = static_cast<uint32_t>((std::max)(1.0f, player_.runModifiers_.enabled ? std::round(shotDamage) : shotDamage));
+    param.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(shotDamage)));
     ApplyRunProjectileRules(param);
 
     if (player_.isBuffActive_) {
@@ -1053,8 +1034,7 @@ bool PlayerWeapons::FireConfiguredClass(const PlayerClassConfig& config, BulletM
         return false;
     }
 
-    const myEngine::Vector3 forward =
-        myEngine::Length(player_.dir_) > 0.0001f ? myEngine::Normalize(player_.dir_) : myEngine::Vector3{1.0f, 0.0f, 0.0f};
+    const myEngine::Vector3 forward = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1.0f, 0.0f, 0.0f});
     const myEngine::Vector3 right = {-forward.y, forward.x, 0.0f};
     bool firesMelee = false;
     float meleeComboResetTime = 0.90f;
@@ -1140,13 +1120,11 @@ bool PlayerWeapons::FireConfiguredClass(const PlayerClassConfig& config, BulletM
             player_.pendingMeleeSlashes_.push_back(event);
             meleeActionDuration = (std::max)(meleeActionDuration, meleeWindup + barrelConfig.meleeDuration + meleeRecovery);
         } else {
-            if (player_.runModifiers_.enabled) {
-                const size_t active = bulletManager->GetBulletCounts().player;
-                if (active >= 240) {
-                    break;
-                }
-                mountParam.bulletCount = (std::min)(mountParam.bulletCount, static_cast<int>(240 - active));
+            const size_t active = bulletManager->GetBulletCounts().player;
+            if (active >= 240) {
+                break;
             }
+            mountParam.bulletCount = (std::min)(mountParam.bulletCount, static_cast<int>(240 - active));
             mountParam.bulletSpeed *= barrelConfig.projectileSpeedScale;
             player_.attackController_.FireFromMuzzle(muzzle, fireDir, mountParam, BulletOwner::kPlayer);
             if (index < player_.barrels_.size()) {
@@ -1381,8 +1359,7 @@ void PlayerWeapons::UpdateAdditionalAbilities(Stage& stage, BulletManager* bulle
             enemy->TakeDirectionalDamage(amount, source, melee);
             if (knockback > 0) {
                 const auto difference = enemy->GetWorldPosition() - source;
-                enemy->ApplyKnockback(myEngine::Length(difference) > .001f ? myEngine::Normalize(difference) : myEngine::Vector3{1, 0, 0},
-                                      knockback);
+                enemy->ApplyKnockback(myEngine::NormalizeOr(difference, myEngine::Vector3{1, 0, 0}, .001f), knockback);
                 if (melee) {
                     ArmWallSmash(enemy, 1);
                 }

@@ -279,7 +279,7 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 // 線分ごとに帯を視点の方へ向ける。広角の透視カメラでは、Z方向（壁の高さ）に
                 // 伸びる線はカメラの軸とほぼ平行になり、全体共通の前方向を使うと潰れてしまう。
                 const auto toSegment = (a + b) * .5f - cameraPos;
-                const auto viewDirection = myEngine::Length(toSegment) > .0001f ? myEngine::Normalize(toSegment) : cameraForward;
+                const auto viewDirection = myEngine::NormalizeOr(toSegment, cameraForward);
                 world_.resources.neonGridRenderer_->QueueContourLine(a, b, surface.wallLineWidth, c, viewDirection, style);
             };
             auto visible = [&](myEngine::Vector3 normal) {

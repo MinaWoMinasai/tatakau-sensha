@@ -107,6 +107,11 @@ Vector3 Normalize(const Vector3& v)
     return result;
 }
 
+Vector3 NormalizeOr(const Vector3& v, const Vector3& fallback, float minLength)
+{
+    return Length(v) > minLength ? Normalize(v) : fallback;
+}
+
 float DotQuaternion(const Quaternion& q0, const Quaternion& q1)
 {
     return q0.x * q1.x + q0.y * q1.y + q0.z * q1.z + q0.w * q1.w;
@@ -843,24 +848,6 @@ Particle MakeParticle(const Vector3& position, const Vector4& baseColor)
     particle.currentTime = 0.0f;
 
     return particle;
-}
-
-TornadoParticle MakeTornadoParticle(const Vector3& center)
-{
-    TornadoParticle p;
-
-    p.angle = Rand(0.0f, 6.28f);
-    p.height = Rand(0.0f, 3.0f); // ← 初期高さランダム
-    p.baseRadius = Rand(0.5f, 1.0f);
-    p.rotateSpeed = Rand(2.0f, 5.0f);
-    p.upSpeed = Rand(0.4f, 0.8f);
-    p.maxHeight = 10.0f; // ← この高さでループ
-
-    p.color = {0.8f, 0.9f, 1.0f, 0.4f};
-
-    p.pos = center;
-
-    return p;
 }
 
 Vector3 ScreenToWorld2D(const Vector2& screenPos, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix, float windowWidth,

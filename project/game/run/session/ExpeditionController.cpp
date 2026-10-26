@@ -1326,7 +1326,7 @@ void ExpeditionController::UpdateTankExpeditionAudio(float dt)
                 if (world_.run.expeditionMapEnabled_ && world_.run.expeditionHitSparkCooldown_ <= 0 &&
                     world_.run.expeditionHitSparks_.size() < 12) {
                     auto direction = actor->GetWorldPosition() - world_.resources.player_->GetWorldPosition();
-                    direction = myEngine::Length(direction) > 0.01f ? myEngine::Normalize(direction) : myEngine::Vector3{0, 1, 0};
+                    direction = myEngine::NormalizeOr(direction, myEngine::Vector3{0, 1, 0}, 0.01f);
                     world_.run.expeditionHitSparks_.push_back({actor->GetWorldPosition(), direction, 0});
                     world_.run.expeditionHitSparkCooldown_ = 0.045f;
                 }

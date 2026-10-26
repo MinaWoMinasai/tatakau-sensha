@@ -63,6 +63,75 @@ myEngine::Vector3 ReadMoveInput(myEngine::Input* input)
 
 } // namespace
 
+/// @brief 機体設定の制作画面に渡す窓口。必要な操作だけを自機の非公開メンバへ中継する。
+class Player::ClassEditorTarget final : public PlayerClassEditorTarget {
+public:
+    explicit ClassEditorTarget(Player& player) : player_(player) {}
+
+    PlayerClassCatalog& GetClassCatalog() override
+    {
+        return player_.classCatalog_;
+    }
+
+    const std::string& GetCurrentClassId() const override
+    {
+        return player_.currentClassId_;
+    }
+
+    const std::vector<float>& GetWeaponGroupCooldowns() const override
+    {
+        return player_.weaponGroupCooldowns_;
+    }
+
+    const char* GetCurrentClassName() const override
+    {
+        return player_.GetCurrentClassName();
+    }
+
+    const PlayerClassConfig* GetClassConfig(const std::string& classId) const override
+    {
+        return player_.GetClassConfig(classId);
+    }
+
+    PlayerClassConfig* GetMutableClassConfig(const std::string& classId) override
+    {
+        return player_.GetMutableClassConfig(classId);
+    }
+
+    PlayerClassConfig CreateDefaultClassConfig(ClassType type) const override
+    {
+        return player_.CreateDefaultClassConfig(type);
+    }
+
+    bool LoadPlayerClassConfigs() override
+    {
+        return player_.LoadPlayerClassConfigs();
+    }
+
+    void SavePlayerClassConfigs() const override
+    {
+        player_.SavePlayerClassConfigs();
+    }
+
+    void EvolveById(const std::string& classId) override
+    {
+        player_.EvolveById(classId);
+    }
+
+    void InitializeBarrels() override
+    {
+        player_.InitializeBarrels();
+    }
+
+    void UpdateBarrelLayout() override
+    {
+        player_.UpdateBarrelLayout();
+    }
+
+private:
+    Player& player_;
+};
+
 Player::~Player() {}
 
 bool Player::ConsumePrimaryAttackPerformedEvent()
@@ -267,7 +336,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
         playerHud_->UpdateUpgradeHud(uiDeltaTime);
     }
 
-    if (ui_->arenaUiEnabled_ && !demoInputEnabled_ && !(runModifiers_.enabled && runCheckpointEvolution_) &&
+    if (ui_->arenaUiEnabled_ && !demoInputEnabled_ && !runCheckpointEvolution_ &&
         input_->IsTrigger(input_->GetKey()[DIK_C], input_->GetPreKey()[DIK_C])) {
         if (isChangeMode_) {
             isChangeMode_ = false;
@@ -284,27 +353,14 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
         ui_->machineGunBtnSprite_->Update();
         return;
     }
-    if (runModifiers_.enabled && runRoomAwaitInputRelease_ && !input_->IsPress(input_->GetMouseState().rgbButtons[0]) &&
+    if (runRoomAwaitInputRelease_ && !input_->IsPress(input_->GetMouseState().rgbButtons[0]) &&
         !input_->IsPress(input_->GetMouseState().rgbButtons[1])) {
         runRoomAwaitInputRelease_ = false;
     }
 
-    if (!demoInputEnabled_ && !runModifiers_.enabled && skillPoints_ > 0) {
-        // 1〜7キーが、それぞれ0〜6番目の能力の強化に対応する。
-        static constexpr std::array<uint8_t, 7> kStatUpgradeKeys = {DIK_1, DIK_2, DIK_3, DIK_4, DIK_5, DIK_6, DIK_7};
-        for (int index = 0; index < static_cast<int>(kStatUpgradeKeys.size()); ++index) {
-            const uint8_t key = kStatUpgradeKeys[static_cast<size_t>(index)];
-            if (input_->IsTrigger(input_->GetKey()[key], input_->GetPreKey()[key])) {
-                ApplyStatUpgrade(index);
-            }
-        }
-    }
-
-    if (runModifiers_.enabled) {
-        runDashAttackTimer_ = (std::max)(0.0f, runDashAttackTimer_ - deltaTime);
-        runOverdriveTimer_ = (std::max)(0.0f, runOverdriveTimer_ - deltaTime);
-        runOverdriveCooldown_ = (std::max)(0.0f, runOverdriveCooldown_ - deltaTime);
-    }
+    runDashAttackTimer_ = (std::max)(0.0f, runDashAttackTimer_ - deltaTime);
+    runOverdriveTimer_ = (std::max)(0.0f, runOverdriveTimer_ - deltaTime);
+    runOverdriveCooldown_ = (std::max)(0.0f, runOverdriveCooldown_ - deltaTime);
 
     // バフタイマーの更新
     if (buffTimer_ > 0.0f) {
@@ -342,13 +398,11 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     }
 
     // 右クリックは機体ごとの特殊行動スロットとして扱う。
-    if (runModifiers_.enabled) {
-        // ダッシュの前に現在の方向を読む。新たに押した移動キーで
-        // 次のフレームではなく即座に加速の向きを変えるため。
-        inputDir_ = demoInputEnabled_ ? myEngine::Vector3{demoMove_.x, demoMove_.y, 0} : ReadMoveInput(input_);
-        RotateToMouse(viewProjection);
-    }
-    if ((!runModifiers_.enabled || !runRoomAwaitInputRelease_) &&
+    // ダッシュの前に現在の方向を読む。新たに押した移動キーで
+    // 次のフレームではなく即座に加速の向きを変えるため。
+    inputDir_ = demoInputEnabled_ ? myEngine::Vector3{demoMove_.x, demoMove_.y, 0} : ReadMoveInput(input_);
+    RotateToMouse(viewProjection);
+    if (!runRoomAwaitInputRelease_ &&
         (demoInputEnabled_ ? demoDash_
                            : input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1]))) {
         demoDash_ = false;
@@ -419,7 +473,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
 
     if (!isDead_) {
         // 攻撃処理
-        if (runModifiers_.enabled && runDashBurstPending_) {
+        if (runDashBurstPending_) {
             runDashBurstPending_ = false;
             const auto synergy = MakeTankRunSynergy(runModifiers_, runOverdriveTimer_ > 0.0f);
             {
@@ -454,7 +508,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
             if (runSupportDroneTimer_ <= 0.0f) {
                 EnsureExpeditionDrones();
             }
-        } else if (runModifiers_.enabled && !runRoomAwaitInputRelease_ && supportLimit > 0 && (!activeClass || !activeClass->usesDrone)) {
+        } else if (!runRoomAwaitInputRelease_ && supportLimit > 0 && (!activeClass || !activeClass->usesDrone)) {
             runSupportDroneTimer_ = (std::max)(0.0f, runSupportDroneTimer_ - deltaTime);
             if (drones_.size() < supportLimit && runSupportDroneTimer_ <= 0.0f) {
                 auto drone = std::make_unique<PlayerDrone>();
@@ -469,47 +523,45 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
         size_t companionIndex = 0;
         std::array<bool, 48> spreadUsed{};
         for (auto& drone : drones_) {
-            if (runModifiers_.enabled) {
-                ConfigureRunDrone(*drone);
-                drone->SetRunOwner(this, static_cast<int>(companionIndex));
-                const bool wantsAttack = !runRoomAwaitInputRelease_ && !ui_->upgradeHudMouseCaptured_ &&
-                                         (demoInputEnabled_ ? demoShoot_ : input_->IsPress(input_->GetMouseState().rgbButtons[0]));
-                myEngine::Vector3 aim = runAimWorld_;
-                if (IsDroneBuild() && !runHomingTargets_.empty() && (runModifiers_.autonomousSpread || runModifiers_.droneFocus)) {
-                    std::array<float, 48> distances{};
-                    const auto from = runModifiers_.autonomousSpread ? drone->GetWorldPosition() : runAimWorld_;
-                    const int count = static_cast<int>((std::min)(runHomingTargets_.size(), distances.size()));
-                    for (int n = 0; n < count; ++n) {
-                        distances[static_cast<size_t>(n)] = myEngine::Length(runHomingTargets_[static_cast<size_t>(n)] - from);
-                    }
-                    const int chosen = tankspecial::ChooseSpreadTarget(distances.data(), spreadUsed.data(), count);
-                    if (chosen >= 0 && (runModifiers_.autonomousSpread || distances[static_cast<size_t>(chosen)] < 6.0f)) {
-                        aim = runHomingTargets_[static_cast<size_t>(chosen)];
-                        if (runModifiers_.autonomousSpread) {
-                            spreadUsed[static_cast<size_t>(chosen)] = true;
-                            if (wantsAttack) {
-                                specialCombatStats_.spreadTargets |= uint32_t{1} << (chosen % 32);
-                            }
+            ConfigureRunDrone(*drone);
+            drone->SetRunOwner(this, static_cast<int>(companionIndex));
+            const bool wantsAttack = !runRoomAwaitInputRelease_ && !ui_->upgradeHudMouseCaptured_ &&
+                                     (demoInputEnabled_ ? demoShoot_ : input_->IsPress(input_->GetMouseState().rgbButtons[0]));
+            myEngine::Vector3 aim = runAimWorld_;
+            if (IsDroneBuild() && !runHomingTargets_.empty() && (runModifiers_.autonomousSpread || runModifiers_.droneFocus)) {
+                std::array<float, 48> distances{};
+                const auto from = runModifiers_.autonomousSpread ? drone->GetWorldPosition() : runAimWorld_;
+                const int count = static_cast<int>((std::min)(runHomingTargets_.size(), distances.size()));
+                for (int n = 0; n < count; ++n) {
+                    distances[static_cast<size_t>(n)] = myEngine::Length(runHomingTargets_[static_cast<size_t>(n)] - from);
+                }
+                const int chosen = tankspecial::ChooseSpreadTarget(distances.data(), spreadUsed.data(), count);
+                if (chosen >= 0 && (runModifiers_.autonomousSpread || distances[static_cast<size_t>(chosen)] < 6.0f)) {
+                    aim = runHomingTargets_[static_cast<size_t>(chosen)];
+                    if (runModifiers_.autonomousSpread) {
+                        spreadUsed[static_cast<size_t>(chosen)] = true;
+                        if (wantsAttack) {
+                            specialCombatStats_.spreadTargets |= uint32_t{1} << (chosen % 32);
                         }
                     }
                 }
-                if (expeditionCombatStyleSelected_ || demoInputEnabled_) {
-                    drone->SetRunInput(aim, wantsAttack);
-                }
-                if (IsDroneBuild()) {
-                    // ドローンを機体の周りに等間隔で並べる角度（ラジアン）。
-                    const float orbit = static_cast<float>(companionIndex) * 2.0f * std::numbers::pi_v<float> /
-                                        static_cast<float>((std::max)(size_t{1}, drones_.size()));
-                    const float radius =
-                        GetCombatStyleProfile(tankbuild::Style::Drone).droneFormationRadius + (runModifiers_.droneLaserLink ? 2.0f : 0.0f);
-                    drone->SetRunFollowOffset({std::cos(orbit) * radius, std::sin(orbit) * radius, 0});
-                }
+            }
+            if (expeditionCombatStyleSelected_ || demoInputEnabled_) {
+                drone->SetRunInput(aim, wantsAttack);
+            }
+            if (IsDroneBuild()) {
+                // ドローンを機体の周りに等間隔で並べる角度（ラジアン）。
+                const float orbit = static_cast<float>(companionIndex) * 2.0f * std::numbers::pi_v<float> /
+                                    static_cast<float>((std::max)(size_t{1}, drones_.size()));
+                const float radius =
+                    GetCombatStyleProfile(tankbuild::Style::Drone).droneFormationRadius + (runModifiers_.droneLaserLink ? 2.0f : 0.0f);
+                drone->SetRunFollowOffset({std::cos(orbit) * radius, std::sin(orbit) * radius, 0});
             }
             ++companionIndex;
             drone->SetNeonDepthAimEnabled(neonDepthAimEnabled_);
-            drone->Update(viewProjection, stage, worldTransform_.translate, runModifiers_.enabled ? deltaTime : 1.0f / 60.0f);
+            drone->Update(viewProjection, stage, worldTransform_.translate, deltaTime);
         }
-        if (runModifiers_.enabled && runCheckpointEvolution_ && bulletManager->GetBulletCount() > bulletsBeforeDroneUpdates) {
+        if (runCheckpointEvolution_ && bulletManager->GetBulletCount() > bulletsBeforeDroneUpdates) {
             primaryAttackPerformedEvent_ = true;
             ++primaryAttackCount_;
         }
@@ -645,20 +697,20 @@ myEngine::Vector3 Player::GetWorldPosition() const
 bool Player::TryPerfectDodgeFromHostileContact(bool dodgeable)
 {
     if (!isJustEvaded_ && isDashing_ &&
-        TankCanPerfectDodge(runModifiers_.enabled && runModifiers_.perfectDodge, dodgeable, kDashDuration - dashTimer_,
+        TankCanPerfectDodge(runModifiers_.perfectDodge, dodgeable, kDashDuration - dashTimer_,
                             TankEffectPower(runModifiers_, tankrun::CardId::PerfectDodge))) {
         requestSlow_ = true;
         isJustEvaded_ = true;
         ++perfectDodgeCount_;
         invincibleTimer_ = dashTimer_;
         buffTimer_ = kBuffDuration * TankEffectPower(runModifiers_, tankrun::CardId::PerfectDodge);
-        if (runModifiers_.enabled && runModifiers_.capacitor) {
+        if (runModifiers_.capacitor) {
             const float power = TankEffectPower(runModifiers_, tankrun::CardId::Capacitor);
             buffTimer_ += 1.5f * power;
             stats_.stamina = (std::min)(stats_.maxStamina, stats_.stamina + power);
             HealRunPlayer((std::max)(1, static_cast<int>(std::round(4.0f * power))));
         }
-        if (runModifiers_.enabled && runModifiers_.overdrive) {
+        if (runModifiers_.overdrive) {
             runOverdriveTimer_ = 2.4f * TankEffectPower(runModifiers_, tankrun::CardId::Overdrive);
             runOverdriveCooldown_ = 4.0f;
         }
@@ -763,7 +815,7 @@ bool Player::TryDashImpact(Collider* target)
         direction = {1, 0, 0};
     }
     direction = myEngine::Normalize(direction);
-    const bool powered = runModifiers_.enabled && runModifiers_.impactDrive;
+    const bool powered = runModifiers_.impactDrive;
     const float strength = powered ? 1.0f + 0.5f * TankEffectPower(runModifiers_, tankrun::CardId::ImpactDrive) : 1.0f;
     const uint32_t damage =
         static_cast<uint32_t>((std::max)(1.0f, std::round((stats_.bulletDamage * 2.5f + stats_.bodyDamage) * strength)));
@@ -821,7 +873,7 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
         }
     }
 
-    const uint32_t appliedDamage = runModifiers_.enabled && runCheckpointEvolution_ ? runMaintenance_.MitigateDamage(amount) : amount;
+    const uint32_t appliedDamage = runCheckpointEvolution_ ? runMaintenance_.MitigateDamage(amount) : amount;
     ++damageTakenCount_;
     // 符号付きHPへ変換する前に残HPで制限し、極端な開発用ダメージでも整数変換を安全にする。
     hp_ -= static_cast<int>((std::min)(appliedDamage, static_cast<uint32_t>((std::max)(0, hp_))));
@@ -986,7 +1038,7 @@ void Player::UpdateBarrelLayout()
         return;
     }
 
-    const myEngine::Vector3 forward = myEngine::Length(dir_) > 0.0001f ? myEngine::Normalize(dir_) : myEngine::Vector3{1.0f, 0.0f, 0.0f};
+    const myEngine::Vector3 forward = myEngine::NormalizeOr(dir_, myEngine::Vector3{1.0f, 0.0f, 0.0f});
     const myEngine::Vector3 right = {-forward.y, forward.x, 0.0f};
     const PlayerClassConfig* config = GetCurrentClassConfig();
     const float recoilReturn = 0.055f;
@@ -1219,9 +1271,9 @@ myEngine::Vector2 Player::WorldToScreen(const myEngine::Vector3& worldPos, myEng
 
 Player::Player()
     : ui_(std::make_unique<PlayerUiState>()), playerHud_(std::make_unique<PlayerHud>(*this, *ui_)),
-      playerEvolution_(std::make_unique<PlayerEvolution>(*this, *ui_)),
-      playerClassEditor_(std::make_unique<PlayerClassEditor>(*this, *ui_)), playerWeapons_(std::make_unique<PlayerWeapons>(*this)),
-      playerProgression_(std::make_unique<PlayerProgression>(*this))
+      playerEvolution_(std::make_unique<PlayerEvolution>(*this, *ui_)), classEditorTarget_(std::make_unique<ClassEditorTarget>(*this)),
+      playerClassEditor_(std::make_unique<PlayerClassEditor>(*classEditorTarget_, *ui_)),
+      playerWeapons_(std::make_unique<PlayerWeapons>(*this)), playerProgression_(std::make_unique<PlayerProgression>(*this))
 {
 }
 

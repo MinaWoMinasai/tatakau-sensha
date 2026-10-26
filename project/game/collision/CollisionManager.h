@@ -1,6 +1,7 @@
 #pragma once
 #include "Collider.h"
-#include <list>
+#include "CombatCollisionRules.h"
+#include <vector>
 
 class Enemy;
 class Player;
@@ -8,7 +9,8 @@ class PlayerDrone;
 class BulletManager;
 class EnemyManager;
 
-/// @brief アクターと弾を借用して衝突判定・通知を行い、走査後に予約弾の生成を反映する。
+/// @brief アクターと弾を借用して、どれとどれが接触したかを調べ、走査後に予約弾の生成を反映する。
+/// @note 接触した組への処理（ゲームのルール）はCombatCollisionRulesが行う。
 class CollisionManager {
 public:
     /// @brief 対象一覧を作り直して全ペアを調べ、成立した接触を通知して走査後に予約弾を生成する。
@@ -28,13 +30,17 @@ public:
 
     /// @brief 最後に登録した衝突対象一覧への読み取り専用参照を返す。要素の所有権は持たない。
     /// @note 弾・敵・ドローンの削除後は要素を利用しない。次の走査で一覧を作り直す。
-    const std::list<Collider*>& GetColliders() const
+    const std::vector<Collider*>& GetColliders() const
     {
         return colliders_;
     }
 
 private:
-    BulletManager* activeBulletManager_ = nullptr;
-    // コライダーリスト
-    std::list<Collider*> colliders_;
+    /// @brief マスクと戦闘のルールで除外されなかった組が、形状として接触しているか判定する。
+    bool IsTouching(Collider* colliderA, Collider* colliderB) const;
+
+    // 接触の前後に適用する戦闘のルール。
+    CombatCollisionRules rules_;
+    // コライダーの一覧。毎フレーム作り直すが、容量は使い回す。
+    std::vector<Collider*> colliders_;
 };

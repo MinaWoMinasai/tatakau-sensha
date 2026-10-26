@@ -580,7 +580,7 @@ void PlayerAttackEffects::UpdateSpecialCombatPresentation(float dt)
                 continue;
             }
             auto direction = bullet->GetMove();
-            direction = myEngine::Length(direction) > .0001f ? myEngine::Normalize(direction) : myEngine::Vector3{1, 0, 0};
+            direction = myEngine::NormalizeOr(direction, myEngine::Vector3{1, 0, 0});
             world_.run.specialProjectileVisuals_.push_back(
                 {bullet->GetWorldPosition(), direction, bullet->GetRadius(), bullet->GetSpecialKind()});
         }
@@ -670,7 +670,7 @@ void PlayerAttackEffects::QueueSpecialCombatPresentation()
                                 {1.6f, .55f, .9f, fade * .7f});
             tankspecialfx::Contact(*world_.resources.neonGridRenderer_, event.origin, flash.age, 1.0f, false);
         } else if (event.kind == Player::SpecialEventKind::DashSlash) {
-            const auto d = myEngine::Length(event.direction) > .001f ? myEngine::Normalize(event.direction) : myEngine::Vector3{1, 0, 0};
+            const auto d = myEngine::NormalizeOr(event.direction, myEngine::Vector3{1, 0, 0}, .001f);
             world_.resources.neonGridRenderer_->QueueLine(event.origin - d * 3, event.origin + d * 2, .10f,
                                                           {.55f, 1.4f, 1.9f, (1 - flash.age / .24f) * .6f});
         } else {

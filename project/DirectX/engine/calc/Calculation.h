@@ -39,6 +39,8 @@ Vector3 Cross(const Vector3& v1, const Vector3& v2);
 
 // 正規化
 Vector3 Normalize(const Vector3& v);
+/// @brief 長さが minLength より大きければ正規化した値を、そうでなければ fallback を返す。長さ0でもNaNにならない。
+Vector3 NormalizeOr(const Vector3& v, const Vector3& fallback = {}, float minLength = 0.0001f);
 
 /// @brief クォータニオンの内積を返す。
 float DotQuaternion(const Quaternion& q0, const Quaternion& q1);
@@ -118,8 +120,6 @@ Vector3 Rand(const Vector3& min, const Vector3& max);
 Vector4 Rand(const Vector4& min = {0.0f, 0.0f, 0.0f, 1.0f}, const Vector4& max = {1.0f, 1.0f, 1.0f, 1.0f});
 /// @brief 粒子を作成して返す。
 Particle MakeParticle(const Vector3& position, const Vector4& baseColor);
-/// @brief Tornado粒子を作成して返す。
-TornadoParticle MakeTornadoParticle(const Vector3& center);
 
 // 球と平面の衝突判定
 bool IsCollision(const Sphere& sphere, const Plane& plane);
