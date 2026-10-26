@@ -1,5 +1,6 @@
 #pragma once
 #include "game/session/GameplayTypes.h"
+#include "FixedTimestep.h"
 
 namespace gameplay {
 /// @brief CombatUiStateに属する資源と実行状態を保持する。
@@ -145,7 +146,7 @@ struct CombatUiState {
     float timeScale_ = 1.0f;
 
     // 1.0 が通常、0.2 なら 5倍スロー
-    float finalDeltaTime = 1.0f / 60.0f;
+    float finalDeltaTime = myEngine::kFixedStepSeconds;
 
     CombatFlowController combatFlow_;
 

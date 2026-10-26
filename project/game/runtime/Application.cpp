@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "FixedTimestep.h"
 #include "Dump.h"
 #include "DeveloperTools.h"
 #include "../scene/SceneFactory.h"
@@ -596,12 +597,12 @@ int Application::MainLoop()
         hooks_.OnAfterSceneUpdate();
         if (trailStress_) {
             myEngine::RuntimeProfiler::CpuScope scope("Stress trails update");
-            trailStress_->Update(1.0f / 60.0f);
+            trailStress_->Update(myEngine::kFixedStepSeconds);
         }
         const float sceneUpdateMs = elapsedMs(sceneUpdateStart, std::chrono::steady_clock::now());
         const auto developerShowcase = SceneManager::GetInstance()->GetDeveloperShowcaseState();
         const float combatDeltaTime = SceneManager::GetInstance()->GetFinalDeltaTime();
-        bool grayscale = combatDeltaTime < (1.0f / 60.0f) * 0.98f;
+        bool grayscale = combatDeltaTime < myEngine::kFixedStepSeconds * 0.98f;
         hooks_.AdjustGrayscale(combatDeltaTime, developerShowcase, grayscale);
         bloom_->SetGrayscaleEnabled(grayscale);
         bloom_->SetGaussianOverride(SceneManager::GetInstance()->GetPostGaussianIntensity());

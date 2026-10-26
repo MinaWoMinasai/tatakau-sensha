@@ -1,4 +1,5 @@
 #include "SceneManager.h"
+#include "FixedTimestep.h"
 #include "LogWrite.h"
 #include "StartupTrace.h"
 
@@ -193,7 +194,7 @@ void SceneManager::DrawSprite()
 
 float SceneManager::GetFinalDeltaTime()
 {
-    return currentScene_ ? currentScene_->GetFinalDeltaTime() : 1.0f / 60.0f;
+    return currentScene_ ? currentScene_->GetFinalDeltaTime() : myEngine::kFixedStepSeconds;
 }
 
 float SceneManager::GetPostGaussianIntensity()

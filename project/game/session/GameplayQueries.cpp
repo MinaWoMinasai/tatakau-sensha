@@ -1,4 +1,5 @@
 #include "game/session/GameplayQueries.h"
+#include "FixedTimestep.h"
 #include "game/session/GameplaySystems.h"
 #include "game/weapon/CombatTypes.h"
 #include "RuntimeProfiler.h"
@@ -275,15 +276,15 @@ float GameplayQueries::GetFinalDeltaTime() const
 {
     // ボス撃破の演出はフルカラーのフィナーレで、グレースケールのポーズ/スローモーション表現ではない。
     if (world_.combat.combatFlow_.GetState() == GameFlowState::BossDefeatSequence && world_.resources.neonDepthCameraScoped_) {
-        return 1.0f / 60.0f;
+        return myEngine::kFixedStepSeconds;
     }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (world_.presentation.developerBloomFreeze_ || world_.resources.neonBossDeveloperFreeze_) {
-        return 1.0f / 60.0f; // 停止は比較用であり、グレースケールのスローモーション効果ではない。
+        return myEngine::kFixedStepSeconds; // 停止は比較用であり、グレースケールのスローモーション効果ではない。
     }
 #endif
     if (IsNeonShowcaseActive()) {
-        return 1.0f / 60.0f;
+        return myEngine::kFixedStepSeconds;
     }
     return world_.combat.finalDeltaTime;
 }

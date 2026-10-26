@@ -1,4 +1,5 @@
 #include "Input.h"
+#include "FixedTimestep.h"
 #include "WinApp.h"
 #include <algorithm>
 #include <cmath>
@@ -369,7 +370,7 @@ void Input::Vibrate(float lowFrequency, float highFrequency, float seconds)
 void Input::UpdateVibration()
 {
     if (vibrationSeconds_ > 0.0f && gamepadConnected_) {
-        vibrationSeconds_ -= 1.0f / 60.0f;
+        vibrationSeconds_ -= kFixedStepSeconds; // 入力の更新は固定ステップ1回ごとに呼ばれる
         XINPUT_VIBRATION vibration{};
         vibration.wLeftMotorSpeed = static_cast<WORD>(vibrationLow_ * 65535.0f);
         vibration.wRightMotorSpeed = static_cast<WORD>(vibrationHigh_ * 65535.0f);

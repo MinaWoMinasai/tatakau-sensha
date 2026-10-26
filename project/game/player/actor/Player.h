@@ -1,5 +1,6 @@
 #pragma once
 #include "game/weapon/CombatTypes.h"
+#include "FixedTimestep.h"
 #define NOMINMAX
 #include <Windows.h>
 #include <algorithm>
@@ -1231,7 +1232,7 @@ private:
     void SpawnParticles();
     /// @brief 死亡演出のタイマーを進め、終了時に爆発演出中のフラグを解除する。
     /// @param deltaTime この処理で進める経過時間（秒）。
-    void UpdateParticles(float deltaTime = 1.0f / 60.0f);
+    void UpdateParticles(float deltaTime = myEngine::kFixedStepSeconds);
 
     /// @brief 移動方向の後方へ煙とネオンの移動演出を発生させる。
     void SpawnAfterimage();
@@ -1267,7 +1268,7 @@ private:
     bool requestSlow_ = false;
 
     // デルタタイム
-    float dt_ = 1.0f / 60.0f;
+    float dt_ = myEngine::kFixedStepSeconds;
 
     float buffTimer_ = 0.0f;          // バフの残り時間
     bool isBuffActive_ = false;       // バフ中かどうかのフラグ

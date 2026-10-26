@@ -1,4 +1,5 @@
 #include "Fade.h"
+#include "FixedTimestep.h"
 #include <algorithm>
 
 void Fade::Initialize()
@@ -18,7 +19,7 @@ void Fade::Update()
         break;
     case Status::FadeIn:
         // 1フレーム分の秒数をカウントアップ
-        counter_ += 1.0f / 60.0f;
+        counter_ += myEngine::kFixedStepSeconds;
         // フェード継続時間に達したら打ち止め
         if (counter_ >= duration_) {
             counter_ = duration_;
@@ -29,7 +30,7 @@ void Fade::Update()
         break;
     case Status::FadeOut:
         // 1フレーム分の秒数をカウントアップ
-        counter_ += 1.0f / 60.0f;
+        counter_ += myEngine::kFixedStepSeconds;
         // フェード継続時間に達したら打ち止め
         if (counter_ >= duration_) {
             counter_ = duration_;

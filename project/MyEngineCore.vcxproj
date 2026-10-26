@@ -285,6 +285,7 @@
     <ClInclude Include="DirectX\engine\common\ShaderDiskCache.h" />
     <ClInclude Include="DirectX\engine\2d\GeneratedTextureCache.h" />
     <ClInclude Include="DirectX\engine\common\FramePacer.h" />
+    <ClInclude Include="DirectX\engine\common\FixedTimestep.h" />
     <ClInclude Include="DirectX\engine\common\TrailStressFixture.h" />
     <ClInclude Include="DirectX\engine\common\StringUtils.h" />
     <ClCompile Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.cpp" />

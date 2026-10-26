@@ -1,4 +1,5 @@
 #include "game/weapon/CombatTypes.h"
+#include "FixedTimestep.h"
 #include "Enemy.h"
 #include "Calculation.h"
 #include "EnemyManager.h"
@@ -561,7 +562,7 @@ void Enemy::UpdateRivalCombat(float deltaTime)
             rivalCombat_.FinishDash();
             velocity_ = {};
         } else {
-            const float frames = (std::max)(0.001f, deltaTime * 60.0f);
+            const float frames = (std::max)(0.001f, deltaTime * myEngine::kFixedStepsPerSecond);
             const float speed = (std::min)(rivalCombat_.GetDashSpeed(), rivalDashDistance_ / frames);
             velocity_ = rivalDashDirection_ * speed;
             rivalDashDistance_ = (std::max)(0.0f, rivalDashDistance_ - speed * frames);
@@ -703,7 +704,7 @@ void Enemy::Update(float deltaTime)
         }
 
         // AI速度と追加ノックバックは60FPS基準。秒数を基準フレーム数へ換算して移動量を求める。
-        myEngine::Vector3 move = (GetMove() + impactVelocity_) * (deltaTime * 60.0f);
+        myEngine::Vector3 move = (GetMove() + impactVelocity_) * (deltaTime * myEngine::kFixedStepsPerSecond);
         impactVelocity_ = impactVelocity_ * std::exp(-5.0f * deltaTime);
         const float maxStep = 0.35f;
         const int subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(move.x), std::abs(move.y)) / maxStep) + 1);
@@ -984,7 +985,7 @@ void Enemy::Move(float deltaTime)
 
     const float speed = pathDir ? 0.10f : maxSpeed_;
     myEngine::Vector3 targetVelocity = dir_ * speed;
-    velocity_ += (targetVelocity - velocity_) * 0.22f * (deltaTime * 60.0f);
+    velocity_ += (targetVelocity - velocity_) * 0.22f * (deltaTime * myEngine::kFixedStepsPerSecond);
 }
 
 void Enemy::RotateTowardTarget(const myEngine::Vector3& targetPos, float deltaTime)
@@ -1032,7 +1033,7 @@ myEngine::Vector3 Enemy::ApplyHumanLikeSteering(const myEngine::Vector3& desired
         targetDir = myEngine::Normalize(targetDir);
     }
 
-    steeringDir_ += (targetDir - steeringDir_) * response * (deltaTime * 60.0f);
+    steeringDir_ += (targetDir - steeringDir_) * response * (deltaTime * myEngine::kFixedStepsPerSecond);
     if (myEngine::Length(steeringDir_) > 0.001f) {
         steeringDir_ = myEngine::Normalize(steeringDir_);
     } else {

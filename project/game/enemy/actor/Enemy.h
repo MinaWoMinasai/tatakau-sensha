@@ -1,6 +1,7 @@
 #pragma once
 #define NOMINMAX
 #include "Collider.h"
+#include "FixedTimestep.h"
 #include <Windows.h>
 #include <algorithm>
 #include <cmath>
@@ -652,5 +653,5 @@ private:
     void SpawnParticles();
     /// @brief 死亡演出の時計を進め、時間切れでisExploding_を解除する。粒子自体はParticleManagerが更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
-    void UpdateParticles(float deltaTime = 1.0f / 60.0f);
+    void UpdateParticles(float deltaTime = myEngine::kFixedStepSeconds);
 };

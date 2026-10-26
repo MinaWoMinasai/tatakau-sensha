@@ -1,4 +1,5 @@
 #include "game/weapon/CombatTypes.h"
+#include "FixedTimestep.h"
 #include "TitleScene.h"
 #include "game/render/settings/ArenaLookConfig.h"
 #include "GameScene.h"
@@ -226,7 +227,7 @@ void TitleScene::PrepareForTransition()
 
 void TitleScene::Update()
 {
-    constexpr float dt = 1.0f / 60.0f;
+    constexpr float dt = myEngine::kFixedStepSeconds;
     blinkTimer_ += dt;
     if (asyncStartup_ && titleFrames_++ > 0) {
         myEngine::TextureManager::GetInstance()->PumpPreloads();

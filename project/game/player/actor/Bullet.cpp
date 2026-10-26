@@ -1,4 +1,5 @@
 #include "game/weapon/CombatTypes.h"
+#include "FixedTimestep.h"
 #include "Bullet.h"
 #include "ParticleManager.h"
 #include <cmath>
@@ -89,7 +90,7 @@ void Bullet::Update(float deltaTime)
         if (returnFlight_.returning) {
             const myEngine::Vector3 toOwner = returnTarget_ - GetWorldPosition();
             const float speed = myEngine::Length(velocity_);
-            if (myEngine::Length(toOwner) < (std::max)(.9f, speed * deltaTime * 60.0f)) {
+            if (myEngine::Length(toOwner) < (std::max)(.9f, speed * deltaTime * myEngine::kFixedStepsPerSecond)) {
                 Die();
                 return;
             }
@@ -98,7 +99,7 @@ void Bullet::Update(float deltaTime)
     }
 
     // velocity_は60FPS相当の基準1フレームの移動量。deltaTime秒を基準フレーム数へ換算する。
-    worldTransform_.translate += velocity_ * (deltaTime * 60.0f);
+    worldTransform_.translate += velocity_ * (deltaTime * myEngine::kFixedStepsPerSecond);
     if (myEngine::Length(velocity_) > 0.001f) {
         worldTransform_.rotate.z = std::atan2(velocity_.y, velocity_.x);
     }

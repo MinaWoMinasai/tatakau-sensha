@@ -1,4 +1,5 @@
 #include "game/render/session/BossPresentation.h"
+#include "FixedTimestep.h"
 #include "game/render/settings/ArenaCameraProfile.h"
 #include "game/session/GameplaySystems.h"
 #include "GameStartMode.h"
@@ -269,7 +270,7 @@ void BossPresentation::UpdateNeonBossDeveloperValidation()
     if (!world_.resources.neonBossAutoTest_ || !world_.resources.neonBossVisual_ || world_.resources.neonBossDeveloperStartPending_) {
         return;
     }
-    world_.resources.neonBossValidationAge_ += 1.0f / 60.0f;
+    world_.resources.neonBossValidationAge_ += myEngine::kFixedStepSeconds;
     if (world_.resources.neonBossValidationAge_ > 60) {
         world_.resources.neonBossValidationErrors_.push_back("Timed out waiting for actual boss phases/captures.");
         WriteNeonBossValidation(false);
