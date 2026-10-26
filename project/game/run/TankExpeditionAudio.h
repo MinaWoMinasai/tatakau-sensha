@@ -14,7 +14,6 @@
 /// @brief 遠征中のイベントに応じてSEとBGMを再生し、音声設定を管理する。
 class TankExpeditionAudio {
 public:
-    /// @brief インスタンスの初期値と利用先を設定する。
     TankExpeditionAudio()
     {
         const auto prefix = L"__tank_expedition_" + std::to_wstring(++nextInstance_) + L"_";
@@ -23,7 +22,6 @@ public:
         }
     }
 
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     ~TankExpeditionAudio()
     {
         Shutdown();

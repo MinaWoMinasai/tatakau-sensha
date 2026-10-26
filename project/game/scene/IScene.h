@@ -44,7 +44,6 @@ public:
         float submitResetMs = 0.0f;
     };
 
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     virtual ~IScene() = default;
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     virtual void Initialize() = 0;

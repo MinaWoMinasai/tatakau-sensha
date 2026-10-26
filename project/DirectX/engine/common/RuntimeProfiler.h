@@ -77,7 +77,6 @@ public:
     /// @brief スコープの開始・終了をCPU計測へ記録するRAIIオブジェクトを表す。
     class CpuScope {
     public:
-        /// @brief インスタンスの初期値と利用先を設定する。
         explicit CpuScope(const char* name) : name_(name), enabled_(Get().IsRecording())
         {
             if (enabled_) {
@@ -85,7 +84,6 @@ public:
             }
         }
 
-        /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
         ~CpuScope()
         {
             if (enabled_) {
@@ -106,10 +104,8 @@ public:
     /// @brief GPU計測の開始・終了を対応させるRAIIオブジェクトを表す。
     class GpuScope {
     public:
-        /// @brief インスタンスの初期値と利用先を設定する。
         explicit GpuScope(const char* name) : token_(Get().BeginGpu(name)) {}
 
-        /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
         ~GpuScope()
         {
             Get().EndGpu(token_);

@@ -16,7 +16,6 @@ class Input;
 /// 既定の実装は何もしない。呼び出しはすべてメインスレッドから行う。
 class IApplicationHooks {
 public:
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     virtual ~IApplicationHooks() = default;
 
     /// @brief この実行ファイルで選べるゲームモジュールを登録する。

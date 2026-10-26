@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief DepthEncounterの処理を担当し、同じプレイの共有状態を借用する。
 class DepthEncounter {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit DepthEncounter(GameWorld& world) : world_(world) {}
 
     /// @brief Depthボスの設定ファイルを読み込む。hotReloadなら戦闘中の値も次の攻撃から差し替える。

@@ -140,7 +140,6 @@ public:
     void Update(myEngine::Camera* viewProjection, Stage& stage, const myEngine::Vector3& playerPosition,
                 float deltaTime = myEngine::kFixedStepSeconds);
 
-    /// @brief 描画
     void Draw();
 
     /// @brief ネオン表示を設定する。

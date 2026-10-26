@@ -24,7 +24,7 @@ namespace myEngine {
 
 /// @brief 終了時にDirectXの生存リソースを報告し、解放漏れの調査に使う。
 struct D3DResourceLeakChecker {
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
+    /// @brief 終了時に生存しているDXGI・D3D12のオブジェクトをデバッグ出力へ報告する。
     ~D3DResourceLeakChecker()
     {
         // リソースリークチェック
@@ -40,10 +40,8 @@ struct D3DResourceLeakChecker {
 /// @brief DirectXリソースへのComPtrを保持し、参照カウントで寿命を共有する。
 class ResourceObject {
 public:
-    /// @brief インスタンスの初期値と利用先を設定する。
     ResourceObject(Microsoft::WRL::ComPtr<ID3D12Resource>& resource) : resource_(resource) {}
 
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     ~ResourceObject() = default;
 
     /// @brief 保持している値またはリソースを返す。
@@ -74,7 +72,6 @@ public:
     using PostEffectType = PipelineLibrary::PostEffectType;
     using PSO = PipelineLibrary::PSO;
 
-    /// @brief 初期化
     void Initialize(WinApp* winApp, bool titleFirst = false);
     /// @brief パイプラインの作成を1ステップ進める。すべて完了したらtrueを返す。
     bool InitializePipelinesStep();

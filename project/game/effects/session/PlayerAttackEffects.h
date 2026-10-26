@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief PlayerAttackEffectsの処理を担当し、同じプレイの共有状態を借用する。
 class PlayerAttackEffects {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit PlayerAttackEffects(GameWorld& world) : world_(world) {}
 
     /// @brief 自機のネオンの残像を更新する。

@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief PerformanceMonitorの処理を担当し、同じプレイの共有状態を借用する。
 class PerformanceMonitor {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit PerformanceMonitor(GameWorld& world) : world_(world) {}
 
     /// @brief 描画区間の計測値を設定する。

@@ -137,7 +137,6 @@ void ReleaseAudioData(Audio::AudioData& data)
 struct AudioDataGuard {
     Audio::AudioData* data;
 
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     ~AudioDataGuard()
     {
         if (data) {

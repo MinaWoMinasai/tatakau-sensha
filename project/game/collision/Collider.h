@@ -23,7 +23,6 @@ enum class ColliderKind {
 /// @brief 衝突形状・属性・識別子を保持し、衝突した相手をゲームオブジェクトへ通知する。
 class Collider {
 public:
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     virtual ~Collider() = default;
 
     /// @brief 衝突識別子を返す。

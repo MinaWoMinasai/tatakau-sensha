@@ -819,7 +819,6 @@ enum class MapRunPhase {
 /// @brief 現在の遠征ルート・到達ノード・選択可能な進路を管理する。
 class ExpeditionMapRun {
 public:
-    /// @brief インスタンスの初期値と利用先を設定する。
     ExpeditionMapRun() : definition_(DefaultExpeditionMap()), currency_(definition_.startingCurrency) {}
 
     /// @brief 状態と集計値を初期状態へ戻す。

@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief CombatEffectsの処理を担当し、同じプレイの共有状態を借用する。
 class CombatEffects {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit CombatEffects(GameWorld& world) : world_(world) {}
 
     /// @brief 死亡後処理パルスを発動させる。

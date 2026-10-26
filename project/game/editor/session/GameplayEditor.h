@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief GameplayEditorの処理を担当し、同じプレイの共有状態を借用する。
 class GameplayEditor {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit GameplayEditor(GameWorld& world) : world_(world) {}
 
     /// @brief ゲームシーンのデバッグ用ImGuiを表示する。

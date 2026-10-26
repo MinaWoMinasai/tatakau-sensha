@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief ClassConfigWatcherの処理を担当し、同じプレイの共有状態を借用する。
 class ClassConfigWatcher {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit ClassConfigWatcher(GameWorld& world) : world_(world) {}
 
     /// @brief 自機機体設定監視を初期化する。

@@ -21,7 +21,6 @@ public:
     /// @brief 診断メッセージをログへ出力する。
     void Log(std::ostream& os, const std::string& message);
 
-    /// @brief 初期化
     void Initialize();
 
     /// @brief LogStreamを返す。

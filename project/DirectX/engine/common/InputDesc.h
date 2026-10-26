@@ -7,7 +7,6 @@ namespace myEngine {
 /// @brief 頂点入力の要素配置を保持し、パイプライン作成時に提供する。
 class InputDesc {
 public:
-    /// @brief 初期化
     void Initialize();
 
     /// @brief 軌跡用の頂点レイアウトにする。

@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief CombatValidationの処理を担当し、同じプレイの共有状態を借用する。
 class CombatValidation {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit CombatValidation(GameWorld& world) : world_(world) {}
 
     /// @brief 戦闘検証の初期状態（フィクスチャ）を用意する。

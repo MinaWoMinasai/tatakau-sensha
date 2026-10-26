@@ -116,7 +116,6 @@ public:
     /// @brief スコープの開始と終了を起動計測へ記録するRAIIオブジェクトを表す。
     class Scope {
     public:
-        /// @brief インスタンスの初期値と利用先を設定する。
         explicit Scope(std::string name) : name_(std::move(name)), enabled_(Enabled())
         {
             if (!enabled_) {
@@ -128,7 +127,6 @@ public:
             current_ = this;
         }
 
-        /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
         ~Scope()
         {
             if (!enabled_) {

@@ -18,7 +18,6 @@ public:
     GameSession(bool prototypeRun, bool expeditionRun);
     /// @brief セッションが所有するワールドを破棄する。
     ~GameSession();
-    /// @brief 初期化
     void Initialize();
     /// @brief 初期化を1ステップ進める。完了したらtrueを返す。
     bool InitializeStep();
@@ -26,7 +25,6 @@ public:
     /// @brief シーンの状態に応じて戦闘・演出・進行を更新する。戦闘の呼び出し順は実装内に記載する。
     void Update();
 
-    /// @brief 描画
     void Draw();
 
     /// @brief 影を描画する。

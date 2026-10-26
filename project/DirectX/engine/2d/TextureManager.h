@@ -114,9 +114,7 @@ private:
     void StoreGeneratedTexture(const std::string& filePath, TextureColorSpace colorSpace, const DirectX::ScratchImage& image,
                                bool textureCube);
 
-    /// @brief インスタンスの初期値と利用先を設定する。
     TextureManager() = default;
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     ~TextureManager() = default;
     TextureManager(TextureManager&) = delete;
     TextureManager& operator=(const TextureManager&) = delete;

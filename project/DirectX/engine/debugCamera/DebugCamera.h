@@ -12,10 +12,8 @@ namespace myEngine {
 /// @brief 開発時の入力で動かせるカメラの姿勢と行列を管理する。
 class DebugCamera {
 public:
-    /// @brief インスタンスの初期値と利用先を設定する。
     DebugCamera();
 
-    /// @brief 初期化
     void Initialize();
 
     /// @brief 更新

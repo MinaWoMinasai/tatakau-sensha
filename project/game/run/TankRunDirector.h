@@ -64,7 +64,6 @@ struct Config {
 /// @brief 遠征中の通貨・報酬候補・強化選択・部屋進行を管理する。
 class RunDirector {
 public:
-    /// @brief インスタンスの初期値と利用先を設定する。
     explicit RunDirector(std::uint32_t seed = 1, Config config = {}) : config_(config)
     {
         if (!std::isfinite(config_.combatSeconds) || config_.combatSeconds <= 0) {

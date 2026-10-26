@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief ExpeditionExperienceの処理を担当し、同じプレイの共有状態を借用する。
 class ExpeditionExperience {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit ExpeditionExperience(GameWorld& world) : world_(world) {}
 
     /// @brief 遠征経験値を初期化する。
