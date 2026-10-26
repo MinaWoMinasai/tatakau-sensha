@@ -1,5 +1,5 @@
 #include "NeonBossVisual.h"
-#include "DirectX/engine/3d/neon/NeonCharacterStyle.h"
+#include "game/render/neon/NeonCharacterStyle.h"
 #include "game/debug/NeonPreviewAnimations.h"
 #include "RuntimeProfiler.h"
 #include "StartupTrace.h"

@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief GameplayQueriesの処理を担当し、同じプレイの共有状態を借用する。
 class GameplayQueries {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit GameplayQueries(GameWorld& world) : world_(world) {}
 
     /// @brief 終了済みであるか判定する。

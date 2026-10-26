@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief ResourceNeonRendererの処理を担当し、同じプレイの共有状態を借用する。
 class ResourceNeonRenderer {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit ResourceNeonRenderer(GameWorld& world) : world_(world) {}
 
     /// @brief 経験値敵ネオン塗りつぶしモデルを描画する。

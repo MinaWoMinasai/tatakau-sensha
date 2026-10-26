@@ -10,17 +10,17 @@ bool CombatCollisionRules::CanTest(Collider* colliderA, Collider* colliderB) con
 {
     // 前のペアで消費された弾は対象外。死亡判定は入口だけで行い、成立した接触では双方へ通知する。
     // 片方のOnCollisionで弾が死亡しても、もう片方がダメージや命中処理を受け取れるようにする。
-    const Bullet* bulletA = dynamic_cast<const Bullet*>(colliderA);
-    const Bullet* bulletB = dynamic_cast<const Bullet*>(colliderB);
+    const Bullet* bulletA = ColliderCast<const Bullet>(colliderA);
+    const Bullet* bulletB = ColliderCast<const Bullet>(colliderB);
     if ((bulletA && bulletA->IsDead()) || (bulletB && bulletB->IsDead())) {
         return false;
     }
     // 連鎖ダメージで、この走査中に後続の対象が撃破されることもある。
     for (auto* actor : {colliderA, colliderB}) {
-        if (auto* enemy = dynamic_cast<ExpEnemy*>(actor); enemy && enemy->IsDead()) {
+        if (auto* enemy = ColliderCast<ExpEnemy>(actor); enemy && enemy->IsDead()) {
             return false;
         }
-        if (auto* boss = dynamic_cast<Enemy*>(actor); boss && (boss->IsDead() || boss->GetHp() <= 0)) {
+        if (auto* boss = ColliderCast<Enemy>(actor); boss && (boss->IsDead() || boss->GetHp() <= 0)) {
             return false;
         }
     }
@@ -37,8 +37,8 @@ bool CombatCollisionRules::CanTest(Collider* colliderA, Collider* colliderB) con
 
 bool CombatCollisionRules::HitsBySweep(Collider* colliderA, Collider* colliderB) const
 {
-    const Bullet* bulletA = dynamic_cast<const Bullet*>(colliderA);
-    const Bullet* bulletB = dynamic_cast<const Bullet*>(colliderB);
+    const Bullet* bulletA = ColliderCast<const Bullet>(colliderA);
+    const Bullet* bulletB = ColliderCast<const Bullet>(colliderB);
     // 高速移動で現在位置の球が敵を通り越した場合も、XY平面の移動区間で接触を拾う。
     auto swept = [&](const Bullet* shot, Collider* target) {
         if (!shot || (shot->GetSpecialKind() == Bullet::SpecialKind::None && !shot->IsBoomerang())) {
@@ -53,16 +53,16 @@ bool CombatCollisionRules::HitsBySweep(Collider* colliderA, Collider* colliderB)
 void CombatCollisionRules::Resolve(Collider* colliderA, Collider* colliderB)
 {
     // 自機のダッシュ衝撃で処理する接触は通常通知を省く。同じダッシュの対象履歴はPlayerが保持する。
-    if (auto* player = dynamic_cast<Player*>(colliderA); player && player->TryDashImpact(colliderB)) {
+    if (auto* player = ColliderCast<Player>(colliderA); player && player->TryDashImpact(colliderB)) {
         return;
     }
-    if (auto* player = dynamic_cast<Player*>(colliderB); player && player->TryDashImpact(colliderA)) {
+    if (auto* player = ColliderCast<Player>(colliderB); player && player->TryDashImpact(colliderA)) {
         return;
     }
 
     // 床コアの通常接触だけを省く。直前の明示ダッシュ攻撃は既存経路で成立させる。
     auto isDepthCoreContact = [](Collider* candidateCore, Collider* body) {
-        const auto* core = dynamic_cast<const Enemy*>(candidateCore);
+        const auto* core = ColliderCast<const Enemy>(candidateCore);
         const uint32_t attribute = body->GetCollisionAttribute();
         return core && core->IsNeonDepthEncounterEnabled() &&
                (attribute == kCollisionAttributePlayer || attribute == kCollisionAttributePlayerDrone);
@@ -71,18 +71,18 @@ void CombatCollisionRules::Resolve(Collider* colliderA, Collider* colliderB)
         return;
     }
 
-    Bullet* shot = dynamic_cast<Bullet*>(colliderA);
+    Bullet* shot = ColliderCast<Bullet>(colliderA);
     Collider* victim = colliderB;
     if (!shot) {
-        shot = dynamic_cast<Bullet*>(colliderB);
+        shot = ColliderCast<Bullet>(colliderB);
         victim = colliderA;
     }
-    const bool playerHit = shot && shot->GetOwner() == kPlayer && !dynamic_cast<Bullet*>(victim) &&
-                           (dynamic_cast<ExpEnemy*>(victim) || dynamic_cast<Enemy*>(victim));
+    const bool playerHit = shot && shot->GetOwner() == kPlayer && !ColliderCast<Bullet>(victim) &&
+                           (ColliderCast<ExpEnemy>(victim) || ColliderCast<Enemy>(victim));
     // 装甲で反射する弾は通常命中を適用せず、反射弾の生成を予約して元弾を死亡状態にする。
     if (playerHit && bulletManager_ && !shot->WasArmorReflected() &&
         (shot->GetSpecialKind() == Bullet::SpecialKind::None || shot->GetSpecialKind() == Bullet::SpecialKind::Rail)) {
-        if (auto* armor = dynamic_cast<ExpEnemy*>(victim)) {
+        if (auto* armor = ColliderCast<ExpEnemy>(victim)) {
             myEngine::Vector3 movement = shot->GetWorldPosition() - shot->GetPreviousWorldPosition();
             if (myEngine::Length(movement) < .0001f) {
                 movement = shot->GetMove();
@@ -106,9 +106,9 @@ void CombatCollisionRules::Resolve(Collider* colliderA, Collider* colliderB)
     colliderB->OnCollision(colliderA);
     if (playerHit && bulletManager_) {
         bool killed = false;
-        if (auto* regular = dynamic_cast<ExpEnemy*>(victim)) {
+        if (auto* regular = ColliderCast<ExpEnemy>(victim)) {
             killed = regular->IsDead();
-        } else if (auto* boss = dynamic_cast<Enemy*>(victim)) {
+        } else if (auto* boss = ColliderCast<Enemy>(victim)) {
             killed = boss->GetHp() <= 0;
         }
         bulletManager_->NotifyPlayerHit(*shot, *victim, killed);

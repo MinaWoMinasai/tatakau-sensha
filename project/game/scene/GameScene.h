@@ -16,7 +16,6 @@ public:
     explicit GameScene(bool prototypeRun = false, bool expeditionRun = false);
     /// @brief ゲームセッションを終了する。
     ~GameScene() override;
-    /// @brief 初期化
     void Initialize() override;
     /// @brief 初期化を1ステップ進める。完了したらtrueを返す。
     bool InitializeStep() override;
@@ -24,7 +23,6 @@ public:
     /// @brief シーンの状態に応じて戦闘・演出・進行を更新する。戦闘の呼び出し順は実装内に記載する。
     void Update() override;
 
-    /// @brief 描画
     void Draw() override;
 
     /// @brief 影を描画する。

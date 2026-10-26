@@ -1,7 +1,7 @@
 #pragma once
 #include "DeveloperTools.h"
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-#include "DirectX/engine/3d/neon/NeonDissolve.h"
+#include "game/render/neon/NeonDissolve.h"
 
 // CPU側のプレビュー状態だけを持つ。モデルやGPUリソースはNeonSkinnedPreviewが所有する。
 class NeonDissolvePreviewController {

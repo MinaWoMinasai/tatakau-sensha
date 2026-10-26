@@ -220,8 +220,6 @@ bool Application::Initialize(const GameProjectCommandLineOptions& projectOptions
         return false;
     }
 
-    CoInitializeEx(0, COINIT_MULTITHREADED);
-
     myEngine::Dump dump;
     SetUnhandledExceptionFilter(dump.Export);
 
@@ -881,7 +879,5 @@ void Application::Finalize()
 
     dxCommon_->Release();
     myEngine::WinApp::GetInstance()->Finalize();
-
-    CoUninitialize();
     MFShutdown();
 }

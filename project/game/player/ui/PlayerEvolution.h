@@ -1,13 +1,14 @@
 #pragma once
+#include "game/player/ui/PlayerEvolutionTarget.h"
 #include "game/player/ui/PlayerUiState.h"
 
-/// @brief PlayerEvolutionの表示と入力を担当し、必要な自機の状態を借用する。
+/// @brief 進化画面と図鑑の表示と入力を担当する。自機にはPlayerEvolutionTargetの操作だけで触れる。
 class PlayerEvolution {
 public:
     using BodyShape = Player::BodyShape;
 
     /// @brief 自機と画面状態を接続する。
-    PlayerEvolution(Player& player, PlayerUiState& ui) : player_(player), ui_(ui) {}
+    PlayerEvolution(PlayerEvolutionTarget& player, PlayerUiState& ui) : player_(player), ui_(ui) {}
 
     using UiProfileStats = Player::UiProfileStats;
     /// @brief 進化画面の背景と発光演出を、シーンのポストエフェクト後に描画する。
@@ -125,6 +126,6 @@ public:
     std::string GetEvolutionAbility(const PlayerClassConfig& config) const;
 
 private:
-    Player& player_;
+    PlayerEvolutionTarget& player_;
     PlayerUiState& ui_;
 };

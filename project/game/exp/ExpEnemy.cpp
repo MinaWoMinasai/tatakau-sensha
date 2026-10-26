@@ -5,7 +5,7 @@
 #include "Player.h"
 #include "ParticleManager.h"
 #include "Stage.h"
-#include "NeonGridRenderer.h"
+#include "game/render/neon/NeonGridRenderer.h"
 #include "ExpEnemyNavigation.h"
 #include <algorithm>
 #include <cmath>

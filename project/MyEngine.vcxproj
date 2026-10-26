@@ -125,6 +125,7 @@
     <ClCompile Include="game\player\actor\Bullet.cpp" />
     <ClCompile Include="game\player\actor\BulletManager.cpp" />
     <ClCompile Include="game\player\actor\Player.cpp" />
+    <ClCompile Include="game\player\actor\PlayerVisuals.cpp" />
     <ClCompile Include="game\player\actor\PlayerUiHelpers.cpp" />
     <ClCompile Include="game\player\PlayerClassCatalog.cpp" />
     <ClCompile Include="game\player\actor\PlayerDrone.cpp" />
@@ -256,6 +257,7 @@
     <ClInclude Include="game\player\actor\Bullet.h" />
     <ClInclude Include="game\player\actor\BulletManager.h" />
     <ClInclude Include="game\player\actor\Player.h" />
+    <ClInclude Include="game\player\actor\PlayerTargets.h" />
     <ClInclude Include="game\player\actor\PlayerUiHelpers.h" />
     <ClInclude Include="game\player\PlayerClassConfig.h" />
     <ClInclude Include="game\player\PlayerClassCatalog.h" />
@@ -382,7 +384,15 @@
   <ItemGroup>
     <ClCompile Include="game\ui\TankRewardPreviewRenderer.cpp" />
     <ClCompile Include="game\render\NeonProjectileRenderer.cpp" />
+    <ClCompile Include="game\render\neon\NeonSkinnedRenderer.cpp" />
+    <ClCompile Include="game\render\neon\NeonGridGeometry.cpp" />
+    <ClCompile Include="game\render\neon\NeonGridRenderer.cpp" />
     <ClInclude Include="game\render\NeonProjectileRenderer.h" />
+    <ClInclude Include="game\render\neon\NeonCharacterStyle.h" />
+    <ClInclude Include="game\render\neon\NeonDissolve.h" />
+    <ClInclude Include="game\render\neon\NeonSkinnedRenderer.h" />
+    <ClInclude Include="game\render\neon\NeonGridGeometry.h" />
+    <ClInclude Include="game\render\neon\NeonGridRenderer.h" />
     <ClInclude Include="game\ui\TankRewardPreviewRenderer.h" />
     <ClInclude Include="game\ui\TankCombatNeonGeometry.h" />
     <ClInclude Include="game\effects\TankSpecialNeonGeometry.h" />
@@ -575,7 +585,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game\player\ui\PlayerHud.h" />
+    <ClInclude Include="game\player\ui\PlayerHudTarget.h" />
     <ClInclude Include="game\player\ui\PlayerEvolution.h" />
+    <ClInclude Include="game\player\ui\PlayerEvolutionTarget.h" />
     <ClInclude Include="game\player\editor\PlayerClassEditor.h" />
     <ClInclude Include="game\player\editor\PlayerClassEditorTarget.h" />
     <ClInclude Include="game\player\ui\PlayerUiState.h" />

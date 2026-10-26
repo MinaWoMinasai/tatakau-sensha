@@ -54,9 +54,7 @@ public:
     }
 
 private:
-    /// @brief インスタンスの初期値と利用先を設定する。
     ModelManager() = default;
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     ~ModelManager() = default;
     ModelManager(ModelManager&) = delete;
     ModelManager& operator=(const ModelManager&) = delete;

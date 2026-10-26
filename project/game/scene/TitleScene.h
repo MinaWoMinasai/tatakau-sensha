@@ -12,9 +12,7 @@ class GameScene;
 /// @brief タイトルの操作・背景デモ・ゲーム開始への遷移を管理する。
 class TitleScene : public IScene {
 public:
-    /// @brief インスタンスの初期値と利用先を設定する。
     TitleScene();
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     ~TitleScene() override;
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。
     void Initialize() override;

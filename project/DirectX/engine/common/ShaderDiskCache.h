@@ -37,7 +37,6 @@ public:
     class IncludeRecorder final
         : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDxcIncludeHandler> {
     public:
-        /// @brief インスタンスの初期値と利用先を設定する。
         explicit IncludeRecorder(IDxcIncludeHandler* inner) : inner_(inner) {}
 
         /// @brief includeファイルをDXCへ渡し、見つからなかった候補も依存情報として記録する。

@@ -2,7 +2,7 @@
 #include "NeonBossVisualState.h"
 #include "NeonDepthPresentation.h"
 #include "Object3d.h"
-#include "DirectX/engine/3d/neon/NeonSkinnedRenderer.h"
+#include "game/render/neon/NeonSkinnedRenderer.h"
 #include <memory>
 #include <string>
 

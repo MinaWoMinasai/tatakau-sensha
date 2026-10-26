@@ -1,6 +1,6 @@
 #pragma once
 
-#include "NeonGridRenderer.h"
+#include "game/render/neon/NeonGridRenderer.h"
 #include <cstdint>
 #include <vector>
 

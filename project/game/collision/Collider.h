@@ -2,6 +2,7 @@
 #include "Struct.h"
 #include <atomic>
 #include <cmath>
+#include <type_traits>
 
 // 判定図形
 enum class ColliderShape {
@@ -9,10 +10,19 @@ enum class ColliderShape {
     Capsule
 };
 
+/// @brief コライダーを持つゲームオブジェクトの種類。キャストせずに相手の型を判定するために使う。
+/// @note 値ごとに対応する型は1つだけで、その型はさらに継承しない。型の側は kColliderKind で自分の値を示す。
+enum class ColliderKind {
+    Player,      // 自機
+    PlayerDrone, // 自機のドローン
+    Bullet,      // 弾（自機・敵の両方）
+    ExpEnemy,    // 通常の敵
+    Enemy,       // ボス
+};
+
 /// @brief 衝突形状・属性・識別子を保持し、衝突した相手をゲームオブジェクトへ通知する。
 class Collider {
 public:
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     virtual ~Collider() = default;
 
     /// @brief 衝突識別子を返す。
@@ -123,7 +133,19 @@ public:
         damage_ = damage;
     }
 
+    /// @brief このコライダーを持つゲームオブジェクトの種類を返す。
+    ColliderKind GetColliderKind() const
+    {
+        return kind_;
+    }
+
+protected:
+    /// @brief 派生クラスが自分の種類を指定して作る。
+    explicit Collider(ColliderKind kind) : kind_(kind) {}
+
 private:
+    ColliderKind kind_;
+
     // 貫通弾が生きている間に、アクターのメモリが同じアドレスで再利用されることがある。
     // コピーには新しい識別子を割り当てる。状態を代入しても、アクターの ID は変わらない。
     /// @brief コライダーを世代付きで識別する。破棄後に同じ領域を使っても元の相手と混同しない。
@@ -162,3 +184,10 @@ private:
     // 与えるダメージ
     uint32_t damage_ = 0;
 };
+
+/// @brief 種類が一致すれば派生クラスのポインターへ変換し、違えばnullptrを返す。dynamic_castの代わりに使う。
+/// @tparam T 変換先の型。const付きでもよい。kColliderKind を持つこと。
+template <class T, class C> T* ColliderCast(C* collider)
+{
+    return collider && collider->GetColliderKind() == std::remove_cv_t<T>::kColliderKind ? static_cast<T*>(collider) : nullptr;
+}

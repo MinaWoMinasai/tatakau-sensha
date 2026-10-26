@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief RouteReplayの処理を担当し、同じプレイの共有状態を借用する。
 class RouteReplay {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit RouteReplay(GameWorld& world) : world_(world) {}
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     /// @brief 通常ルートの再生検証を初期化する。

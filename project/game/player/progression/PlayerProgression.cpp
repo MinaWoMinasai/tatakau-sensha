@@ -52,8 +52,7 @@ void PlayerProgression::AddExp(int amount)
         // 次の必要経験値を再計算（例: レベル * 100 + 補正）
         player_.nextLevelExp_ = GetNextLevelExp();
 
-        if (player_.ui_->arenaUiEnabled_ && GetRankFromLevel(player_.level_) > previousRank &&
-            !(player_.runModifiers_.enabled && player_.runCheckpointEvolution_)) {
+        if (player_.ui_->arenaUiEnabled_ && GetRankFromLevel(player_.level_) > previousRank && !player_.runCheckpointEvolution_) {
             player_.isChangeMode_ = true;
             // AddExpはPlayer::Update後の衝突処理から呼ばれる場合があるため、
             // 同じフレームの初回描画より先に遅延フォント更新を完了させる。
@@ -154,7 +153,7 @@ void PlayerProgression::InstallRunAuthoredClasses(const tankcontent::Catalog& ca
 
 std::vector<RunEvolutionChoice> PlayerProgression::GetRunAuthoredEvolutionChoices() const
 {
-    if (!player_.runModifiers_.enabled || player_.isDead_) {
+    if (player_.isDead_) {
         return {};
     }
     std::vector<RunEvolutionChoice> result;
@@ -173,7 +172,7 @@ std::vector<RunEvolutionChoice> PlayerProgression::GetRunAuthoredEvolutionChoice
 
 bool PlayerProgression::ChooseRunAuthoredClass(const std::string& id)
 {
-    if (!player_.runModifiers_.enabled || player_.isDead_) {
+    if (player_.isDead_) {
         return false;
     }
     const auto it = player_.runAuthoredClasses_.find(id);
@@ -251,7 +250,7 @@ void PlayerProgression::SetRunModifiers(const TankRunModifiers& modifiers)
     if (!modifiers.enabled || !modifiers.railCannon) {
         player_.railCharge_.Reset();
     }
-    if (!wasEnabled || !player_.runModifiers_.enabled) {
+    if (!wasEnabled) {
         player_.ResetAdditionalAbilities();
         player_.expeditionCombatStyleSelected_ = false;
         player_.expeditionCombatStyle_ = tankbuild::Style::Shooter;
@@ -260,32 +259,13 @@ void PlayerProgression::SetRunModifiers(const TankRunModifiers& modifiers)
         player_.runAuthoredEvolutionActive_ = false;
         player_.runEvolutionPrepared_ = false;
     }
-    if (player_.runModifiers_.enabled) {
-        player_.ui_->upgradeHudListVisibility_ = 0.0f;
-        player_.ui_->upgradeHudMouseCaptured_ = false;
-    }
+    player_.ui_->upgradeHudListVisibility_ = 0.0f;
+    player_.ui_->upgradeHudMouseCaptured_ = false;
     RecalculateStatsFromBase(false);
     // 編集したモジュールの付け替えは回復ではない。購入した修理は、スタイル選択前も含め
     // シーン内で明示的な回復量を与える。
-    if (wasEnabled && player_.runModifiers_.enabled && player_.runModifiers_.expedition) {
+    if (wasEnabled && player_.runModifiers_.expedition) {
         player_.hp_ = (std::clamp)(previousHp, 0, player_.GetMaxHp());
-    }
-    if (wasEnabled && !player_.runModifiers_.enabled) {
-        SetRunCurrencyMode(false);
-        // ランの支援ユニットと攻撃設定を、そのモードの外へ持ち出してはならない。
-        player_.drones_.clear();
-        player_.runSupportDroneTimer_ = 0.0f;
-        player_.runDashAttackTimer_ = 0.0f;
-        player_.runOverdriveTimer_ = 0.0f;
-        player_.runOverdriveCooldown_ = 0.0f;
-        player_.runDashBurstPending_ = false;
-        player_.runRoomAwaitInputRelease_ = false;
-        player_.runCheckpointEvolution_ = false;
-        player_.runHomingTargets_.clear();
-        if (player_.object_) {
-            player_.InitializeBarrels();
-            player_.UpdateBarrelLayout();
-        }
     }
 }
 
@@ -308,14 +288,14 @@ void PlayerProgression::ApplyCombatStyleBalance(const TankCombatStyleBalances& p
 
 float PlayerProgression::GetRunBaseReloadFrames() const
 {
-    return (std::max)(0.05f, player_.runModifiers_.enabled && player_.expeditionCombatStyleSelected_
+    return (std::max)(0.05f, player_.expeditionCombatStyleSelected_
                                  ? player_.GetCombatStyleProfile(player_.expeditionCombatStyle_).attackIntervalSeconds * 60.0f
                                  : player_.baseStats_.reloadSpeed);
 }
 
 bool PlayerProgression::SetExpeditionCombatStyle(tankbuild::Style style)
 {
-    if (!player_.runModifiers_.enabled || !player_.runModifiers_.expedition || player_.isDead_ || !tankbuild::Valid(style)) {
+    if (!player_.runModifiers_.expedition || player_.isDead_ || !tankbuild::Valid(style)) {
         return false;
     }
     if (player_.expeditionCombatStyleSelected_ && player_.expeditionCombatStyle_ == style) {
@@ -408,9 +388,6 @@ void PlayerProgression::EnsureExpeditionDrones()
 
 void PlayerProgression::ConfigurePrototypeLoadout(int archetype)
 {
-    if (!player_.runModifiers_.enabled) {
-        return;
-    }
     player_.runMaintenance_ = {};
     player_.expeditionCombatStyleSelected_ = false;
     player_.expeditionCombatStyle_ = tankbuild::Style::Shooter;
@@ -474,7 +451,7 @@ void PlayerProgression::ConfigurePrototypeLoadout(int archetype)
 
 void PlayerProgression::HealRunPlayer(int amount)
 {
-    if (!player_.runModifiers_.enabled || player_.isDead_ || amount <= 0) {
+    if (player_.isDead_ || amount <= 0) {
         return;
     }
     player_.hp_ += (std::min)(amount, (std::max)(0, player_.GetMaxHp() - player_.hp_));
@@ -482,7 +459,7 @@ void PlayerProgression::HealRunPlayer(int amount)
 
 bool PlayerProgression::SpendRunHealth(int amount)
 {
-    if (!player_.runModifiers_.enabled || player_.isDead_ || amount <= 0 || player_.hp_ <= amount) {
+    if (player_.isDead_ || amount <= 0 || player_.hp_ <= amount) {
         return false;
     }
     // 自分で選んだイベントの代償は被弾ではないため、回避できず致死にもならない。
@@ -493,7 +470,7 @@ bool PlayerProgression::SpendRunHealth(int amount)
 std::vector<RunEvolutionChoice> PlayerProgression::GetRunEvolutionChoices() const
 {
     std::vector<RunEvolutionChoice> choices;
-    if (!player_.runModifiers_.enabled || player_.isDead_) {
+    if (player_.isDead_) {
         return choices;
     }
     if (player_.expeditionCombatStyleSelected_ && player_.expeditionCombatStyle_ != tankbuild::Style::Shooter) {
@@ -559,7 +536,7 @@ std::vector<RunEvolutionChoice> PlayerProgression::GetRunEvolutionChoices() cons
 
 void PlayerProgression::PrepareRunEvolution()
 {
-    if (!player_.runModifiers_.enabled || player_.isDead_) {
+    if (player_.isDead_) {
         return;
     }
     player_.isChangeMode_ = false;
@@ -599,7 +576,7 @@ void PlayerProgression::PrepareRunEvolution()
 
 bool PlayerProgression::ChooseRunEvolution(const std::string& id)
 {
-    if (!player_.runModifiers_.enabled || player_.isDead_) {
+    if (player_.isDead_) {
         return false;
     }
     const auto choices = GetRunEvolutionChoices();
@@ -668,8 +645,7 @@ bool PlayerProgression::ChooseRunEvolution(const std::string& id)
 
 bool PlayerProgression::AwardRunMaintenancePoint(int clearedRoom)
 {
-    return player_.runModifiers_.enabled && player_.runCheckpointEvolution_ && !player_.isDead_ &&
-           player_.runMaintenance_.AwardRoom(clearedRoom);
+    return player_.runCheckpointEvolution_ && !player_.isDead_ && player_.runMaintenance_.AwardRoom(clearedRoom);
 }
 
 std::array<RunMaintenanceChoice, 3> PlayerProgression::GetRunMaintenanceChoices() const
@@ -680,15 +656,15 @@ std::array<RunMaintenanceChoice, 3> PlayerProgression::GetRunMaintenanceChoices(
          {2, "装甲整備", "1段階ごとに被ダメージ -8%\n最大24%・最低1ダメージ\nイベントのHP支払いは対象外"}}};
     for (auto& choice : choices) {
         choice.rank = player_.runMaintenance_.Rank(choice.id);
-        choice.canSpend = player_.runModifiers_.enabled && player_.runCheckpointEvolution_ && !player_.isDead_ &&
-                          player_.runMaintenance_.Points() > 0 && choice.rank < choice.maxRank;
+        choice.canSpend =
+            player_.runCheckpointEvolution_ && !player_.isDead_ && player_.runMaintenance_.Points() > 0 && choice.rank < choice.maxRank;
     }
     return choices;
 }
 
 bool PlayerProgression::SpendRunMaintenancePoint(int stat)
 {
-    if (!player_.runModifiers_.enabled || !player_.runCheckpointEvolution_ || player_.isDead_ || !player_.runMaintenance_.Spend(stat)) {
+    if (!player_.runCheckpointEvolution_ || player_.isDead_ || !player_.runMaintenance_.Spend(stat)) {
         return false;
     }
     const int previousHp = player_.hp_;
@@ -700,7 +676,7 @@ bool PlayerProgression::SpendRunMaintenancePoint(int stat)
 
 bool PlayerProgression::RefundRunMaintenancePoint(int stat)
 {
-    if (!player_.runModifiers_.enabled || !player_.runCheckpointEvolution_ || player_.isDead_ || !player_.runMaintenance_.Refund(stat)) {
+    if (!player_.runCheckpointEvolution_ || player_.isDead_ || !player_.runMaintenance_.Refund(stat)) {
         return false;
     }
     const int previousHp = player_.hp_;
@@ -711,7 +687,7 @@ bool PlayerProgression::RefundRunMaintenancePoint(int stat)
 
 void PlayerProgression::ResetRunRoomState(const myEngine::Vector3& position)
 {
-    if (!player_.runModifiers_.enabled || player_.isDead_) {
+    if (player_.isDead_) {
         return;
     }
     player_.ResetAdditionalAbilities();
@@ -808,8 +784,8 @@ Player::RunCombatSnapshot PlayerProgression::GetRunCombatSnapshot() const
     result.actorPierceCount = attack.actorPierceCount;
     result.impactSplitCount = attack.impactSplitCount;
     result.reflects = attack.reflect || player_.isBuffActive_;
-    result.homing = player_.runModifiers_.enabled && player_.runModifiers_.homing;
-    result.dashBurst = player_.runModifiers_.enabled && player_.runModifiers_.dashBurst;
+    result.homing = player_.runModifiers_.homing;
+    result.dashBurst = player_.runModifiers_.dashBurst;
     const auto synergy = MakeTankRunSynergy(player_.runModifiers_, player_.runOverdriveTimer_ > 0.0f);
     result.dashExplosion = synergy.dashExplosion;
     result.homingTurnRate = synergy.homingTurnRate;
@@ -871,10 +847,8 @@ void PlayerProgression::EvolveById(const std::string& classId)
     player_.shootBarrelIndex_ = 0;
     player_.shootGroupIndex_ = 0;
     player_.weaponGroupCooldowns_.clear();
-    if (player_.runModifiers_.enabled) {
-        player_.drones_.clear();
-        player_.runSupportDroneTimer_ = 0.0f;
-    }
+    player_.drones_.clear();
+    player_.runSupportDroneTimer_ = 0.0f;
 
     // 進化時に特殊状態をリセットする
     player_.isSmash_ = false;
@@ -895,9 +869,6 @@ void PlayerProgression::EvolveById(const std::string& classId)
 
 bool PlayerProgression::IsRunCompatibleClass(const PlayerClassConfig& config) const
 {
-    if (!player_.runModifiers_.enabled) {
-        return true;
-    }
     // Smasherは設定された砲を使わず、常に近接攻撃を行う。
     if (config.type == ClassType::Smasher) {
         return false;
@@ -913,7 +884,7 @@ bool PlayerProgression::IsRunCompatibleClass(const PlayerClassConfig& config) co
 bool PlayerProgression::IsEvolutionClassVisible(const std::string& classId) const
 {
     // エディタで武器構成を変えても、現在のノードを表示したままにする。
-    if (!player_.runModifiers_.enabled || classId == player_.currentClassId_) {
+    if (classId == player_.currentClassId_) {
         return true;
     }
     const PlayerClassConfig* config = GetClassConfig(classId);
@@ -1087,59 +1058,16 @@ const char* PlayerProgression::GetCurrentClassName() const
     return "Unknown";
 }
 
-bool PlayerProgression::ApplyStatUpgrade(int index)
+bool PlayerProgression::ApplyStatUpgrade([[maybe_unused]] int index)
 {
-    if (player_.runModifiers_.enabled) {
-        return false;
-    }
-    if (player_.skillPoints_ <= 0 || index < 0 || index >= static_cast<int>(player_.upgradeLevels_.size())) {
-        return false;
-    }
-    if (player_.upgradeLevels_[index] >= player_.maxEnhancePoint) {
-        return false;
-    }
-
-    player_.upgradeLevels_[index]++;
-    player_.skillPoints_--;
-
-    switch (index) {
-    case 0:
-        break;
-    case 1:
-        break;
-    case 2:
-        break;
-    case 3:
-        break;
-    case 4:
-        break;
-    case 5:
-        break;
-    case 6:
-        break;
-    }
-
-    RecalculateStatsFromBase(false);
-    player_.statUpgradePerformedEvent_ = true;
-    return true;
+    // レベルアップの性能強化は旧方式の機能。遠征とタイトルデモでは遠征補正が常に有効なので、受け付けない。
+    return false;
 }
 
-bool PlayerProgression::RefundStatUpgrade(int index)
+bool PlayerProgression::RefundStatUpgrade([[maybe_unused]] int index)
 {
-    if (player_.runModifiers_.enabled) {
-        return false;
-    }
-    if (index < 0 || index >= static_cast<int>(player_.upgradeLevels_.size())) {
-        return false;
-    }
-    if (player_.upgradeLevels_[index] <= 0) {
-        return false;
-    }
-
-    player_.upgradeLevels_[index]--;
-    player_.skillPoints_++;
-    RecalculateStatsFromBase(false);
-    return true;
+    // レベルアップの性能強化の払い戻しは旧方式の機能。遠征とタイトルデモでは遠征補正が常に有効なので、受け付けない。
+    return false;
 }
 
 void PlayerProgression::RecalculateStatsFromBase(bool healToFull)

@@ -26,7 +26,6 @@ public:
     // シングルトン
     static Input* GetInstance();
 
-    /// @brief 初期化
     void Initialize(const WNDCLASS& wc, const HWND& hwnd);
 
     /// @brief 前のデータの保存

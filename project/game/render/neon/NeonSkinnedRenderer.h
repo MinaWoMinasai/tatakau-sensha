@@ -106,7 +106,6 @@ static_assert(offsetof(NeonSkinnedSubmeshParams, internalLineThresholdScale) == 
 /// @brief 骨格変形後のモデルをネオンの面と輪郭線として描画する。
 class NeonSkinnedRenderer {
 public:
-    /// @brief インスタンスの初期値と利用先を設定する。
     NeonSkinnedRenderer() = default;
     NeonSkinnedRenderer(const NeonSkinnedRenderer&) = delete;
     NeonSkinnedRenderer& operator=(const NeonSkinnedRenderer&) = delete;

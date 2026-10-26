@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief CombatFlowの処理を担当し、同じプレイの共有状態を借用する。
 class CombatFlow {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit CombatFlow(GameWorld& world) : world_(world) {}
 
     /// @brief 基準時間で撃破/死亡演出の終了を判定し、結果表示とその選択入力を処理する。

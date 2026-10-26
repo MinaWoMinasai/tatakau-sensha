@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief TitleDemoControllerの処理を担当し、同じプレイの共有状態を借用する。
 class TitleDemoController {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit TitleDemoController(GameWorld& world) : world_(world) {}
 
     /// @brief タイトルデモを有効にする。

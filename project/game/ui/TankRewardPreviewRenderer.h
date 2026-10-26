@@ -2,7 +2,7 @@
 #include <array>
 #include <memory>
 #include "RenderTexture.h"
-#include "NeonGridRenderer.h"
+#include "game/render/neon/NeonGridRenderer.h"
 #include "PostEffect.h"
 #include "TrailManager.h"
 #include "game/player/actor/Bullet.h"

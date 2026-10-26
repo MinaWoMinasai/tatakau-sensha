@@ -138,6 +138,9 @@
     <ClCompile Include="game\player\actor\Player.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\player\actor\PlayerVisuals.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\player\actor\PlayerUiHelpers.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -242,6 +245,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\player\actor\Player.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\actor\PlayerTargets.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\player\actor\PlayerUiHelpers.h">
@@ -356,7 +362,15 @@
   <ItemGroup>
     <ClCompile Include="game\ui\TankRewardPreviewRenderer.cpp" />
     <ClCompile Include="game\render\NeonProjectileRenderer.cpp" />
+    <ClCompile Include="game\render\neon\NeonSkinnedRenderer.cpp" />
+    <ClCompile Include="game\render\neon\NeonGridGeometry.cpp" />
+    <ClCompile Include="game\render\neon\NeonGridRenderer.cpp" />
     <ClInclude Include="game\render\NeonProjectileRenderer.h" />
+    <ClInclude Include="game\render\neon\NeonCharacterStyle.h" />
+    <ClInclude Include="game\render\neon\NeonDissolve.h" />
+    <ClInclude Include="game\render\neon\NeonSkinnedRenderer.h" />
+    <ClInclude Include="game\render\neon\NeonGridGeometry.h" />
+    <ClInclude Include="game\render\neon\NeonGridRenderer.h" />
     <ClInclude Include="game\ui\TankRewardPreviewRenderer.h" />
     <ClInclude Include="game\ui\TankCombatNeonGeometry.h" />
     <ClInclude Include="game\player\TankCombatStyleBalance.h" />
@@ -705,7 +719,13 @@
     <ClInclude Include="game\player\ui\PlayerHud.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="game\player\ui\PlayerHudTarget.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\player\ui\PlayerEvolution.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\ui\PlayerEvolutionTarget.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\player\editor\PlayerClassEditor.h">

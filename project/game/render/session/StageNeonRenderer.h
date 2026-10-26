@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief StageNeonRendererの処理を担当し、同じプレイの共有状態を借用する。
 class StageNeonRenderer {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit StageNeonRenderer(GameWorld& world) : world_(world) {}
 
     /// @brief ネオン格子描画パスを描画する。

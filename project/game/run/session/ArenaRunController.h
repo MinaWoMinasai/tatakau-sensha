@@ -6,7 +6,6 @@ namespace gameplay {
 /// @brief ArenaRunControllerの処理を担当し、同じプレイの共有状態を借用する。
 class ArenaRunController {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit ArenaRunController(GameWorld& world) : world_(world) {}
 
     /// @brief 遠征の強化効果の強度を表示・計算用にまとめる。

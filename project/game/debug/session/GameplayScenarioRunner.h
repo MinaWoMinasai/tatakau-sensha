@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief GameplayScenarioRunnerの処理を担当し、同じプレイの共有状態を借用する。
 class GameplayScenarioRunner {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit GameplayScenarioRunner(GameWorld& world) : world_(world) {}
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     /// @brief シナリオ検証を初期化する。

@@ -6,7 +6,6 @@ namespace gameplay {
 /// @brief ExpeditionBuildSelectionの処理を担当し、同じプレイの共有状態を借用する。
 class ExpeditionBuildSelection {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit ExpeditionBuildSelection(GameWorld& world) : world_(world) {}
 
     /// @brief 遠征強化ビルドカードを初期化する。

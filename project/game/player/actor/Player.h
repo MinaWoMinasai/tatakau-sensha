@@ -82,6 +82,9 @@ class ObjectPostEffect;
 /// @brief 自機の移動・攻撃・装備と成長状態を管理する。機体の制作データはPlayerClassCatalogから取得する。
 class Player : public Collider {
 public:
+    /// @brief 当たり判定で使う種類。ColliderCastで使う。
+    static constexpr ColliderKind kColliderKind = ColliderKind::Player;
+
     /// @brief 自機の画面状態と表示担当を生成する。
     Player();
     using BodyShape = PlayerBodyShape;
@@ -236,13 +239,11 @@ public:
         return empJammerTimer_ / 2.5f;
     }
 
-    /// @brief 遠征補正が有効ならEMP妨害の残り時間を延長する。現在より短い要求では短縮しない。
+    /// @brief EMP妨害の残り時間を延長する。現在より短い要求では短縮しない。
     /// @param seconds 要求する残り時間（秒）。0～3秒に制限する。
     void ApplyEmpJammer(float seconds = 2.5f)
     {
-        if (runModifiers_.enabled) {
-            empJammerTimer_ = tankspecial::EmpDuration(empJammerTimer_, seconds);
-        }
+        empJammerTimer_ = tankspecial::EmpDuration(empJammerTimer_, seconds);
     }
 
     /// @brief ドローンの命中をロックへ蓄積し、今回適用する補正後のダメージを返す。
@@ -340,8 +341,7 @@ public:
     /// @brief 近接攻撃強化ビルドであるか判定する。
     bool IsMeleeBuild() const
     {
-        return runModifiers_.enabled &&
-               (expeditionCombatStyleSelected_ ? expeditionCombatStyle_ == tankbuild::Style::Melee : runModifiers_.meleeBlade);
+        return expeditionCombatStyleSelected_ ? expeditionCombatStyle_ == tankbuild::Style::Melee : runModifiers_.meleeBlade;
     }
 
     /// @brief ドローン強化ビルドであるか判定する。
@@ -1298,14 +1298,17 @@ private:
     float stealthTimer_ = 0.0f; // ステルス移行までの待機時間
 
     std::unique_ptr<PlayerUiState> ui_;
+    // 各画面へ渡す窓口（定義はPlayerTargets.h）。入れ子クラスなので非公開メンバを使えるが、画面からは窓口の操作しか見えない。
+    // 画面より先に作り、画面より後に破棄するため、画面のメンバより前に置く。
+    class HudTarget;
+    class EvolutionTarget;
+    class ClassEditorTarget;
+    std::unique_ptr<HudTarget> hudTarget_;
+    std::unique_ptr<EvolutionTarget> evolutionTarget_;
+    std::unique_ptr<ClassEditorTarget> classEditorTarget_;
     std::unique_ptr<PlayerHud> playerHud_;
     std::unique_ptr<PlayerEvolution> playerEvolution_;
-    // 機体設定の制作画面へ渡す窓口。入れ子クラスなので非公開メンバを使えるが、制作画面からは窓口の操作しか見えない。
-    class ClassEditorTarget;
-    std::unique_ptr<ClassEditorTarget> classEditorTarget_;
     std::unique_ptr<PlayerClassEditor> playerClassEditor_;
-    friend class PlayerHud;
-    friend class PlayerEvolution;
     std::unique_ptr<PlayerWeapons> playerWeapons_;
     std::unique_ptr<PlayerProgression> playerProgression_;
     friend class PlayerWeapons;

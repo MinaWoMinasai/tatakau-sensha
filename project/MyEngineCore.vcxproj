@@ -48,8 +48,6 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="DirectX\engine\common\NeonGridRenderer.cpp" />
-    <ClCompile Include="DirectX\engine\common\NeonGridGeometry.cpp" />
     <ClCompile Include="DirectX\engine\common\RingManager.cpp" />
     <ClCompile Include="DirectX\engine\common\TrailInstance.cpp" />
     <ClCompile Include="DirectX\engine\common\TrailManager.cpp">
@@ -79,6 +77,14 @@
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
     <ClCompile Include="DirectX\engine\common\DirectXCommon.cpp">
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
+      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\common\ShaderCompiler.cpp">
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
+      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\common\PipelineLibrary.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
@@ -178,8 +184,6 @@
     <ClCompile Include="DirectX\engine\3d\Skybox.cpp" />
     <ClInclude Include="DirectX\engine\common\BackgroundLoader.h" />
     <ClInclude Include="DirectX\engine\common\InitializationTask.h" />
-    <ClInclude Include="DirectX\engine\common\NeonGridRenderer.h" />
-    <ClInclude Include="DirectX\engine\common\NeonGridGeometry.h" />
     <ClInclude Include="DirectX\engine\common\RingManager.h" />
     <ClInclude Include="DirectX\engine\common\TrailInstance.h" />
     <ClInclude Include="DirectX\engine\common\TrailManager.h" />
@@ -200,6 +204,9 @@
     <ClInclude Include="DirectX\engine\calc\Calculation.h" />
     <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h" />
     <ClInclude Include="DirectX\engine\common\DirectXCommon.h" />
+    <ClInclude Include="DirectX\engine\common\ShaderCompiler.h" />
+    <ClInclude Include="DirectX\engine\common\PipelineLibrary.h" />
+    <ClInclude Include="DirectX\engine\common\RenderTargetFormats.h" />
     <ClInclude Include="DirectX\engine\dumpClass\Dump.h" />
     <ClInclude Include="DirectX\engine\easing\Easing.h" />
     <ClInclude Include="externals\imgui\imconfig.h">
@@ -288,10 +295,6 @@
     <ClInclude Include="DirectX\engine\common\FixedTimestep.h" />
     <ClInclude Include="DirectX\engine\common\TrailStressFixture.h" />
     <ClInclude Include="DirectX\engine\common\StringUtils.h" />
-    <ClCompile Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.cpp" />
-    <ClInclude Include="DirectX\engine\3d\neon\NeonDissolve.h" />
-    <ClInclude Include="DirectX\engine\3d\neon\NeonCharacterStyle.h" />
-    <ClInclude Include="DirectX\engine\3d\neon\NeonSkinnedRenderer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectX\engine\ecs\EcsComponents.cpp" />

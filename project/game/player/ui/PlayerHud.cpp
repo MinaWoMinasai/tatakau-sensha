@@ -277,7 +277,7 @@ void PlayerHud::PrepareUpgradeHudTextTextures()
     preload(player_.GetCurrentClassName(), bottomStyle);
 
     preload("強化", smallStyle);
-    for (int point = 0; point <= player_.kMaxLevel; ++point) {
+    for (int point = 0; point <= player_.GetMaxLevel(); ++point) {
         preload("x" + std::to_string(point), smallStyle);
     }
     for (int value = 0; value <= 10; ++value) {
@@ -447,7 +447,7 @@ void PlayerHud::PrepareUpgradeHudSegmentBars()
         const float y = ui_.upgradeHudRowStart_.y + static_cast<float>(i) * ui_.upgradeHudRowGap_;
         segmentBar->SetBounds({ui_.upgradeHudRowStart_.x + ui_.upgradeHudSegmentBarOffset_.x, y + ui_.upgradeHudSegmentBarOffset_.y},
                               ui_.upgradeHudSegmentBarSize_);
-        segmentBar->SetSegmentCount(player_.maxEnhancePoint);
+        segmentBar->SetSegmentCount(player_.GetMaxEnhancePoint());
         segmentBar->SetFilledSegments(0);
         segmentBar->Update();
     }
@@ -481,7 +481,7 @@ void PlayerHud::InitializeUpgradeHudBatch()
 void PlayerHud::UpdateUpgradeHud(float uiDeltaTime)
 {
     ui_.upgradeHudMouseCaptured_ = false;
-    if (!ui_.arenaUiEnabled_ || !ui_.upgradeHudVisible_ || player_.isChangeMode_ || player_.isDead_) {
+    if (!ui_.arenaUiEnabled_ || !ui_.upgradeHudVisible_ || player_.IsChangeMode() || player_.IsDead()) {
         return;
     }
     const float safeUiDeltaTime = (std::max)(0.0f, uiDeltaTime);
@@ -498,11 +498,12 @@ void PlayerHud::UpdateUpgradeHud(float uiDeltaTime)
 
     ApplyUpgradeHudLayout();
     if (ui_.upgradeHudUseNeonProgressBars_) {
-        const int safeNextExp = (std::max)(1, player_.nextLevelExp_);
-        const float expTarget = (std::clamp)(static_cast<float>(player_.exp_) / static_cast<float>(safeNextExp), 0.0f, 1.0f);
+        const int safeNextExp = (std::max)(1, player_.GetNextLevelExpValue());
+        const float expTarget = (std::clamp)(static_cast<float>(player_.GetExp()) / static_cast<float>(safeNextExp), 0.0f, 1.0f);
         const float levelTarget =
-            (std::clamp)(static_cast<float>(player_.level_ - 1) / static_cast<float>((std::max)(1, player_.kMaxLevel - 1)), 0.0f, 1.0f);
-        const bool levelChanged = ui_.upgradeHudAnimatedLevel_ != player_.level_;
+            (std::clamp)(static_cast<float>(player_.GetLevel() - 1) / static_cast<float>((std::max)(1, player_.GetMaxLevel() - 1)), 0.0f,
+                         1.0f);
+        const bool levelChanged = ui_.upgradeHudAnimatedLevel_ != player_.GetLevel();
         if (ui_.upgradeHudLevelProgressBar_) {
             ui_.upgradeHudLevelProgressBar_->SetBounds(ui_.upgradeHudLevelBarPos_, ui_.upgradeHudLevelBarSize_);
             ui_.upgradeHudLevelProgressBar_->SetTarget(levelTarget);
@@ -517,9 +518,10 @@ void PlayerHud::UpdateUpgradeHud(float uiDeltaTime)
             }
             ui_.upgradeHudExpProgressBar_->Update(safeUiDeltaTime);
         }
-        ui_.upgradeHudAnimatedLevel_ = player_.level_;
+        ui_.upgradeHudAnimatedLevel_ = player_.GetLevel();
     }
-    const bool wantsUpgradeList = !player_.runModifiers_.enabled && (!ui_.upgradeHudHideListWithoutPoints_ || player_.skillPoints_ > 0);
+    const bool wantsUpgradeList =
+        !player_.IsRunModifiersEnabled() && (!ui_.upgradeHudHideListWithoutPoints_ || player_.GetSkillPoints() > 0);
     const float targetListVisibility = wantsUpgradeList ? 1.0f : 0.0f;
     const float listStep = safeUiDeltaTime * ui_.upgradeHudListAnimSpeed_;
     if (ui_.upgradeHudListVisibility_ < targetListVisibility) {
@@ -555,15 +557,15 @@ void PlayerHud::UpdateUpgradeHud(float uiDeltaTime)
             ui_.upgradeHudSegmentBars_[i]->SetBounds(
                 {ui_.upgradeHudRowStart_.x + ui_.upgradeHudSegmentBarOffset_.x + listOffsetX, y + ui_.upgradeHudSegmentBarOffset_.y},
                 ui_.upgradeHudSegmentBarSize_);
-            ui_.upgradeHudSegmentBars_[i]->SetSegmentCount(player_.maxEnhancePoint);
-            ui_.upgradeHudSegmentBars_[i]->SetFilledSegments(player_.upgradeLevels_[i]);
+            ui_.upgradeHudSegmentBars_[i]->SetSegmentCount(player_.GetMaxEnhancePoint());
+            ui_.upgradeHudSegmentBars_[i]->SetFilledSegments(player_.GetUpgradeLevels()[i]);
             ui_.upgradeHudSegmentBars_[i]->Update();
         }
     }
 
-    const bool canUpgrade = player_.skillPoints_ > 0;
-    const bool click = player_.input_ && player_.input_->IsTrigger(player_.input_->GetMouseState().rgbButtons[0],
-                                                                   player_.input_->GetPreMouseState().rgbButtons[0]);
+    const bool canUpgrade = player_.GetSkillPoints() > 0;
+    const bool click = player_.GetInput() && player_.GetInput()->IsTrigger(player_.GetInput()->GetMouseState().rgbButtons[0],
+                                                                           player_.GetInput()->GetPreMouseState().rgbButtons[0]);
     for (int i = 0; i < 7; ++i) {
         const float y = ui_.upgradeHudRowStart_.y + static_cast<float>(i) * ui_.upgradeHudRowGap_;
         const float controlOffsetY = ui_.upgradeHudUseSegmentedUpgradeBars_
@@ -581,12 +583,12 @@ void PlayerHud::UpdateUpgradeHud(float uiDeltaTime)
         if (plus) {
             plus->SetPosition({ui_.upgradeHudPlusX_ + listOffsetX, y + controlOffsetY});
         }
-        const bool plusHovered = plus && plus->IsHovered(player_.mousePosition_);
-        const bool minusHovered = minus && minus->IsHovered(player_.mousePosition_);
-        const bool rowHovered = button && button->IsHovered(player_.mousePosition_);
+        const bool plusHovered = plus && plus->IsHovered(player_.GetMousePosition());
+        const bool minusHovered = minus && minus->IsHovered(player_.GetMousePosition());
+        const bool rowHovered = button && button->IsHovered(player_.GetMousePosition());
         const bool hovered = rowHovered || plusHovered || minusHovered;
         ui_.upgradeHudMouseCaptured_ = ui_.upgradeHudMouseCaptured_ || hovered;
-        const bool maxed = player_.upgradeLevels_[i] >= player_.maxEnhancePoint;
+        const bool maxed = player_.GetUpgradeLevels()[i] >= player_.GetMaxEnhancePoint();
         if (wantsUpgradeList && click && plusHovered) {
             if (canUpgrade && !maxed && player_.ApplyStatUpgrade(i)) {
                 ui_.upgradeHudFlashTimers_[i] = 0.22f;
@@ -616,7 +618,7 @@ void PlayerHud::UpdateUpgradeHud(float uiDeltaTime)
             button->Update();
         }
         if (minus) {
-            if (player_.upgradeLevels_[i] <= 0) {
+            if (player_.GetUpgradeLevels()[i] <= 0) {
                 minus->SetColor({0.12f + missFlash * 0.32f, 0.14f, 0.18f, 0.42f + missFlash * 0.32f});
             } else {
                 minus->SetColor(LerpColor({rowColor.x * 0.45f, rowColor.y * 0.45f, rowColor.z * 0.45f, 0.72f}, {0.88f, 0.94f, 1.0f, 0.98f},
@@ -657,7 +659,7 @@ void PlayerHud::UpdateUpgradeHud(float uiDeltaTime)
 void PlayerHud::DrawUpgradeHud()
 {
     ui_.upgradeHudProfile_ = {};
-    if (!ui_.arenaUiEnabled_ || !ui_.upgradeHudVisible_ || player_.isChangeMode_ || player_.isDead_) {
+    if (!ui_.arenaUiEnabled_ || !ui_.upgradeHudVisible_ || player_.IsChangeMode() || player_.IsDead()) {
         return;
     }
     ui_.upgradeHudProfile_.visible = true;
@@ -668,10 +670,10 @@ void PlayerHud::DrawUpgradeHud()
     const myEngine::TextStyle upgradeOverlayTextStyle = MakeUpgradeHudOverlayTextStyle();
     const myEngine::TextStyle bottomBarTextStyle = MakeUpgradeHudBottomBarTextStyle();
 
-    const int safeNextExp = (std::max)(1, player_.nextLevelExp_);
-    const float expRatio = (std::clamp)(static_cast<float>(player_.exp_) / static_cast<float>(safeNextExp), 0.0f, 1.0f);
+    const int safeNextExp = (std::max)(1, player_.GetNextLevelExpValue());
+    const float expRatio = (std::clamp)(static_cast<float>(player_.GetExp()) / static_cast<float>(safeNextExp), 0.0f, 1.0f);
     const float levelRatio =
-        (std::clamp)(static_cast<float>(player_.level_ - 1) / static_cast<float>((std::max)(1, player_.kMaxLevel - 1)), 0.0f, 1.0f);
+        (std::clamp)(static_cast<float>(player_.GetLevel() - 1) / static_cast<float>((std::max)(1, player_.GetMaxLevel() - 1)), 0.0f, 1.0f);
     if (ui_.upgradeHudExpFillSprite_) {
         ui_.upgradeHudExpFillSprite_->SetSize({ui_.upgradeHudExpBarSize_.x * expRatio, ui_.upgradeHudExpBarSize_.y});
         ui_.upgradeHudExpFillSprite_->Update();
@@ -687,8 +689,9 @@ void PlayerHud::DrawUpgradeHud()
     const float listOffsetX = -(1.0f - easedListAlpha) * ui_.upgradeHudListSlideDistance_;
     const auto& names = UpgradeHudNames();
     const std::string className = player_.GetCurrentClassName();
-    const bool baseTextDirty = ui_.cachedUpgradeHudExp_ != player_.exp_ || ui_.cachedUpgradeHudNextExp_ != player_.nextLevelExp_ ||
-                               ui_.cachedUpgradeHudLevel_ != player_.level_ || ui_.cachedUpgradeHudClassName_ != className;
+    const bool baseTextDirty = ui_.cachedUpgradeHudExp_ != player_.GetExp() ||
+                               ui_.cachedUpgradeHudNextExp_ != player_.GetNextLevelExpValue() ||
+                               ui_.cachedUpgradeHudLevel_ != player_.GetLevel() || ui_.cachedUpgradeHudClassName_ != className;
     if (baseTextDirty) {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
         ui_.upgradeHudProfile_.baseTextRefreshed = true;
@@ -696,19 +699,19 @@ void PlayerHud::DrawUpgradeHud()
         const auto baseTextRefreshStart = std::chrono::steady_clock::now();
         const auto expLabelRefreshStart = baseTextRefreshStart;
 #endif
-        UpdateUpgradeHudExpGlyphs("EXP " + std::to_string(player_.exp_) + " / " + std::to_string(player_.nextLevelExp_),
+        UpdateUpgradeHudExpGlyphs("EXP " + std::to_string(player_.GetExp()) + " / " + std::to_string(player_.GetNextLevelExpValue()),
                                   bottomBarTextStyle);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
         const auto expLabelRefreshEnd = std::chrono::steady_clock::now();
         const auto levelLabelRefreshStart = expLabelRefreshEnd;
 #endif
-        UpdateUpgradeHudLevelLabels(player_.level_, className, bottomBarTextStyle);
+        UpdateUpgradeHudLevelLabels(player_.GetLevel(), className, bottomBarTextStyle);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
         const auto levelLabelRefreshEnd = std::chrono::steady_clock::now();
 #endif
-        ui_.cachedUpgradeHudExp_ = player_.exp_;
-        ui_.cachedUpgradeHudNextExp_ = player_.nextLevelExp_;
-        ui_.cachedUpgradeHudLevel_ = player_.level_;
+        ui_.cachedUpgradeHudExp_ = player_.GetExp();
+        ui_.cachedUpgradeHudNextExp_ = player_.GetNextLevelExpValue();
+        ui_.cachedUpgradeHudLevel_ = player_.GetLevel();
         ui_.cachedUpgradeHudClassName_ = className;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
         const myEngine::TextLabel::ProfileStats& textLabelStats = myEngine::TextLabel::GetProfileStats();
@@ -733,17 +736,17 @@ void PlayerHud::DrawUpgradeHud()
     }
 
     if (showUpgradeList) {
-        const bool listDirty = !ui_.cachedUpgradeHudListVisible_ || ui_.cachedUpgradeHudSkillPoints_ != player_.skillPoints_ ||
-                               ui_.cachedUpgradeHudMaxEnhancePoint_ != player_.maxEnhancePoint ||
+        const bool listDirty = !ui_.cachedUpgradeHudListVisible_ || ui_.cachedUpgradeHudSkillPoints_ != player_.GetSkillPoints() ||
+                               ui_.cachedUpgradeHudMaxEnhancePoint_ != player_.GetMaxEnhancePoint() ||
                                ui_.cachedUpgradeHudSegmentedBars_ != ui_.upgradeHudUseSegmentedUpgradeBars_ ||
-                               ui_.cachedUpgradeHudLevels_ != player_.upgradeLevels_;
+                               ui_.cachedUpgradeHudLevels_ != player_.GetUpgradeLevels();
         if (listDirty) {
 #if defined(USE_IMGUI) && !defined(NDEBUG)
             ui_.upgradeHudProfile_.listTextRefreshed = true;
             myEngine::TextLabel::ResetProfileStats();
             const auto listTextRefreshStart = std::chrono::steady_clock::now();
 #endif
-            SetLabel(ui_.upgradeHudPointLabel_, spriteCommon, "x" + std::to_string(player_.skillPoints_),
+            SetLabel(ui_.upgradeHudPointLabel_, spriteCommon, "x" + std::to_string(player_.GetSkillPoints()),
                      {ui_.upgradeHudPointPos_.x + listOffsetX, ui_.upgradeHudPointPos_.y}, smallStyle);
             SetLabel(ui_.upgradeHudTitleLabel_, spriteCommon, "強化", {ui_.upgradeHudTitlePos_.x + listOffsetX, ui_.upgradeHudTitlePos_.y},
                      smallStyle);
@@ -759,7 +762,7 @@ void PlayerHud::DrawUpgradeHud()
                 SetLabel(ui_.upgradeHudNameLabels_[i], spriteCommon, std::to_string(i + 1) + " " + names[i], namePosition,
                          compactGauge ? upgradeOverlayTextStyle : smallStyle);
                 ui_.upgradeHudNameLabels_[i]->SetAnchorPoint(compactGauge ? myEngine::Vector2{0.5f, 0.5f} : myEngine::Vector2{0.0f, 0.0f});
-                SetLabel(ui_.upgradeHudLevelLabels_[i], spriteCommon, "Lv." + std::to_string(player_.upgradeLevels_[i]),
+                SetLabel(ui_.upgradeHudLevelLabels_[i], spriteCommon, "Lv." + std::to_string(player_.GetUpgradeLevels()[i]),
                          {ui_.upgradeHudLevelX_ + listOffsetX, y + ui_.upgradeHudLevelTextOffsetY_}, smallStyle);
                 SetLabel(ui_.upgradeHudMinusLabels_[i], spriteCommon, "-",
                          compactGauge ? myEngine::Vector2{ui_.upgradeHudMinusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
@@ -767,17 +770,18 @@ void PlayerHud::DrawUpgradeHud()
                                       : myEngine::Vector2{ui_.upgradeHudMinusLabelX_ + listOffsetX, y + ui_.upgradeHudMinusTextOffsetY_},
                          compactGauge ? upgradeOverlayTextStyle : smallStyle);
                 ui_.upgradeHudMinusLabels_[i]->SetAnchorPoint(compactGauge ? myEngine::Vector2{0.5f, 0.5f} : myEngine::Vector2{0.0f, 0.0f});
-                SetLabel(ui_.upgradeHudPlusLabels_[i], spriteCommon, player_.upgradeLevels_[i] >= player_.maxEnhancePoint ? "済" : "+",
+                SetLabel(ui_.upgradeHudPlusLabels_[i], spriteCommon,
+                         player_.GetUpgradeLevels()[i] >= player_.GetMaxEnhancePoint() ? "済" : "+",
                          compactGauge ? myEngine::Vector2{ui_.upgradeHudPlusX_ + ui_.upgradeHudPlusSize_.x * 0.5f + listOffsetX,
                                                           y + controlOffsetY + ui_.upgradeHudPlusSize_.y * 0.5f}
                                       : myEngine::Vector2{ui_.upgradeHudPlusLabelX_ + listOffsetX, y + ui_.upgradeHudPlusTextOffsetY_},
                          compactGauge ? upgradeOverlayTextStyle : smallStyle);
                 ui_.upgradeHudPlusLabels_[i]->SetAnchorPoint(compactGauge ? myEngine::Vector2{0.5f, 0.5f} : myEngine::Vector2{0.0f, 0.0f});
             }
-            ui_.cachedUpgradeHudSkillPoints_ = player_.skillPoints_;
-            ui_.cachedUpgradeHudMaxEnhancePoint_ = player_.maxEnhancePoint;
+            ui_.cachedUpgradeHudSkillPoints_ = player_.GetSkillPoints();
+            ui_.cachedUpgradeHudMaxEnhancePoint_ = player_.GetMaxEnhancePoint();
             ui_.cachedUpgradeHudSegmentedBars_ = ui_.upgradeHudUseSegmentedUpgradeBars_;
-            ui_.cachedUpgradeHudLevels_ = player_.upgradeLevels_;
+            ui_.cachedUpgradeHudLevels_ = player_.GetUpgradeLevels();
 #if defined(USE_IMGUI) && !defined(NDEBUG)
             const myEngine::TextLabel::ProfileStats& textLabelStats = myEngine::TextLabel::GetProfileStats();
             ui_.upgradeHudProfile_.listTextRefreshMs =
@@ -993,7 +997,7 @@ void PlayerHud::DrawUpgradeHud()
 
 void PlayerHud::AppendGameplayNeonTextLabels(std::vector<myEngine::TextLabel*>& labels) const
 {
-    if (player_.isChangeMode_) {
+    if (player_.IsChangeMode()) {
         return;
     }
     if (ui_.upgradeHudDrawBottomText_ && ui_.upgradeHudLevelLabel_) {
@@ -1091,11 +1095,11 @@ void PlayerHud::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, fl
             const myEngine::Vector4 buttonColor =
                 LerpColor({0.10f + missFlash * 0.20f, 0.12f, 0.15f + refundFlash * 0.16f, 0.84f}, {0.35f, 0.90f, 0.72f, 0.96f}, flash);
             const myEngine::Vector4 minusColor =
-                player_.upgradeLevels_[i] > 0 ? LerpColor({rowColor.x * 0.45f, rowColor.y * 0.45f, rowColor.z * 0.45f, 0.72f},
-                                                          {0.88f, 0.94f, 1.0f, 0.98f}, refundFlash)
-                                              : myEngine::Vector4{0.12f + missFlash * 0.30f, 0.14f, 0.18f, 0.42f + missFlash * 0.28f};
+                player_.GetUpgradeLevels()[i] > 0 ? LerpColor({rowColor.x * 0.45f, rowColor.y * 0.45f, rowColor.z * 0.45f, 0.72f},
+                                                              {0.88f, 0.94f, 1.0f, 0.98f}, refundFlash)
+                                                  : myEngine::Vector4{0.12f + missFlash * 0.30f, 0.14f, 0.18f, 0.42f + missFlash * 0.28f};
             const myEngine::Vector4 plusColor =
-                player_.skillPoints_ > 0
+                player_.GetSkillPoints() > 0
                     ? LerpColor({rowColor.x * 0.82f, rowColor.y * 0.82f, rowColor.z * 0.82f, 0.90f}, {1.0f, 1.0f, 1.0f, 1.0f}, flash)
                     : myEngine::Vector4{0.18f + missFlash * 0.32f, 0.22f, 0.24f, 0.48f + missFlash * 0.28f};
             if (!ui_.upgradeHudUseSegmentedUpgradeBars_) {
@@ -1208,7 +1212,7 @@ bool PlayerHud::LoadUpgradeHudConfig(const std::string& path)
     ui_.upgradeHudRoundedProgressBars_ = json.value("roundedProgressBars", ui_.upgradeHudRoundedProgressBars_);
     ui_.upgradeHudUseSegmentedUpgradeBars_ = json.value("segmentedUpgradeBars", ui_.upgradeHudUseSegmentedUpgradeBars_);
     ui_.upgradeHudListTextBloomEnabled_ = json.value("listTextBloom", false);
-    player_.maxEnhancePoint = (std::clamp)(json.value("maxEnhancePoint", player_.maxEnhancePoint), 1, 10);
+    player_.SetMaxEnhancePoint((std::clamp)(json.value("maxEnhancePoint", player_.GetMaxEnhancePoint()), 1, 10));
     ui_.upgradeHudListAnimSpeed_ = json.value("listAnimSpeed", ui_.upgradeHudListAnimSpeed_);
     ui_.upgradeHudListSlideDistance_ = json.value("listSlideDistance", ui_.upgradeHudListSlideDistance_);
     ui_.upgradeHudPanelPos_ = ReadVector2Object(json.value("panelPos", nlohmann::json::object()), ui_.upgradeHudPanelPos_);
@@ -1263,7 +1267,7 @@ bool PlayerHud::SaveUpgradeHudConfig(const std::string& path) const
                            {"roundedProgressBars", ui_.upgradeHudRoundedProgressBars_},
                            {"segmentedUpgradeBars", ui_.upgradeHudUseSegmentedUpgradeBars_},
                            {"listTextBloom", ui_.upgradeHudListTextBloomEnabled_},
-                           {"maxEnhancePoint", player_.maxEnhancePoint},
+                           {"maxEnhancePoint", player_.GetMaxEnhancePoint()},
                            {"listAnimSpeed", ui_.upgradeHudListAnimSpeed_},
                            {"listSlideDistance", ui_.upgradeHudListSlideDistance_},
                            {"panelPos", WriteVector2Object(ui_.upgradeHudPanelPos_)},
@@ -1317,7 +1321,10 @@ void PlayerHud::DrawUpgradeHudDebugImGui()
         ApplyUpgradeHudProgressBarStyles();
     }
     ImGui::Checkbox("強化段数ゲージを描画", &ui_.upgradeHudUseSegmentedUpgradeBars_);
-    ImGui::DragInt("1項目の最大強化段数", &player_.maxEnhancePoint, 1.0f, 1, 10);
+    int maxEnhancePoint = player_.GetMaxEnhancePoint();
+    if (ImGui::DragInt("1項目の最大強化段数", &maxEnhancePoint, 1.0f, 1, 10)) {
+        player_.SetMaxEnhancePoint(maxEnhancePoint);
+    }
     ImGui::Text("矩形Draw数: %d", ui_.upgradeHudProfile_.spriteDraws);
     ImGui::DragFloat("リスト表示アニメ速度", &ui_.upgradeHudListAnimSpeed_, 0.1f, 1.0f, 30.0f);
     ImGui::DragFloat("リストスライド距離", &ui_.upgradeHudListSlideDistance_, 1.0f, 0.0f, 500.0f);
@@ -1372,7 +1379,7 @@ void PlayerHud::DrawUpgradeHudAfterPostEffects()
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     drawSegmentBars = drawSegmentBars && ui_.upgradeHudSegmentedBarBloomEnabled_;
 #endif
-    if (!ui_.upgradeHudVisible_ || player_.isChangeMode_ || player_.isDead_ || !ui_.upgradeHudBarBloomEffect_ ||
+    if (!ui_.upgradeHudVisible_ || player_.IsChangeMode() || player_.IsDead() || !ui_.upgradeHudBarBloomEffect_ ||
         (!drawBottomBars && !drawSegmentBars)) {
         return;
     }
@@ -1407,9 +1414,9 @@ const Player::UiProfileStats& PlayerHud::GetUpgradeHudProfileStats() const
 /// @brief 強化HUDの状態の写しを、デバッグ用に返す。
 Player::UpgradeHudDebugSnapshot PlayerHud::GetUpgradeHudDebugSnapshot() const
 {
-    return {player_.level_,
-            player_.exp_,
-            player_.skillPoints_,
+    return {player_.GetLevel(),
+            player_.GetExp(),
+            player_.GetSkillPoints(),
             ui_.upgradeHudVisible_,
             ui_.upgradeHudListVisibility_,
             ui_.upgradeHudHideListWithoutPoints_,
@@ -1422,9 +1429,9 @@ Player::UpgradeHudDebugSnapshot PlayerHud::GetUpgradeHudDebugSnapshot() const
             ui_.upgradeHudUseSegmentedUpgradeBars_,
             ui_.upgradeHudSegmentedBarBloomEnabled_,
             ui_.upgradeHudListTextBloomEnabled_,
-            ui_.upgradeHudVisible_ && !player_.isChangeMode_ && !player_.isDead_ && ui_.upgradeHudListVisibility_ > 0.01f,
-            player_.isChangeMode_,
-            player_.isDead_,
-            player_.maxEnhancePoint};
+            ui_.upgradeHudVisible_ && !player_.IsChangeMode() && !player_.IsDead() && ui_.upgradeHudListVisibility_ > 0.01f,
+            player_.IsChangeMode(),
+            player_.IsDead(),
+            player_.GetMaxEnhancePoint()};
 }
 #endif

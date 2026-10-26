@@ -11,7 +11,6 @@
 /// @brief シーン名からシーンを生成する共通契約を定義する。
 class AbstractSceneFactory {
 public:
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     virtual ~AbstractSceneFactory() = default;
     // シーン名を指定してシーンを生成する
     virtual std::unique_ptr<IScene> CreateScene(const std::string& sceneName) = 0;

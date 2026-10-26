@@ -6,7 +6,6 @@
 /// @brief 登録済みのシーン名からシーンを生成する窓口を提供する。
 class SceneFactory : public AbstractSceneFactory {
 public:
-    /// @brief インスタンスの初期値と利用先を設定する。
     explicit SceneFactory(SceneRegistry registry);
 
     /// @brief シーンを生成する。

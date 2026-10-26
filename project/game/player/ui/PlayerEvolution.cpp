@@ -112,8 +112,8 @@ void PlayerEvolution::InitializeEncyclopedia()
     const float cardGapY = 12.0f;
     const myEngine::Vector2 cardBase = {416.0f, 112.0f};
 
-    for (int i = 0; i < static_cast<int>(player_.classCatalog_.OrderedIds().size()); ++i) {
-        const PlayerClassConfig* config = player_.GetClassConfig(player_.classCatalog_.OrderedIds()[i]);
+    for (int i = 0; i < static_cast<int>(player_.GetClassCatalog().OrderedIds().size()); ++i) {
+        const PlayerClassConfig* config = player_.GetClassConfig(player_.GetClassCatalog().OrderedIds()[i]);
         if (!config) {
             continue;
         }
@@ -151,16 +151,16 @@ void PlayerEvolution::InitializeEncyclopedia()
 
 void PlayerEvolution::UpdateEncyclopedia(float uiDeltaTime)
 {
-    if (!ui_.arenaUiEnabled_ || !player_.isChangeMode_) {
+    if (!ui_.arenaUiEnabled_ || !player_.IsChangeMode()) {
         return;
     }
-    if (ui_.encyclopedia_.size() != player_.classCatalog_.OrderedIds().size()) {
+    if (ui_.encyclopedia_.size() != player_.GetClassCatalog().OrderedIds().size()) {
         InitializeEncyclopedia();
     }
     if (ui_.encyclopedia_.empty()) {
         return;
     }
-    player_.evolutionUiTimer_ += (std::max)(0.0f, uiDeltaTime);
+    player_.AdvanceEvolutionUiTimer((std::max)(0.0f, uiDeltaTime));
     if (ShouldUseEvolutionCircuitPrototype()) {
         UpdateEvolutionCircuitPrototype();
         return;
@@ -169,7 +169,7 @@ void PlayerEvolution::UpdateEncyclopedia(float uiDeltaTime)
         UpdateStaticEvolutionPrototype();
         return;
     }
-    int currentRank = player_.GetRankFromLevel(player_.level_);
+    int currentRank = player_.GetRankFromLevel(player_.GetLevel());
 
     for (int i = 0; i < static_cast<int>(ui_.encyclopedia_.size()); ++i) {
         auto& tank = ui_.encyclopedia_[i];
@@ -177,12 +177,12 @@ void PlayerEvolution::UpdateEncyclopedia(float uiDeltaTime)
             continue;
         }
         bool isAvailable = (currentRank >= tank.requiredRank);
-        const bool selected = (i == player_.evolutionSelectedIndex_);
-        const bool hovered = tank.cardSprite && tank.cardSprite->IsHovered(player_.mousePosition_);
+        const bool selected = (i == player_.GetEvolutionSelectedIndex());
+        const bool hovered = tank.cardSprite && tank.cardSprite->IsHovered(player_.GetMousePosition());
 
-        if (hovered &&
-            player_.input_->IsTrigger(player_.input_->GetMouseState().rgbButtons[0], player_.input_->GetPreMouseState().rgbButtons[0])) {
-            player_.evolutionSelectedIndex_ = i;
+        if (hovered && player_.GetInput()->IsTrigger(player_.GetInput()->GetMouseState().rgbButtons[0],
+                                                     player_.GetInput()->GetPreMouseState().rgbButtons[0])) {
+            player_.SetEvolutionSelectedIndex(i);
             ui_.codexSelectedClassIndex_ = i;
         }
 
@@ -208,16 +208,16 @@ void PlayerEvolution::UpdateEncyclopedia(float uiDeltaTime)
         tank.sprite->Update();
     }
 
-    player_.evolutionSelectedIndex_ = (std::clamp)(player_.evolutionSelectedIndex_, 0, static_cast<int>(ui_.encyclopedia_.size()) - 1);
-    if (!player_.IsEvolutionClassVisible(ui_.encyclopedia_[player_.evolutionSelectedIndex_].classId)) {
+    player_.SetEvolutionSelectedIndex((std::clamp)(player_.GetEvolutionSelectedIndex(), 0, static_cast<int>(ui_.encyclopedia_.size()) - 1));
+    if (!player_.IsEvolutionClassVisible(ui_.encyclopedia_[player_.GetEvolutionSelectedIndex()].classId)) {
         for (size_t i = 0; i < ui_.encyclopedia_.size(); ++i) {
-            if (ui_.encyclopedia_[i].classId == player_.currentClassId_) {
-                player_.evolutionSelectedIndex_ = static_cast<int>(i);
+            if (ui_.encyclopedia_[i].classId == player_.GetCurrentClassId()) {
+                player_.SetEvolutionSelectedIndex(static_cast<int>(i));
                 break;
             }
         }
     }
-    const TankData& selectedTank = ui_.encyclopedia_[player_.evolutionSelectedIndex_];
+    const TankData& selectedTank = ui_.encyclopedia_[player_.GetEvolutionSelectedIndex()];
     const PlayerClassConfig* selectedConfig = player_.GetClassConfig(selectedTank.classId);
     if (!selectedConfig) {
         return;
@@ -226,18 +226,18 @@ void PlayerEvolution::UpdateEncyclopedia(float uiDeltaTime)
     const bool locked = currentRank < selectedTank.requiredRank;
     if (ui_.evolutionPreviewTankSprite_) {
         ui_.evolutionPreviewTankSprite_->SetTexture(selectedTank.texturePath);
-        const float bob = std::sin(player_.evolutionUiTimer_ * 2.0f) * 12.0f;
+        const float bob = std::sin(player_.GetEvolutionUiTimer() * 2.0f) * 12.0f;
         ui_.evolutionPreviewTankSprite_->SetPosition({210.0f + bob, 300.0f});
-        ui_.evolutionPreviewTankSprite_->SetRotation(std::sin(player_.evolutionUiTimer_ * 1.35f) * 0.08f);
+        ui_.evolutionPreviewTankSprite_->SetRotation(std::sin(player_.GetEvolutionUiTimer() * 1.35f) * 0.08f);
         ui_.evolutionPreviewTankSprite_->SetColor(locked ? myEngine::Vector4{0.35f, 0.40f, 0.45f, 0.65f}
                                                          : myEngine::Vector4{1.0f, 1.0f, 1.0f, 1.0f});
         ui_.evolutionPreviewTankSprite_->Update();
     }
 
     if (ui_.evolutionShotSprite_) {
-        const float shotPhase = std::fmod(player_.evolutionUiTimer_ * 1.8f, 1.0f);
+        const float shotPhase = std::fmod(player_.GetEvolutionUiTimer() * 1.8f, 1.0f);
         ui_.evolutionShotSprite_->SetPosition({300.0f + shotPhase * 52.0f, 296.0f});
-        ui_.evolutionShotSprite_->SetRotation(std::sin(player_.evolutionUiTimer_ * 1.2f) * 0.12f);
+        ui_.evolutionShotSprite_->SetRotation(std::sin(player_.GetEvolutionUiTimer() * 1.2f) * 0.12f);
         ui_.evolutionShotSprite_->SetSize({85.0f + shotPhase * 95.0f, 7.0f});
         ui_.evolutionShotSprite_->SetColor(locked ? myEngine::Vector4{0.55f, 0.55f, 0.60f, 0.18f}
                                                   : myEngine::Vector4{1.0f, 0.90f, 0.32f, 0.82f * (1.0f - shotPhase * 0.55f)});
@@ -245,13 +245,13 @@ void PlayerEvolution::UpdateEncyclopedia(float uiDeltaTime)
     }
 
     if (ui_.evolutionChangeButtonSprite_) {
-        const bool buttonHovered = ui_.evolutionChangeButtonSprite_->IsHovered(player_.mousePosition_);
+        const bool buttonHovered = ui_.evolutionChangeButtonSprite_->IsHovered(player_.GetMousePosition());
         if (locked) {
             ui_.evolutionChangeButtonSprite_->SetColor({0.16f, 0.16f, 0.18f, 0.82f});
         } else if (buttonHovered) {
             ui_.evolutionChangeButtonSprite_->SetColor({0.36f, 1.0f, 0.58f, 0.96f});
-            if (player_.input_->IsTrigger(player_.input_->GetMouseState().rgbButtons[0],
-                                          player_.input_->GetPreMouseState().rgbButtons[0])) {
+            if (player_.GetInput()->IsTrigger(player_.GetInput()->GetMouseState().rgbButtons[0],
+                                              player_.GetInput()->GetPreMouseState().rgbButtons[0])) {
                 player_.TryConfirmEvolutionById(selectedTank.classId);
             }
         } else {
@@ -268,22 +268,23 @@ void PlayerEvolution::DrawEncyclopedia()
     }
 
     ui_.evolutionUiProfile_ = {};
-    if (player_.isChangeMode_ && ShouldUseEvolutionCircuitPrototype()) {
+    if (player_.IsChangeMode() && ShouldUseEvolutionCircuitPrototype()) {
         DrawEvolutionCircuitPrototype();
         return;
     }
-    if (player_.isChangeMode_ && ShouldUseStaticEvolutionPrototype()) {
+    if (player_.IsChangeMode() && ShouldUseStaticEvolutionPrototype()) {
         DrawStaticEvolutionPrototype();
         return;
     }
-    if (player_.isChangeMode_) {
+    if (player_.IsChangeMode()) {
         ui_.evolutionUiProfile_.visible = true;
         const auto totalStart = std::chrono::steady_clock::now();
         if (ui_.encyclopedia_.empty()) {
             return;
         }
-        player_.evolutionSelectedIndex_ = (std::clamp)(player_.evolutionSelectedIndex_, 0, static_cast<int>(ui_.encyclopedia_.size()) - 1);
-        const TankData& selectedTank = ui_.encyclopedia_[player_.evolutionSelectedIndex_];
+        player_.SetEvolutionSelectedIndex(
+            (std::clamp)(player_.GetEvolutionSelectedIndex(), 0, static_cast<int>(ui_.encyclopedia_.size()) - 1));
+        const TankData& selectedTank = ui_.encyclopedia_[player_.GetEvolutionSelectedIndex()];
         const PlayerClassConfig* selectedConfig = player_.GetClassConfig(selectedTank.classId);
         if (!selectedConfig) {
             return;
@@ -328,7 +329,7 @@ void PlayerEvolution::DrawEncyclopedia()
         SetLabel(ui_.evolutionPreviewNameLabel_, spriteCommon, selectedConfig->displayName, {58.0f, 112.0f}, headingStyle);
         SetLabel(ui_.evolutionRoleLabel_, spriteCommon, roleText(*selectedConfig), {58.0f, 560.0f}, bodyStyle);
 
-        const int currentRank = player_.GetRankFromLevel(player_.level_);
+        const int currentRank = player_.GetRankFromLevel(player_.GetLevel());
         const bool locked = currentRank < selectedConfig->requiredRank;
         std::array<std::string, 9> statLines = {
             "必要ランク: " + std::to_string(selectedConfig->requiredRank) + (locked ? "  (未解放)" : "  (使用可能)"),
@@ -449,16 +450,16 @@ void PlayerEvolution::DrawEncyclopedia()
 void PlayerEvolution::DrawTankCodex()
 {
 #ifdef USE_IMGUI
-    if (player_.classCatalog_.OrderedIds().empty()) {
+    if (player_.GetClassCatalog().OrderedIds().empty()) {
         player_.LoadPlayerClassConfigs();
     }
-    if (player_.classCatalog_.OrderedIds().empty()) {
+    if (player_.GetClassCatalog().OrderedIds().empty()) {
         return;
     }
 
     ui_.codexSelectedClassIndex_ =
-        (std::clamp)(ui_.codexSelectedClassIndex_, 0, static_cast<int>(player_.classCatalog_.OrderedIds().size()) - 1);
-    const std::string selectedId = player_.classCatalog_.OrderedIds()[ui_.codexSelectedClassIndex_];
+        (std::clamp)(ui_.codexSelectedClassIndex_, 0, static_cast<int>(player_.GetClassCatalog().OrderedIds().size()) - 1);
+    const std::string selectedId = player_.GetClassCatalog().OrderedIds()[ui_.codexSelectedClassIndex_];
     const PlayerClassConfig* selectedConfig = player_.GetClassConfig(selectedId);
     if (!selectedConfig) {
         return;
@@ -469,9 +470,9 @@ void PlayerEvolution::DrawTankCodex()
         return;
     }
 
-    const int currentRank = player_.GetRankFromLevel(player_.level_);
-    ui_.codexPreviewTimer_ += player_.dt_;
-    ImGui::Text("Level %d  Rank %d  Current: %s", player_.level_, currentRank, player_.GetCurrentClassName());
+    const int currentRank = player_.GetRankFromLevel(player_.GetLevel());
+    ui_.codexPreviewTimer_ += player_.GetDeltaTime();
+    ImGui::Text("Level %d  Rank %d  Current: %s", player_.GetLevel(), currentRank, player_.GetCurrentClassName());
     ImGui::Text("Click a tank to inspect it. Locked tanks can be previewed, but not equipped.");
     ImGui::Separator();
 
@@ -484,8 +485,8 @@ void PlayerEvolution::DrawTankCodex()
     for (int rank = 1; rank <= 4; ++rank) {
         ImGui::Text("Rank %d", rank);
         ImGui::Indent(14.0f);
-        for (int i = 0; i < static_cast<int>(player_.classCatalog_.OrderedIds().size()); ++i) {
-            const PlayerClassConfig* config = player_.GetClassConfig(player_.classCatalog_.OrderedIds()[i]);
+        for (int i = 0; i < static_cast<int>(player_.GetClassCatalog().OrderedIds().size()); ++i) {
+            const PlayerClassConfig* config = player_.GetClassConfig(player_.GetClassCatalog().OrderedIds()[i]);
             if (!config || config->requiredRank != rank) {
                 continue;
             }
@@ -496,7 +497,7 @@ void PlayerEvolution::DrawTankCodex()
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.55f, 0.55f, 0.62f, 1.0f));
             }
             std::string label = config->displayName;
-            if (config->id == player_.currentClassId_) {
+            if (config->id == player_.GetCurrentClassId()) {
                 label += "  [Current]";
             } else if (locked) {
                 label += "  [Locked]";
@@ -815,12 +816,12 @@ void PlayerEvolution::InitializeEvolutionCircuitPrototype()
     ui_.evolutionCircuitDetailPreview_->Initialize(spriteCommon);
 
     ui_.evolutionCircuitSelectedNode_ = 0;
-    if (ui_.evolutionHistory_.empty() || ui_.evolutionHistory_.back() != player_.currentClassId_) {
+    if (ui_.evolutionHistory_.empty() || ui_.evolutionHistory_.back() != player_.GetCurrentClassId()) {
         ui_.evolutionHistory_.clear();
-        ui_.evolutionHistory_.push_back(player_.currentClassId_);
+        ui_.evolutionHistory_.push_back(player_.GetCurrentClassId());
     }
     for (size_t i = 0; i < ui_.evolutionCircuitNodes_.size(); ++i) {
-        if (ui_.evolutionCircuitNodes_[i].classId == player_.currentClassId_) {
+        if (ui_.evolutionCircuitNodes_[i].classId == player_.GetCurrentClassId()) {
             ui_.evolutionCircuitSelectedNode_ = static_cast<int>(i);
             break;
         }
@@ -833,14 +834,14 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
     if (!ShouldUseEvolutionCircuitPrototype()) {
         return;
     }
-    if (player_.input_ && player_.input_->IsTrigger(player_.input_->GetKey()[DIK_ESCAPE], player_.input_->GetPreKey()[DIK_ESCAPE])) {
-        player_.isChangeMode_ = false;
-        player_.evolutionCancelledEvent_ = true;
+    if (player_.GetInput() &&
+        player_.GetInput()->IsTrigger(player_.GetInput()->GetKey()[DIK_ESCAPE], player_.GetInput()->GetPreKey()[DIK_ESCAPE])) {
+        player_.CancelEvolutionMode();
         return;
     }
-    if (ui_.evolutionHistory_.empty() || ui_.evolutionHistory_.back() != player_.currentClassId_) {
+    if (ui_.evolutionHistory_.empty() || ui_.evolutionHistory_.back() != player_.GetCurrentClassId()) {
         ui_.evolutionHistory_.clear();
-        ui_.evolutionHistory_.push_back(player_.currentClassId_);
+        ui_.evolutionHistory_.push_back(player_.GetCurrentClassId());
     }
 
     constexpr float kTreeLeft = 174.0f;
@@ -849,7 +850,7 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
     constexpr float kTreeBottom = 498.0f;
     constexpr myEngine::Vector2 kNodeSize{158.0f, 64.0f};
     const float renderScale = GetEvolutionRenderScale();
-    const myEngine::Vector2 mouseVirtual = EvolutionClientToVirtual(player_.mousePosition_);
+    const myEngine::Vector2 mouseVirtual = EvolutionClientToVirtual(player_.GetMousePosition());
     const auto findNodeIndex = [&](const std::string& id) -> int {
         for (size_t i = 0; i < ui_.evolutionCircuitNodes_.size(); ++i) {
             if (ui_.evolutionCircuitNodes_[i].classId == id && player_.IsEvolutionClassVisible(id)) {
@@ -879,22 +880,22 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
             break;
         }
     }
-    const bool primaryTriggered = player_.input_ && player_.input_->IsTrigger(player_.input_->GetMouseState().rgbButtons[0],
-                                                                              player_.input_->GetPreMouseState().rgbButtons[0]);
+    const bool primaryTriggered = player_.GetInput() && player_.GetInput()->IsTrigger(player_.GetInput()->GetMouseState().rgbButtons[0],
+                                                                                      player_.GetInput()->GetPreMouseState().rgbButtons[0]);
     if (primaryTriggered && ui_.evolutionCircuitHoveredNode_ >= 0) {
         ui_.evolutionCircuitSelectedNode_ = ui_.evolutionCircuitHoveredNode_;
     }
     ui_.evolutionCircuitSelectedNode_ =
         (std::clamp)(ui_.evolutionCircuitSelectedNode_, 0, static_cast<int>(ui_.evolutionCircuitNodes_.size()) - 1);
     if (!player_.IsEvolutionClassVisible(ui_.evolutionCircuitNodes_[static_cast<size_t>(ui_.evolutionCircuitSelectedNode_)].classId)) {
-        const int currentNode = findNodeIndex(player_.currentClassId_);
+        const int currentNode = findNodeIndex(player_.GetCurrentClassId());
         if (currentNode >= 0) {
             ui_.evolutionCircuitSelectedNode_ = currentNode;
         }
     }
     const std::string& selectedClassId = ui_.evolutionCircuitNodes_[static_cast<size_t>(ui_.evolutionCircuitSelectedNode_)].classId;
-    const bool confirmTriggered =
-        player_.input_ && player_.input_->IsTrigger(player_.input_->GetKey()[DIK_RETURN], player_.input_->GetPreKey()[DIK_RETURN]);
+    const bool confirmTriggered = player_.GetInput() && player_.GetInput()->IsTrigger(player_.GetInput()->GetKey()[DIK_RETURN],
+                                                                                      player_.GetInput()->GetPreKey()[DIK_RETURN]);
     if (confirmTriggered && player_.CanEvolveTo(selectedClassId)) {
         player_.TryConfirmEvolutionById(selectedClassId);
         return;
@@ -922,7 +923,7 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
     ui_.evolutionCircuitDetailPanelSprite_->SetColor({0.012f, 0.030f, 0.052f, 0.96f});
     ui_.evolutionCircuitDetailPanelSprite_->Update();
 
-    const float pulse = 0.82f + std::sin(player_.evolutionUiTimer_ * 3.0f) * 0.18f;
+    const float pulse = 0.82f + std::sin(player_.GetEvolutionUiTimer() * 3.0f) * 0.18f;
     for (size_t i = 0; i < ui_.evolutionCircuitNodes_.size(); ++i) {
         const PlayerClassConfig* config = player_.GetClassConfig(ui_.evolutionCircuitNodes_[i].classId);
         if (!config || !ui_.evolutionCircuitTankButtons_[i] || !ui_.tankButtonUiStyle_) {
@@ -931,12 +932,12 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
         if (!player_.IsEvolutionClassVisible(config->id)) {
             continue;
         }
-        const bool isCurrent = ui_.evolutionCircuitNodes_[i].classId == player_.currentClassId_;
+        const bool isCurrent = ui_.evolutionCircuitNodes_[i].classId == player_.GetCurrentClassId();
         const bool isSelected = static_cast<int>(i) == ui_.evolutionCircuitSelectedNode_;
         const bool isHovered = static_cast<int>(i) == ui_.evolutionCircuitHoveredNode_;
-        const bool hasDirectEdge = player_.HasEvolutionEdge(player_.currentClassId_, config->id);
+        const bool hasDirectEdge = player_.HasEvolutionEdge(player_.GetCurrentClassId(), config->id);
         const bool available = player_.CanEvolveTo(config->id);
-        const bool rankLocked = hasDirectEdge && player_.GetRankFromLevel(player_.level_) < config->requiredRank;
+        const bool rankLocked = hasDirectEdge && player_.GetRankFromLevel(player_.GetLevel()) < config->requiredRank;
         myEngine::Vector4 nodeColor{0.30f, 0.36f, 0.40f, 0.48f};
         if (available) {
             nodeColor = {0.58f, 0.78f, 0.84f, 0.76f};
@@ -1138,12 +1139,13 @@ void PlayerEvolution::UpdateEvolutionCircuitPrototype()
         }
     }
     std::string stateHint = "PREVIEW MODE     ESC  閉じる";
-    if (selected && selected->id == player_.currentClassId_) {
+    if (selected && selected->id == player_.GetCurrentClassId()) {
         stateHint = "CURRENT CLASS     ESC  閉じる";
     } else if (selected && player_.CanEvolveTo(selected->id)) {
         stateHint = "ENTER  進化     ESC  閉じる";
     } else if (selected && current && player_.HasEvolutionEdge(current->id, selected->id) &&
-               selected->requiredRank == current->requiredRank + 1 && player_.GetRankFromLevel(player_.level_) < selected->requiredRank) {
+               selected->requiredRank == current->requiredRank + 1 &&
+               player_.GetRankFromLevel(player_.GetLevel()) < selected->requiredRank) {
         stateHint = "RANK " + std::to_string(selected->requiredRank) + " REQUIRED     ESC  閉じる";
     }
     myEngine::TextStyle hintStyle = makeTextStyle(12.5f, {0.46f, 0.68f, 0.74f, 0.76f});
@@ -1199,7 +1201,7 @@ bool PlayerEvolution::ShouldUseStaticEvolutionPrototype() const
         return false;
     }
     const int targetRank = current->requiredRank + 1;
-    for (const std::string& id : player_.classCatalog_.OrderedIds()) {
+    for (const std::string& id : player_.GetClassCatalog().OrderedIds()) {
         const PlayerClassConfig* config = player_.GetClassConfig(id);
         if (config && config->requiredRank == targetRank && player_.IsRunCompatibleClass(*config)) {
             return true;
@@ -1219,7 +1221,7 @@ void PlayerEvolution::RefreshStaticEvolutionCandidates()
         return;
     }
     const int targetRank = current->requiredRank + 1;
-    for (const std::string& id : player_.classCatalog_.OrderedIds()) {
+    for (const std::string& id : player_.GetClassCatalog().OrderedIds()) {
         const PlayerClassConfig* config = player_.GetClassConfig(id);
         if (!config || config->requiredRank != targetRank || config->id == current->id || !player_.IsRunCompatibleClass(*config)) {
             continue;
@@ -1465,15 +1467,15 @@ void PlayerEvolution::UpdateStaticEvolutionPrototype()
     if (ui_.staticEvolutionCandidateCount_ == 0) {
         return;
     }
-    if (player_.input_ && player_.input_->IsTrigger(player_.input_->GetKey()[DIK_ESCAPE], player_.input_->GetPreKey()[DIK_ESCAPE])) {
-        player_.isChangeMode_ = false;
-        player_.evolutionCancelledEvent_ = true;
+    if (player_.GetInput() &&
+        player_.GetInput()->IsTrigger(player_.GetInput()->GetKey()[DIK_ESCAPE], player_.GetInput()->GetPreKey()[DIK_ESCAPE])) {
+        player_.CancelEvolutionMode();
         return;
     }
 
     const size_t activeNodeCount = ui_.staticEvolutionCandidateCount_ + 1;
     const float renderScale = GetEvolutionRenderScale();
-    const myEngine::Vector2 mouseVirtual = EvolutionClientToVirtual(player_.mousePosition_);
+    const myEngine::Vector2 mouseVirtual = EvolutionClientToVirtual(player_.GetMousePosition());
     const auto& activeAnchors =
         ui_.evolutionUiStyle_.radialLayout ? ui_.evolutionUiStyle_.radialNodeAnchors : ui_.evolutionUiStyle_.nodeAnchors;
 
@@ -1511,8 +1513,8 @@ void PlayerEvolution::UpdateStaticEvolutionPrototype()
             break;
         }
     }
-    const bool primaryTriggered = player_.input_ && player_.input_->IsTrigger(player_.input_->GetMouseState().rgbButtons[0],
-                                                                              player_.input_->GetPreMouseState().rgbButtons[0]);
+    const bool primaryTriggered = player_.GetInput() && player_.GetInput()->IsTrigger(player_.GetInput()->GetMouseState().rgbButtons[0],
+                                                                                      player_.GetInput()->GetPreMouseState().rgbButtons[0]);
     if (primaryTriggered && ui_.staticEvolutionHoveredNode_ > 0) {
         ui_.evolutionUiStyle_.fixedSelectedCandidate = ui_.staticEvolutionHoveredNode_ - 1;
     }
@@ -1523,11 +1525,11 @@ void PlayerEvolution::UpdateStaticEvolutionPrototype()
     ui_.staticEvolutionBackdropSprite_->SetColor({0.005f, 0.012f, 0.025f, ui_.evolutionUiStyle_.backgroundDimOpacity});
     ui_.staticEvolutionBackdropSprite_->Update();
 
-    const int currentRank = player_.GetRankFromLevel(player_.level_);
+    const int currentRank = player_.GetRankFromLevel(player_.GetLevel());
     for (size_t i = 0; i < activeNodeCount; ++i) {
         const bool selected = i > 0 && i - 1 == ui_.evolutionUiStyle_.fixedSelectedCandidate;
         const bool hovered = i == ui_.staticEvolutionHoveredNode_;
-        const std::string& nodeClassId = i == 0 ? player_.currentClassId_ : ui_.staticEvolutionCandidateIds_[i - 1];
+        const std::string& nodeClassId = i == 0 ? player_.GetCurrentClassId() : ui_.staticEvolutionCandidateIds_[i - 1];
         const PlayerClassConfig* candidateConfig = i > 0 ? player_.GetClassConfig(nodeClassId) : nullptr;
         const PlayerClassConfig* nodeConfig = player_.GetClassConfig(nodeClassId);
         const bool locked = candidateConfig && currentRank < candidateConfig->requiredRank;
@@ -1669,8 +1671,8 @@ void PlayerEvolution::UpdateStaticEvolutionPrototype()
     // 転送処理がコマンドリストをResetするため、必ずUpdate段階で同期しておく。
     PrepareStaticEvolutionTextTextures();
 
-    const bool confirmTriggered =
-        player_.input_ && player_.input_->IsTrigger(player_.input_->GetKey()[DIK_RETURN], player_.input_->GetPreKey()[DIK_RETURN]);
+    const bool confirmTriggered = player_.GetInput() && player_.GetInput()->IsTrigger(player_.GetInput()->GetKey()[DIK_RETURN],
+                                                                                      player_.GetInput()->GetPreKey()[DIK_RETURN]);
     if (canConfirm && (confirmTriggered || (primaryTriggered && ui_.staticEvolutionConfirmHovered_))) {
         player_.TryConfirmEvolutionById(selectedClassId);
     }
@@ -1720,7 +1722,7 @@ void PlayerEvolution::UpdateStaticEvolutionCircuit()
         ui_.staticEvolutionBranchCoreSprite_->Update();
     }
 
-    const int currentRank = player_.GetRankFromLevel(player_.level_);
+    const int currentRank = player_.GetRankFromLevel(player_.GetLevel());
     const float renderScale = GetEvolutionRenderScale();
     size_t spriteIndex = 0;
     auto setLine = [&](myEngine::Sprite* sprite, const myEngine::Vector2& a, const myEngine::Vector2& b, float width,
@@ -1789,7 +1791,7 @@ void PlayerEvolution::UpdateStaticEvolutionCircuit()
 
 void PlayerEvolution::UpdateStaticEvolutionNodeFrames()
 {
-    const int currentRank = player_.GetRankFromLevel(player_.level_);
+    const int currentRank = player_.GetRankFromLevel(player_.GetLevel());
     const float renderScale = GetEvolutionRenderScale();
     auto setLine = [&](myEngine::Sprite* sprite, const myEngine::Vector2& a, const myEngine::Vector2& b, float width,
                        const myEngine::Vector4& color) {
@@ -1873,14 +1875,14 @@ void PlayerEvolution::UpdateStaticEvolutionSilhouettes()
         myEngine::Vector2 b{};
     };
 
-    const int currentRank = player_.GetRankFromLevel(player_.level_);
+    const int currentRank = player_.GetRankFromLevel(player_.GetLevel());
     const float renderScale = GetEvolutionRenderScale();
     constexpr float kTwoPi = 6.283185307f;
 
     const int activeNodeCount = static_cast<int>(ui_.staticEvolutionCandidateCount_ + 1);
     for (int nodeIndex = 0; nodeIndex < activeNodeCount; ++nodeIndex) {
         const std::string& nodeClassId =
-            nodeIndex == 0 ? player_.currentClassId_ : ui_.staticEvolutionCandidateIds_[static_cast<size_t>(nodeIndex - 1)];
+            nodeIndex == 0 ? player_.GetCurrentClassId() : ui_.staticEvolutionCandidateIds_[static_cast<size_t>(nodeIndex - 1)];
         const PlayerClassConfig* config = player_.GetClassConfig(nodeClassId);
         std::array<SilhouetteSegment, PlayerUiState::kStaticEvolutionSilhouetteSpriteCount> segments{};
         size_t segmentCount = 0;
@@ -2043,12 +2045,13 @@ void PlayerEvolution::UpdateStaticEvolutionText()
              EvolutionVirtualToRender({ui_.evolutionUiStyle_.virtualResolution.x - safe, safe * 0.72f}), bodyStyle);
     ui_.staticEvolutionPrototypeLabel_->SetAnchorPoint({1.0f, 0.0f});
 
-    const int currentRank = player_.GetRankFromLevel(player_.level_);
+    const int currentRank = player_.GetRankFromLevel(player_.GetLevel());
     const int activeNodeCount = static_cast<int>(ui_.staticEvolutionCandidateCount_ + 1);
     for (int i = 0; i < activeNodeCount; ++i) {
         const bool selected = i > 0 && i - 1 == ui_.evolutionUiStyle_.fixedSelectedCandidate;
         const bool hovered = i == ui_.staticEvolutionHoveredNode_;
-        const std::string& nodeClassId = i == 0 ? player_.currentClassId_ : ui_.staticEvolutionCandidateIds_[static_cast<size_t>(i - 1)];
+        const std::string& nodeClassId =
+            i == 0 ? player_.GetCurrentClassId() : ui_.staticEvolutionCandidateIds_[static_cast<size_t>(i - 1)];
         const PlayerClassConfig* config = player_.GetClassConfig(nodeClassId);
         const bool locked = i > 0 && config && currentRank < config->requiredRank;
         myEngine::Vector4 textColor = ui_.evolutionUiStyle_.classTextColor;
@@ -2632,7 +2635,7 @@ void PlayerEvolution::DrawStaticEvolutionPrototype()
 
 void PlayerEvolution::DrawEvolutionAfterPostEffects()
 {
-    if (!ui_.arenaUiEnabled_ || !player_.isChangeMode_) {
+    if (!ui_.arenaUiEnabled_ || !player_.IsChangeMode()) {
         return;
     }
     if (ShouldUseEvolutionCircuitPrototype()) {

@@ -2,6 +2,7 @@
 #include "StartupTrace.h"
 
 #include <algorithm>
+#include <cstdio>
 
 #pragma comment(lib, "winmm.lib")
 
@@ -84,6 +85,16 @@ bool WinApp::ConsumeActivationChanged()
 
 void WinApp::Initialize()
 {
+    // WIC・Media Foundation・XAudio2などが使うCOMを、メインスレッドでマルチスレッドアパートメントとして初期化する。
+    const HRESULT comResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    comInitialized_ = SUCCEEDED(comResult);
+    if (!comInitialized_) {
+        // 別の方式で初期化済み（RPC_E_CHANGED_MODE）などでも起動は続ける。COMを使う側がそれぞれ失敗を返す。
+        char message[96]{};
+        std::snprintf(message, sizeof(message), "[WinApp] CoInitializeEx failed: 0x%08lX\n", static_cast<unsigned long>(comResult));
+        OutputDebugStringA(message);
+    }
+
     // 表示スケール（125%など）でWindowsがウィンドウ画像を拡大してぼかさないよう、実画素で描く。
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
@@ -137,7 +148,10 @@ void WinApp::Initialize()
 void WinApp::Finalize()
 {
     CloseWindow(hwnd_);
-    CoUninitialize();
+    if (comInitialized_) {
+        CoUninitialize();
+        comInitialized_ = false;
+    }
 }
 
 } // namespace myEngine

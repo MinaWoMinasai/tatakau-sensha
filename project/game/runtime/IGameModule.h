@@ -7,7 +7,6 @@ class SceneRegistry;
 /// @brief ゲームモジュールの識別子とシーン登録の共通契約を定義する。
 class IGameModule {
 public:
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     virtual ~IGameModule() = default;
 
     /// @brief 識別子を返す。

@@ -26,10 +26,8 @@ public:
     static constexpr float kTargetFps = 60.0f;
     static constexpr double kTargetFrameMs = 16.666667;
 
-    /// @brief インスタンスの初期値と利用先を設定する。
     FramePacer() = default;
 
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     ~FramePacer()
     {
         CloseTimer();

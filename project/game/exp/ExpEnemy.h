@@ -38,6 +38,12 @@ enum class ExpEnemyType {
 /// @brief 経験値を与える図形・戦闘敵と遠征資源の1体分のHP・移動・攻撃・表示を管理し、描画オブジェクトを所有する。
 class ExpEnemy : public Collider {
 public:
+    /// @brief 当たり判定で使う種類。ColliderCastで使う。
+    static constexpr ColliderKind kColliderKind = ColliderKind::ExpEnemy;
+
+    /// @brief 種類を設定して作る。
+    ExpEnemy() : Collider(kColliderKind) {}
+
     /// @brief 接触ダメージと射撃・索敵の共通設定を保持する。間隔は秒、弾速は60FPS基準の1フレーム当たりの距離。
     struct BalanceConfig {
         uint32_t contactDamage = 12;

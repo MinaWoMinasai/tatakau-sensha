@@ -8,7 +8,6 @@ namespace myEngine {
 /// @brief 描画先テクスチャとRTV/SRVを管理する。利用時は対応するリソース状態へ遷移させる。
 class RenderTexture {
 public:
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     ~RenderTexture();
 
     /// @brief 使用する資源と初期状態を用意する。呼び出し側で渡した利用先は、その利用期間中有効に保つ。

@@ -283,9 +283,7 @@ private:
         Particle particle;
     };
 
-    /// @brief インスタンスの初期値と利用先を設定する。
     ParticleManager() = default;
-    /// @brief この型の終了処理を行う。所有している資源の寿命を終了させる。
     ~ParticleManager() = default;
     /// @brief Easingを現在の状態へ適用する。
     float ApplyEasing(float t, EasingType type) const;

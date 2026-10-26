@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief DepthValidationの処理を担当し、同じプレイの共有状態を借用する。
 class DepthValidation {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit DepthValidation(GameWorld& world) : world_(world) {}
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     /// @brief Depthボス検証を初期化する。

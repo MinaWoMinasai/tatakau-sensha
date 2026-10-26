@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief ExpeditionBalanceEditorの処理を担当し、同じプレイの共有状態を借用する。
 class ExpeditionBalanceEditor {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit ExpeditionBalanceEditor(GameWorld& world) : world_(world) {}
 
     /// @brief 戦車遠征性能調整を初期化する。

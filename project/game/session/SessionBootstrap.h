@@ -6,10 +6,8 @@ namespace gameplay {
 /// @brief SessionBootstrapの処理を担当し、同じプレイの共有状態を借用する。
 class SessionBootstrap {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit SessionBootstrap(GameWorld& world) : world_(world) {}
 
-    /// @brief 初期化
     void Initialize();
     /// @brief 初期化を1ステップ進める。完了したらtrueを返す。
     bool InitializeStep();

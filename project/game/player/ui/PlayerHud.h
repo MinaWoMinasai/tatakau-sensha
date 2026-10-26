@@ -1,11 +1,12 @@
 #pragma once
+#include "game/player/ui/PlayerHudTarget.h"
 #include "game/player/ui/PlayerUiState.h"
 
-/// @brief PlayerHudの表示と入力を担当し、必要な自機の状態を借用する。
+/// @brief 強化HUDの表示と入力を担当する。自機にはPlayerHudTargetの操作だけで触れる。
 class PlayerHud {
 public:
     /// @brief 自機と画面状態を接続する。
-    PlayerHud(Player& player, PlayerUiState& ui) : player_(player), ui_(ui) {}
+    PlayerHud(PlayerHudTarget& player, PlayerUiState& ui) : player_(player), ui_(ui) {}
 
     using UiProfileStats = Player::UiProfileStats;
 #if defined(USE_IMGUI) && !defined(NDEBUG)
@@ -82,6 +83,6 @@ public:
     bool SaveUpgradeHudConfig(const std::string& path = "resources/configs/playerUpgradeHud.json") const;
 
 private:
-    Player& player_;
+    PlayerHudTarget& player_;
     PlayerUiState& ui_;
 };

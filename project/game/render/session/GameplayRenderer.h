@@ -5,10 +5,8 @@ namespace gameplay {
 /// @brief GameplayRendererの処理を担当し、同じプレイの共有状態を借用する。
 class GameplayRenderer {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit GameplayRenderer(GameWorld& world) : world_(world) {}
 
-    /// @brief 描画
     void Draw();
 
     /// @brief 影を描画する。

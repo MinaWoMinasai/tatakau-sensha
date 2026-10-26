@@ -7,7 +7,6 @@ namespace myEngine {
 /// @brief ビュー行列・射影行列とカメラの位置・姿勢を管理する。
 class Camera {
 public:
-    /// @brief インスタンスの初期値と利用先を設定する。
     Camera();
 
     // 更新

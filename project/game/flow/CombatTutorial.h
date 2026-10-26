@@ -5,7 +5,6 @@ namespace gameplay {
 /// @brief CombatTutorialの処理を担当し、同じプレイの共有状態を借用する。
 class CombatTutorial {
 public:
-    /// @brief 借用するワールドを設定する。
     explicit CombatTutorial(GameWorld& world) : world_(world) {}
 
     /// @brief 提出版UIを初期化する。
