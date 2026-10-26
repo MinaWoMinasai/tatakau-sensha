@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include "FixedTimestep.h"
 #include <cmath>
 #include "Calculation.h"
 
@@ -8,7 +9,7 @@
 struct PlayerMovementInput {
     myEngine::Vector3 direction{}, velocity{};
     float moveSpeed = 0.2f, acceleration = 2.5f, deceleration = 3.5f;
-    float deltaTime = 1.0f / 60.0f;
+    float deltaTime = myEngine::kFixedStepSeconds;
     bool runEnabled = false, dashing = false, railHeld = false, spinActive = false;
 };
 
@@ -41,7 +42,7 @@ inline PlayerMovementStep CalculatePlayerMovement(const PlayerMovementInput& inp
     } else {
         result.velocity += (targetVelocity - result.velocity) * accel * input.deltaTime;
     }
-    const float timeWeight = input.deltaTime * 60.0f;
+    const float timeWeight = input.deltaTime * myEngine::kFixedStepsPerSecond;
     const myEngine::Vector3 frameMove = result.velocity * timeWeight;
     constexpr float maxStep = 0.35f;
     result.subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(frameMove.x), std::abs(frameMove.y)) / maxStep) + 1);

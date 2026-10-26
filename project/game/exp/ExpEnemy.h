@@ -1,5 +1,6 @@
 #pragma once
 #include "Collider.h"
+#include "FixedTimestep.h"
 #include "Object3d.h"
 #include "AttackController.h"
 #include "ExpEnemyCombatCycle.h"
@@ -501,7 +502,7 @@ private:
     float decel_ = 3.5f; // 現在の減衰処理では参照していない設定。
 
     // 最後のUpdateの秒数。接触ノックバックの60FPS基準への換算にも使う。
-    float dt_ = 1.0f / 60.0f;
+    float dt_ = myEngine::kFixedStepSeconds;
 
     // 自機本体との接触ダメージだけを抑える残り秒数。弾・直接ダメージには適用しない。
     float invincibleTimer_ = 0.0f;

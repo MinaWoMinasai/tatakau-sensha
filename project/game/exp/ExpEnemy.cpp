@@ -1,4 +1,5 @@
 #include "game/weapon/CombatTypes.h"
+#include "FixedTimestep.h"
 #include "ExpEnemy.h"
 #include "Enemy.h"
 #include "Player.h"
@@ -367,7 +368,7 @@ void ExpEnemy::Update(Stage& stage, float deltaTime)
     // --- 慣性処理 ---
     velocity_ += (velocity_ * -1.0f) * 0.98f * deltaTime;
 
-    float timeWeight = deltaTime * 60.0f;
+    float timeWeight = deltaTime * myEngine::kFixedStepsPerSecond;
 
     // 図形とShooterの外部衝撃速度を60FPS基準から変位へ換算する。
     // 移動戦闘役と同じ細分化した地形補正を通し、壁を飛び越えにくくする。
@@ -800,7 +801,7 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
         if (myEngine::Length(velocity_) > 0.95f) {
             velocity_ = myEngine::Normalize(velocity_) * 0.95f;
         }
-        MoveCombatActor(stage, velocity_ * (dt * 60.0f));
+        MoveCombatActor(stage, velocity_ * (dt * myEngine::kFixedStepsPerSecond));
         velocity_ = velocity_ * std::exp(-5.0f * dt);
     }
     worldTransform_.rotate = {0, 0, std::atan2(aimDirection_.x, -aimDirection_.y)};
@@ -1129,7 +1130,7 @@ void ExpEnemy::OnCollision(Collider* other)
 
     // 接触による速度加算はダメージ可否や自機接触の無敵判定より先に行う。位置は後のUpdateで進める。
     if (!isRunResource_) {
-        velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * 60.0f);
+        velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * myEngine::kFixedStepsPerSecond);
     }
     if (type_ == ExpEnemyType::Charger && otherAttribute == kCollisionAttributePlayer &&
         combatCycle_.GetPhase() == ExpEnemyCombatPhase::Active) {

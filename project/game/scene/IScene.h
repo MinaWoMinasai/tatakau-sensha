@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "FixedTimestep.h"
 #include "Struct.h"
 #include "PostEffectSettings.h"
 
@@ -93,7 +94,7 @@ public:
     /// @brief 最終差分時間を返す。
     virtual float GetFinalDeltaTime() const
     {
-        return 1.0f / 60.0f;
+        return myEngine::kFixedStepSeconds;
     } // デフォルトは60FPS
 
     virtual float GetPostGaussianIntensity() const

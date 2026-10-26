@@ -1,4 +1,5 @@
 #include "Input.h"
+#include "FixedTimestep.h"
 #include "WinApp.h"
 #include <algorithm>
 #include <cmath>
@@ -122,6 +123,29 @@ void Input::BeforeFrameData()
         ++promptRevision_;
     }
 
+    gameplayContext_ = gameplayContextRequested_;
+    gameplayContextRequested_ = false;
+    if (gamepadConnected_) {
+        TranslateGamepad();
+    }
+    UpdateVibration();
+}
+
+void Input::RepeatFrameData()
+{
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    validationFrame_ = false;
+#endif
+    ZeroMemory(frameKeyPress_, sizeof(frameKeyPress_));
+    memcpy(preKey_, key_, sizeof(key_));
+    memcpy(&preMouseState_, &mouseState_, sizeof(DIMOUSESTATE));
+    // 相対移動とホイールは1回目のステップで使い切っている。
+    mouseState_.lX = 0;
+    mouseState_.lY = 0;
+    mouseState_.lZ = 0;
+    previousGamepadState_ = currentGamepadState_;
+
+    // ゲームパッドの割り当ては、ステップごとの文脈（戦闘中かメニューか）とオートリピートの間隔に合わせて進める。
     gameplayContext_ = gameplayContextRequested_;
     gameplayContextRequested_ = false;
     if (gamepadConnected_) {
@@ -369,7 +393,7 @@ void Input::Vibrate(float lowFrequency, float highFrequency, float seconds)
 void Input::UpdateVibration()
 {
     if (vibrationSeconds_ > 0.0f && gamepadConnected_) {
-        vibrationSeconds_ -= 1.0f / 60.0f;
+        vibrationSeconds_ -= kFixedStepSeconds; // 入力の更新は固定ステップ1回ごとに呼ばれる
         XINPUT_VIBRATION vibration{};
         vibration.wLeftMotorSpeed = static_cast<WORD>(vibrationLow_ * 65535.0f);
         vibration.wRightMotorSpeed = static_cast<WORD>(vibrationHigh_ * 65535.0f);

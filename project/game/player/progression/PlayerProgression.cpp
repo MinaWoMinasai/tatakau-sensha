@@ -1,4 +1,5 @@
 #include "game/player/progression/PlayerProgression.h"
+#include "FixedTimestep.h"
 #include "game/player/combat/PlayerSystems.h"
 #include "game/player/ui/PlayerPresentation.h"
 #include "game/weapon/CombatTypes.h"
@@ -817,8 +818,8 @@ Player::RunCombatSnapshot PlayerProgression::GetRunCombatSnapshot() const
     if (!player_.IsDroneBuild() && !player_.IsMeleeBuild() && !config->barrels.empty()) {
         result.shotDamage = (std::max)(1.0f, std::round(result.shotDamage * config->barrels.front().damageScale));
     }
-    result.reloadSeconds = player_.stats_.reloadSpeed / 60.0f * config->reloadScale * player_.GetRunFireIntervalScale() *
-                           (player_.isBuffActive_ ? 0.7f : 1.0f);
+    result.reloadSeconds = player_.stats_.reloadSpeed / myEngine::kFixedStepsPerSecond * config->reloadScale *
+                           player_.GetRunFireIntervalScale() * (player_.isBuffActive_ ? 0.7f : 1.0f);
     if (player_.IsDroneBuild()) {
         const auto tuning = MakeTankDroneTuning(player_.runModifiers_, true);
         result.shotDamage =

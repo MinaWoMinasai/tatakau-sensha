@@ -31,6 +31,9 @@ public:
 
     /// @brief 前のデータの保存
     void BeforeFrameData();
+    /// @brief 同じ描画フレームの中で、2回目以降の固定ステップの前に呼ぶ。デバイスは読み直さない。
+    /// @note 押し続けている状態は保ち、押した瞬間・離した瞬間は1回目のステップだけで扱う。マウスの移動量は0にする。
+    void RepeatFrameData();
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     // 検証用ドライバは、このフレームに限りハードウェアの状態を置き換えられる。
     // 次のBeforeFrameDataで通常のポーリングに戻る。

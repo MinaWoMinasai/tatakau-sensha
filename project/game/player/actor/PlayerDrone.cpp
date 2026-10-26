@@ -1,4 +1,5 @@
 #include "game/weapon/CombatTypes.h"
+#include "FixedTimestep.h"
 #include "PlayerDrone.h"
 #include "game/enemy/visual/NeonDepthPlacement.h"
 #include "Stage.h"
@@ -220,7 +221,7 @@ void PlayerDrone::Update(myEngine::Camera* viewProjection, Stage& stage, const m
     }
 
     // 速度を基準フレームから今回の移動量へ換算し、細分化してX・Yの順に地形へ通知する。
-    myEngine::Vector3 frameMove = GetMove() * (dt * 60.0f);
+    myEngine::Vector3 frameMove = GetMove() * (dt * myEngine::kFixedStepsPerSecond);
     const float maxStep = 0.30f;
     const int subStepCount = (std::max)(1, static_cast<int>((std::max)(std::abs(frameMove.x), std::abs(frameMove.y)) / maxStep) + 1);
     myEngine::Vector3 stepMove = frameMove / static_cast<float>(subStepCount);

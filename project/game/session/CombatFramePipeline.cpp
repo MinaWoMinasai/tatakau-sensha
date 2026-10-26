@@ -1,4 +1,5 @@
 #include "game/session/CombatFramePipeline.h"
+#include "FixedTimestep.h"
 #include "game/render/settings/ArenaCameraProfile.h"
 #include "game/session/GameplaySystems.h"
 #include "game/weapon/CombatTypes.h"
@@ -70,14 +71,15 @@ void CombatFramePipeline::Update()
                     (presentation.bloomViewFreeze_ ? "   ■ 一時停止中 [V]で再開" : "   [B]切替  [V]一時停止"));
             }
         }
-        presentation.bloomViewLabelTimer_ = (std::max)(0.0f, presentation.bloomViewLabelTimer_ - 1.0f / 60.0f);
+        presentation.bloomViewLabelTimer_ = (std::max)(0.0f, presentation.bloomViewLabelTimer_ - myEngine::kFixedStepSeconds);
         if (presentation.bloomViewFreeze_) {
             return; // フレームを止める: 同じ状態のまま描画は続くので、同じ瞬間で表示を比べられる。
         }
     }
 
-    // 通常の基準時間は1/60秒。検証では指定した固定時間でメニュー・演出も進める。
-    float baseDeltaTime = 1.0f / 60.0f;
+    // この更新は固定ステップ1回分（1/60秒）。実時間に合わせて何回回すかはApplicationが決める。
+    // 検証では指定した固定時間でメニュー・演出も進める。
+    float baseDeltaTime = myEngine::kFixedStepSeconds;
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     world_.resources.gameplayScenarioCombatDt_ = world_.resources.gameplayScenarioPresentationDt_ = 0.0f;
     if (GameplayScenarioSession::Get().IsActive()) {
@@ -186,6 +188,7 @@ void CombatFramePipeline::Update()
     if (requestedTimeScale < world_.combat.timeScale_) {
         world_.combat.timeScale_ = requestedTimeScale;
     } else {
+        // 固定ステップ1回ごとに残りの12%ずつ戻す。ステップは実時間に合わせて回るので、戻る速さはFPSによらない。
         world_.combat.timeScale_ += (1.0f - world_.combat.timeScale_) * 0.12f;
     }
 
@@ -196,7 +199,7 @@ void CombatFramePipeline::Update()
         world_.combat.finalDeltaTime *= 0.08f;
     }
     // 時間倍率が基準時間の95%を超え、命中時の停止も終わったら基準時間へ戻す。
-    bool restoreBaseTime = world_.combat.finalDeltaTime * 60.0f > 0.95f;
+    bool restoreBaseTime = world_.combat.finalDeltaTime * myEngine::kFixedStepsPerSecond > 0.95f;
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (GameplayScenarioSession::Get().IsActive()) {
         restoreBaseTime = gameplaytest::ScenarioShouldSnapTimeScale(world_.combat.finalDeltaTime, baseDeltaTime);

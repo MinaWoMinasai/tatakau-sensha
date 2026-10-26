@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "FixedTimestep.h"
 #include "Dump.h"
 #include "DeveloperTools.h"
 #include "../scene/SceneFactory.h"
@@ -15,10 +16,14 @@
 #include "ResourcePaths.h"
 #include "ModelManager.h"
 #include "ParticleManager.h"
+#include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <thread>
 #include <utility>
@@ -430,6 +435,40 @@ int Application::MainLoop()
     const bool startupValidation = testEnabled("MYENGINE_STARTUP_AUTOTEST");
     const bool backgroundValidation = startupValidation || hooks_.IsBackgroundValidationActive();
     const std::string startupValidationScene(hooks_.GetStartupValidationSceneName());
+
+    // 通常のプレイでは、実時間を測って1/60秒の固定ステップを必要な回数だけ回し、描画は1回にする。
+    // 決定的な検証（シナリオ・自動テスト）は、今までどおり描画1回につき固定ステップ1回で進める。
+    bool oneStepPerFrame = backgroundValidation;
+    bool keepRunningWhenInactive = backgroundValidation;
+    // 開発用: MYENGINE_TIMESTEP_TEST_SECONDS 秒だけ実時間の方式で動かし、ステップ数を書き出して終了する。
+    // MYENGINE_DEBUG_FRAME_DELAY_MS は、描画1回ごとに指定ミリ秒待って低いFPSを再現する。
+    double timestepTestSeconds = 0.0;
+    int debugFrameDelayMs = 0;
+    if (myEngine::kDeveloperTools) {
+        char value[32]{};
+        if (GetEnvironmentVariableA("MYENGINE_TIMESTEP_TEST_SECONDS", value, sizeof(value)) > 0) {
+            timestepTestSeconds = std::atof(value);
+        }
+        if (GetEnvironmentVariableA("MYENGINE_DEBUG_FRAME_DELAY_MS", value, sizeof(value)) > 0) {
+            debugFrameDelayMs = (std::max)(0, std::atoi(value));
+        }
+        if (timestepTestSeconds > 0.0) {
+            oneStepPerFrame = false;
+            keepRunningWhenInactive = true;
+        }
+    }
+    myEngine::FixedTimestep fixedTimestep;
+
+    struct TimestepTestStats {
+        bool started = false;
+        std::chrono::steady_clock::time_point start{};
+        long long frames = 0;
+        long long steps = 0;
+        long long zeroStepFrames = 0;
+        long long multiStepFrames = 0;
+        int maxSteps = 0;
+    } timestepTest;
+
     hooks_.OnMainLoopStarting();
     MSG msg{};
     std::string lastPresentedScene;
@@ -469,6 +508,7 @@ int Application::MainLoop()
             if (myEngine::WinApp::GetInstance()->ConsumeActivationChanged()) {
                 myEngine::Input::GetInstance()->OnFocusChanged(myEngine::WinApp::GetInstance()->IsActive());
                 dxCommon_->ResetFixFPS();
+                fixedTimestep.Reset();
             }
         }
         if (msg.message == WM_QUIT) {
@@ -479,20 +519,33 @@ int Application::MainLoop()
         myEngine::Input* input = myEngine::Input::GetInstance();
         myEngine::WinApp* winApp = myEngine::WinApp::GetInstance();
 
-        if (!winApp->IsActive() && !backgroundValidation) {
+        if (!winApp->IsActive() && !keepRunningWhenInactive) {
             dxCommon_->ResetFixFPS();
+            fixedTimestep.Reset();
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
             continue;
         }
 
-        const auto inputImGuiStart = std::chrono::steady_clock::now();
-        // 前のフレームのキー状態を保存
-        input->BeforeFrameData();
-        // デバイスが切り替わったら、描画コマンドの記録の外で今すぐ操作案内を描き直す。
-        myEngine::TextLabel::RefreshAllInputPrompts();
-        hooks_.OnFrameInputReady(*input);
         auto* scenes = SceneManager::GetInstance();
-        if (!engineReady_ || scenes->UsesSimpleRendering()) {
+        const bool simpleRendering = !engineReady_ || scenes->UsesSimpleRendering();
+        // この描画までに回す固定ステップの回数。0回なら更新せず、前の状態をもう一度描く。
+        int steps = 1;
+        if (simpleRendering) {
+            // 読み込み中は描画1回につき更新1回。読み込みが終わった直後に、待っていた時間をまとめて進めない。
+            fixedTimestep.Reset();
+        } else if (!oneStepPerFrame) {
+            steps = fixedTimestep.Advance(frameStart);
+        }
+
+        const auto inputImGuiStart = std::chrono::steady_clock::now();
+        if (steps > 0) {
+            // 前のフレームのキー状態を保存。更新しない描画では読まず、押した瞬間を次の更新まで残す。
+            input->BeforeFrameData();
+            // デバイスが切り替わったら、描画コマンドの記録の外で今すぐ操作案内を描き直す。
+            myEngine::TextLabel::RefreshAllInputPrompts();
+            hooks_.OnFrameInputReady(*input);
+        }
+        if (simpleRendering) {
             // 後回しにした処理を行う前に、必ずタイトルを1フレーム表示する。
             // この分岐では、シーン読み込み中も毎フレームメッセージと入力を処理する。
             if (!engineReady_ && !lastPresentedScene.empty()) {
@@ -541,9 +594,18 @@ int Application::MainLoop()
         auto& runtime = myEngine::RuntimeProfiler::Get();
         runtime.BeginFrame();
         const int gpuFrame = runtime.BeginGpu("GPU frame");
+        runtime.SetCounter("Fixed steps", static_cast<double>(steps));
 
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
-        if (imguiInitialized_) {
+        // ImGuiの画面は更新の中で組み立てる。更新しない描画では組み立て直さず、前回の描画データをそのまま使う。
+        const bool buildImGuiFrame = imguiInitialized_ && steps > 0;
+        auto beginImGuiFrame = [] {
+            ImGui::NewFrame();
+#ifdef USE_IMGUI
+            ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
+#endif
+        };
+        if (buildImGuiFrame) {
             ImGui_ImplDX12_NewFrame();
             ImGui_ImplWin32_NewFrame();
             {
@@ -556,65 +618,83 @@ int Application::MainLoop()
                                                         float(myEngine::WinApp::kRenderHeight) / io.DisplaySize.y);
                 }
             }
-            ImGui::NewFrame();
-#ifdef USE_IMGUI
-            ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
-#endif
+            beginImGuiFrame();
         }
 
 #endif // USE_IMGUI
         const float inputImGuiBeginMs = elapsedMs(inputImGuiStart, std::chrono::steady_clock::now());
 
-        const auto engineUpdateStart = std::chrono::steady_clock::now();
-        {
-            // エンジンはシーンを直接参照しないので、現在のシーンが求める画面効果の設定をここで渡す。
-            SceneManager* sceneManager = SceneManager::GetInstance();
-            myEngine::BloomFrameSettings bloomFrameSettings{};
-            bloomFrameSettings.water = sceneManager->GetWaterPostProcessSettings();
-            bloomFrameSettings.arenaLook = sceneManager->GetArenaLookSettings();
-            bloomFrameSettings.bloomView = sceneManager->GetBloomViewSettings();
-            bloomFrameSettings.deltaTime = sceneManager->GetFinalDeltaTime();
-            bloom_->Update(bloomFrameSettings);
-        }
+        float engineUpdateMs = 0.0f;
+        float sceneUpdateMs = 0.0f;
+        const std::string sceneBeforeSteps = scenes->GetCurrentSceneName();
+        for (int step = 0; step < steps; ++step) {
+            if (step > 0) {
+                // 同じ描画フレームの2回目以降の更新。押した瞬間を繰り返さず、ImGuiは最後の更新で組んだ画面だけを描く。
+                input->RepeatFrameData();
+#if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
+                if (imguiInitialized_) {
+                    ImGui::EndFrame();
+                    beginImGuiFrame();
+                }
+#endif
+            }
+            const auto engineUpdateStart = std::chrono::steady_clock::now();
+            {
+                // エンジンはシーンを直接参照しないので、現在のシーンが求める画面効果の設定をここで渡す。
+                myEngine::BloomFrameSettings bloomFrameSettings{};
+                bloomFrameSettings.water = scenes->GetWaterPostProcessSettings();
+                bloomFrameSettings.arenaLook = scenes->GetArenaLookSettings();
+                bloomFrameSettings.bloomView = scenes->GetBloomViewSettings();
+                bloomFrameSettings.deltaTime = scenes->GetFinalDeltaTime();
+                bloom_->Update(bloomFrameSettings);
+            }
 
 #ifdef USE_IMGUI
-        if (input->IsPress(input->GetKey()[DIK_LCONTROL]) && input->IsPress(input->GetKey()[DIK_LSHIFT]) &&
-            input->IsTrigger(input->GetKey()[DIK_D], input->GetPreKey()[DIK_D])) {
-            if (myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()) {
-                myEngine::Object3dCommon::GetInstance()->SetIsDebugCamera(false);
-            } else {
-                myEngine::Object3dCommon::GetInstance()->SetIsDebugCamera(true);
+            if (input->IsPress(input->GetKey()[DIK_LCONTROL]) && input->IsPress(input->GetKey()[DIK_LSHIFT]) &&
+                input->IsTrigger(input->GetKey()[DIK_D], input->GetPreKey()[DIK_D])) {
+                if (myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()) {
+                    myEngine::Object3dCommon::GetInstance()->SetIsDebugCamera(false);
+                } else {
+                    myEngine::Object3dCommon::GetInstance()->SetIsDebugCamera(true);
+                }
             }
-        }
 #endif // USE_IMGUI
 
-        myEngine::Object3dCommon::GetInstance()->Update();
-        const float engineUpdateMs = elapsedMs(engineUpdateStart, std::chrono::steady_clock::now());
-        const auto sceneUpdateStart = std::chrono::steady_clock::now();
-        hooks_.OnBeforeSceneUpdate();
-        SceneManager::GetInstance()->Update();
-        hooks_.OnAfterSceneUpdate();
-        if (trailStress_) {
-            myEngine::RuntimeProfiler::CpuScope scope("Stress trails update");
-            trailStress_->Update(1.0f / 60.0f);
+            myEngine::Object3dCommon::GetInstance()->Update();
+            engineUpdateMs += elapsedMs(engineUpdateStart, std::chrono::steady_clock::now());
+            const auto sceneUpdateStart = std::chrono::steady_clock::now();
+            hooks_.OnBeforeSceneUpdate();
+            scenes->Update();
+            hooks_.OnAfterSceneUpdate();
+            if (trailStress_) {
+                myEngine::RuntimeProfiler::CpuScope scope("Stress trails update");
+                trailStress_->Update(myEngine::kFixedStepSeconds);
+            }
+            sceneUpdateMs += elapsedMs(sceneUpdateStart, std::chrono::steady_clock::now());
+            if (scenes->UsesSimpleRendering() || scenes->GetCurrentSceneName() != sceneBeforeSteps) {
+                // シーンが切り替わった。読み込みにかかった時間を後で追い上げないよう、残りのステップは回さず測定もやり直す。
+                fixedTimestep.Reset();
+                break;
+            }
         }
-        const float sceneUpdateMs = elapsedMs(sceneUpdateStart, std::chrono::steady_clock::now());
-        const auto developerShowcase = SceneManager::GetInstance()->GetDeveloperShowcaseState();
-        const float combatDeltaTime = SceneManager::GetInstance()->GetFinalDeltaTime();
-        bool grayscale = combatDeltaTime < (1.0f / 60.0f) * 0.98f;
-        hooks_.AdjustGrayscale(combatDeltaTime, developerShowcase, grayscale);
-        bloom_->SetGrayscaleEnabled(grayscale);
-        bloom_->SetGaussianOverride(SceneManager::GetInstance()->GetPostGaussianIntensity());
-        const IScene::PostEffectPulse postPulse = SceneManager::GetInstance()->GetPostEffectPulse();
-        bloom_->SetTransientPulse(postPulse.bloomBoost, postPulse.chromAbAmount, postPulse.center, postPulse.radius, postPulse.width,
-                                  postPulse.strength);
-        bloom_->SetScreenEffectState(SceneManager::GetInstance()->GetScreenEffectState());
-        bloom_->SetDeveloperShowcaseState(developerShowcase);
+        if (steps > 0) {
+            const auto developerShowcase = scenes->GetDeveloperShowcaseState();
+            const float combatDeltaTime = scenes->GetFinalDeltaTime();
+            bool grayscale = combatDeltaTime < myEngine::kFixedStepSeconds * 0.98f;
+            hooks_.AdjustGrayscale(combatDeltaTime, developerShowcase, grayscale);
+            bloom_->SetGrayscaleEnabled(grayscale);
+            bloom_->SetGaussianOverride(scenes->GetPostGaussianIntensity());
+            const IScene::PostEffectPulse postPulse = scenes->GetPostEffectPulse();
+            bloom_->SetTransientPulse(postPulse.bloomBoost, postPulse.chromAbAmount, postPulse.center, postPulse.radius, postPulse.width,
+                                      postPulse.strength);
+            bloom_->SetScreenEffectState(scenes->GetScreenEffectState());
+            bloom_->SetDeveloperShowcaseState(developerShowcase);
+        }
 
         const auto imguiBuildStart = std::chrono::steady_clock::now();
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
-        if (imguiInitialized_) {
-            runtime.DrawOverlay(dxCommon_->IsFrameLimitEnabled(), SceneManager::GetInstance()->GetCurrentSceneName().c_str());
+        if (buildImGuiFrame) {
+            runtime.DrawOverlay(dxCommon_->IsFrameLimitEnabled(), scenes->GetCurrentSceneName().c_str());
             // ImGuiの内部コマンドを生成する
             ImGui::Render();
         }
@@ -694,8 +774,36 @@ int Application::MainLoop()
         runtime.EndGpu(gpuFrame);
         runtime.ResolveGpu();
 
+        if (debugFrameDelayMs > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(debugFrameDelayMs));
+        }
         const auto postDrawStart = std::chrono::steady_clock::now();
         dxCommon_->PostDraw();
+
+        if (timestepTestSeconds > 0.0) {
+            if (!timestepTest.started) {
+                timestepTest.started = true;
+                timestepTest.start = frameStart;
+            }
+            ++timestepTest.frames;
+            timestepTest.steps += steps;
+            timestepTest.zeroStepFrames += steps == 0 ? 1 : 0;
+            timestepTest.multiStepFrames += steps > 1 ? 1 : 0;
+            timestepTest.maxSteps = (std::max)(timestepTest.maxSteps, steps);
+            const double realSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - timestepTest.start).count();
+            if (realSeconds >= timestepTestSeconds) {
+                std::filesystem::create_directories("generated/timestep_test");
+                char text[512]{};
+                std::snprintf(text, sizeof(text),
+                              "{\"realSeconds\":%.4f,\"gameSeconds\":%.4f,\"frames\":%lld,\"steps\":%lld,\"zeroStepFrames\":%lld,"
+                              "\"multiStepFrames\":%lld,\"maxSteps\":%d,\"droppedSeconds\":%.4f,\"frameLimit\":%s,\"frameDelayMs\":%d}\n",
+                              realSeconds, static_cast<double>(timestepTest.steps) * myEngine::kFixedStepSeconds, timestepTest.frames,
+                              timestepTest.steps, timestepTest.zeroStepFrames, timestepTest.multiStepFrames, timestepTest.maxSteps,
+                              fixedTimestep.GetDroppedSeconds(), dxCommon_->IsFrameLimitEnabled() ? "true" : "false", debugFrameDelayMs);
+                std::ofstream("generated/timestep_test/result.json") << text;
+                PostQuitMessage(0);
+            }
+        }
 
         const auto& presentedScene = SceneManager::GetInstance()->GetCurrentSceneName();
         if (lastPresentedScene != presentedScene) {

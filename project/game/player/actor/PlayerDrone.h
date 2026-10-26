@@ -1,5 +1,6 @@
 #pragma once
 #include "game/weapon/CombatTypes.h"
+#include "FixedTimestep.h"
 #define NOMINMAX
 #include <Windows.h>
 #include <algorithm>
@@ -23,7 +24,7 @@ public:
 
     /// @brief 護衛中に、ConfigureRunAttackで設定した射撃を行う。
     /// @param deltaTime この処理で進める経過時間（秒）。
-    void Attack(float deltaTime = 1.0f / 60.0f);
+    void Attack(float deltaTime = myEngine::kFixedStepSeconds);
     /// @brief 射撃設定をコピーする。1回の弾数は1に固定する。
     /// @param reloadSeconds 発射間隔（秒）。最低0.05秒に補正する。
     void ConfigureRunAttack(const AttackParam& param, float reloadSeconds);
@@ -130,7 +131,8 @@ public:
 
     /// @brief 任務を進めて自機または突撃先へ移動し、地形との衝突を解決して射撃する。
     /// @param deltaTime この処理で進める経過時間（秒）。
-    void Update(myEngine::Camera* viewProjection, Stage& stage, const myEngine::Vector3& playerPosition, float deltaTime = 1.0f / 60.0f);
+    void Update(myEngine::Camera* viewProjection, Stage& stage, const myEngine::Vector3& playerPosition,
+                float deltaTime = myEngine::kFixedStepSeconds);
 
     /// @brief 描画
     void Draw();

@@ -1,4 +1,5 @@
 #include "game/player/combat/PlayerSystems.h"
+#include "FixedTimestep.h"
 #include "game/player/ui/PlayerPresentation.h"
 #include "game/weapon/CombatTypes.h"
 #include "Player.h"
@@ -755,7 +756,7 @@ void Player::OnCollision(Collider* other)
 
     const float kKnockBackPower = 0.15f;
 
-    velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * 60.0f);
+    velocity_ += hitDir * kKnockBackPower * other->GetHitPower() * (dt_ * myEngine::kFixedStepsPerSecond);
     const float maxKnockSpeed = isDashing_ ? 0.32f : 0.20f;
     if (myEngine::Length(velocity_) > maxKnockSpeed) {
         velocity_ = myEngine::Normalize(velocity_) * maxKnockSpeed;
@@ -1048,7 +1049,7 @@ void Player::UpdateBarrelLayout()
         const WeaponMountConfig barrelConfig = (config && i < config->barrels.size()) ? config->barrels[i] : WeaponMountConfig{};
         const bool active = config ? i < config->barrels.size() : i == 0;
 
-        barrel.recoilOffset = (std::max)(0.0f, barrel.recoilOffset - recoilReturn * dt_ * 60.0f);
+        barrel.recoilOffset = (std::max)(0.0f, barrel.recoilOffset - recoilReturn * dt_ * myEngine::kFixedStepsPerSecond);
         barrel.muzzleFlashTimer = (std::max)(0.0f, barrel.muzzleFlashTimer - dt_);
         barrel.localOffset = forward * (barrelConfig.offset.x - barrel.recoilOffset) + right * barrelConfig.offset.y +
                              myEngine::Vector3{0.0f, 0.0f, barrelConfig.offset.z};

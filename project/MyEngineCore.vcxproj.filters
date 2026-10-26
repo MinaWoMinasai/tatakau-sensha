@@ -485,6 +485,7 @@
     <ClCompile Include="DirectX\engine\common\RuntimeProfiler.cpp" />
     <ClInclude Include="DirectX\engine\common\RuntimeProfiler.h" />
     <ClInclude Include="DirectX\engine\common\FramePacer.h" />
+    <ClInclude Include="DirectX\engine\common\FixedTimestep.h" />
     <ClInclude Include="DirectX\engine\common\TrailStressFixture.h" />
     <ClInclude Include="DirectX\engine\common\StartupTrace.h" />
     <ClInclude Include="DirectX\engine\common\ShaderDiskCache.h" />

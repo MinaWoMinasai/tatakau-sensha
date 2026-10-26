@@ -1,4 +1,5 @@
 #include "game/player/combat/PlayerWeapons.h"
+#include "FixedTimestep.h"
 #include "game/player/combat/PlayerSystems.h"
 #include "game/player/ui/PlayerPresentation.h"
 #include "game/weapon/CombatTypes.h"
@@ -138,9 +139,9 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
         }
 
         if (const PlayerClassConfig* config = player_.GetCurrentClassConfig()) {
-            const float baseReload =
-                (player_.isBuffActive_ ? (player_.stats_.reloadSpeed * 0.7f) / 60.0f : player_.stats_.reloadSpeed / 60.0f) *
-                GetRunFireIntervalScale();
+            const float baseReload = (player_.isBuffActive_ ? (player_.stats_.reloadSpeed * 0.7f) / myEngine::kFixedStepsPerSecond
+                                                            : player_.stats_.reloadSpeed / myEngine::kFixedStepsPerSecond) *
+                                     GetRunFireIntervalScale();
             myEngine::Vector3 recoilDir = myEngine::Normalize(player_.dir_) * -1.0f;
             float recoilPower = 0.01f;
             if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
@@ -180,7 +181,8 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
             float recoilPower = 0.01f; // 射撃方向と逆向きに加える速度の大きさ。
 
             // 個別にクールタイムを設定するために先に設定
-            float baseReload = (player_.isBuffActive_ ? (player_.stats_.reloadSpeed * 0.7f) / 60.0f : player_.stats_.reloadSpeed / 60.0f) *
+            float baseReload = (player_.isBuffActive_ ? (player_.stats_.reloadSpeed * 0.7f) / myEngine::kFixedStepsPerSecond
+                                                      : player_.stats_.reloadSpeed / myEngine::kFixedStepsPerSecond) *
                                GetRunFireIntervalScale();
             player_.bulletCoolTime = baseReload;
 
@@ -504,8 +506,8 @@ void PlayerWeapons::AttackRailCannon(BulletManager* bullets, bool pressed, float
     if (alternate) {
         player_.shootBarrelIndex_ = static_cast<int>((static_cast<size_t>(player_.shootBarrelIndex_) + 1) % barrelCount);
     }
-    player_.bulletCoolTime =
-        tankspecial::RailRecovery(player_.stats_.reloadSpeed / 60.0f * (config ? config->reloadScale : 1.0f) * GetRunFireIntervalScale());
+    player_.bulletCoolTime = tankspecial::RailRecovery(player_.stats_.reloadSpeed / myEngine::kFixedStepsPerSecond *
+                                                       (config ? config->reloadScale : 1.0f) * GetRunFireIntervalScale());
     player_.velocity_ += aim * (-.04f - .035f * charge);
     player_.primaryAttackPerformedEvent_ = true;
     ++player_.primaryAttackCount_;
