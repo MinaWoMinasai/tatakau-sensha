@@ -37,10 +37,10 @@ public:
     // ウィンドウプロシージャ
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
-    /// @brief 初期化
+    /// @brief COMを初期化し、ウィンドウを作って表示する。メインスレッドで1回だけ呼ぶ。
     void Initialize();
 
-    /// @brief 利用終了時の資源と状態を解放する。
+    /// @brief ウィンドウを閉じ、Initializeで初期化したCOMを終える。
     void Finalize();
 
     /// @brief ウィンドウ機体を返す。
@@ -84,6 +84,8 @@ private:
     bool isActive_ = true;
     bool activationChanged_ = false;
     float presentationCurvature_ = 0.0f;
+    // CoInitializeExが成功した（S_FALSEを含む）ときだけ、Finalizeで対になるCoUninitializeを呼ぶ。
+    bool comInitialized_ = false;
 };
 
 } // namespace myEngine
