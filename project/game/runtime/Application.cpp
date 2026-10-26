@@ -223,12 +223,13 @@ bool Application::Initialize(const GameProjectCommandLineOptions& projectOptions
     myEngine::Dump dump;
     SetUnhandledExceptionFilter(dump.Export);
 
-    myEngine::WinApp::GetInstance()->Initialize();
-
     char asyncFlag[8]{};
     progressiveStartupScene_ = hooks_.GetProgressiveStartupSceneName();
     titleFirst_ = !progressiveStartupScene_.empty() && resolvedStartupScene_ == progressiveStartupScene_ &&
                   !(GetEnvironmentVariableA("MYENGINE_ASYNC_STARTUP", asyncFlag, sizeof(asyncFlag)) == 1 && asyncFlag[0] == '0');
+    // タイトルから段階的に起動するときは、何も描かれていないウィンドウを見せないよう、
+    // ポスト処理つきの最初のフレームを描くまでウィンドウを出さない（MainLoop）。
+    myEngine::WinApp::GetInstance()->Initialize(titleFirst_);
     // ファイルのデコードはデバイスを必要としないため、D3D12のデバイスやパイプラインの作成と並行して行う。
     hooks_.OnBeforeEngineInitialize(resolvedStartupScene_);
     InitializeEngine();
@@ -424,13 +425,12 @@ int Application::Run()
 
 int Application::MainLoop()
 {
-    const auto testEnabled = [](const char* name) {
-        char flag[8]{};
-        return GetEnvironmentVariableA(name, flag, sizeof(flag)) == 1 && flag[0] == '1';
-    };
     // 非表示で行う決定的な検証は、ユーザーが別のアプリに切り替えても一時停止してはならない。
     // 通常の操作プレイでは、フォーカスを失うと一時停止する。
-    const bool startupValidation = testEnabled("MYENGINE_STARTUP_AUTOTEST");
+    // 起動の検証は 1: デモの準備後にゲームへ進む、2: デモの準備を待たずに進む（TitleScene）。どちらもゲーム画面を出したら終了する。
+    char startupAutoTest[8]{};
+    const bool startupValidation = GetEnvironmentVariableA("MYENGINE_STARTUP_AUTOTEST", startupAutoTest, sizeof(startupAutoTest)) == 1 &&
+                                   (startupAutoTest[0] == '1' || startupAutoTest[0] == '2');
     const bool backgroundValidation = startupValidation || hooks_.IsBackgroundValidationActive();
     const std::string startupValidationScene(hooks_.GetStartupValidationSceneName());
 
@@ -471,6 +471,7 @@ int Application::MainLoop()
     MSG msg{};
     std::string lastPresentedScene;
     unsigned startupValidationFrames = 0;
+    const auto deferredShowDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
     while (msg.message != WM_QUIT) {
         const auto frameStart = std::chrono::steady_clock::now();
         auto elapsedMs = [](auto start, auto end) {
@@ -528,7 +529,7 @@ int Application::MainLoop()
         const bool simpleRendering = !engineReady_ || scenes->UsesSimpleRendering();
         // この描画までに回す固定ステップの回数。0回なら更新せず、前の状態をもう一度描く。
         int steps = 1;
-        if (simpleRendering) {
+        if (simpleRendering || scenes->IsLoadingInBackground()) {
             // 読み込み中は描画1回につき更新1回。読み込みが終わった直後に、待っていた時間をまとめて進めない。
             fixedTimestep.Reset();
         } else if (!oneStepPerFrame) {
@@ -582,6 +583,10 @@ int Application::MainLoop()
             hooks_.OnStartupFrameRecorded(*dxCommon_, lastPresentedScene.empty());
             dxCommon_->PostDraw();
             hooks_.OnStartupFramePresented(*dxCommon_);
+            if (winApp->IsShowDeferred() && std::chrono::steady_clock::now() >= deferredShowDeadline) {
+                // 初期化が想定より長引いても、ウィンドウが出ないまま待たせない。
+                winApp->ShowDeferredWindow();
+            }
             if (lastPresentedScene != progressiveStartupScene_) {
                 myEngine::StartupTrace::Mark("first_frame." + progressiveStartupScene_);
                 myEngine::StartupTrace::Flush();
@@ -777,6 +782,8 @@ int Application::MainLoop()
         }
         const auto postDrawStart = std::chrono::steady_clock::now();
         dxCommon_->PostDraw();
+        // 表示する中身のある最初のフレームをPresentしてからウィンドウを出す。
+        winApp->ShowDeferredWindow();
 
         if (timestepTestSeconds > 0.0) {
             if (!timestepTest.started) {

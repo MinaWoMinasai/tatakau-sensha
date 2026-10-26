@@ -83,7 +83,20 @@ bool WinApp::ConsumeActivationChanged()
     return changed;
 }
 
-void WinApp::Initialize()
+void WinApp::ShowDeferredWindow()
+{
+    if (!showDeferred_) {
+        return;
+    }
+    showDeferred_ = false;
+    if (!hiddenWindow_) {
+        ShowWindow(hwnd_, SW_SHOW);
+        SetForegroundWindow(hwnd_);
+    }
+    myEngine::StartupTrace::Mark("window.shown");
+}
+
+void WinApp::Initialize(bool deferShow)
 {
     // WIC・Media Foundation・XAudio2などが使うCOMを、メインスレッドでマルチスレッドアパートメントとして初期化する。
     const HRESULT comResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -106,6 +119,8 @@ void WinApp::Initialize()
     wc_.hInstance = GetModuleHandle(nullptr);
     // カーソル
     wc_.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    // 最初のPresentまでWindowsが塗る背景。既定（ブラシなし）だと白く見えるため黒にする。
+    wc_.hbrBackground = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
 
     // ウィンドウクラスを登録する
     RegisterClass(&wc_);
@@ -134,12 +149,17 @@ void WinApp::Initialize()
 
     // ウィンドウを表示する。自動検証では MYENGINE_HIDDEN_WINDOW=1 で表示せず、作業中の画面やフォーカスを奪わない。
     // 描画とキャプチャ（GPUからの読み戻し）は非表示のままでも同じ結果になる。
+    // 非表示の検証でも、遅らせた表示の時刻は window.shown として記録する。
     char hidden[8]{};
-    const bool hiddenWindow = GetEnvironmentVariableA("MYENGINE_HIDDEN_WINDOW", hidden, sizeof(hidden)) == 1 && hidden[0] == '1';
-    if (!hiddenWindow) {
-        ShowWindow(hwnd_, SW_SHOW);
+    hiddenWindow_ = GetEnvironmentVariableA("MYENGINE_HIDDEN_WINDOW", hidden, sizeof(hidden)) == 1 && hidden[0] == '1';
+    if (deferShow) {
+        showDeferred_ = true;
+    } else {
+        if (!hiddenWindow_) {
+            ShowWindow(hwnd_, SW_SHOW);
+        }
+        myEngine::StartupTrace::Mark("window.shown");
     }
-    myEngine::StartupTrace::Mark("window.shown");
 
     // システムタイマーの分解度をあげる
     timeBeginPeriod(1);

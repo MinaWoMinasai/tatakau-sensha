@@ -23,10 +23,16 @@ public:
         engineReady_ = true;
     }
 
-    /// @brief デモの準備ができるまでは簡易描画で描画する。
+    /// @brief タイトル文字を出せるようになるまでは簡易描画で描画する。デモの準備は待たない。
     bool UsesSimpleRendering() const override
     {
-        return !demoReady_ || finished_;
+        return !titleShown_ || finished_;
+    }
+
+    /// @brief タイトルを表示しながら背景デモを組み立てている間はtrueを返す。
+    bool IsLoadingInBackground() const override
+    {
+        return titleShown_ && !demoReady_;
     }
 
     /// @brief 非同期起動の間は、シーン切り替え中もタイトルを表示し続ける。
@@ -92,9 +98,14 @@ private:
     void WriteDemoValidation(bool fadeComplete);
     /// @return 先読み待ち以外で処理が進んだ場合true。
     bool InitializeDemoStep();
-    /// @brief デモがフォント設定を適用した後に、タイトル文字を生成する。
+    /// @brief デモと同じ字形の設定を先に適用し、タイトル文字を生成する。
     void CreateLabels();
+    /// @brief エンジンの準備ができた最初の更新で、タイトル文字の表示を始める。
+    void ShowTitle();
     bool engineReady_ = false, demoReady_ = false, loadingGame_ = false, asyncStartup_ = true, revealed_ = false;
+    bool titleShown_ = false;
+    // 0から1へ進み、タイトルの後ろの暗幕を通常の濃さまで薄くしてデモを見せる。
+    float demoReveal_ = 0;
     unsigned titleFrames_ = 0;
     std::unique_ptr<GameScene> demo_;
     std::unique_ptr<Fade> fade_;
@@ -116,7 +127,7 @@ private:
     std::unique_ptr<NeonTextEffect> titleTextNeonEffect_;
     Phase phase_ = Phase::kFadeIn;
     std::string nextSceneName_;
-    bool finished_ = false, demoFrozen_ = false, autoTest_ = false, startupAutoTest_ = false;
+    bool finished_ = false, demoFrozen_ = false, autoTest_ = false, startupAutoTest_ = false, startupAutoTestEarly_ = false;
     bool submissionCaptured_ = false;
     bool capturedSceneFadeOut_ = false, capturedSceneFadeIn_ = false;
     float maxObservedBurstAge_ = 0;
