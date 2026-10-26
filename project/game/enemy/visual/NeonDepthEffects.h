@@ -1,7 +1,7 @@
 #pragma once
 // 既存の描画を使う、シーン所有の不変なDepthエフェクトの範囲。
 #include "NeonDepthEffectGeometry.h"
-#include "NeonGridRenderer.h"
+#include "game/render/neon/NeonGridRenderer.h"
 #include <memory>
 #include <string>
 

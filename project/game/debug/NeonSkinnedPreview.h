@@ -8,7 +8,7 @@
 #endif
 #include "Object3d.h"
 #include "SkinCluster.h"
-#include "DirectX/engine/3d/neon/NeonSkinnedRenderer.h"
+#include "game/render/neon/NeonSkinnedRenderer.h"
 #include "NeonShowcaseCapture.h"
 #include "NeonDissolvePreviewController.h"
 #include <memory>

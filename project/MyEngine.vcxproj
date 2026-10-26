@@ -384,7 +384,15 @@
   <ItemGroup>
     <ClCompile Include="game\ui\TankRewardPreviewRenderer.cpp" />
     <ClCompile Include="game\render\NeonProjectileRenderer.cpp" />
+    <ClCompile Include="game\render\neon\NeonSkinnedRenderer.cpp" />
+    <ClCompile Include="game\render\neon\NeonGridGeometry.cpp" />
+    <ClCompile Include="game\render\neon\NeonGridRenderer.cpp" />
     <ClInclude Include="game\render\NeonProjectileRenderer.h" />
+    <ClInclude Include="game\render\neon\NeonCharacterStyle.h" />
+    <ClInclude Include="game\render\neon\NeonDissolve.h" />
+    <ClInclude Include="game\render\neon\NeonSkinnedRenderer.h" />
+    <ClInclude Include="game\render\neon\NeonGridGeometry.h" />
+    <ClInclude Include="game\render\neon\NeonGridRenderer.h" />
     <ClInclude Include="game\ui\TankRewardPreviewRenderer.h" />
     <ClInclude Include="game\ui\TankCombatNeonGeometry.h" />
     <ClInclude Include="game\effects\TankSpecialNeonGeometry.h" />

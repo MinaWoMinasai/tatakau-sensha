@@ -35,7 +35,7 @@
 #include "IScene.h"
 #include "ObjectPostEffect.h"
 #include "RingManager.h"
-#include "NeonGridRenderer.h"
+#include "game/render/neon/NeonGridRenderer.h"
 #include "TrailManager.h"
 #include "Skybox.h"
 #include "game/level/LevelLoader.h"

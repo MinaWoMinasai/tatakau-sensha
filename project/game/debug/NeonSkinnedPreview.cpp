@@ -3,7 +3,7 @@
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "StartupTrace.h"
 #include "NeonPreviewAnimations.h"
-#include "DirectX/engine/3d/neon/NeonCharacterStyle.h"
+#include "game/render/neon/NeonCharacterStyle.h"
 #include "TextureManager.h"
 #include "RuntimeProfiler.h"
 #include "externals/nlohmann/json.hpp"
