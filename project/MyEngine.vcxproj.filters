@@ -138,6 +138,9 @@
     <ClCompile Include="game\player\actor\Player.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\player\actor\PlayerVisuals.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\player\actor\PlayerUiHelpers.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>

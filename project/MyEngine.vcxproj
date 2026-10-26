@@ -125,6 +125,7 @@
     <ClCompile Include="game\player\actor\Bullet.cpp" />
     <ClCompile Include="game\player\actor\BulletManager.cpp" />
     <ClCompile Include="game\player\actor\Player.cpp" />
+    <ClCompile Include="game\player\actor\PlayerVisuals.cpp" />
     <ClCompile Include="game\player\actor\PlayerUiHelpers.cpp" />
     <ClCompile Include="game\player\PlayerClassCatalog.cpp" />
     <ClCompile Include="game\player\actor\PlayerDrone.cpp" />
