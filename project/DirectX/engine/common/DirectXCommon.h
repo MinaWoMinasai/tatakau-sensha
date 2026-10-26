@@ -17,6 +17,7 @@
 #include "Texture.h"
 #include "FramePacer.h"
 #include "InitializationTask.h"
+#include "ShaderCompiler.h"
 
 namespace myEngine {
 
@@ -293,19 +294,19 @@ public:
     /// @brief DXCのユーティリティを返す。
     IDxcUtils* GetDxcUtils()
     {
-        return dxcUtils_.Get();
+        return shaderCompiler_.GetUtils();
     }
 
     /// @brief DXCのコンパイラを返す。
     IDxcCompiler3* GetDxcCompiler()
     {
-        return dxcCompiler_.Get();
+        return shaderCompiler_.GetCompiler();
     }
 
     /// @brief シェーダーの #include を解決するハンドラーを返す。
     IDxcIncludeHandler* GetIncludeHandler()
     {
-        return includeHandler_.Get();
+        return shaderCompiler_.GetIncludeHandler();
     }
 
     /// @brief ブレンドモードに対応する、バックバッファ（SDR）向けのPSOを返す。
@@ -683,9 +684,6 @@ private:
     /// @brief シザリング矩形の初期化
     void InitializeScissorRect();
 
-    /// @brief DXCコンパイラの生成
-    void CreateDXCCompiler();
-
     /// @brief ImGuiの初期化
     /// @note 互換用の空の窓口。実際の初期化はGame::InitializeImGuiが担当する。
     void InitializeImGui();
@@ -746,10 +744,7 @@ private:
     D3D12_VIEWPORT viewportRect_{};
     D3D12_RECT scissorRect_{};
 
-    Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils_;
-    Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler_;
-    Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler_;
-    std::unordered_map<std::wstring, Microsoft::WRL::ComPtr<IDxcBlob>> shaderCache_;
+    ShaderCompiler shaderCompiler_;
 
     // FPS固定変数
     //---------------------------------
