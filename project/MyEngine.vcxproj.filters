@@ -244,6 +244,9 @@
     <ClInclude Include="game\player\actor\Player.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="game\player\actor\PlayerTargets.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\player\actor\PlayerUiHelpers.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -705,7 +708,13 @@
     <ClInclude Include="game\player\ui\PlayerHud.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="game\player\ui\PlayerHudTarget.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\player\ui\PlayerEvolution.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\ui\PlayerEvolutionTarget.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\player\editor\PlayerClassEditor.h">

@@ -1298,14 +1298,17 @@ private:
     float stealthTimer_ = 0.0f; // ステルス移行までの待機時間
 
     std::unique_ptr<PlayerUiState> ui_;
+    // 各画面へ渡す窓口（定義はPlayerTargets.h）。入れ子クラスなので非公開メンバを使えるが、画面からは窓口の操作しか見えない。
+    // 画面より先に作り、画面より後に破棄するため、画面のメンバより前に置く。
+    class HudTarget;
+    class EvolutionTarget;
+    class ClassEditorTarget;
+    std::unique_ptr<HudTarget> hudTarget_;
+    std::unique_ptr<EvolutionTarget> evolutionTarget_;
+    std::unique_ptr<ClassEditorTarget> classEditorTarget_;
     std::unique_ptr<PlayerHud> playerHud_;
     std::unique_ptr<PlayerEvolution> playerEvolution_;
-    // 機体設定の制作画面へ渡す窓口。入れ子クラスなので非公開メンバを使えるが、制作画面からは窓口の操作しか見えない。
-    class ClassEditorTarget;
-    std::unique_ptr<ClassEditorTarget> classEditorTarget_;
     std::unique_ptr<PlayerClassEditor> playerClassEditor_;
-    friend class PlayerHud;
-    friend class PlayerEvolution;
     std::unique_ptr<PlayerWeapons> playerWeapons_;
     std::unique_ptr<PlayerProgression> playerProgression_;
     friend class PlayerWeapons;

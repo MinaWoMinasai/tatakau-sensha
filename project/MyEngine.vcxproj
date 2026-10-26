@@ -256,6 +256,7 @@
     <ClInclude Include="game\player\actor\Bullet.h" />
     <ClInclude Include="game\player\actor\BulletManager.h" />
     <ClInclude Include="game\player\actor\Player.h" />
+    <ClInclude Include="game\player\actor\PlayerTargets.h" />
     <ClInclude Include="game\player\actor\PlayerUiHelpers.h" />
     <ClInclude Include="game\player\PlayerClassConfig.h" />
     <ClInclude Include="game\player\PlayerClassCatalog.h" />
@@ -575,7 +576,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game\player\ui\PlayerHud.h" />
+    <ClInclude Include="game\player\ui\PlayerHudTarget.h" />
     <ClInclude Include="game\player\ui\PlayerEvolution.h" />
+    <ClInclude Include="game\player\ui\PlayerEvolutionTarget.h" />
     <ClInclude Include="game\player\editor\PlayerClassEditor.h" />
     <ClInclude Include="game\player\editor\PlayerClassEditorTarget.h" />
     <ClInclude Include="game\player\ui\PlayerUiState.h" />
