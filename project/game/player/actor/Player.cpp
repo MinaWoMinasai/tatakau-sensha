@@ -882,7 +882,7 @@ void Player::SpawnBuffParticle()
 }
 
 Player::Player()
-    : ui_(std::make_unique<PlayerUiState>()), hudTarget_(std::make_unique<HudTarget>(*this)),
+    : Collider(kColliderKind), ui_(std::make_unique<PlayerUiState>()), hudTarget_(std::make_unique<HudTarget>(*this)),
       evolutionTarget_(std::make_unique<EvolutionTarget>(*this)), classEditorTarget_(std::make_unique<ClassEditorTarget>(*this)),
       playerHud_(std::make_unique<PlayerHud>(*hudTarget_, *ui_)),
       playerEvolution_(std::make_unique<PlayerEvolution>(*evolutionTarget_, *ui_)),

@@ -82,6 +82,9 @@ class ObjectPostEffect;
 /// @brief 自機の移動・攻撃・装備と成長状態を管理する。機体の制作データはPlayerClassCatalogから取得する。
 class Player : public Collider {
 public:
+    /// @brief 当たり判定で使う種類。ColliderCastで使う。
+    static constexpr ColliderKind kColliderKind = ColliderKind::Player;
+
     /// @brief 自機の画面状態と表示担当を生成する。
     Player();
     using BodyShape = PlayerBodyShape;

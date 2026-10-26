@@ -22,6 +22,12 @@ class EnemyManager;
 /// @note 機体モデル・Player・Stage・各管理クラスは借用し、利用中は呼び出し側で有効に保つ。
 class Enemy : public Collider {
 public:
+    /// @brief 当たり判定で使う種類。ColliderCastで使う。
+    static constexpr ColliderKind kColliderKind = ColliderKind::Enemy;
+
+    /// @brief 種類を設定して作る。
+    Enemy() : Collider(kColliderKind) {}
+
     /// @brief 射撃パターン、弾速（60FPS基準の1フレーム当たり）、拡散角（度）、発射間隔（秒）、威力・耐久度・貫通力の設定。
     struct BossAttackConfig {
         /// @brief 敵の弾の撃ち方。

@@ -19,6 +19,12 @@ class Stage;
 /// @brief 自機に属するドローン1体の追従・攻撃・衝突・描画を管理する。
 class PlayerDrone : public Collider {
 public:
+    /// @brief 当たり判定で使う種類。ColliderCastで使う。
+    static constexpr ColliderKind kColliderKind = ColliderKind::PlayerDrone;
+
+    /// @brief 種類を設定して作る。
+    PlayerDrone() : Collider(kColliderKind) {}
+
     /// @brief デストラクタ
     ~PlayerDrone();
 
