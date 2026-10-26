@@ -239,13 +239,11 @@ public:
         return empJammerTimer_ / 2.5f;
     }
 
-    /// @brief 遠征補正が有効ならEMP妨害の残り時間を延長する。現在より短い要求では短縮しない。
+    /// @brief EMP妨害の残り時間を延長する。現在より短い要求では短縮しない。
     /// @param seconds 要求する残り時間（秒）。0～3秒に制限する。
     void ApplyEmpJammer(float seconds = 2.5f)
     {
-        if (runModifiers_.enabled) {
-            empJammerTimer_ = tankspecial::EmpDuration(empJammerTimer_, seconds);
-        }
+        empJammerTimer_ = tankspecial::EmpDuration(empJammerTimer_, seconds);
     }
 
     /// @brief ドローンの命中をロックへ蓄積し、今回適用する補正後のダメージを返す。
@@ -343,8 +341,7 @@ public:
     /// @brief 近接攻撃強化ビルドであるか判定する。
     bool IsMeleeBuild() const
     {
-        return runModifiers_.enabled &&
-               (expeditionCombatStyleSelected_ ? expeditionCombatStyle_ == tankbuild::Style::Melee : runModifiers_.meleeBlade);
+        return expeditionCombatStyleSelected_ ? expeditionCombatStyle_ == tankbuild::Style::Melee : runModifiers_.meleeBlade;
     }
 
     /// @brief ドローン強化ビルドであるか判定する。

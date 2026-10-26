@@ -375,9 +375,6 @@ void PlayerWeapons::ApplyRunProjectileRules(AttackParam& param, bool applyFan) c
     // 遠征が無効でも、発射数と衝突時の分裂数はここで初期化する。
     param.bulletCount = 1;
     param.impactSplitCount = 0;
-    if (!player_.runModifiers_.enabled) {
-        return;
-    }
     const TankRunTuning tuning = MakeTankRunTuning(player_.runModifiers_, player_.runGrowth_);
     if (player_.expeditionCombatStyleSelected_ && player_.expeditionCombatStyle_ == tankbuild::Style::Shooter) {
         param.shooterChain = player_.runModifiers_.chainLightning;
@@ -413,9 +410,6 @@ void PlayerWeapons::ApplyRunProjectileRules(AttackParam& param, bool applyFan) c
 
 float PlayerWeapons::GetRunFireIntervalScale() const
 {
-    if (!player_.runModifiers_.enabled) {
-        return 1.0f;
-    }
     // 発射頻度の増加を間隔の逆数へ変換する。1未満の値ほど次の射撃までの待ち時間が短い。
     float scale =
         player_.runOverdriveTimer_ > 0.0f ? 1.0f / (1.0f + TankEffectPower(player_.runModifiers_, tankrun::CardId::Overdrive)) : 1.0f;
@@ -767,9 +761,6 @@ void PlayerWeapons::UpdateRunProjectiles(BulletManager* bulletManager, float del
 
 void PlayerWeapons::ConfigureRunDrone(PlayerDrone& drone) const
 {
-    if (!player_.runModifiers_.enabled) {
-        return;
-    }
     const PlayerClassConfig* config = player_.GetCurrentClassConfig();
     const bool primaryStyle = player_.IsDroneBuild();
     const bool isSwarm = config && config->usesDrone;
@@ -1161,7 +1152,7 @@ bool PlayerWeapons::FireConfiguredClass(const PlayerClassConfig& config, BulletM
 
 void PlayerWeapons::RefreshAdditiveArmaments()
 {
-    if (!player_.runModifiers_.enabled || !player_.runModifiers_.expedition || !player_.expeditionCombatStyleSelected_ ||
+    if (!player_.runModifiers_.expedition || !player_.expeditionCombatStyleSelected_ ||
         player_.expeditionCombatStyle_ != tankbuild::Style::Shooter || player_.runEvolutionActive_ ||
         player_.runStarterConfig_.barrels.empty()) {
         return;
