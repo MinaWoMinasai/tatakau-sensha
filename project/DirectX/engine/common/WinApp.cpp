@@ -106,6 +106,8 @@ void WinApp::Initialize()
     wc_.hInstance = GetModuleHandle(nullptr);
     // カーソル
     wc_.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    // 最初のPresentまでWindowsが塗る背景。既定（ブラシなし）だと白く見えるため黒にする。
+    wc_.hbrBackground = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
 
     // ウィンドウクラスを登録する
     RegisterClass(&wc_);

@@ -7,6 +7,7 @@
 #include "SceneManager.h"
 #include "StartupTrace.h"
 #include "SkinCluster.h"
+#include "TextRenderer.h"
 #include "game/run/TankSubmissionValidation.h"
 #include <algorithm>
 #include <cmath>
@@ -62,7 +63,9 @@ void TitleScene::Initialize()
     previousMousePosition_ = input_->GetMousePosition();
     wchar_t test[8]{};
     autoTest_ = GetEnvironmentVariableW(L"MYENGINE_TITLE_AUTOTEST", test, 8) > 0 && test[0] == L'1';
-    startupAutoTest_ = GetEnvironmentVariableW(L"MYENGINE_STARTUP_AUTOTEST", test, 8) > 0 && test[0] == L'1';
+    // 1: デモの準備ができてから1秒後にゲームへ進む。2: タイトルを表示したらすぐ進む（デモ準備中の開始の確認用）。
+    startupAutoTest_ = GetEnvironmentVariableW(L"MYENGINE_STARTUP_AUTOTEST", test, 8) > 0 && (test[0] == L'1' || test[0] == L'2');
+    startupAutoTestEarly_ = startupAutoTest_ && test[0] == L'2';
     if (autoTest_) {
         std::filesystem::create_directories("generated/title_demo");
         std::ofstream("generated/title_demo/validation.json") << "{\"completed\":false}\n";
@@ -82,16 +85,13 @@ void TitleScene::Initialize()
     backgroundVeil_->SetSize({w, h});
     backgroundVeil_->SetColor({0.004f, 0.009f, 0.016f, 0.42f});
     backgroundVeil_->Update();
-    title_.reset();
-    subtitle_.reset();
-    hint_.reset();
-    demoCaption_.reset();
-    menu_[0].reset();
-    // デモはゲームのフォント上書きを適用する。ラベルはその後で作るため、
-    // 最初に表示するタイトルのフレームから最終的なフォントになる。
     StartAssetPreloads();
+    // デモの準備を待たずにタイトルを出すため、文字はここで作る。
+    CreateLabels();
     demoReady_ = false;
     revealed_ = false;
+    titleShown_ = false;
+    demoReveal_ = 0;
     if (!asyncStartup_) {
         while (!demoReady_) {
             if (!InitializeDemoStep()) {
@@ -104,6 +104,17 @@ void TitleScene::Initialize()
 
 void TitleScene::CreateLabels()
 {
+    // デモ（GameplayHud::ApplyGameTextAppearance）が gameVisuals.json の既定で適用するのと同じ字形。
+    // 先に同じ値を入れておけば、後でデモが適用しても何も変わらず、表示中の文字が別の字形へ切り替わらない。
+    // 設定が違っていた場合も、Updateの PrepareLabels が新しい字形で作り直す。
+    myEngine::TextFontOverride fontOverride{};
+    fontOverride.enabled = true;
+    fontOverride.fontFamily = "Zen Maru Gothic";
+    fontOverride.fontPath = "resources/fonts/ZenMaruGothic-Bold.ttf";
+    fontOverride.fontWeight = 700;
+    fontOverride.overrideOutline = true;
+    myEngine::TextRenderer::GetInstance()->SetFontOverride(fontOverride);
+
     const float w = static_cast<float>(myEngine::WinApp::kClientWidth);
     const float h = static_cast<float>(myEngine::WinApp::kClientHeight);
     const auto label = [](const std::string& text, float size, myEngine::Vector2 position, const myEngine::Vector4& color,
@@ -175,6 +186,26 @@ bool TitleScene::InitializeDemoStep()
     if (!myEngine::ModelManager::GetInstance()->ArePreloadsReady() || !myEngine::TextureManager::GetInstance()->ArePreloadsReady()) {
         return false;
     }
+    if (!demo_) {
+        demo_ = std::make_unique<GameScene>(false, true);
+        demo_->EnableTitleDemo();
+        myEngine::StartupTrace::Mark("demo.initialize_begin");
+        myEngine::StartupTrace::Flush();
+    }
+    if (demo_->InitializeStep()) {
+        demoReady_ = true;
+        stageSamples_[0].build = demo_->GetTitleDemoBuild().dump();
+        // タイトルは既に出ている。デモは暗幕を薄くして後ろから見せる（DrawAfterPostEffect3D）。
+        demoReveal_ = 0;
+        blinkTimer_ = 0;
+        myEngine::StartupTrace::Mark("title.demo_ready");
+        myEngine::StartupTrace::Flush();
+    }
+    return true;
+}
+
+void TitleScene::ShowTitle()
+{
     if (!titleTextNeonEffect_) {
         NeonTextEffectStyle neon{};
         neon.enabled = true;
@@ -187,26 +218,14 @@ bool TitleScene::InitializeDemoStep()
         titleTextNeonEffect_->Initialize(myEngine::Object3dCommon::GetInstance()->GetDxCommon(),
                                          myEngine::Object3dCommon::GetInstance()->GetSrvManager());
         titleTextNeonEffect_->SetStyle(neon);
-        return true;
     }
-    if (!demo_) {
-        demo_ = std::make_unique<GameScene>(false, true);
-        demo_->EnableTitleDemo();
-        myEngine::StartupTrace::Mark("demo.initialize_begin");
-        myEngine::StartupTrace::Flush();
-    }
-    if (demo_->InitializeStep()) {
-        demoReady_ = true;
-        stageSamples_[0].build = demo_->GetTitleDemoBuild().dump();
-        CreateLabels();
-        // タイトルとデモを実際に表示した最初のフレームからフェードインする。
-        phase_ = Phase::kFadeIn;
-        blinkTimer_ = 0;
-        fade_->Start(Fade::Status::FadeIn, 0.65f);
-        myEngine::StartupTrace::Mark("title.demo_ready");
-        myEngine::StartupTrace::Flush();
-    }
-    return true;
+    titleShown_ = true;
+    // 文字を表示した最初のフレームから短くフェードインする。フェード中はデモを組み立てず、毎フレーム進める。
+    phase_ = Phase::kFadeIn;
+    blinkTimer_ = 0;
+    fade_->Start(Fade::Status::FadeIn, 0.3f);
+    myEngine::StartupTrace::Mark("title.shown");
+    myEngine::StartupTrace::Flush();
 }
 
 void TitleScene::PrepareForTransition()
@@ -236,21 +255,27 @@ void TitleScene::Update()
         PrepareLabels({demoCaption_.get()});
         return;
     }
-    if (!demoReady_) {
-        // まだ何も表示していないので、vsyncごとにコルーチンを1ステップずつ進めるのではなく、
-        // 約100msずつまとめてデモを構築する。メッセージは各区切りで処理する。
+    if (!titleShown_) {
+        // 文字の発光とポスト処理に使うパイプラインがそろうまでは、黒い簡易描画のまま待つ。
         if (!engineReady_) {
             return;
         }
-        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
-        while (!demoReady_ && std::chrono::steady_clock::now() < deadline) {
-            if (!InitializeDemoStep()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        ShowTitle();
+    }
+    if (!demoReady_) {
+        // タイトルを表示したまま、裏でデモを組み立てる。1ステップが重いこともあるので、
+        // 1フレームあたり約50msまでまとめて進める。フェード中とゲームへ進むフェード中は組み立てない。
+        if (phase_ == Phase::kMain) {
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(50);
+            while (!demoReady_ && std::chrono::steady_clock::now() < deadline) {
+                if (!InitializeDemoStep()) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                }
             }
         }
-        return;
+    } else {
+        demo_->FlushTitleDemoCapture();
     }
-    demo_->FlushTitleDemoCapture();
     const auto triggered = [this](int key) {
         return input_->IsKeyTriggered(static_cast<uint8_t>(key));
     };
@@ -282,7 +307,7 @@ void TitleScene::Update()
         if (autoTest_ && demoReady_ && capturedStages_ == 15 && demo_->GetTitleDemoStatus().totalSeconds >= 81.0f) {
             StartTransitionIfAvailable("TANK_EXPEDITION", 0.65f);
         }
-        if (startupAutoTest_ && blinkTimer_ >= 1.0f) {
+        if (startupAutoTest_ && (startupAutoTestEarly_ ? phase_ == Phase::kMain : demoReady_ && blinkTimer_ >= 1.0f)) {
             StartTransitionIfAvailable("TANK_EXPEDITION", 0.65f);
         }
         if (tanksubmission::Enabled()) {
@@ -290,12 +315,13 @@ void TitleScene::Update()
                 demo_->RequestTitleDemoCapture("submission_title_" + std::to_string(tanksubmission::state.titles));
                 submissionCaptured_ = true;
             }
-            if (blinkTimer_ >= 1.5f) {
+            if (demoReady_ && blinkTimer_ >= 1.5f) {
                 StartTransitionIfAvailable("TANK_EXPEDITION", 0.65f);
             }
         }
     }
-    {
+    if (demoReady_) {
+        demoReveal_ = (std::min)(1.0f, demoReveal_ + dt / 0.8f);
         const auto before = demo_->GetTitleDemoStatus();
         // ゲームが次の固定シーンを復元する前に、一時的なエフェクトをキャプチャする。
         // 6秒時点の静止画1枚だけでは、Overdriveの発動を証明できない。
@@ -379,7 +405,9 @@ void TitleScene::DrawAfterPostEffect3D()
     // 暗くするのはゲームの背景だけ。文字の発光と鮮明な元の字形の両方がこの幕に従うため、
     // 動く壁や一斉射撃でメニューのラベルが白飛びすることはない。
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
-    backgroundVeil_->SetColor({0.004f, 0.009f, 0.016f, demoReady_ ? 0.42f + 0.58f * demo_->GetTitleDemoFade() : 1.0f});
+    // デモの準備ができるまでは不透明。できたら demoReveal_ に合わせて通常の濃さまで薄くする。
+    const float demoVeil = demoReady_ ? 0.42f + 0.58f * demo_->GetTitleDemoFade() : 1.0f;
+    backgroundVeil_->SetColor({0.004f, 0.009f, 0.016f, 1.0f + (demoVeil - 1.0f) * demoReveal_});
     backgroundVeil_->Update();
     backgroundVeil_->Draw();
     if (titleTextNeonEffect_) {
@@ -393,10 +421,10 @@ void TitleScene::DrawAfterPostEffect3D()
 
 void TitleScene::DrawSprite()
 {
-    // デモが完了したフレームは、まだ簡易経路で記録される。
-    // タイトルがデモと同時に初めて表示されるよう、そのフレームは黒のままにする。
+    // タイトルの表示を始めたフレームは、まだ簡易経路（発光・ポスト処理なし）で記録される。
+    // 最初に見える文字から最終的な見た目になるよう、そのフレームは黒のままにする。
     if (!title_ || !revealed_) {
-        revealed_ = demoReady_ || loadingGame_;
+        revealed_ = titleShown_ || loadingGame_;
         return;
     }
     if (loadingGame_) {
@@ -412,7 +440,7 @@ void TitleScene::DrawSprite()
     }
     hint_->Draw();
     demoCaption_->Draw();
-    if (demoReady_ || phase_ == Phase::kFadeOut) {
+    if (titleShown_ || phase_ == Phase::kFadeOut) {
         fade_->Draw();
     }
 }

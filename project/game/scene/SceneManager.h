@@ -36,6 +36,12 @@ public:
         return pendingScene_ || (currentScene_ && currentScene_->UsesSimpleRendering());
     }
 
+    /// @brief 現在のシーンが表示しながら裏で初期化を進めているかを返す。
+    bool IsLoadingInBackground() const
+    {
+        return currentScene_ && currentScene_->IsLoadingInBackground();
+    }
+
     /// @brief エンジンの初期化完了を現在のシーンへ伝える。
     void OnEngineReady()
     {

@@ -231,6 +231,22 @@ bool Application::Initialize(const GameProjectCommandLineOptions& projectOptions
                   !(GetEnvironmentVariableA("MYENGINE_ASYNC_STARTUP", asyncFlag, sizeof(asyncFlag)) == 1 && asyncFlag[0] == '0');
     // ファイルのデコードはデバイスを必要としないため、D3D12のデバイスやパイプラインの作成と並行して行う。
     hooks_.OnBeforeEngineInitialize(resolvedStartupScene_);
+    // 音声（XAudio2・Media Foundation・MP3のデコード）も同様に別スレッドで進める。
+    // メインスレッドは InitializePresentation で完了を待つまで Audio に触れない。
+    audioLoad_ = std::async(std::launch::async, [this] {
+        const HRESULT comResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        try {
+            myEngine::StartupTrace::Scope scope("Presentation.Audio");
+            myEngine::Audio::GetInstance()->Initialize();
+            hooks_.OnLoadSharedAssets();
+        }
+        catch (...) {
+            // 音声が無くてもゲームは続ける。
+        }
+        if (SUCCEEDED(comResult)) {
+            CoUninitialize();
+        }
+    });
     InitializeEngine();
     if (!titleFirst_) {
         InitializeImGui();
@@ -274,12 +290,18 @@ myEngine::InitializationTask Application::InitializePresentation()
         InitializeImGui();
     }
     co_await std::suspend_always{};
-    rtvManager_ = std::make_unique<myEngine::RtvManager>();
-    rtvManager_->Initialize(dxCommon_.get());
+    {
+        myEngine::StartupTrace::Scope scope("Presentation.Rtv");
+        rtvManager_ = std::make_unique<myEngine::RtvManager>();
+        rtvManager_->Initialize(dxCommon_.get());
+    }
 
     co_await std::suspend_always{};
-    bloom_ = std::make_unique<myEngine::Bloom>();
-    bloom_->Initialize(dxCommon_.get(), srvManager_.get(), rtvManager_.get());
+    {
+        myEngine::StartupTrace::Scope scope("Presentation.Bloom");
+        bloom_ = std::make_unique<myEngine::Bloom>();
+        bloom_->Initialize(dxCommon_.get(), srvManager_.get(), rtvManager_.get());
+    }
     char stressCount[16]{};
     if (myEngine::kDeveloperTools && GetEnvironmentVariableA("MYENGINE_PERF_STRESS_TRAILS", stressCount, sizeof(stressCount)) > 0) {
         const unsigned count = static_cast<unsigned>((std::clamp)(std::atoi(stressCount), 0, 512));
@@ -290,12 +312,17 @@ myEngine::InitializationTask Application::InitializePresentation()
     }
 
     co_await std::suspend_always{};
-    myEngine::ParticleManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
+    {
+        myEngine::StartupTrace::Scope scope("Presentation.Particles");
+        myEngine::ParticleManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
+    }
 
     co_await std::suspend_always{};
-    // 音声読み込み
-    myEngine::Audio::GetInstance()->Initialize();
-    hooks_.OnLoadSharedAssets();
+    if (audioLoad_.valid()) {
+        // Initializeで別スレッドに始めた音声の読み込みを待つ。ここから先はメインスレッドが Audio を使う。
+        myEngine::StartupTrace::Scope scope("Presentation.AudioWait");
+        audioLoad_.get();
+    }
 
     myEngine::StartupTrace::Mark("engine.ready");
 }
@@ -424,13 +451,12 @@ int Application::Run()
 
 int Application::MainLoop()
 {
-    const auto testEnabled = [](const char* name) {
-        char flag[8]{};
-        return GetEnvironmentVariableA(name, flag, sizeof(flag)) == 1 && flag[0] == '1';
-    };
     // 非表示で行う決定的な検証は、ユーザーが別のアプリに切り替えても一時停止してはならない。
     // 通常の操作プレイでは、フォーカスを失うと一時停止する。
-    const bool startupValidation = testEnabled("MYENGINE_STARTUP_AUTOTEST");
+    // 起動の検証は 1: デモの準備後にゲームへ進む、2: デモの準備を待たずに進む（TitleScene）。どちらもゲーム画面を出したら終了する。
+    char startupAutoTest[8]{};
+    const bool startupValidation = GetEnvironmentVariableA("MYENGINE_STARTUP_AUTOTEST", startupAutoTest, sizeof(startupAutoTest)) == 1 &&
+                                   (startupAutoTest[0] == '1' || startupAutoTest[0] == '2');
     const bool backgroundValidation = startupValidation || hooks_.IsBackgroundValidationActive();
     const std::string startupValidationScene(hooks_.GetStartupValidationSceneName());
 
@@ -528,7 +554,7 @@ int Application::MainLoop()
         const bool simpleRendering = !engineReady_ || scenes->UsesSimpleRendering();
         // この描画までに回す固定ステップの回数。0回なら更新せず、前の状態をもう一度描く。
         int steps = 1;
-        if (simpleRendering) {
+        if (simpleRendering || scenes->IsLoadingInBackground()) {
             // 読み込み中は描画1回につき更新1回。読み込みが終わった直後に、待っていた時間をまとめて進めない。
             fixedTimestep.Reset();
         } else if (!oneStepPerFrame) {
@@ -849,6 +875,9 @@ int Application::MainLoop()
 
 void Application::Finalize()
 {
+    if (audioLoad_.valid()) {
+        audioLoad_.wait();
+    }
     myEngine::BackgroundLoader::Get().Shutdown();
     presentationTask_ = {};
     myEngine::SkinnedModel::ClearPreloadedAssets();

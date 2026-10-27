@@ -1,4 +1,5 @@
 #pragma once
+#include <future>
 #include <memory>
 #include <string>
 #include "GameProject.h"
@@ -94,5 +95,7 @@ private:
     bool imguiInitialized_ = false;
     bool titleFirst_ = false, engineReady_ = false;
     myEngine::InitializationTask presentationTask_;
+    // 音声の初期化と共有素材の読み込み。D3D12の初期化と並行させ、engine.readyの直前で完了を待つ。
+    std::future<void> audioLoad_;
     std::unique_ptr<myEngine::TrailStressFixture> trailStress_;
 };

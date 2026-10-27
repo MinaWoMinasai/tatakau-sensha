@@ -61,6 +61,13 @@ public:
         return false;
     }
 
+    /// @brief 表示しながら裏で重い初期化を少しずつ進めている間はtrueを返す。
+    /// trueの間は、遅れた時間を固定ステップでまとめて追い上げず、描画1回につき更新1回にする。
+    virtual bool IsLoadingInBackground() const
+    {
+        return false;
+    }
+
     /// @brief シーン切り替え中もタイトルを表示し続けるかを返す。
     virtual bool KeepTitleDuringTransition() const
     {

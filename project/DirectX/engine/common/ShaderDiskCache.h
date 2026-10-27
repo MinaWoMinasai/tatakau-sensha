@@ -121,10 +121,14 @@ public:
             if (identity_.empty()) {
                 return {};
             }
-            nlohmann::json metadata = {{"format", 1},
+            // 作業ディレクトリの中のシェーダーは相対パスで識別し、ゲームのフォルダごと移しても同じキーになるようにする。
+            // includeは相対パスで記録し、Loadで中身を照合するので、置き場所が変わっても古い結果は使わない。
+            const std::filesystem::path absolutePath = std::filesystem::absolute(path).lexically_normal();
+            const std::filesystem::path relativePath = absolutePath.lexically_relative(std::filesystem::current_path());
+            const bool insideWorkingDirectory = !relativePath.empty() && *relativePath.begin() != L"..";
+            nlohmann::json metadata = {{"format", 2},
                                        {"compiler", identity_},
-                                       {"sourcePath", Utf8(std::filesystem::absolute(path).lexically_normal().wstring())},
-                                       {"workingDirectory", Utf8(std::filesystem::current_path().wstring())},
+                                       {"sourcePath", Utf8((insideWorkingDirectory ? relativePath : absolutePath).generic_wstring())},
                                        {"source", Hash(source, size)},
                                        {"arguments", nlohmann::json::array()}};
             if (metadata["source"].get<std::string>().empty()) {
