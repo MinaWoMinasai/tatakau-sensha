@@ -223,13 +223,12 @@ bool Application::Initialize(const GameProjectCommandLineOptions& projectOptions
     myEngine::Dump dump;
     SetUnhandledExceptionFilter(dump.Export);
 
+    myEngine::WinApp::GetInstance()->Initialize();
+
     char asyncFlag[8]{};
     progressiveStartupScene_ = hooks_.GetProgressiveStartupSceneName();
     titleFirst_ = !progressiveStartupScene_.empty() && resolvedStartupScene_ == progressiveStartupScene_ &&
                   !(GetEnvironmentVariableA("MYENGINE_ASYNC_STARTUP", asyncFlag, sizeof(asyncFlag)) == 1 && asyncFlag[0] == '0');
-    // タイトルから段階的に起動するときは、何も描かれていないウィンドウを見せないよう、
-    // ポスト処理つきの最初のフレームを描くまでウィンドウを出さない（MainLoop）。
-    myEngine::WinApp::GetInstance()->Initialize(titleFirst_);
     // ファイルのデコードはデバイスを必要としないため、D3D12のデバイスやパイプラインの作成と並行して行う。
     hooks_.OnBeforeEngineInitialize(resolvedStartupScene_);
     InitializeEngine();
@@ -471,7 +470,6 @@ int Application::MainLoop()
     MSG msg{};
     std::string lastPresentedScene;
     unsigned startupValidationFrames = 0;
-    const auto deferredShowDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
     while (msg.message != WM_QUIT) {
         const auto frameStart = std::chrono::steady_clock::now();
         auto elapsedMs = [](auto start, auto end) {
@@ -583,10 +581,6 @@ int Application::MainLoop()
             hooks_.OnStartupFrameRecorded(*dxCommon_, lastPresentedScene.empty());
             dxCommon_->PostDraw();
             hooks_.OnStartupFramePresented(*dxCommon_);
-            if (winApp->IsShowDeferred() && std::chrono::steady_clock::now() >= deferredShowDeadline) {
-                // 初期化が想定より長引いても、ウィンドウが出ないまま待たせない。
-                winApp->ShowDeferredWindow();
-            }
             if (lastPresentedScene != progressiveStartupScene_) {
                 myEngine::StartupTrace::Mark("first_frame." + progressiveStartupScene_);
                 myEngine::StartupTrace::Flush();
@@ -782,8 +776,6 @@ int Application::MainLoop()
         }
         const auto postDrawStart = std::chrono::steady_clock::now();
         dxCommon_->PostDraw();
-        // 表示する中身のある最初のフレームをPresentしてからウィンドウを出す。
-        winApp->ShowDeferredWindow();
 
         if (timestepTestSeconds > 0.0) {
             if (!timestepTest.started) {

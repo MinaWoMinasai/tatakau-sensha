@@ -38,17 +38,7 @@ public:
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
     /// @brief COMを初期化し、ウィンドウを作って表示する。メインスレッドで1回だけ呼ぶ。
-    /// deferShowがtrueなら、白や黒の何も無い画面を見せないよう、ShowDeferredWindowを呼ぶまで表示しない。
-    void Initialize(bool deferShow = false);
-
-    /// @brief Initializeで表示を遅らせたウィンドウを表示し、前面に出す。2回目以降と非表示検証中は何もしない。
-    void ShowDeferredWindow();
-
-    /// @brief 表示を遅らせたウィンドウがまだ表示されていないか判定する。
-    bool IsShowDeferred() const
-    {
-        return showDeferred_;
-    }
+    void Initialize();
 
     /// @brief ウィンドウを閉じ、Initializeで初期化したCOMを終える。
     void Finalize();
@@ -93,7 +83,6 @@ private:
     WNDCLASS wc_{};
     bool isActive_ = true;
     bool activationChanged_ = false;
-    bool showDeferred_ = false, hiddenWindow_ = false;
     float presentationCurvature_ = 0.0f;
     // CoInitializeExが成功した（S_FALSEを含む）ときだけ、Finalizeで対になるCoUninitializeを呼ぶ。
     bool comInitialized_ = false;
