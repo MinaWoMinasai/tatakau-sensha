@@ -231,6 +231,22 @@ bool Application::Initialize(const GameProjectCommandLineOptions& projectOptions
                   !(GetEnvironmentVariableA("MYENGINE_ASYNC_STARTUP", asyncFlag, sizeof(asyncFlag)) == 1 && asyncFlag[0] == '0');
     // ファイルのデコードはデバイスを必要としないため、D3D12のデバイスやパイプラインの作成と並行して行う。
     hooks_.OnBeforeEngineInitialize(resolvedStartupScene_);
+    // 音声（XAudio2・Media Foundation・MP3のデコード）も同様に別スレッドで進める。
+    // メインスレッドは InitializePresentation で完了を待つまで Audio に触れない。
+    audioLoad_ = std::async(std::launch::async, [this] {
+        const HRESULT comResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        try {
+            myEngine::StartupTrace::Scope scope("Presentation.Audio");
+            myEngine::Audio::GetInstance()->Initialize();
+            hooks_.OnLoadSharedAssets();
+        }
+        catch (...) {
+            // 音声が無くてもゲームは続ける。
+        }
+        if (SUCCEEDED(comResult)) {
+            CoUninitialize();
+        }
+    });
     InitializeEngine();
     if (!titleFirst_) {
         InitializeImGui();
@@ -274,12 +290,18 @@ myEngine::InitializationTask Application::InitializePresentation()
         InitializeImGui();
     }
     co_await std::suspend_always{};
-    rtvManager_ = std::make_unique<myEngine::RtvManager>();
-    rtvManager_->Initialize(dxCommon_.get());
+    {
+        myEngine::StartupTrace::Scope scope("Presentation.Rtv");
+        rtvManager_ = std::make_unique<myEngine::RtvManager>();
+        rtvManager_->Initialize(dxCommon_.get());
+    }
 
     co_await std::suspend_always{};
-    bloom_ = std::make_unique<myEngine::Bloom>();
-    bloom_->Initialize(dxCommon_.get(), srvManager_.get(), rtvManager_.get());
+    {
+        myEngine::StartupTrace::Scope scope("Presentation.Bloom");
+        bloom_ = std::make_unique<myEngine::Bloom>();
+        bloom_->Initialize(dxCommon_.get(), srvManager_.get(), rtvManager_.get());
+    }
     char stressCount[16]{};
     if (myEngine::kDeveloperTools && GetEnvironmentVariableA("MYENGINE_PERF_STRESS_TRAILS", stressCount, sizeof(stressCount)) > 0) {
         const unsigned count = static_cast<unsigned>((std::clamp)(std::atoi(stressCount), 0, 512));
@@ -290,12 +312,17 @@ myEngine::InitializationTask Application::InitializePresentation()
     }
 
     co_await std::suspend_always{};
-    myEngine::ParticleManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
+    {
+        myEngine::StartupTrace::Scope scope("Presentation.Particles");
+        myEngine::ParticleManager::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get());
+    }
 
     co_await std::suspend_always{};
-    // 音声読み込み
-    myEngine::Audio::GetInstance()->Initialize();
-    hooks_.OnLoadSharedAssets();
+    if (audioLoad_.valid()) {
+        // Initializeで別スレッドに始めた音声の読み込みを待つ。ここから先はメインスレッドが Audio を使う。
+        myEngine::StartupTrace::Scope scope("Presentation.AudioWait");
+        audioLoad_.get();
+    }
 
     myEngine::StartupTrace::Mark("engine.ready");
 }
@@ -848,6 +875,9 @@ int Application::MainLoop()
 
 void Application::Finalize()
 {
+    if (audioLoad_.valid()) {
+        audioLoad_.wait();
+    }
     myEngine::BackgroundLoader::Get().Shutdown();
     presentationTask_ = {};
     myEngine::SkinnedModel::ClearPreloadedAssets();
