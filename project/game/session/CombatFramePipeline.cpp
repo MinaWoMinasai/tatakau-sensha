@@ -507,9 +507,14 @@ void CombatFramePipeline::Update()
                                                               world_.gameplayQueries->IsRunRivalActive() ? world_.resources.enemy_.get()
                                                                                                          : nullptr,
                                                               world_.resources.enemyManager_.get(), world_.combat.finalDeltaTime);
-                world_.resources.collisionManager_->CheckAllCollisions(
-                    world_.resources.player_.get(), world_.gameplayQueries->IsRunRivalActive() ? world_.resources.enemy_.get() : nullptr,
-                    world_.resources.bulletManager_.get(), world_.resources.enemyManager_.get());
+                {
+                    // 総当たりの組の走査だけを分けて測る（S0 の負荷測定）。
+                    myEngine::RuntimeProfiler::CpuScope pairScope("Collision pairs");
+                    world_.resources.collisionManager_->CheckAllCollisions(
+                        world_.resources.player_.get(),
+                        world_.gameplayQueries->IsRunRivalActive() ? world_.resources.enemy_.get() : nullptr,
+                        world_.resources.bulletManager_.get(), world_.resources.enemyManager_.get());
+                }
                 for (const auto& impact : world_.resources.player_->ConsumeDashImpactEvents()) {
                     world_.expeditionExperience->QueueExpeditionImpact(impact.origin, impact.direction, impact.powered);
                 }

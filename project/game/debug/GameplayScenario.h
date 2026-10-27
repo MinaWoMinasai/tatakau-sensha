@@ -420,7 +420,7 @@ public:
         if (snapshot.playerDead != (snapshot.playerHp == 0)) {
             fail("Player death/HP mismatch.");
         }
-        if (snapshot.projectiles > 4096 || snapshot.enemies > 128) {
+        if (snapshot.projectiles > 4096 || snapshot.enemies > enemyLimit_) {
             fail("Runaway entity growth.");
         }
         if (snapshot.dissolveProgress < 0 || snapshot.dissolveProgress > 1) {
@@ -492,7 +492,14 @@ public:
         return sawPlayerDeath_;
     }
 
+    /// @brief 敵が増えすぎたと判定する数（既定128）を足す。負荷測定で意図して並べた数だけ広げる。
+    void AllowExtraEnemies(unsigned count)
+    {
+        enemyLimit_ = 128 + count;
+    }
+
 private:
+    unsigned enemyLimit_ = 128;
     Snapshot previous_;
     std::vector<std::string> errors_;
     unsigned maximumProjectiles_ = 0, maximumEnemies_ = 0, maximumPrimaryAttacks_ = 0, maximumActiveAttacks_ = 0;

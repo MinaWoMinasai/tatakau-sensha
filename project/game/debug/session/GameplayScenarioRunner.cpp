@@ -16,6 +16,9 @@
 #include <cstdio>
 #endif
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+#include <cstdlib>
+#endif
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include <filesystem>
 #endif
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
@@ -81,6 +84,42 @@ std::vector<tankexp::RoomPoint> ScenarioSpawnPoints(const tankexp::RoomDefinitio
         for (int column = tankexp::kRoomLeft + 1; column < tankexp::kRoomRight; ++column) {
             add(tankexp::RoomCellToWorld(column, row));
         }
+    }
+    return points;
+}
+
+/// @brief 負荷測定で並べるシェイプの数を MYENGINE_STRESS_SHAPES から読む。未設定・不正値は0、上限は1000。
+unsigned StressShapeCount()
+{
+    char value[16]{};
+    const DWORD length = GetEnvironmentVariableA("MYENGINE_STRESS_SHAPES", value, sizeof(value));
+    if (length == 0 || length >= sizeof(value)) {
+        return 0;
+    }
+    const long count = std::strtol(value, nullptr, 10);
+    return count <= 0 ? 0u : static_cast<unsigned>((std::min)(count, 1000L));
+}
+
+/// @brief 部屋の空いた所を1単位の格子で集め、自機の開始位置の近くを除いて、count 個を全体に散らして返す。
+std::vector<tankexp::RoomPoint> StressShapePoints(const tankexp::RoomDefinition& room, unsigned count)
+{
+    std::vector<tankexp::RoomPoint> candidates;
+    for (float y = 16.5f; y < 42.0f; y += 1.0f) {
+        for (float x = 22.5f; x < 66.0f; x += 1.0f) {
+            const float px = x - room.playerStart.x, py = y - room.playerStart.y;
+            if (px * px + py * py >= 9.0f && tankexp::IsRoomPointClear(room, {x, y})) {
+                candidates.push_back({x, y});
+            }
+        }
+    }
+    std::vector<tankexp::RoomPoint> points;
+    if (count == 0 || candidates.empty()) {
+        return points;
+    }
+    // 候補が足りなければ同じ点を重ねて使う。数を優先する測定なので、重なりは押し出しに任せる。
+    for (unsigned index = 0; index < count; ++index) {
+        const size_t pick = static_cast<size_t>(static_cast<double>(index) * static_cast<double>(candidates.size()) / count);
+        points.push_back(candidates[pick % candidates.size()]);
     }
     return points;
 }
@@ -247,6 +286,22 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
                                     world_.resources.enemyManager_->SpawnLevelEnemy({point.x, point.y, 0}, type, 50000),
                                 "Could not spawn scenario enemy: " + type);
             }
+        }
+        // 負荷測定（S0）：環境変数があるときだけ、四角6・三角3・五角1の割合でシェイプを足す。倒れないようHPを大きくする。
+        const unsigned stressShapes = StressShapeCount();
+        if (stressShapes > 0) {
+            const std::array<const char*, 10> shapeTypes{"Square",   "Square", "Triangle", "Square", "Triangle",
+                                                         "Pentagon", "Square", "Triangle", "Square", "Square"};
+            const auto points = StressShapePoints(*source, stressShapes);
+            RequireScenario(points.size() == stressShapes, "No free cells for the stress shapes.");
+            for (unsigned index = 0; index < stressShapes; ++index) {
+                RequireScenario(world_.resources.enemyManager_->SpawnLevelEnemy({points[index].x, points[index].y, 0},
+                                                                                shapeTypes[index % shapeTypes.size()], 50000),
+                                "Could not spawn a stress shape.");
+            }
+            session.AllowExtraEnemies(stressShapes);
+            world_.resources.enemyManager_->SetMaxEnemies(
+                (std::max)(EnemyManager::kDefaultMaxEnemies, static_cast<int>(world_.resources.enemyManager_->GetEnemyCount())));
         }
         world_.run.tankExpeditionSpawned_ = static_cast<int>(world_.resources.enemyManager_->GetEnemyCount());
         if (boss) {

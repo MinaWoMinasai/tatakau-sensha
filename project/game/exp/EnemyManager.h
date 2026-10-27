@@ -88,6 +88,20 @@ public:
         return enemies_.size();
     }
 
+    /// @brief 既定のランダム出現と出現領域が使う管理数の上限（既定45）を変える。最低1。既存の個体は減らさない。
+    void SetMaxEnemies(int maxEnemies)
+    {
+        maxEnemies_ = maxEnemies < 1 ? 1 : maxEnemies;
+    }
+
+    /// @brief 既定のランダム出現と出現領域が使う管理数の上限を返す。
+    int GetMaxEnemies() const
+    {
+        return maxEnemies_;
+    }
+
+    static constexpr int kDefaultMaxEnemies = 45;
+
 private:
     /// @brief 既定マップ内で、壁と自機付近を避けた位置を最大10回試し、図形またはShooterを1体生成する。
     void Spawn(Stage& stage);
@@ -112,5 +126,5 @@ private:
     float spawnTimer_ = 0.0f;
     bool defaultRandomSpawnEnabled_ = true;
     const float kSpawnInterval = 1.2f; // 短い間隔で図形を散らす
-    const int kMaxEnemies = 45;        // 最大数
+    int maxEnemies_ = kDefaultMaxEnemies;
 };

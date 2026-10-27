@@ -87,7 +87,7 @@ void EnemyManager::Update(Stage& stage, float deltaTime)
     if (defaultRandomSpawnEnabled_) {
         spawnTimer_ -= deltaTime;
     }
-    if (defaultRandomSpawnEnabled_ && spawnTimer_ <= 0.0f && enemies_.size() < kMaxEnemies) {
+    if (defaultRandomSpawnEnabled_ && spawnTimer_ <= 0.0f && enemies_.size() < static_cast<size_t>(maxEnemies_)) {
         Spawn(stage);
         spawnTimer_ = kSpawnInterval;
     }
@@ -360,7 +360,7 @@ ExpEnemy* EnemyManager::FindNearestRunResource(const myEngine::Vector3& position
 void EnemyManager::UpdateLevelSpawnAreas(Stage& stage, float deltaTime)
 {
     for (SpawnArea& area : spawnAreas_) {
-        if (!area.enabled || area.maxAlive <= 0 || enemies_.size() >= kMaxEnemies) {
+        if (!area.enabled || area.maxAlive <= 0 || enemies_.size() >= static_cast<size_t>(maxEnemies_)) {
             continue;
         }
 

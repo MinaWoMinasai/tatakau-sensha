@@ -137,7 +137,10 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         world_.resources.neonGridRenderer_->DrawRange(0, world_.resources.neonGridRenderer_->GetVertexCount(), vp,
                                                       world_.resources.neonDepthCameraScoped_ &&
                                                           !myEngine::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV());
-        world_.actorNeonRenderer->DrawActorNeonBodyFillPass(false, ActorNeonRenderer::BodySet::Enemies);
+        {
+            myEngine::RuntimeProfiler::CpuScope scope("Grid: enemy body fill");
+            world_.actorNeonRenderer->DrawActorNeonBodyFillPass(false, ActorNeonRenderer::BodySet::Enemies);
+        }
         foregroundStart = world_.resources.neonGridRenderer_->GetVertexCount();
     }
     const bool queueExpEnemyNeonInGridPass =
@@ -156,6 +159,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         myEngine::Vector3 cameraUp = myEngine::Normalize({cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2]});
         myEngine::Vector3 cameraForward = myEngine::Normalize({cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2]});
         if (queueExpEnemyNeonInGridPass) {
+            myEngine::RuntimeProfiler::CpuScope scope("Grid: enemy neon shapes");
             world_.resourceNeonRenderer->QueueExpEnemyNeonShapes(cameraRight, cameraUp, cameraForward);
         }
         if (queueActorBillboards) {
@@ -177,9 +181,11 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     myEngine::Matrix4x4 vp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
                                  ? world_.resources.debugCamera->GetViewProjectionMatrix()
                                  : world_.resources.camera->GetViewProjectionMatrix();
+    myEngine::RuntimeProfiler::CpuScope drawScope("Grid: line draw");
     world_.resources.neonGridRenderer_->DrawRange(
         foregroundStart, world_.resources.neonGridRenderer_->GetVertexCount() - foregroundStart, vp,
         world_.resources.neonDepthCameraScoped_ && !myEngine::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV());
+    myEngine::RuntimeProfiler::Get().SetCounter("Grid vertices", world_.resources.neonGridRenderer_->GetVertexCount());
 }
 
 void StageNeonRenderer::DrawStageBlockNeonPass()

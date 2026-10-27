@@ -52,6 +52,12 @@ public:
         return errors_;
     }
 
+    /// @brief 負荷測定で意図して並べた敵の数だけ、増えすぎの判定を広げる。
+    void AllowExtraEnemies(unsigned count)
+    {
+        validator_.AllowExtraEnemies(count);
+    }
+
     /// @brief 新しいシーンの開始を記録する。
     void BeginScene();
     // シミュレーションの更新ごとに、その後で1回呼ぶ。入力は更新前のGetFrame()を使い、
