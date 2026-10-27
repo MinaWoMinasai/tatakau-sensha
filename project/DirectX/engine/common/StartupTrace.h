@@ -71,7 +71,8 @@ class StartupTrace {
     /// @brief 起動計測のイベント列と出力先などの共有状態を保持する。
     struct State {
         Clock::time_point start = Clock::now();
-        bool enabled = Environment("MYENGINE_STARTUP_TRACE") != "0";
+        // 配布したゲームでは記録も書き出しもしない。MYENGINE_STARTUP_TRACE=1 か出力先を指定したときだけ有効にする。
+        bool enabled = Environment("MYENGINE_STARTUP_TRACE") == "1" || !Environment("MYENGINE_STARTUP_TRACE_PATH").empty();
         std::mutex mutex;
         std::vector<Event> events;
         std::map<std::string, double> counters;
