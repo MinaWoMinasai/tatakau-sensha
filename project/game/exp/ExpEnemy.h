@@ -70,9 +70,9 @@ public:
     /// @brief 自機側が通常の経験値敵を撃破したとき、その敵の位置を渡す共有コールバックを設定する。
     /// @note 自機自身の死亡通知ではない。資源・召喚個体は対象外で、空の関数で解除できる。
     static void SetPlayerDefeatCallback(std::function<void(const myEngine::Vector3&)> callback);
-    /// @brief 自機側の撃破で経験値を直接渡す代わりに、位置と量を受け取る共有コールバックを設定する（試作の欠片）。
+    /// @brief 自機側の撃破で経験値を直接渡す代わりに、倒した敵と量を受け取る共有コールバックを設定する（試作の欠片）。
     /// @note 設定中は Player::AddExp を呼ばない。空の関数で解除すると、従来どおり直接渡す。
-    static void SetPlayerExpDropCallback(std::function<void(const myEngine::Vector3&, uint32_t)> callback);
+    static void SetPlayerExpDropCallback(std::function<void(const ExpEnemy&, uint32_t)> callback);
     /// @brief 図形のネオン表示を切り替え、有効なら描画方式1、無効なら方式0にする。
     static void SetShapeNeonBillboardEnabled(bool enabled);
     /// @brief 図形のネオン描画方式を0〜3に制限して設定する。0以外では通常のモデル描画を省く。
@@ -130,6 +130,12 @@ public:
     {
         chaseAcceleration_ = acceleration;
         chaseMaxSpeed_ = maxSpeed;
+    }
+
+    /// @brief SetSizeScale で付けた大きさの倍率を返す（既定1）。
+    float GetSizeScale() const
+    {
+        return sizeScale_;
     }
 
     /// @brief 表示と衝突半径を scale 倍にする（大五角など）。生成直後に1回だけ呼ぶ。
@@ -492,7 +498,7 @@ private:
     static EnemyInteractionConfig enemyInteractionConfig_;
     static std::function<void(uint32_t)> enemyKillCallback_;
     static std::function<void(const myEngine::Vector3&)> playerDefeatCallback_;
-    static std::function<void(const myEngine::Vector3&, uint32_t)> playerExpDropCallback_;
+    static std::function<void(const ExpEnemy&, uint32_t)> playerExpDropCallback_;
     static bool shapeNeonBillboardEnabled_;
     static int shapeNeonRenderMode_;
 

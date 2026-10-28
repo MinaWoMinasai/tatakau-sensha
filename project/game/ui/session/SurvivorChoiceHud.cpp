@@ -53,13 +53,11 @@ void SurvivorChoiceHud::Initialize()
 }
 
 void SurvivorChoiceHud::SetOffers(const std::vector<survivor::PartOffer>& offers,
-                                  const std::array<survivor::PartDefinition, survivor::kPartCount>& parts)
+                                  const std::array<survivor::PartDefinition, survivor::kPartCount>& parts, bool premium)
 {
     offerCount_ = (std::min)(offers.size(), cards_.size());
-    if (customCards_) {
-        customCards_ = false;
-        heading_->SetText("部品を選ぶ");
-    }
+    customCards_ = false;
+    heading_->SetText(premium ? "部品を選ぶ（宝箱：軽い部品なし）" : "部品を選ぶ");
     LayoutCards();
     for (size_t i = 0; i < offerCount_; ++i) {
         const auto& offer = offers[i];

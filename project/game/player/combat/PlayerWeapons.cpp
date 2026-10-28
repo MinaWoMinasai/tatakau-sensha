@@ -44,6 +44,12 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
         cooldown = (std::max)(0.0f, cooldown - deltaTime);
     }
     player_.heat_.Update(deltaTime);
+    if (player_.partEffects_.loaderRamp) {
+        // 3秒撃ち続けると最大。撃つのをやめると0.5秒で戻る。
+        const bool firing = (player_.demoInputEnabled_ ? player_.demoShoot_ : player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[0])) &&
+                            player_.heat_.CanFire();
+        player_.loaderRamp_ = (std::clamp)(player_.loaderRamp_ + (firing ? deltaTime / 3.0f : -deltaTime * 2.0f), 0.0f, 1.0f);
+    }
 
     bool wantsPrimaryAttack =
         player_.demoInputEnabled_ ? player_.demoShoot_ : player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[0]);
@@ -168,6 +174,7 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
             }
             if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
                 player_.heat_.AddShot(player_.formTuning_.heatScale);
+                player_.heat_.AddHeat(player_.partEffects_.extraHeatPerShot);
                 // 遠征のドローン生成では射撃を記録しない。Player::Updateでドローン射撃による弾数増加を記録する。
                 if (!player_.runCheckpointEvolution_ || !config->usesDrone) {
                     player_.primaryAttackPerformedEvent_ = true;
@@ -399,7 +406,8 @@ void PlayerWeapons::ApplyRunProjectileRules(AttackParam& param, bool applyFan) c
     param.bulletCount = 1;
     param.impactSplitCount = 0;
     const TankRunTuning tuning = MakeTankRunTuning(player_.runModifiers_, player_.runGrowth_);
-    if (player_.expeditionCombatStyleSelected_ && player_.expeditionCombatStyle_ == tankbuild::Style::Shooter) {
+    if ((player_.expeditionCombatStyleSelected_ && player_.expeditionCombatStyle_ == tankbuild::Style::Shooter) ||
+        player_.runModifiers_.survivor) {
         param.shooterChain = player_.runModifiers_.chainLightning;
         param.shooterMark = player_.runModifiers_.markDetonation;
         param.shooterBoomerang = player_.runModifiers_.boomerangShell;
@@ -428,6 +436,8 @@ void PlayerWeapons::ApplyRunProjectileRules(AttackParam& param, bool applyFan) c
         }
         param.impactSplitCount = tuning.impactSplitCount;
         param.impactSplitDamageScale = 0.55f;
+    } else if (player_.runModifiers_.survivor) {
+        param.actorPierceCount = tuning.actorPierceCount;
     }
 }
 
@@ -438,6 +448,10 @@ float PlayerWeapons::GetRunFireIntervalScale() const
         player_.runOverdriveTimer_ > 0.0f ? 1.0f / (1.0f + TankEffectPower(player_.runModifiers_, tankrun::CardId::Overdrive)) : 1.0f;
     if (player_.runModifiers_.core == TankRunCore::Assault && player_.runDashAttackTimer_ > 0.0f) {
         scale *= 0.65f;
+    }
+    // 試作の装填機の3段：撃ち続けるほど、連射が最大で +35% まで速くなる。
+    if (player_.partEffects_.loaderRamp) {
+        scale /= 1.0f + 0.35f * player_.loaderRamp_;
     }
     return scale;
 }
@@ -1147,6 +1161,11 @@ bool PlayerWeapons::FireConfiguredClass(const PlayerClassConfig& config, BulletM
             }
             mountParam.bulletCount = (std::min)(mountParam.bulletCount, static_cast<int>(240 - active));
             mountParam.bulletSpeed *= barrelConfig.projectileSpeedScale;
+            // 試作の弾頭の3段：ときどき威力2倍（会心）。会心の確率が0なら乱数を引かない。
+            if (player_.partEffects_.critChance > 0.0f && myEngine::Rand(0.0f, 1.0f) < player_.partEffects_.critChance) {
+                mountParam.damage *= 2;
+                ++player_.critShots_;
+            }
             player_.attackController_.FireFromMuzzle(muzzle, fireDir, mountParam, BulletOwner::kPlayer);
             if (index < player_.barrels_.size()) {
                 player_.barrels_[index].muzzleFlashTimer = player_.kMuzzleFlashDuration;

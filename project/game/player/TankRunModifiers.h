@@ -18,6 +18,8 @@ struct TankPartScales {
     float bulletDamage = 1.0f;
     float reloadInterval = 1.0f;
     float moveSpeed = 1.0f;
+    /// @brief スタミナ（ダッシュの回数）の上限に足す量。
+    float extraStamina = 0.0f;
 };
 
 // その遠征の間だけの選択。空の値なら、元のゲームのルールは変わらない。
@@ -25,6 +27,8 @@ struct TankPartScales {
 struct TankRunModifiers {
     bool enabled = false;
     bool expedition = false;
+    /// @brief 育つ戦車の試作。遠征の射撃スタイル向けの効果（貫通・連鎖放電・撃破バースト）を、部品で使えるようにする。
+    bool survivor = false;
     bool ricochet = false;
     bool heavy = false;
     bool rapid = false;
@@ -113,6 +117,7 @@ struct TankRunTuning {
     float bulletHp = 0.0f;
     float bulletInterception = 0.0f;
     float bodyDamage = 1.0f;
+    float extraStamina = 0.0f;
     int extraProjectiles = 0;
     float minimumSpread = 0.0f;
     bool reflects = false;
@@ -139,6 +144,8 @@ inline constexpr TankRunTuning MakeTankRunTuning(const TankRunModifiers& modifie
                                     : (modifiers.ricochet ? TankEffectCount(modifiers, tankrun::CardId::Ricochet) : 0);
         result.actorPierceCount = modifiers.pierce ? TankEffectCount(modifiers, tankrun::CardId::Pierce) : 0;
         result.impactSplitCount = 0; // 旧来の拡散データで弾数が増えることはもう無い。
+    } else if (modifiers.survivor) {
+        result.actorPierceCount = modifiers.pierce ? TankEffectCount(modifiers, tankrun::CardId::Pierce) : 0;
     }
     if (modifiers.core == TankRunCore::Ricochet) {
         result.damage *= 1.20f;
@@ -178,6 +185,7 @@ inline constexpr TankRunTuning MakeTankRunTuning(const TankRunModifiers& modifie
     result.reloadInterval *= modifiers.partScales.reloadInterval;
     result.moveSpeed *= modifiers.partScales.moveSpeed;
     result.bodyDamage = modifiers.partScales.bodyDamage;
+    result.extraStamina = modifiers.partScales.extraStamina;
     return result;
 }
 

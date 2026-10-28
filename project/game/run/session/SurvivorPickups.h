@@ -38,7 +38,8 @@ public:
     void Drop(const myEngine::Vector3& position, uint32_t value, std::mt19937& random);
     /// @brief 欠片を動かし、拾った経験値の合計を返す。
     /// @param magnetScale 回収範囲の倍率（部品で広げる）。
-    int Update(float dt, const myEngine::Vector3& player, float magnetScale = 1.0f);
+    /// @param homing 真なら、落ちて0.6秒たった欠片は距離によらず寄ってくる（回収器の3段）。
+    int Update(float dt, const myEngine::Vector3& player, float magnetScale = 1.0f, bool homing = false);
     /// @brief 画面の近くにある欠片を、カメラを向いた小さな菱形として積む。
     void Queue(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp,
                const myEngine::Vector3& viewCenter, float halfWidth, float halfHeight) const;

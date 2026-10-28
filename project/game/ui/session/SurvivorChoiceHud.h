@@ -16,7 +16,9 @@ public:
     /// @brief 札の板と文字を作る。
     void Initialize();
     /// @brief 3択の中身を差し替える。offers が3枚より少ないときは、残りの札を出さない。
-    void SetOffers(const std::vector<survivor::PartOffer>& offers, const std::array<survivor::PartDefinition, survivor::kPartCount>& parts);
+    /// @param premium 真なら、宝箱から得た質の高い選択だと見出しに出す。
+    void SetOffers(const std::vector<survivor::PartOffer>& offers, const std::array<survivor::PartDefinition, survivor::kPartCount>& parts,
+                   bool premium = false);
     /// @brief 部品以外の選択（形態など）の札を出す。見出しと下の案内も差し替え、次の SetOffers まで SetPending は案内を変えない。
     void SetCards(const std::string& heading, const std::string& footer, const std::vector<std::pair<std::string, std::string>>& cards);
     /// @brief 貯まった選択の数の表示を更新する。

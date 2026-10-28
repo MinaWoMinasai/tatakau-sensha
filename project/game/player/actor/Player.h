@@ -650,6 +650,48 @@ public:
     }
     /// @brief 右クリックをため撃ちに使う形態か。
     bool HasRailChargeForm() const;
+
+    /// @brief 育つ戦車の試作の部品による、撃ち方・守りの挙動の変化。既定では何も変えない。
+    struct SurvivorPartEffects {
+        /// @brief 主砲1発ごとに足す熱（重弾頭）。
+        float extraHeatPerShot = 0.0f;
+        /// @brief 会心（威力2倍）の確率（弾頭の3段）。
+        float critChance = 0.0f;
+        /// @brief 撃ち続けるほど連射が速くなる（装填機の3段）。
+        bool loaderRamp = false;
+        /// @brief 車体のトゲ（衝角の3段）。触れた小さなシェイプを壊すのは SurvivorRunController が行い、ここは見た目に使う。
+        bool spikes = false;
+        /// @brief 被弾後の無敵時間の倍率（装甲板の3段）。
+        float invincibleScale = 1.0f;
+    };
+    void SetSurvivorPartEffects(const SurvivorPartEffects& effects)
+    {
+        partEffects_ = effects;
+    }
+    bool HasSpikes() const
+    {
+        return partEffects_.spikes;
+    }
+    /// @brief 会心が出た回数（自動確認用）。
+    uint32_t GetCritShots() const
+    {
+        return critShots_;
+    }
+    /// @brief 衝撃放電（ダッシュの爆発）を出した回数。
+    uint32_t GetDashExplosionCount() const
+    {
+        return runDashExplosionsEmitted_;
+    }
+    /// @brief 熱の設定だけを替える（今の熱は保つ）。冷却器で冷える速さや上限が変わるときに使う。
+    void SetHeatConfig(const PlayerHeat::Config& config)
+    {
+        heat_.Reconfigure(config);
+    }
+    /// @brief シールドの設定だけを替える（今のシールドは保ち、上限は次の更新で合わせる）。
+    void SetShieldConfig(const ShieldConfig& config)
+    {
+        shieldConfig_ = config;
+    }
     /// @brief playerClasses.json から読んだ機体設定を借用して返す。無ければ nullptr。
     const PlayerClassConfig* FindCatalogClassConfig(const std::string& classId) const
     {
@@ -1078,6 +1120,9 @@ private:
     float shieldRegenWait_ = 0.0f;
     float shieldAbsorbed_ = 0.0f;
     SurvivorFormTuning formTuning_{};
+    SurvivorPartEffects partEffects_{};
+    float loaderRamp_ = 0.0f;
+    uint32_t critShots_ = 0;
     bool shiftDashEnabled_ = false;
     bool demoSpecialHold_ = false;
 

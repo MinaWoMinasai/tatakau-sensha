@@ -71,6 +71,7 @@ inline TankPlayerStats CalculatePlayerDerivedStats(const PlayerDerivedStatsInput
     stats.staminaRecovery *= input.runTuning.staminaRecovery;
     stats.maxHp *= input.runTuning.maxHp;
     stats.bodyDamage *= input.runTuning.bodyDamage;
+    stats.maxStamina += input.runTuning.extraStamina;
     if (input.runEnabled) {
         stats.moveSpeed *= input.maintenanceMoveScale;
         stats.reloadSpeed *= input.maintenanceReloadScale;

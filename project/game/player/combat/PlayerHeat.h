@@ -27,6 +27,13 @@ public:
         Reset();
     }
 
+    /// @brief 設定だけを替える。今の熱とオーバーヒートは保ち、熱は新しい上限までに抑える。
+    void Reconfigure(const Config& config)
+    {
+        config_ = config;
+        heat_ = (std::min)(heat_, config_.maxHeat);
+    }
+
     void Reset()
     {
         heat_ = 0.0f;
@@ -90,6 +97,10 @@ public:
     float GetHeat() const
     {
         return heat_;
+    }
+    float GetMaxHeat() const
+    {
+        return config_.maxHeat;
     }
     /// @brief 熱の割合（0〜1）。オーバーヒートの間は、明けるまでの残りの割合。
     float GetRatio() const

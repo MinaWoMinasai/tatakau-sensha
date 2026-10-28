@@ -47,13 +47,20 @@
                     "railPower": 1.0, "railHeatBase": 10, "railHeatPerCharge": 25 }
   },
   "parts": {
-    "comment": "軽い部品の1段（Lv）ごとの上がり幅。0.12 なら +12%。装填機は1秒あたりの発射数を上げる。",
+    "comment": "軽い部品（Lv1〜5）は1段ごとの上がり幅。0.12 なら +12%。装填機は1秒あたりの発射数、冷却器は冷える速さ（撃っている間も）を上げる。ほかの部品（Lv1〜3）は Lv2 から1段ごとに効果の強さへ足す量。",
     "armor": { "perLevel": 0.12 },
     "ram": { "perLevel": 0.20 },
     "warhead": { "perLevel": 0.10 },
     "loader": { "perLevel": 0.12 },
     "thruster": { "perLevel": 0.08 },
-    "collector": { "perLevel": 0.25 }
+    "collector": { "perLevel": 0.25 },
+    "cooler": { "perLevel": 0.20 },
+    "shieldCapacity": { "perLevel": 0.25 },
+    "pierce": { "perLevel": 0.5 },
+    "chainLightning": { "perLevel": 0.5 },
+    "killBurst": { "perLevel": 0.5 },
+    "dashBurst": { "perLevel": 0.5 },
+    "heavyWarhead": { "perLevel": 0.5 }
   },
   "bigPentagon": {
     "comment": "五角を大きく硬くしたもの。",

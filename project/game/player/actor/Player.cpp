@@ -749,7 +749,7 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
     }
 
     TriggerDamageFeedback();
-    invincibleTimer_ = invincibleTime;
+    invincibleTimer_ = invincibleTime * partEffects_.invincibleScale;
     if (hp_ <= 0) {
         Die();
     }

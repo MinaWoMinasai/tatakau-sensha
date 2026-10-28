@@ -268,6 +268,19 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                            world_.resources.player_->GetDirection(), world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse),
                            world_.presentation.actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true,
                            world_.presentation.playerNeonEmission_);
+        if (world_.resources.player_->HasSpikes()) {
+            // 衝角の3段：車体のまわりに8本のトゲ。砲と重ならないよう、向きから半分ずらして車体と一緒に回す。
+            const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};
+            const myEngine::Vector3 facing = world_.resources.player_->GetDirection();
+            const float base = std::atan2(myEngine::Dot(facing, cameraUp), myEngine::Dot(facing, cameraRight));
+            const float radius = world_.presentation.playerNeonBillboardRadius_;
+            for (int i = 0; i < 8; ++i) {
+                const float angle = base + 3.14159265f / 8.0f + static_cast<float>(i) * 3.14159265f / 4.0f;
+                const myEngine::Vector3 radial = cameraRight * std::cos(angle) + cameraUp * std::sin(angle);
+                world_.resources.neonGridRenderer_->QueueLine(center + radial * (radius * 0.98f), center + radial * (radius * 1.34f),
+                                                              radius * 0.10f, color);
+            }
+        }
         if (drawBarrels && world_.combat.showFollowHpBars_ && (!world_.run.IsExpeditionRun() || world_.run.tankExpedition_.IsCombat())) {
             // 浮かんだHP/スタミナバーの代わりに、本体に沿った分割ゲージを表示する。
             // HPは本体色の下側の弧、スタミナはそれより短い上側の弧。

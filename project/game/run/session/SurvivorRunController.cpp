@@ -52,6 +52,7 @@ void SurvivorRunController::Initialize()
     // 遠征と同じ自機にする（遠征も ArenaRunController の初期化で改造の倍率を有効にしている）。
     TankRunModifiers modifiers{};
     modifiers.enabled = true;
+    modifiers.survivor = true;
     world_.resources.player_->SetRunModifiers(modifiers);
     world_.presentation.showPostProfileOverlay_ = false;
     world_.presentation.showLevelAiEditorPreview_ = false;
@@ -98,9 +99,16 @@ void SurvivorRunController::Initialize()
     pickupConfig.valuePerShard = config_.valuePerShard;
     pickupConfig.maxShards = static_cast<size_t>((std::max)(1, config_.maxShards));
     pickups_.SetConfig(pickupConfig);
-    ExpEnemy::SetPlayerExpDropCallback([this](const myEngine::Vector3& position, uint32_t value) {
-        pickups_.Drop(position, value, random_);
+    // 大五角は宝箱：倒すと、軽い部品の出ない3択を1つ貯める。
+    ExpEnemy::SetPlayerExpDropCallback([this](const ExpEnemy& enemy, uint32_t value) {
+        pickups_.Drop(enemy.GetWorldPosition(), value, random_);
         expDropped_ += static_cast<int>(value);
+        if (enemy.GetType() == ExpEnemyType::Pentagon && enemy.GetSizeScale() > 1.5f) {
+            ++pendingChoices_;
+            ++pendingPremium_;
+            ++premiumTotal_;
+            premiumGained_ = true;
+        }
     });
 
     nextSwarm_ = config_.swarm.from;
@@ -155,6 +163,16 @@ void SurvivorRunController::Initialize()
         }
         // 四隅の確認では、指定があれば最初から形態に変えて、止まった自機の形を写す。
         autoTourForm_ = formLength > 0;
+        // MYENGINE_SURVIVOR_LIGHT3=1：軽い部品をすべて3段から始め、3段の変化をまとめて確かめる。
+        wchar_t light3[4]{};
+        if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LIGHT3", light3, 4) > 0 && light3[0] == L'1') {
+            for (size_t i = 0; i < survivor::kPartCount; ++i) {
+                if (config_.parts[i].light) {
+                    partLevels_[i] = survivor::kLightChangeLevel;
+                }
+            }
+            ApplyParts();
+        }
     }
 }
 
@@ -180,7 +198,16 @@ void SurvivorRunController::Update(float dt)
         elapsed_ += gameDt;
         UpdateSpawns(gameDt);
         AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
-                                      survivor::CollectorMagnetScale(config_.parts, partLevels_)));
+                                      survivor::CollectorMagnetScale(config_.parts, partLevels_),
+                                      survivor::HasChange(partLevels_, survivor::PartId::Collector)));
+        if (gameDt > 0.0f && survivor::HasChange(partLevels_, survivor::PartId::Ram)) {
+            UpdateSpikes();
+        }
+        if (premiumGained_) {
+            premiumGained_ = false;
+            world_.combatFlow->SetEventCallout("宝箱：質の高い選択 +1", 0.9f);
+            choiceHud_.SetPending(pendingChoices_, choiceOpen_);
+        }
         if (!exitOpen_ && elapsed_ >= config_.exitOpenSeconds) {
             OpenExit();
         }
@@ -276,8 +303,15 @@ void SurvivorRunController::OpenChoices()
         return;
     }
     choiceOpen_ = true;
-    offers_ = survivor::DrawOffers(config_.parts, partLevels_, config_.choiceLightBias, random_);
-    choiceHud_.SetOffers(offers_, config_.parts);
+    DrawNextOffers();
+}
+
+void SurvivorRunController::DrawNextOffers()
+{
+    // 宝箱の選択が貯まっていれば、先にそれを出す。
+    offersPremium_ = pendingPremium_ > 0;
+    offers_ = survivor::DrawOffers(config_.parts, partLevels_, config_.choiceLightBias, random_, offersPremium_);
+    choiceHud_.SetOffers(offers_, config_.parts, offersPremium_);
     choiceHud_.SetPending(pendingChoices_, true);
 }
 
@@ -306,11 +340,12 @@ void SurvivorRunController::ChooseOffer(size_t index)
     }
     --pendingChoices_;
     ++choicesTaken_;
+    if (offersPremium_ && pendingPremium_ > 0) {
+        --pendingPremium_;
+    }
     if (pendingChoices_ > 0) {
         // まだ貯まっていれば、続けて次の3択を出す。
-        offers_ = survivor::DrawOffers(config_.parts, partLevels_, config_.choiceLightBias, random_);
-        choiceHud_.SetOffers(offers_, config_.parts);
-        choiceHud_.SetPending(pendingChoices_, true);
+        DrawNextOffers();
     } else {
         CloseChoices();
     }
@@ -383,10 +418,61 @@ void SurvivorRunController::ChooseForm(size_t index)
 
 void SurvivorRunController::ApplyParts()
 {
+    using survivor::PartId;
+    auto& player = *world_.resources.player_;
     TankRunModifiers modifiers{};
     modifiers.enabled = true;
+    modifiers.survivor = true;
     modifiers.partScales = survivor::MakePartScales(config_.parts, partLevels_);
-    world_.resources.player_->SetRunModifiers(modifiers);
+    survivor::ApplyPartCards(config_.parts, partLevels_, modifiers);
+    player.SetRunModifiers(modifiers);
+
+    // 熱とシールドの部品。冷却器は冷える速さ（撃っている間も）、3段で上限+30。シールド容量は上限、3段で回復までの時間が半分。
+    PlayerHeat::Config heat = config_.heat;
+    const float cool = survivor::LightBonus(config_.parts, partLevels_, PartId::Cooler);
+    heat.coolPerSecond *= cool;
+    heat.coolPerSecondWhileFiring *= cool;
+    if (survivor::HasChange(partLevels_, PartId::Cooler)) {
+        heat.maxHeat += 30.0f;
+    }
+    player.SetHeatConfig(heat);
+    Player::ShieldConfig shield{};
+    shield.enabled = true;
+    shield.maxHpRatio = config_.shieldMaxHpRatio * survivor::LightBonus(config_.parts, partLevels_, PartId::ShieldCapacity);
+    shield.regenDelay = config_.shieldRegenDelay * (survivor::HasChange(partLevels_, PartId::ShieldCapacity) ? 0.5f : 1.0f);
+    shield.regenPerSecond = config_.shieldRegenPerSecond;
+    player.SetShieldConfig(shield);
+
+    // 軽い部品の3段の変化と、重弾頭の熱。
+    Player::SurvivorPartEffects effects{};
+    effects.extraHeatPerShot = 2.0f * survivor::EffectPower(config_.parts, partLevels_, PartId::HeavyWarhead);
+    effects.critChance = survivor::HasChange(partLevels_, PartId::Warhead) ? 0.15f : 0.0f;
+    effects.loaderRamp = survivor::HasChange(partLevels_, PartId::Loader);
+    effects.spikes = survivor::HasChange(partLevels_, PartId::Ram);
+    effects.invincibleScale = survivor::HasChange(partLevels_, PartId::Armor) ? 1.8f : 1.0f;
+    player.SetSurvivorPartEffects(effects);
+}
+
+void SurvivorRunController::UpdateSpikes()
+{
+    // 衝角の3段：トゲの生えた車体に触れた小さなシェイプ（四角・三角・ふつうの五角）は、その場で壊れる。
+    auto& player = *world_.resources.player_;
+    const myEngine::Vector3 position = player.GetWorldPosition();
+    const float reach = player.GetRadius() + 0.35f;
+    for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+        if (!enemy || enemy->IsDead() || enemy->IsRunResource() || enemy->GetSizeScale() > 1.01f) {
+            continue;
+        }
+        const ExpEnemyType type = enemy->GetType();
+        if (type != ExpEnemyType::Square && type != ExpEnemyType::Triangle && type != ExpEnemyType::Pentagon) {
+            continue;
+        }
+        const myEngine::Vector3 offset = enemy->GetWorldPosition() - position;
+        const float limit = reach + enemy->GetRadius();
+        if (offset.x * offset.x + offset.y * offset.y <= limit * limit && enemy->TakeDamageFromPlayer(1000000u)) {
+            ++spikeKills_;
+        }
+    }
 }
 
 SurvivorRunController::AliveCounts SurvivorRunController::CountAlive() const
@@ -638,7 +724,21 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     myEngine::Vector3 move{goal.x - position.x, goal.y - position.y, 0.0f};
     const float length = myEngine::Length(move);
     move = length > 0.5f ? move / length : myEngine::Vector3{};
-    player.SetDemoInput(true, {move.x, move.y}, aim, true, false);
+    // トゲ：5秒で一度、自機のすぐ横に四角を置き、すぐにトゲの判定をして壊れるかを見る
+    // （同じフレームの体当たりや弾で壊れる前に確かめる）。
+    if (player.HasSpikes() && autoSpikeProbe_ == 0 && autoTestTime_ >= 5.0f) {
+        const myEngine::Vector3 beside = position + myEngine::Vector3{0.0f, -(player.GetRadius() + 0.5f), 0.0f};
+        const int before = spikeKills_;
+        if (SpawnShape("Square", beside, false)) {
+            UpdateSpikes();
+            autoSpikeProbe_ = spikeKills_ > before ? 2 : 3;
+        } else {
+            autoSpikeProbe_ = -1;
+        }
+    }
+    // 3秒ごとに1回ダッシュする（衝撃放電・推進器の確認）。
+    const bool dash = static_cast<int>(autoTestTime_ / 3.0f) != static_cast<int>((autoTestTime_ - dt) / 3.0f);
+    player.SetDemoInput(true, {move.x, move.y}, aim, true, dash);
     autoMaxHeat_ = (std::max)(autoMaxHeat_, player.GetHeat().GetHeat());
 
     // 形態：2択が開いたら0.3秒（実時間）で画面を保存し、0.6秒で選ぶ。選んで2秒後に、変わった自機の画面を保存する。
@@ -776,7 +876,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"overheats\":" << player.GetHeat().GetOverheatCount() << ",\"form\":\"" << formKey_
             << "\",\"formChosenAt\":" << autoFormChosenAt_ << ",\"formClass\":\""
             << (player.GetActiveClassConfig() ? player.GetActiveClassConfig()->id : std::string("none"))
-            << "\",\"railShots\":" << player.GetSpecialCombatStats().railShots << ",\"shieldCheck\":[" << autoShieldLog_.str() << "]"
+            << "\",\"railShots\":" << player.GetSpecialCombatStats().railShots << ",\"critShots\":" << player.GetCritShots()
+            << ",\"spikeKills\":" << spikeKills_ << ",\"spikeProbe\":" << autoSpikeProbe_ << ",\"premiumChests\":" << premiumTotal_
+            << ",\"dashExplosions\":" << player.GetDashExplosionCount() << ",\"maxStamina\":" << player.GetStats().maxStamina
+            << ",\"heatMax\":" << player.GetHeat().GetMaxHeat() << ",\"shieldMax\":" << player.GetShieldMax() << ",\"shieldCheck\":[" << autoShieldLog_.str() << "]"
             << ",\"samples\":[" << autoTestLog_.str() << "]}\n";
         autoTest_ = AutoTest::None;
         PostQuitMessage(0);

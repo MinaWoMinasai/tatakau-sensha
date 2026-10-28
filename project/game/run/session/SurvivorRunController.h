@@ -84,6 +84,10 @@ private:
     void ChooseOffer(size_t index);
     /// @brief 部品の Lv から自機の性能の倍率を作り直して渡す。
     void ApplyParts();
+    /// @brief 次の3択を引いて画面に出す。宝箱の選択が貯まっていれば、軽い部品の出ない3択にする。
+    void DrawNextOffers();
+    /// @brief 衝角の3段：車体に触れた小さなシェイプを壊す。
+    void UpdateSpikes();
     /// @brief 形態の2択を開く。部品の3択が開いていれば閉じる（選択は貯まったまま）。
     void OpenFormChoice();
     /// @brief 1・2キーかクリックで形態を選ぶ。選ぶまで閉じない。
@@ -117,6 +121,12 @@ private:
     std::vector<survivor::PartOffer> offers_;
     bool choiceOpen_ = false;
     int choicesTaken_ = 0;
+    // 大五角の宝箱から得た、質の高い選択。pendingChoices_ にも数える。
+    int pendingPremium_ = 0;
+    int premiumTotal_ = 0;
+    bool premiumGained_ = false;
+    bool offersPremium_ = false;
+    int spikeKills_ = 0;
     SurvivorChoiceHud choiceHud_;
     bool formChoiceOpen_ = false;
     bool formChosen_ = false;
@@ -168,5 +178,7 @@ private:
     float autoFormChosenAt_ = -1.0f;
     float autoFormCaptureAt_ = -1.0f;
     bool autoTourForm_ = false;
+    // トゲの確認：0 未実施、2 壊れた、3 壊れなかった、-1 置けなかった。
+    int autoSpikeProbe_ = 0;
 };
 } // namespace gameplay

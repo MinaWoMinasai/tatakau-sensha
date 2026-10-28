@@ -35,7 +35,7 @@ void SurvivorPickups::Drop(const myEngine::Vector3& position, uint32_t value, st
     }
 }
 
-int SurvivorPickups::Update(float dt, const myEngine::Vector3& player, float magnetScale)
+int SurvivorPickups::Update(float dt, const myEngine::Vector3& player, float magnetScale, bool homing)
 {
     int collected = 0;
     const float magnet = config_.magnetRadius * magnetScale;
@@ -48,7 +48,7 @@ int SurvivorPickups::Update(float dt, const myEngine::Vector3& player, float mag
             shard.value = 0;
             continue;
         }
-        if (!shard.attracted && distance <= magnet) {
+        if (!shard.attracted && (distance <= magnet || (homing && shard.age >= 0.6f))) {
             shard.attracted = true;
         }
         if (shard.attracted) {
