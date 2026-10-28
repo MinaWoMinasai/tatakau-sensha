@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 
 namespace myEngine {
 
@@ -87,9 +88,9 @@ bool MakeContourProfile(float width, const Vector4& source, const NeonContourSty
 }
 
 struct ContourSection {
-    Vector3 center{};
-    Vector3 positive{};
-    Vector3 negative{};
+    Vector3 center;
+    Vector3 positive;
+    Vector3 negative;
 };
 
 /// @brief 断面のoffset番目の頂点位置を返す。
@@ -113,11 +114,15 @@ void NeonGridGeometry::SetVertexBuffer(std::span<TrailVertex> vertices)
     vertexData_ = vertices.data();
     vertexCapacity_ = static_cast<uint32_t>((std::min)(vertices.size(), static_cast<size_t>(kMaxVertices)));
     vertexCount_ = 0;
+    stagingStart_ = 0;
+    staging_.resize(kStagingVertices);
 }
 
 void NeonGridGeometry::BeginFrame()
 {
+    FlushStaging();
     vertexCount_ = 0;
+    stagingStart_ = 0;
 }
 
 void NeonGridGeometry::SetLineStyle(float softEdgeRatio, float coreIntensity)
@@ -214,7 +219,7 @@ void NeonGridGeometry::QueueContourPolygon(const Vector3* points, uint32_t point
     if (!std::isfinite(maximumExtent)) {
         return;
     }
-    std::array<Vector3, kContourMaxPoints> normals{};
+    std::array<Vector3, kContourMaxPoints> normals; // pointCount 個だけ書いてから読む。
     for (uint32_t point = 0; point < pointCount; ++point) {
         if (!ContourFinite(points[point]) || !ContourPositionRange(points[point], maximumExtent)) {
             return;
@@ -228,7 +233,8 @@ void NeonGridGeometry::QueueContourPolygon(const Vector3* points, uint32_t point
         normals[point] = Cross(forward, direction / length);
     }
     // サイズ上限付きのスタック作業領域。オブジェクトごとの確保や可変な描画スタイル状態は持たない。
-    std::array<ContourSection, kContourMaxPoints * 8> sections{};
+    // 約27KBあるので、毎回ゼロで埋めない（sectionCount 個だけ書いてから読む）。
+    std::array<ContourSection, kContourMaxPoints * 8> sections;
     uint32_t sectionCount = 0;
     for (uint32_t point = 0; point < pointCount; ++point) {
         const Vector3 previous = normals[(point + pointCount - 1) % pointCount], next = normals[point];
@@ -262,13 +268,27 @@ void NeonGridGeometry::QueueContourPolygon(const Vector3* points, uint32_t point
     if (required > vertexCapacity_ || vertexCount_ > vertexCapacity_ - required) {
         return;
     }
+    // 断面の点は隣り合う2つの帯で共有するので、断面ごとに1回だけ求める。色は断面によらない。
+    std::array<Vector4, kContourOffsets> colors;
+    for (uint32_t offset = 0; offset < kContourOffsets; ++offset) {
+        colors[offset] = ContourSectionColor(offset, profile);
+    }
+    auto sectionPoints = [&](const ContourSection& section, std::array<Vector3, kContourOffsets>& out) {
+        for (uint32_t offset = 0; offset < kContourOffsets; ++offset) {
+            out[offset] = ContourSectionPoint(section, offset, profile);
+        }
+    };
+    std::array<Vector3, kContourOffsets> current, next;
+    sectionPoints(sections[0], current);
     for (uint32_t section = 0; section < sectionCount; ++section) {
-        const ContourSection& a = sections[section];
-        const ContourSection& b = sections[(section + 1) % sectionCount];
+        sectionPoints(sections[(section + 1) % sectionCount], next);
         for (uint32_t offset = 0; offset + 1 < kContourOffsets; ++offset) {
-            const Vector3 p0 = ContourSectionPoint(a, offset, profile), p1 = ContourSectionPoint(a, offset + 1, profile);
-            const Vector3 p2 = ContourSectionPoint(b, offset, profile), p3 = ContourSectionPoint(b, offset + 1, profile);
-            const Vector4 c0 = ContourSectionColor(offset, profile), c1 = ContourSectionColor(offset + 1, profile);
+            const Vector3& p0 = current[offset];
+            const Vector3& p1 = current[offset + 1];
+            const Vector3& p2 = next[offset];
+            const Vector3& p3 = next[offset + 1];
+            const Vector4& c0 = colors[offset];
+            const Vector4& c1 = colors[offset + 1];
             PushVertex(p0, c0, {0.5f, 0.5f});
             PushVertex(p1, c1, {0.5f, 0.5f});
             PushVertex(p2, c0, {0.5f, 0.5f});
@@ -276,6 +296,7 @@ void NeonGridGeometry::QueueContourPolygon(const Vector3* points, uint32_t point
             PushVertex(p3, c1, {0.5f, 0.5f});
             PushVertex(p2, c0, {0.5f, 0.5f});
         }
+        current = next;
     }
 }
 
@@ -449,14 +470,15 @@ Vector4 NeonGridGeometry::ShadeBody(const Vector3& position, const Vector3& norm
     Vector3 toEye = bodyEye_ - position;
     toEye = NormalizeOr(toEye, Vector3{0.0f, 0.0f, -1.0f});
     // キーライトは左上から、XYのゲームプレイ平面のカメラ側に置く。
-    const Vector3 light = Normalize(Vector3{-0.45f, 0.55f, -0.70f});
+    // 向きは定数なので、正規化は最初の1回だけ行う。
+    static const Vector3 light = Normalize(Vector3{-0.45f, 0.55f, -0.70f});
     const float facing = std::clamp(Dot(normal, toEye), 0.0f, 1.0f);
     const float fresnel = std::pow(1.0f - facing, 3.0f);
     const float diffuse = std::clamp(Dot(normal, light), 0.0f, 1.0f);
     const Vector3 halfVector = Normalize(light + toEye);
     const float specular = std::pow(std::clamp(Dot(normal, halfVector), 0.0f, 1.0f), 110.0f);
     // 右下からの柔らかい2つ目のライトで、奥側がのっぺりしないようにする。
-    const Vector3 fill = Normalize(Vector3{0.55f, -0.45f, -0.70f});
+    static const Vector3 fill = Normalize(Vector3{0.55f, -0.45f, -0.70f});
     const float fillSpecular = std::pow(std::clamp(Dot(normal, Normalize(fill + toEye)), 0.0f, 1.0f), 18.0f);
     const float peak = (std::max)({tint.x, tint.y, tint.z, 0.001f});
     const Vector3 hue{tint.x / peak, tint.y / peak, tint.z / peak};
@@ -906,10 +928,23 @@ void NeonGridGeometry::PushVertex(const Vector3& pos, const Vector4& color, cons
     if (vertexCount_ >= vertexCapacity_) {
         return;
     }
-    vertexData_[vertexCount_].pos = pos;
-    vertexData_[vertexCount_].color = color;
-    vertexData_[vertexCount_].uv = uv;
+    TrailVertex& vertex = staging_[vertexCount_ - stagingStart_];
+    vertex.pos = pos;
+    vertex.color = color;
+    vertex.uv = uv;
     ++vertexCount_;
+    if (vertexCount_ - stagingStart_ == kStagingVertices) {
+        FlushStaging();
+    }
+}
+
+void NeonGridGeometry::FlushStaging()
+{
+    const uint32_t count = vertexCount_ - stagingStart_;
+    if (count > 0 && vertexData_) {
+        std::memcpy(vertexData_ + stagingStart_, staging_.data(), sizeof(TrailVertex) * count);
+    }
+    stagingStart_ = vertexCount_;
 }
 
 } // namespace myEngine

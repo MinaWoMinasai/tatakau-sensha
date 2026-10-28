@@ -35,6 +35,7 @@ void NeonGridRenderer::DrawAll(const Matrix4x4& viewProjection, bool noDepth)
 
 void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection, bool noDepth)
 {
+    geometry_.FlushStaging();
     if (!dxCommon_ || !vertexData_ || vertexCount == 0 || startVertex >= geometry_.GetVertexCount()) {
         return;
     }
@@ -60,6 +61,7 @@ void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, con
 
 void NeonGridRenderer::DrawRangeSolid(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection)
 {
+    geometry_.FlushStaging();
     if (!dxCommon_ || !vertexData_ || vertexCount == 0 || startVertex >= geometry_.GetVertexCount()) {
         return;
     }
@@ -109,6 +111,7 @@ bool NeonGridRenderer::InitializeSceneSolidPipeline()
 
 void NeonGridRenderer::DrawRangeSceneSolid(uint32_t startVertex, uint32_t vertexCount, const Matrix4x4& viewProjection)
 {
+    geometry_.FlushStaging();
     if (!sceneSolidPipeline_ || !vertexData_ || !vertexCount || startVertex >= geometry_.GetVertexCount()) {
         return;
     }

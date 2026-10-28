@@ -1,5 +1,6 @@
 #pragma once
 #include <span>
+#include <vector>
 #include "Struct.h"
 
 namespace myEngine {
@@ -108,13 +109,20 @@ public:
     void QueueLocalGridClipped(const Vector3& center, float radius, float spacing, float lineWidth, const Vector4& color, float minX,
                                float maxX, float minY, float maxY, float planeZ = -0.03f);
 
-    /// @brief 頂点件数を返す。
+    /// @brief 頂点件数を返す。まだ書き込み先へ移していない頂点も数える。描画の前に FlushStaging を呼ぶ。
     uint32_t GetVertexCount() const
     {
         return vertexCount_;
     }
 
+    /// @brief 手元に貯めた頂点を、借用した書き込み先へまとめてコピーする。
+    void FlushStaging();
+
 private:
+    // 書き込み先はGPUのアップロード用メモリ（書き込み結合）なので、頂点を1つずつ書くと遅い。
+    // 普通のメモリにこの数まで貯めてから、まとめてコピーする。
+    static constexpr uint32_t kStagingVertices = 4096;
+
     /// @brief 線四角形を追加する。
     void AddLineQuad(const Vector3& a, const Vector3& b, float width, const Vector4& color);
     /// @brief カメラの方を向く線を、四角形の頂点として追加する。
@@ -139,6 +147,9 @@ private:
     TrailVertex* vertexData_ = nullptr;
     uint32_t vertexCount_ = 0;
     uint32_t vertexCapacity_ = 0;
+    std::vector<TrailVertex> staging_;
+    uint32_t stagingStart_ = 0; // staging_[0] を書き込む先の頂点番号。
+
     float lineSoftEdgeRatio_ = 0.42f;
     float lineCoreIntensity_ = 1.35f;
 };
