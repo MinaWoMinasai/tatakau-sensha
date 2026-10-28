@@ -319,7 +319,7 @@ void GameplayRenderer::DrawAfterPostEffect3D()
     }
     if (world_.resources.player_) {
         world_.resources.player_->DrawEvolutionAfterPostEffects();
-        if (!world_.run.IsExpeditionRun()) {
+        if (world_.run.IsLegacyArenaRun()) {
             world_.resources.player_->DrawUpgradeHudAfterPostEffects();
         }
     }

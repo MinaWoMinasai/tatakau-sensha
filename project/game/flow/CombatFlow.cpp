@@ -88,7 +88,7 @@ void CombatFlow::UpdateGameplayEventEffects(float, bool)
         SetEventCallout("EVOLUTION CANCELLED", 0.45f);
     }
 
-    if (!world_.run.IsExpeditionRun() && !world_.combat.bossEntryTriggered_ && world_.combat.phase_ == Phase::kMain &&
+    if (world_.run.IsLegacyArenaRun() && !world_.combat.bossEntryTriggered_ && world_.combat.phase_ == Phase::kMain &&
         world_.combat.playTime_ >= 1.25f) {
         world_.combat.bossEntryTriggered_ = true;
         world_.combat.screenEffectDirector_.TriggerBossEntry();
@@ -120,7 +120,7 @@ void CombatFlow::BeginBossDefeatSequence()
     if (world_.run.IsExpeditionRun()) {
         world_.run.tankExpedition_.CompleteRoom();
     }
-    if (world_.run.UsesPrototypeRules()) {
+    if (world_.run.UsesTankRunDirector()) {
         world_.run.tankRun_.CompleteBoss();
         world_.arenaRunController->RefreshTankRunUi();
     }
@@ -156,7 +156,7 @@ void CombatFlow::BeginGameOver()
     if (world_.run.IsExpeditionRun()) {
         world_.run.tankExpedition_.MarkDead();
     }
-    if (world_.run.UsesPrototypeRules()) {
+    if (world_.run.UsesTankRunDirector()) {
         world_.run.tankRun_.MarkDead();
         world_.arenaRunController->RefreshTankRunUi();
     }
@@ -203,7 +203,7 @@ void CombatFlow::UpdateGameFlow(float baseDeltaTime)
         world_.combat.combatFlow_.GetState() != GameFlowState::GameOver) {
         return;
     }
-    if (world_.run.UsesPrototypeRules()) {
+    if (world_.run.UsesTankRunDirector()) {
         if (world_.run.expeditionMapEnabled_ && (world_.run.tankExpeditionBalanceEditorOpen_ || world_.run.expeditionRoomEditorOpen_ ||
                                                  world_.run.expeditionMapEditorOpen_ || world_.run.expeditionContentEditorOpen_)) {
             return;
@@ -282,7 +282,8 @@ void CombatFlow::ConfirmResultSelection()
         return;
     }
     if (world_.combat.resultSelection_ == 0) {
-        world_.combat.nextSceneName_ = world_.run.IsExpeditionRun()      ? "TANK_EXPEDITION"
+        world_.combat.nextSceneName_ = world_.run.IsSurvivorRun()        ? "TANK_SURVIVOR"
+                                       : world_.run.IsExpeditionRun()    ? "TANK_EXPEDITION"
                                        : world_.run.UsesPrototypeRules() ? "TANK_RUN"
                                                                          : "GAME";
     } else {
@@ -314,7 +315,7 @@ void CombatFlow::UpdateResultText()
          << (world_.combat.resultSelection_ == 1 ? "> " : "  ") << "RETURN TO TITLE\n\n"
          << "W/S or Arrow Keys : Select   Enter/Click : Confirm";
     world_.combat.resultMenuText_->SetText(menu.str());
-    if (world_.run.UsesPrototypeRules() && world_.run.tankRunHeading_) {
+    if (world_.run.UsesTankRunDirector() && world_.run.tankRunHeading_) {
         world_.arenaRunController->RefreshTankRunUi();
     }
 }

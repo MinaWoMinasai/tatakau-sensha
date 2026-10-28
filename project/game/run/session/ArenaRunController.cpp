@@ -62,7 +62,7 @@ bool ArenaRunController::IsTankRunMenuOpen() const
         !world_.run.tankExpedition_.IsCombat()) {
         return true;
     }
-    return world_.run.UsesPrototypeRules() &&
+    return world_.run.UsesTankRunDirector() &&
            (world_.run.tankRunPaused_ || IsDecision(world_.run.tankRun_.GetPhase()) || world_.run.tankRunMenuAge_ < 0);
 }
 

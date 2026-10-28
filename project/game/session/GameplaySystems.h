@@ -18,6 +18,7 @@
 #include "game/editor/session/GameplayEditor.h"
 #include "game/demo/TitleDemoController.h"
 #include "game/run/session/ArenaRunController.h"
+#include "game/run/session/SurvivorRunController.h"
 #include "game/render/settings/RunVisualSettings.h"
 #include "game/run/session/ExpeditionController.h"
 #include "game/run/session/ExpeditionMapController.h"

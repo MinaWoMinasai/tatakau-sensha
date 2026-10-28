@@ -319,7 +319,7 @@ bool GameplayQueries::IsNeonShowcaseActive() const
 /// @brief 遠征以外、または遠征でライバルが有効な場合true。死亡判定は別に必要。
 bool GameplayQueries::IsRunRivalActive() const
 {
-    return !world_.run.IsExpeditionRun() || world_.run.tankExpeditionRivalActive_;
+    return world_.run.IsLegacyArenaRun() || world_.run.tankExpeditionRivalActive_;
 }
 
 /// @brief 通常チュートリアルが有効で、敵AI・特殊戦闘・通常衝突を抑制する場合true。

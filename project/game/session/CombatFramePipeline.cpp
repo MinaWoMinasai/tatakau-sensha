@@ -151,7 +151,11 @@ void CombatFramePipeline::Update()
     }
     if (world_.run.UsesPrototypeRules()) {
         world_.arenaRunController->FinishTankRunCapture();
-        world_.arenaRunController->UpdateTankRun(baseDeltaTime);
+        if (world_.run.IsSurvivorRun()) {
+            world_.survivorRunController->Update(baseDeltaTime);
+        } else {
+            world_.arenaRunController->UpdateTankRun(baseDeltaTime);
+        }
     }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     world_.routeReplay->PrepareNormalRouteReplay();
@@ -625,7 +629,7 @@ void CombatFramePipeline::Update()
 
         if (world_.combat.fade_->IsFinished()) {
             world_.combat.phase_ = Phase::kMain;
-            if (!world_.run.IsExpeditionRun() && !world_.combat.bossEntryTriggered_ &&
+            if (world_.run.IsLegacyArenaRun() && !world_.combat.bossEntryTriggered_ &&
                 !world_.gameplayQueries->IsTutorialCombatSuppressed()) {
                 world_.combat.bossEntryTriggered_ = true;
                 world_.combat.screenEffectDirector_.TriggerBossEntry();

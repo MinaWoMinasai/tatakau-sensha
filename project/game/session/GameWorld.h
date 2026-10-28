@@ -26,6 +26,7 @@ class GameplayHud;
 class GameplayEditor;
 class TitleDemoController;
 class ArenaRunController;
+class SurvivorRunController;
 class RunVisualSettings;
 class ExpeditionController;
 class ExpeditionMapController;
@@ -76,6 +77,7 @@ struct GameWorld {
     std::unique_ptr<GameplayEditor> gameplayEditor;
     std::unique_ptr<TitleDemoController> titleDemoController;
     std::unique_ptr<ArenaRunController> arenaRunController;
+    std::unique_ptr<SurvivorRunController> survivorRunController;
     std::unique_ptr<RunVisualSettings> runVisualSettings;
     std::unique_ptr<ExpeditionController> expeditionController;
     std::unique_ptr<ExpeditionMapController> expeditionMapController;

@@ -19,6 +19,24 @@ struct RunSessionState {
         return runMode_ == RunMode::Expedition;
     }
 
+    /// @brief 育つ戦車の試作のプレイかを返す。
+    bool IsSurvivorRun() const
+    {
+        return runMode_ == RunMode::Survivor;
+    }
+
+    /// @brief 旧来の戦闘かコア争奪戦かを返す。最初からボスがいて、自機の旧アリーナ用 HUD（図鑑・能力値）を使う。
+    bool IsLegacyArenaRun() const
+    {
+        return runMode_ == RunMode::Classic || runMode_ == RunMode::Arena;
+    }
+
+    /// @brief RunDirector（カード・資材・宿敵・選択画面）で進行するプレイかを返す。コア争奪戦と遠征。
+    bool UsesTankRunDirector() const
+    {
+        return runMode_ == RunMode::Arena || runMode_ == RunMode::Expedition;
+    }
+
     bool expeditionAuthoringHubOpen_ = false;
 
     nlohmann::json expeditionPostDraft_;

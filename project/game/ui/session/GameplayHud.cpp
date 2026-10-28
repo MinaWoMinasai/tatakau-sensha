@@ -69,7 +69,7 @@ void GameplayHud::DrawGameTextBloom()
         labels.push_back(world_.run.tankRunObjectiveText_.get());
     }
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing) {
-        if (!world_.run.IsExpeditionRun()) {
+        if (world_.run.IsLegacyArenaRun()) {
             world_.resources.player_->AppendGameplayNeonTextLabels(labels);
         }
         if (world_.combat.tutorialConfig_.enabled && world_.combat.tutorialUiVisible_) {
@@ -97,7 +97,7 @@ void GameplayHud::DrawGameTextBloom()
     const bool showResult =
         world_.combat.combatFlow_.GetState() == GameFlowState::StageClear ||
         (world_.combat.combatFlow_.GetState() == GameFlowState::GameOver && world_.combat.combatFlow_.GetTimer() <= 0.0f);
-    if (showResult && !world_.run.UsesPrototypeRules()) {
+    if (showResult && !world_.run.UsesTankRunDirector()) {
         if (world_.combat.resultSummaryText_) {
             labels.push_back(world_.combat.resultSummaryText_.get());
         }
@@ -205,7 +205,7 @@ void GameplayHud::DrawSprite()
     DrawHpBarBatches();
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     DrawBossCinematic();
-    if (!world_.run.IsExpeditionRun()) {
+    if (world_.run.IsLegacyArenaRun()) {
         world_.resources.player_->DrawSprite();
     }
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing) {
@@ -244,10 +244,10 @@ void GameplayHud::DrawSprite()
         (world_.combat.combatFlow_.GetState() == GameFlowState::GameOver && world_.combat.combatFlow_.GetTimer() <= 0.0f);
     const bool cinematicTitle = world_.resources.neonDepthCameraScoped_ && world_.presentation.bossCinematic_.defeatTime >= 0.0f;
     if (world_.combat.flowBannerText_ && world_.combat.combatFlow_.GetState() != GameFlowState::Playing &&
-        !(world_.run.UsesPrototypeRules() && showResult) && !cinematicTitle) {
+        !(world_.run.UsesTankRunDirector() && showResult) && !cinematicTitle) {
         world_.combat.flowBannerText_->Draw();
     }
-    if (showResult && !world_.run.UsesPrototypeRules()) {
+    if (showResult && !world_.run.UsesTankRunDirector()) {
         if (world_.combat.resultSummaryText_) {
             world_.combat.resultSummaryText_->Draw();
         }
@@ -256,7 +256,9 @@ void GameplayHud::DrawSprite()
         }
     }
     if (world_.combat.phase_ != Phase::kFadeIn) {
-        if (world_.run.UsesPrototypeRules()) {
+        if (world_.run.IsSurvivorRun()) {
+            world_.survivorRunController->DrawUi();
+        } else if (world_.run.UsesPrototypeRules()) {
             world_.arenaRunController->DrawTankRunUi();
         }
         if (world_.run.expeditionMapEnabled_) {

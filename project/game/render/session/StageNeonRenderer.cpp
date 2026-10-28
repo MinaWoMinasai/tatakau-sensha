@@ -118,7 +118,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     if (world_.presentation.showLevelAiEditorPreview_) {
         world_.gameplayEditor->QueueLevelEditorPreview();
     }
-    if (world_.run.UsesPrototypeRules()) {
+    if (world_.run.UsesTankRunDirector()) {
         world_.arenaRunController->QueueTankRunTelegraph();
     }
     if (includeStageBlockOutlines &&
