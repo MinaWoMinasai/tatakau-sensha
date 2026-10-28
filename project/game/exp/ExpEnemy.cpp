@@ -23,6 +23,7 @@ ExpEnemy::BalanceConfig ExpEnemy::balanceConfig_{};
 ExpEnemy::EnemyInteractionConfig ExpEnemy::enemyInteractionConfig_{};
 std::function<void(uint32_t)> ExpEnemy::enemyKillCallback_{};
 std::function<void(const myEngine::Vector3&)> ExpEnemy::playerDefeatCallback_{};
+std::function<void(const myEngine::Vector3&, uint32_t)> ExpEnemy::playerExpDropCallback_{};
 bool ExpEnemy::shapeNeonBillboardEnabled_ = false;
 int ExpEnemy::shapeNeonRenderMode_ = 0;
 
@@ -50,6 +51,11 @@ void ExpEnemy::SetEnemyKillCallback(std::function<void(uint32_t)> callback)
 void ExpEnemy::SetPlayerDefeatCallback(std::function<void(const myEngine::Vector3&)> callback)
 {
     playerDefeatCallback_ = std::move(callback);
+}
+
+void ExpEnemy::SetPlayerExpDropCallback(std::function<void(const myEngine::Vector3&, uint32_t)> callback)
+{
+    playerExpDropCallback_ = std::move(callback);
 }
 
 void ExpEnemy::SetShapeNeonBillboardEnabled(bool enabled)
@@ -1276,7 +1282,9 @@ bool ExpEnemy::ApplyDamage(uint32_t amount, bool playerOwned, bool reportOrdinar
                 runResourceClaimCallback_(playerOwned);
             }
         } else if (playerOwned && !IsSummonedUnit()) {
-            if (player_) {
+            if (playerExpDropCallback_) {
+                playerExpDropCallback_(GetWorldPosition(), expValue_);
+            } else if (player_) {
                 player_->AddExp(expValue_);
             }
             if (playerDefeatCallback_) {

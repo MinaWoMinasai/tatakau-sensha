@@ -1,6 +1,7 @@
 #pragma once
 #include "game/session/GameWorld.h"
 #include "game/run/SurvivorSpawnConfig.h"
+#include "game/run/session/SurvivorPickups.h"
 #include <chrono>
 #include <optional>
 #include <random>
@@ -8,7 +9,7 @@
 
 namespace gameplay {
 /// @brief 育つ戦車の試作（RunMode::Survivor）の進行を担当し、同じプレイの共有状態を借用する。
-/// @note 1区画の流れ（時間で増える湧き方と、3:00 で開く出口）を持つ。経験値・部品は後のカードで足す。
+/// @note 1区画の流れ（時間で増える湧き方と、3:00 で開く出口）と、経験値の欠片・レベルを持つ。部品は後のカードで足す。
 class SurvivorRunController {
 public:
     explicit SurvivorRunController(GameWorld& world) : world_(world) {}
@@ -20,10 +21,22 @@ public:
     void Update(float dt);
     /// @brief 自機が敵を倒したときに呼ばれる。
     void OnEnemyDefeated(const myEngine::Vector3& position);
-    /// @brief ネオンの格子のパスに、出口の輪を積む。
+    /// @brief ネオンの格子のパスに、経験値の欠片と出口の輪を積む。
     void QueueWorldVisuals();
-    /// @brief 区画の時間・敵の数・出口の案内を描く。
+    /// @brief 経験値のゲージ・区画の時間・敵の数・出口の案内を描く。
     void DrawUi();
+
+    /// @brief 今のレベル（1から）を返す。
+    int GetLevel() const
+    {
+        return level_;
+    }
+
+    /// @brief レベルが上がって貯まった、まだ使っていない選択の数を返す（S7 で部品の3択に使う）。
+    int GetPendingChoices() const
+    {
+        return pendingChoices_;
+    }
 
 private:
     /// @brief 生きている敵を種類ごとに数えた結果。
@@ -45,6 +58,8 @@ private:
     void OpenExit();
     /// @brief 区画の時間と敵の数の表示を更新する。
     void RefreshHud();
+    /// @brief 拾った経験値を足し、必要な分が貯まるたびにレベルを上げる。
+    void AddExperience(int amount);
 
     /// @brief MYENGINE_SURVIVOR_AUTOTEST=1：区画を最後まで遊び、時間ごとの敵の数と fps を記録して終了する。
     void UpdateSectorAutoTest(float dt);
@@ -67,6 +82,14 @@ private:
     bool exitOpen_ = false;
     bool cleared_ = false;
     myEngine::Vector3 exitPosition_{};
+    SurvivorPickups pickups_;
+    int level_ = 1;
+    int exp_ = 0;
+    int pendingChoices_ = 0;
+    int expDropped_ = 0;
+    int expCollected_ = 0;
+    std::unique_ptr<myEngine::Sprite> expTrack_;
+    std::unique_ptr<myEngine::Sprite> expFill_;
     float hudRefresh_ = 0.0f;
     std::unique_ptr<myEngine::TextLabel> hudText_;
     std::unique_ptr<myEngine::TextLabel> exitText_;

@@ -535,6 +535,9 @@
     <ClCompile Include="game\run\session\SurvivorRunController.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorPickups.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\render\settings\RunVisualSettings.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -648,6 +651,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\run\session\SurvivorRunController.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\SurvivorPickups.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\render\settings\RunVisualSettings.h">

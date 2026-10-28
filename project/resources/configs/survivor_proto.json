@@ -22,6 +22,11 @@
     "comment": "敵戦車。同時にいる数は maxAlive まで。種類は expedition_content.json の id。",
     "from": 60, "interval": 7, "maxAlive": 4, "types": ["Shooter", "Charger", "Sniper"]
   },
+  "experience": {
+    "comment": "経験値の欠片とレベル。次のレベルまでの経験値は base + growth × (レベル-1)^power。",
+    "magnetRadius": 5.0, "collectRadius": 1.2, "valuePerShard": 30, "maxShards": 600, "maxLevel": 45,
+    "levelCurve": { "base": 25, "growth": 30, "power": 1.4 }
+  },
   "bigPentagon": {
     "comment": "五角を大きく硬くしたもの。",
     "from": 120, "interval": 18, "maxAlive": 3, "scale": 2.2, "hp": 140, "exp": 160

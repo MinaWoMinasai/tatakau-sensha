@@ -33,6 +33,7 @@ GameWorld::~GameWorld()
     run.tankExpeditionAudio_.Shutdown();
     ExpEnemy::SetEnemyKillCallback(nullptr);
     ExpEnemy::SetPlayerDefeatCallback(nullptr);
+    ExpEnemy::SetPlayerExpDropCallback(nullptr);
     ExpEnemy::SetShapeNeonRenderMode(0);
 }
 } // namespace gameplay

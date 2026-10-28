@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -47,6 +48,24 @@ struct SpawnConfig {
     float bigPentagonScale = 2.2f;
     int bigPentagonHp = 140;
     int bigPentagonExp = 160;
+
+    // 経験値の欠片とレベル。
+    float magnetRadius = 5.0f;
+    float collectRadius = 1.2f;
+    int valuePerShard = 30;
+    int maxShards = 600;
+    float levelBase = 25.0f;
+    float levelGrowth = 30.0f;
+    float levelPower = 1.4f;
+    int maxLevel = 45;
+
+    /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
+    int ExpToNextLevel(int level) const
+    {
+        const float steps = static_cast<float>((std::max)(0, level - 1));
+        const float value = levelBase + levelGrowth * std::pow(steps, levelPower);
+        return (std::max)(1, static_cast<int>(std::lround(value)));
+    }
 
     /// @brief 経過秒での図形の生存数の目標を返す。点の間は直線でつなぎ、最後の点より後は毎分 overtime ずつ増やす。
     float ShapeTarget(float seconds) const
@@ -172,6 +191,20 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(big, "scale", config.bigPentagonScale);
         number(big, "hp", config.bigPentagonHp);
         number(big, "exp", config.bigPentagonExp);
+    }
+    if (data.contains("experience")) {
+        const auto& experience = data.at("experience");
+        number(experience, "magnetRadius", config.magnetRadius);
+        number(experience, "collectRadius", config.collectRadius);
+        number(experience, "valuePerShard", config.valuePerShard);
+        number(experience, "maxShards", config.maxShards);
+        number(experience, "maxLevel", config.maxLevel);
+        if (experience.contains("levelCurve")) {
+            const auto& curve = experience.at("levelCurve");
+            number(curve, "base", config.levelBase);
+            number(curve, "growth", config.levelGrowth);
+            number(curve, "power", config.levelPower);
+        }
     }
     return true;
 }

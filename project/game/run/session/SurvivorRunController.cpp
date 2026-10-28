@@ -35,6 +35,8 @@ const std::array<AutoTestWaypoint, 5> kTourWaypoints{
 constexpr float kAutoTestReachDistance = 4.0f;
 // 区画の自動確認で画面を保存する時刻（秒）。
 constexpr std::array<float, 3> kSectorCaptureSeconds{30.0f, 125.0f, 183.0f};
+// 区画の自動確認が出口へ向かい始める時刻（秒）。
+constexpr float kSectorAutoTestExitSeconds = 240.0f;
 
 std::string Clock(float seconds)
 {
@@ -81,6 +83,18 @@ void SurvivorRunController::Initialize()
     world_.resources.camera->SetTranslate({kPlayerStart.x, kPlayerStart.y, world_.resources.camera->GetTranslate().z});
     world_.resources.camera->Update();
 
+    // 自機が倒した敵は、経験値を直接渡さずに欠片を落とす。コールバックは衝突処理の途中から呼ばれるので、欠片の列に足すだけにする。
+    SurvivorPickups::Config pickupConfig;
+    pickupConfig.magnetRadius = config_.magnetRadius;
+    pickupConfig.collectRadius = config_.collectRadius;
+    pickupConfig.valuePerShard = config_.valuePerShard;
+    pickupConfig.maxShards = static_cast<size_t>((std::max)(1, config_.maxShards));
+    pickups_.SetConfig(pickupConfig);
+    ExpEnemy::SetPlayerExpDropCallback([this](const myEngine::Vector3& position, uint32_t value) {
+        pickups_.Drop(position, value, random_);
+        expDropped_ += static_cast<int>(value);
+    });
+
     nextSwarm_ = config_.swarm.from;
     nextTank_ = config_.tanks.from;
     nextBigPentagon_ = config_.bigPentagon.from;
@@ -93,12 +107,24 @@ void SurvivorRunController::Initialize()
     style.padding = 4;
     hudText_ = std::make_unique<myEngine::TextLabel>();
     hudText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
-    hudText_->SetPosition({24.0f, 14.0f});
+    hudText_->SetPosition({24.0f, 16.0f});
+    auto bar = [](const myEngine::Vector2& position, const myEngine::Vector2& size, const myEngine::Vector4& color) {
+        auto sprite = std::make_unique<myEngine::Sprite>();
+        sprite->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/white512x512.png");
+        sprite->SetPosition(position);
+        sprite->SetSize(size);
+        sprite->SetColor(color);
+        sprite->Update();
+        return sprite;
+    };
+    // 画面の上端の経験値のゲージ。
+    expTrack_ = bar({0.0f, 0.0f}, {static_cast<float>(myEngine::WinApp::kClientWidth), 8.0f}, {0.05f, 0.09f, 0.12f, 0.85f});
+    expFill_ = bar({0.0f, 0.0f}, {0.0f, 8.0f}, {0.35f, 1.0f, 0.78f, 1.0f});
     style.fontSize = 26;
     style.color = {1.0f, 0.86f, 0.36f, 1.0f};
     exitText_ = std::make_unique<myEngine::TextLabel>();
     exitText_->Initialize(myEngine::SpriteCommon::GetInstance(), "出口が開いた  ─  光る輪に入ると区画クリア", style);
-    exitText_->SetPosition({24.0f, 50.0f});
+    exitText_->SetPosition({24.0f, 52.0f});
     RefreshHud();
 
     wchar_t automatic[8]{};
@@ -127,6 +153,7 @@ void SurvivorRunController::Update(float dt)
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
         elapsed_ += dt;
         UpdateSpawns(dt);
+        AddExperience(pickups_.Update(dt, world_.resources.player_->GetWorldPosition()));
         if (!exitOpen_ && elapsed_ >= config_.exitOpenSeconds) {
             OpenExit();
         }
@@ -135,6 +162,7 @@ void SurvivorRunController::Update(float dt)
             if (myEngine::Length(myEngine::Vector3{offset.x, offset.y, 0.0f}) <= config_.exitRadius) {
                 // 更新の初めなので、衝突処理の途中ではない。敵と弾を片付けてから結果画面へ移る。
                 cleared_ = true;
+                pickups_.Clear();
                 world_.resources.enemyManager_->ClearRunActors();
                 world_.resources.bulletManager_->ClearAll();
                 world_.combatFlow->EnterResultState(true);
@@ -143,7 +171,7 @@ void SurvivorRunController::Update(float dt)
     }
     hudRefresh_ -= dt;
     if (hudRefresh_ <= 0.0f) {
-        hudRefresh_ = 0.25f;
+        hudRefresh_ = 0.1f;
         RefreshHud();
     }
     if (autoTest_ == AutoTest::Sector) {
@@ -154,6 +182,27 @@ void SurvivorRunController::Update(float dt)
 void SurvivorRunController::OnEnemyDefeated(const myEngine::Vector3& position)
 {
     world_.combat.screenEffectDirector_.TriggerEnemyDefeat(world_.gameplayQueries->WorldToScreenUv(position), 1.0f);
+}
+
+void SurvivorRunController::AddExperience(int amount)
+{
+    if (amount <= 0) {
+        return;
+    }
+    expCollected_ += amount;
+    if (level_ >= config_.maxLevel) {
+        return;
+    }
+    exp_ += amount;
+    while (level_ < config_.maxLevel && exp_ >= config_.ExpToNextLevel(level_)) {
+        exp_ -= config_.ExpToNextLevel(level_);
+        ++level_;
+        ++pendingChoices_;
+        world_.combatFlow->SetEventCallout("レベル " + std::to_string(level_), 0.8f);
+    }
+    if (level_ >= config_.maxLevel) {
+        exp_ = 0;
+    }
 }
 
 SurvivorRunController::AliveCounts SurvivorRunController::CountAlive() const
@@ -297,7 +346,16 @@ void SurvivorRunController::OpenExit()
 
 void SurvivorRunController::QueueWorldVisuals()
 {
-    if (!exitOpen_ || cleared_ || !world_.resources.neonGridRenderer_) {
+    if (cleared_ || !world_.resources.neonGridRenderer_) {
+        return;
+    }
+    // 欠片：カメラを向いた小さな菱形。画面の近くのものだけを積む。
+    const myEngine::Matrix4x4 cameraWorld = myEngine::Inverse(world_.resources.camera->GetViewMatrix());
+    const myEngine::Vector3 cameraRight = myEngine::Normalize({cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2]});
+    const myEngine::Vector3 cameraUp = myEngine::Normalize({cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2]});
+    pickups_.Queue(*world_.resources.neonGridRenderer_, cameraRight, cameraUp, world_.resources.camera->GetTranslate(),
+                   arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f, arenacamera::HalfViewHeight() + 2.0f);
+    if (!exitOpen_) {
         return;
     }
     // 出口：脈打つ2重の輪。輪の中に入ると区画クリア。
@@ -322,12 +380,19 @@ void SurvivorRunController::RefreshHud()
     }
     const AliveCounts alive = CountAlive();
     std::ostringstream text;
-    text << "区画  " << Clock(elapsed_);
+    text << "Lv " << level_ << "   区画  " << Clock(elapsed_);
     if (!exitOpen_) {
         text << "   出口まで " << Clock(config_.exitOpenSeconds - elapsed_);
     }
     text << "   敵 " << alive.total;
     hudText_->SetText(text.str());
+    if (expFill_) {
+        const float ratio = level_ >= config_.maxLevel
+                                ? 1.0f
+                                : (std::clamp)(static_cast<float>(exp_) / static_cast<float>(config_.ExpToNextLevel(level_)), 0.0f, 1.0f);
+        expFill_->SetSize({static_cast<float>(myEngine::WinApp::kClientWidth) * ratio, 8.0f});
+        expFill_->Update();
+    }
 }
 
 void SurvivorRunController::DrawUi()
@@ -337,6 +402,10 @@ void SurvivorRunController::DrawUi()
         return;
     }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+    if (expTrack_ && expFill_) {
+        expTrack_->Draw();
+        expFill_->Draw();
+    }
     hudText_->Draw();
     if (exitOpen_ && exitText_) {
         exitText_->Draw();
@@ -362,7 +431,8 @@ void SurvivorRunController::RequestCapture(const std::string& name)
 
 void SurvivorRunController::UpdateSectorAutoTest(float dt)
 {
-    // 部屋の中央の周りを回りながら、近い敵を撃ち続ける。出口が開いたら出口へ向かう。自機は無敵。
+    // 部屋の中央の周りを回りながら近い敵を撃ち続け、近くの欠片は拾いに行く。4:00 を過ぎたら出口へ向かう
+    // （レベルの曲線を4分で確かめるため、出口が開いてもすぐには入らない）。自機は無敵。
     auto& player = *world_.resources.player_;
     autoTestTime_ += dt;
     const myEngine::Vector3 position = player.GetWorldPosition();
@@ -371,8 +441,11 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         aim = nearest->GetWorldPosition();
     }
     myEngine::Vector3 goal{};
-    if (exitOpen_) {
+    myEngine::Vector3 shard{};
+    if (exitOpen_ && elapsed_ >= kSectorAutoTestExitSeconds) {
         goal = exitPosition_;
+    } else if (pickups_.FindNearest(position, 12.0f, shard)) {
+        goal = shard;
     } else {
         const float angle = autoTestTime_ * 0.35f;
         goal = {44.0f + std::cos(angle) * 18.0f, 28.0f + std::sin(angle) * 11.0f, 0.0f};
@@ -404,13 +477,15 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
         autoTestLog_ << "{\"t\":" << static_cast<int>(elapsed_) << ",\"shapes\":" << alive.shapes << ",\"tanks\":" << alive.tanks
                      << ",\"big\":" << alive.bigPentagons << ",\"total\":" << alive.total << ",\"fps\":" << std::fixed
-                     << std::setprecision(1) << fps << std::defaultfloat << ",\"hp\":" << player.GetHp() << "}";
+                     << std::setprecision(1) << fps << std::defaultfloat << ",\"hp\":" << player.GetHp() << ",\"level\":" << level_
+                     << ",\"collected\":" << expCollected_ << ",\"dropped\":" << expDropped_ << ",\"shards\":" << pickups_.GetCount()
+                     << "}";
     }
 
     if (cleared_ && autoTestClearedTime_ < 0.0f) {
         autoTestClearedTime_ = autoTestTime_;
     }
-    const bool timedOut = autoTestTime_ > config_.exitOpenSeconds + 90.0f;
+    const bool timedOut = autoTestTime_ > kSectorAutoTestExitSeconds + 90.0f;
     if ((autoTestClearedTime_ >= 0.0f && autoTestTime_ - autoTestClearedTime_ > 1.5f) || timedOut) {
         if (!autoTestCaptureQueued_) {
             RequestCapture(cleared_ ? "cleared" : "timeout");
@@ -424,8 +499,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << "{\"completed\":" << (cleared_ ? "true" : "false") << ",\"cleared\":" << (cleared_ ? "true" : "false")
             << ",\"sectorSeconds\":" << elapsed_ << ",\"exitOpen\":" << (exitOpen_ ? "true" : "false") << ",\"exit\":[" << exitPosition_.x
             << "," << exitPosition_.y << "],\"maxAliveAfterTwoMinutes\":" << maxAliveAfterTwoMinutes_
-            << ",\"resultState\":" << static_cast<int>(world_.combat.combatFlow_.GetState()) << ",\"samples\":[" << autoTestLog_.str()
-            << "]}\n";
+            << ",\"resultState\":" << static_cast<int>(world_.combat.combatFlow_.GetState()) << ",\"level\":" << level_
+            << ",\"pendingChoices\":" << pendingChoices_ << ",\"expCollected\":" << expCollected_ << ",\"expDropped\":" << expDropped_
+            << ",\"samples\":[" << autoTestLog_.str() << "]}\n";
         autoTest_ = AutoTest::None;
         PostQuitMessage(0);
     }
