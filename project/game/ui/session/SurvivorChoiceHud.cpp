@@ -56,6 +56,11 @@ void SurvivorChoiceHud::SetOffers(const std::vector<survivor::PartOffer>& offers
                                   const std::array<survivor::PartDefinition, survivor::kPartCount>& parts)
 {
     offerCount_ = (std::min)(offers.size(), cards_.size());
+    if (customCards_) {
+        customCards_ = false;
+        heading_->SetText("部品を選ぶ");
+    }
+    LayoutCards();
     for (size_t i = 0; i < offerCount_; ++i) {
         const auto& offer = offers[i];
         std::string title = std::to_string(i + 1) + "  ";
@@ -69,12 +74,40 @@ void SurvivorChoiceHud::SetOffers(const std::vector<survivor::PartOffer>& offers
     }
 }
 
+void SurvivorChoiceHud::SetCards(const std::string& heading, const std::string& footer,
+                                 const std::vector<std::pair<std::string, std::string>>& cards)
+{
+    customCards_ = true;
+    offerCount_ = (std::min)(cards.size(), cards_.size());
+    LayoutCards();
+    heading_->SetText(heading);
+    footer_->SetText(footer);
+    for (size_t i = 0; i < offerCount_; ++i) {
+        titles_[i]->SetText(cards[i].first);
+        bodies_[i]->SetText(cards[i].second);
+    }
+}
+
+void SurvivorChoiceHud::LayoutCards()
+{
+    for (size_t i = 0; i < cards_.size(); ++i) {
+        const float x = CardLeft(i);
+        cards_[i]->SetPosition({x, kCardTop});
+        cards_[i]->SetSize({kCardWidth, CardHeight()});
+        cards_[i]->Update();
+        titles_[i]->SetPosition({x + 18.0f, kCardTop + 18.0f});
+        bodies_[i]->SetPosition({x + 18.0f, kCardTop + 86.0f});
+    }
+    footer_->SetPosition({64.0f, kCardTop + CardHeight() + 22.0f});
+    hovered_ = -2; // 次の Update で明るさを塗り直す。
+}
+
 void SurvivorChoiceHud::SetPending(int pending, bool open)
 {
     if (badge_) {
         badge_->SetText("選択 ×" + std::to_string(pending) + "   [Tab]");
     }
-    if (footer_) {
+    if (footer_ && !customCards_) {
         footer_->SetText(open ? "1〜3 キーかクリックで選ぶ　/　Tab で閉じる（あとで選べる）　/　残り " + std::to_string(pending)
                               : std::string(" "));
     }
@@ -84,7 +117,7 @@ int SurvivorChoiceHud::HitTest(const myEngine::Vector2& mouse) const
 {
     for (size_t i = 0; i < offerCount_; ++i) {
         const float x = CardLeft(i);
-        if (mouse.x >= x && mouse.x <= x + kCardWidth && mouse.y >= kCardTop && mouse.y <= kCardTop + kCardHeight) {
+        if (mouse.x >= x && mouse.x <= x + kCardWidth && mouse.y >= kCardTop && mouse.y <= kCardTop + CardHeight()) {
             return static_cast<int>(i);
         }
     }

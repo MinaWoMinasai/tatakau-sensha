@@ -46,6 +46,12 @@ public:
         return choiceOpen_ ? config_.choiceSlowTimeScale : 1.0f;
     }
 
+    /// @brief 形態の2択を開いているか。開いている間はゲームを止める（ArenaRunController::IsTankRunMenuOpen が真を返す）。
+    bool IsFormChoiceOpen() const
+    {
+        return formChoiceOpen_;
+    }
+
 private:
     /// @brief 生きている敵を種類ごとに数えた結果。
     struct AliveCounts {
@@ -78,6 +84,12 @@ private:
     void ChooseOffer(size_t index);
     /// @brief 部品の Lv から自機の性能の倍率を作り直して渡す。
     void ApplyParts();
+    /// @brief 形態の2択を開く。部品の3択が開いていれば閉じる（選択は貯まったまま）。
+    void OpenFormChoice();
+    /// @brief 1・2キーかクリックで形態を選ぶ。選ぶまで閉じない。
+    void UpdateFormChoiceInput();
+    /// @brief index 番目の形態に変える。
+    void ChooseForm(size_t index);
 
     /// @brief MYENGINE_SURVIVOR_AUTOTEST=1：区画を最後まで遊び、時間ごとの敵の数と fps を記録して終了する。
     void UpdateSectorAutoTest(float dt);
@@ -106,6 +118,9 @@ private:
     bool choiceOpen_ = false;
     int choicesTaken_ = 0;
     SurvivorChoiceHud choiceHud_;
+    bool formChoiceOpen_ = false;
+    bool formChosen_ = false;
+    std::string formKey_ = "basic";
     int level_ = 1;
     int exp_ = 0;
     int pendingChoices_ = 0;
@@ -146,5 +161,12 @@ private:
     uint32_t autoSampleShots_ = 0;
     int autoShieldStep_ = 0;
     std::ostringstream autoShieldLog_;
+    // 形態の確認。MYENGINE_SURVIVOR_FORM=twin なら連装、それ以外は長砲身を選ぶ。
+    size_t autoFormIndex_ = static_cast<size_t>(survivor::FormId::LongBarrel);
+    float autoFormTimer_ = 0.0f;
+    bool autoFormCaptured_ = false;
+    float autoFormChosenAt_ = -1.0f;
+    float autoFormCaptureAt_ = -1.0f;
+    bool autoTourForm_ = false;
 };
 } // namespace gameplay

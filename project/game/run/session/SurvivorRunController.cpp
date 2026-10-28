@@ -87,6 +87,7 @@ void SurvivorRunController::Initialize()
     shield.regenDelay = config_.shieldRegenDelay;
     shield.regenPerSecond = config_.shieldRegenPerSecond;
     world_.resources.player_->ConfigureSurvivorResources(config_.heat, shield);
+    world_.resources.player_->SetShiftDashEnabled(true);
     world_.resources.camera->SetTranslate({kPlayerStart.x, kPlayerStart.y, world_.resources.camera->GetTranslate().z});
     world_.resources.camera->Update();
 
@@ -147,6 +148,13 @@ void SurvivorRunController::Initialize()
         world_.resources.player_->SetDebugNoDamage(true);
         std::filesystem::create_directories(kAutoTestDirectory);
         sampleStart_ = std::chrono::steady_clock::now();
+        wchar_t formName[16]{};
+        const DWORD formLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_FORM", formName, 16);
+        if (formLength > 0 && std::wstring(formName) == L"twin") {
+            autoFormIndex_ = static_cast<size_t>(survivor::FormId::Twin);
+        }
+        // 四隅の確認では、指定があれば最初から形態に変えて、止まった自機の形を写す。
+        autoTourForm_ = formLength > 0;
     }
 }
 
@@ -159,13 +167,15 @@ void SurvivorRunController::Update(float dt)
         UpdateTourAutoTest(dt);
         return;
     }
-    if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
+    if (formChoiceOpen_) {
+        UpdateFormChoiceInput();
+    } else if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
         UpdateChoiceInput();
     } else if (choiceOpen_) {
         CloseChoices();
     }
-    // 区画の時計・湧き方・欠片は、3択を開いている間のスローに合わせて遅くする。
-    const float gameDt = dt * GetTimeScale();
+    // 区画の時計・湧き方・欠片は、3択を開いている間のスローに合わせて遅くし、形態を選ぶ間は止める。
+    const float gameDt = formChoiceOpen_ ? 0.0f : dt * GetTimeScale();
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
         elapsed_ += gameDt;
         UpdateSpawns(gameDt);
@@ -219,7 +229,9 @@ void SurvivorRunController::AddExperience(int amount)
         world_.combatFlow->SetEventCallout("レベル " + std::to_string(level_), 0.8f);
     }
     choiceHud_.SetPending(pendingChoices_, choiceOpen_);
-    if (config_.choiceAutoOpen && pendingChoices_ > 0 && !choiceOpen_) {
+    if (!formChosen_ && level_ >= config_.formLevel) {
+        OpenFormChoice();
+    } else if (config_.choiceAutoOpen && pendingChoices_ > 0 && !choiceOpen_) {
         OpenChoices();
     }
     if (level_ >= config_.maxLevel) {
@@ -260,7 +272,7 @@ void SurvivorRunController::UpdateChoiceInput()
 
 void SurvivorRunController::OpenChoices()
 {
-    if (pendingChoices_ <= 0 || choiceOpen_) {
+    if (pendingChoices_ <= 0 || choiceOpen_ || formChoiceOpen_) {
         return;
     }
     choiceOpen_ = true;
@@ -302,6 +314,71 @@ void SurvivorRunController::ChooseOffer(size_t index)
     } else {
         CloseChoices();
     }
+}
+
+void SurvivorRunController::OpenFormChoice()
+{
+    if (formChoiceOpen_ || formChosen_) {
+        return;
+    }
+    if (choiceOpen_) {
+        CloseChoices();
+    }
+    formChoiceOpen_ = true;
+    std::vector<std::pair<std::string, std::string>> cards;
+    for (size_t i = 0; i < survivor::kFormCount; ++i) {
+        const auto& form = config_.forms[i];
+        cards.emplace_back(std::to_string(i + 1) + "  " + form.name, survivor::DescribeForm(form, static_cast<survivor::FormId>(i)));
+    }
+    choiceHud_.SetCards("形態を選ぶ（Lv" + std::to_string(config_.formLevel) + "）", "1・2 キーかクリックで選ぶ　/　選ぶまで止まる",
+                        cards);
+    world_.combatFlow->SetEventCallout("形態の進化", 0.8f);
+}
+
+void SurvivorRunController::UpdateFormChoiceInput()
+{
+    auto& input = *world_.resources.input_;
+    for (size_t i = 0; i < survivor::kFormCount; ++i) {
+        if (input.IsKeyTriggered(static_cast<uint8_t>(DIK_1 + i))) {
+            ChooseForm(i);
+            return;
+        }
+    }
+    const myEngine::Vector2 mouse = input.GetMousePosition();
+    choiceHud_.Update(mouse);
+    if (input.IsTrigger(input.GetMouseState().rgbButtons[0], input.GetPreMouseState().rgbButtons[0])) {
+        const int hit = choiceHud_.HitTest(mouse);
+        if (hit >= 0) {
+            ChooseForm(static_cast<size_t>(hit));
+        }
+    }
+}
+
+void SurvivorRunController::ChooseForm(size_t index)
+{
+    if (!formChoiceOpen_ || index >= survivor::kFormCount) {
+        return;
+    }
+    auto& player = *world_.resources.player_;
+    const auto id = static_cast<survivor::FormId>(index);
+    const auto& form = config_.forms[index];
+    const PlayerClassConfig* source = player.FindCatalogClassConfig(form.sourceClass);
+    if (!source) {
+        source = player.GetActiveClassConfig();
+    }
+    if (source) {
+        Player::SurvivorFormTuning tuning{};
+        tuning.heatScale = form.heatScale;
+        tuning.railPower = form.railPower;
+        tuning.railHeatBase = form.railHeatBase;
+        tuning.railHeatPerCharge = form.railHeatPerCharge;
+        player.ApplySurvivorForm(survivor::BuildFormConfig(*source, form, id), tuning);
+    }
+    formKey_ = form.key;
+    formChosen_ = true;
+    formChoiceOpen_ = false;
+    choiceHud_.SetPending(pendingChoices_, false);
+    world_.combatFlow->SetEventCallout(std::string("形態：") + form.name, 1.0f);
 }
 
 void SurvivorRunController::ApplyParts()
@@ -517,7 +594,7 @@ void SurvivorRunController::DrawUi()
     if (exitOpen_ && exitText_) {
         exitText_->Draw();
     }
-    choiceHud_.Draw(choiceOpen_, pendingChoices_);
+    choiceHud_.Draw(choiceOpen_ || formChoiceOpen_, formChoiceOpen_ ? 0 : pendingChoices_);
 }
 
 float SurvivorRunController::MeasureAimRoundTripError() const
@@ -563,6 +640,27 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     move = length > 0.5f ? move / length : myEngine::Vector3{};
     player.SetDemoInput(true, {move.x, move.y}, aim, true, false);
     autoMaxHeat_ = (std::max)(autoMaxHeat_, player.GetHeat().GetHeat());
+
+    // 形態：2択が開いたら0.3秒（実時間）で画面を保存し、0.6秒で選ぶ。選んで2秒後に、変わった自機の画面を保存する。
+    if (formChoiceOpen_) {
+        autoFormTimer_ += dt;
+        if (!autoFormCaptured_ && autoFormTimer_ > 0.3f && world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture("form_open");
+            autoFormCaptured_ = true;
+        }
+        if (autoFormCaptured_ && autoFormTimer_ > 0.6f) {
+            ChooseForm(autoFormIndex_);
+            autoFormChosenAt_ = elapsed_;
+            autoFormCaptureAt_ = autoTestTime_ + 2.0f;
+        }
+        return;
+    }
+    if (autoFormCaptureAt_ > 0.0f && autoTestTime_ >= autoFormCaptureAt_ && world_.run.tankRunCapturePath_.empty()) {
+        RequestCapture("form_" + formKey_);
+        autoFormCaptureAt_ = -1.0f;
+    }
+    // 長砲身：5秒ごとに0.7秒、右クリックを押してため撃ちする。
+    player.SetDemoSpecialHold(player.HasRailChargeForm() && std::fmod(autoTestTime_, 5.0f) < 0.7f);
 
     // シールド：8秒で一度だけ無敵を外して2回当て、先にシールドが減ること、3秒は戻らず、その後に満タンへ戻ることを見る。
     // 無敵の間の被弾は TakeDamage の入口で弾かれるので、回復の待ち時間は動かない。
@@ -675,7 +773,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             }()
             << "},\"maxHp\":" << player.GetMaxHp() << ",\"choices\":[" << autoChoiceLog_.str() << "]"
             << ",\"expCollected\":" << expCollected_ << ",\"expDropped\":" << expDropped_ << ",\"maxHeat\":" << autoMaxHeat_
-            << ",\"overheats\":" << player.GetHeat().GetOverheatCount() << ",\"shieldCheck\":[" << autoShieldLog_.str() << "]"
+            << ",\"overheats\":" << player.GetHeat().GetOverheatCount() << ",\"form\":\"" << formKey_
+            << "\",\"formChosenAt\":" << autoFormChosenAt_ << ",\"formClass\":\""
+            << (player.GetActiveClassConfig() ? player.GetActiveClassConfig()->id : std::string("none"))
+            << "\",\"railShots\":" << player.GetSpecialCombatStats().railShots << ",\"shieldCheck\":[" << autoShieldLog_.str() << "]"
             << ",\"samples\":[" << autoTestLog_.str() << "]}\n";
         autoTest_ = AutoTest::None;
         PostQuitMessage(0);
@@ -688,6 +789,10 @@ void SurvivorRunController::UpdateTourAutoTest(float dt)
     auto& player = *world_.resources.player_;
     autoTestTime_ += dt;
     autoTestLegTime_ += dt;
+    if (autoTourForm_ && !formChosen_) {
+        formChoiceOpen_ = true;
+        ChooseForm(autoFormIndex_);
+    }
     const myEngine::Vector3 position = player.GetWorldPosition();
     const myEngine::Vector3 aim = position + myEngine::Vector3{6.0f, 0.0f, 0.0f};
 

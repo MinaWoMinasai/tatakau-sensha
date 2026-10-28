@@ -65,6 +65,9 @@ public:
     /// @note 発射待ち中やbulletsがnullptrならチャージをリセットする。Addの登録成功を確認するAPIではない。
     void AttackRailCannon(BulletManager* bullets, bool pressed, float dt);
 
+    /// @brief ためた秒数 charge のレール弾を、今の機体の砲身から撃つ。power はため撃ちの威力の強さ。
+    void FireRailShot(BulletManager* bullets, float charge, float power);
+
     /// @brief 遠征の初期射撃装備へ追加砲身・扇状配置・交互射撃の補正を反映し、必要なら描画装備を作り直す。
     void RefreshAdditiveArmaments();
 

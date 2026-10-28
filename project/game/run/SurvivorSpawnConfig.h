@@ -5,6 +5,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include "game/player/combat/PlayerHeat.h"
+#include "game/run/SurvivorForms.h"
 #include "game/run/SurvivorParts.h"
 #include <string>
 #include <utility>
@@ -72,6 +73,10 @@ struct SpawnConfig {
     float shieldMaxHpRatio = 0.2f;
     float shieldRegenDelay = 3.0f;
     float shieldRegenPerSecond = 0.25f;
+
+    // 形態。formLevel に上がったら、止めて形態を選ぶ。
+    int formLevel = 5;
+    std::array<FormDefinition, kFormCount> forms = DefaultForms();
 
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
     int ExpToNextLevel(int level) const
@@ -257,6 +262,25 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(shield, "regenDelay", config.shieldRegenDelay);
         number(shield, "regenPerSecond", config.shieldRegenPerSecond);
         config.shieldMaxHpRatio = (std::max)(0.0f, config.shieldMaxHpRatio);
+    }
+    if (data.contains("forms") && data.at("forms").is_object()) {
+        const auto& forms = data.at("forms");
+        number(forms, "level", config.formLevel);
+        for (auto& form : config.forms) {
+            if (!forms.contains(form.key)) {
+                continue;
+            }
+            const auto& item = forms.at(form.key);
+            number(item, "reloadScale", form.reloadScale);
+            number(item, "damageScale", form.damageScale);
+            number(item, "speedScale", form.speedScale);
+            number(item, "heatScale", form.heatScale);
+            number(item, "barrelLength", form.barrelLength);
+            number(item, "railPower", form.railPower);
+            number(item, "railHeatBase", form.railHeatBase);
+            number(item, "railHeatPerCharge", form.railHeatPerCharge);
+            form.reloadScale = (std::max)(0.05f, form.reloadScale);
+        }
     }
     return true;
 }

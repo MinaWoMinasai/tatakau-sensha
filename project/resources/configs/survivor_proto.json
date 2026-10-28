@@ -39,6 +39,13 @@
     "comment": "シールドの上限は最大HP×maxHpRatio。被弾でHPより先に減り、regenDelay 秒被弾しないと、毎秒 上限×regenPerSecond ずつ戻る。",
     "maxHpRatio": 0.2, "regenDelay": 3, "regenPerSecond": 0.25
   },
+  "forms": {
+    "comment": "level に上がったら止めて形態を選ぶ。倍率は基本砲に対する値（連装は砲2本なので、1発の威力を下げてある）。長砲身は右クリック長押しでため撃ち（熱 = railHeatBase + railHeatPerCharge × ためた秒数、最大1秒）。",
+    "level": 5,
+    "twin": { "reloadScale": 0.9, "damageScale": 0.7, "speedScale": 1.0, "heatScale": 1.1, "barrelLength": 1.0 },
+    "longBarrel": { "reloadScale": 1.35, "damageScale": 1.8, "speedScale": 1.6, "heatScale": 1.2, "barrelLength": 1.7,
+                    "railPower": 1.0, "railHeatBase": 10, "railHeatPerCharge": 25 }
+  },
   "parts": {
     "comment": "軽い部品の1段（Lv）ごとの上がり幅。0.12 なら +12%。装填機は1秒あたりの発射数を上げる。",
     "armor": { "perLevel": 0.12 },

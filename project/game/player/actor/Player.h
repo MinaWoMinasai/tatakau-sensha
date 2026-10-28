@@ -626,6 +626,41 @@ public:
         return shieldAbsorbed_;
     }
 
+    /// @brief 育つ戦車の試作の形態の、撃ち方に関わる値。
+    struct SurvivorFormTuning {
+        /// @brief 主砲1発の熱の倍率。
+        float heatScale = 1.0f;
+        /// @brief 右クリックのため撃ち（specialActionId が rail_charge の形態）の威力の強さ。
+        float railPower = 1.0f;
+        /// @brief ため撃ち1発の熱。熱 = railHeatBase + railHeatPerCharge × ためた秒数（最大1秒）。
+        float railHeatBase = 10.0f;
+        float railHeatPerCharge = 25.0f;
+    };
+    /// @brief 育つ戦車の試作で、形態の装備に替える。HP・経験値・部品はそのまま。
+    void ApplySurvivorForm(const PlayerClassConfig& config, const SurvivorFormTuning& tuning);
+    /// @brief Shift でダッシュできるようにする（育つ戦車の試作。右クリックを形態の技に使うため）。
+    void SetShiftDashEnabled(bool enabled)
+    {
+        shiftDashEnabled_ = enabled;
+    }
+    /// @brief 自動操作で、右クリック（形態の技）を押し続けているかを渡す。
+    void SetDemoSpecialHold(bool held)
+    {
+        demoSpecialHold_ = held;
+    }
+    /// @brief 右クリックをため撃ちに使う形態か。
+    bool HasRailChargeForm() const;
+    /// @brief playerClasses.json から読んだ機体設定を借用して返す。無ければ nullptr。
+    const PlayerClassConfig* FindCatalogClassConfig(const std::string& classId) const
+    {
+        return GetClassConfig(classId);
+    }
+    /// @brief 今使っている機体設定（形態・遠征の進化を含む）を借用して返す。
+    const PlayerClassConfig* GetActiveClassConfig() const
+    {
+        return GetCurrentClassConfig();
+    }
+
     /// @brief 死亡状態にして死亡演出を開始する。既に死亡中なら何もしない。
     void Die();
 
@@ -1042,6 +1077,9 @@ private:
     float shield_ = 0.0f;
     float shieldRegenWait_ = 0.0f;
     float shieldAbsorbed_ = 0.0f;
+    SurvivorFormTuning formTuning_{};
+    bool shiftDashEnabled_ = false;
+    bool demoSpecialHold_ = false;
 
     // 無敵時間
     float invincibleTimer_ = 0.0f;

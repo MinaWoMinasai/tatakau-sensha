@@ -570,9 +570,11 @@ void CombatFramePipeline::Update()
     // 戦闘停止中も、残っている演出を進め、未消費の特殊戦闘イベントを受け取る。
     world_.playerAttackEffects->UpdateSpecialCombatPresentation(baseDeltaTime);
     // クリアしたボス部屋は開いているランメニューとして扱われる。フィナーレにはメニューの灰色の幕をかけない。
+    // 育つ戦車の試作で形態を選ぶ間も、3択と同じく色を残す。
+    const bool survivorFormChoice = world_.run.IsSurvivorRun() && world_.survivorRunController->IsFormChoiceOpen();
     world_.combat.screenEffectDirector_.SetUpgradeMenuOpen(
         (world_.resources.player_->IsChangeMode() || world_.arenaRunController->IsTankRunMenuOpen()) &&
-        world_.combat.combatFlow_.GetState() != GameFlowState::BossDefeatSequence);
+        world_.combat.combatFlow_.GetState() != GameFlowState::BossDefeatSequence && !survivorFormChoice);
     world_.resources.playerPostEffect_->Update(world_.combat.finalDeltaTime);
     world_.resources.enemyPostEffect_->Update(world_.combat.finalDeltaTime);
     world_.resources.expEnemyPostEffect_->Update(world_.combat.finalDeltaTime);

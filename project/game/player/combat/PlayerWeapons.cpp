@@ -50,6 +50,23 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     wantsPrimaryAttack = wantsPrimaryAttack || player_.debugAutoFireEnabled_;
 #endif
+    // 試作の長砲身：右クリックを押している間ためて、離すと貫通する弾を撃つ。熱を使い、ためている間は主砲を撃たない。
+    if (player_.HasRailChargeForm()) {
+        const bool held = player_.demoInputEnabled_ ? player_.demoSpecialHold_
+                                                    : player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[1]);
+        const float charge = player_.railCharge_.Step(held && !player_.ui_->upgradeHudMouseCaptured_, deltaTime,
+                                                      player_.heat_.CanFire() && bulletManager != nullptr);
+        if (charge >= 0.0f) {
+            const auto& tuning = player_.formTuning_;
+            FireRailShot(bulletManager, charge, tuning.railPower);
+            player_.heat_.AddHeat(tuning.railHeatBase +
+                                  tuning.railHeatPerCharge * (std::min)(charge, tankspecial::kRailMaxChargeSeconds));
+            return;
+        }
+        if (player_.railCharge_.held) {
+            return;
+        }
+    }
     if (player_.runModifiers_.railCannon && player_.expeditionCombatStyleSelected_ &&
         player_.expeditionCombatStyle_ == tankbuild::Style::Shooter) {
         AttackRailCannon(bulletManager, wantsPrimaryAttack && !player_.ui_->upgradeHudMouseCaptured_, deltaTime);
@@ -150,7 +167,7 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
                 return;
             }
             if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
-                player_.heat_.AddShot();
+                player_.heat_.AddShot(player_.formTuning_.heatScale);
                 // 遠征のドローン生成では射撃を記録しない。Player::Updateでドローン射撃による弾数増加を記録する。
                 if (!player_.runCheckpointEvolution_ || !config->usesDrone) {
                     player_.primaryAttackPerformedEvent_ = true;
@@ -450,6 +467,11 @@ void PlayerWeapons::AttackRailCannon(BulletManager* bullets, bool pressed, float
     if (charge < 0) {
         return;
     }
+    FireRailShot(bullets, charge, TankEffectPower(player_.runModifiers_, tankrun::CardId::RailCannon));
+}
+
+void PlayerWeapons::FireRailShot(BulletManager* bullets, float charge, float power)
+{
     const auto* config = player_.GetCurrentClassConfig();
     const myEngine::Vector3 aim = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1, 0, 0}, .001f);
     const myEngine::Vector3 side{-aim.y, aim.x, 0};
@@ -457,7 +479,7 @@ void PlayerWeapons::AttackRailCannon(BulletManager* bullets, bool pressed, float
     param.damage = static_cast<uint32_t>(
         (std::max)(1.0f,
                    std::round(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) *
-                              tankspecial::RailDamageScale(charge, TankEffectPower(player_.runModifiers_, tankrun::CardId::RailCannon)))));
+                              tankspecial::RailDamageScale(charge, power))));
     param.bulletSpeed = player_.stats_.bulletSpeed * (config ? config->bulletSpeedScale : 1.0f) * tankspecial::RailSpeedScale(charge);
     param.reflect = config && config->reflect;
     param.penetrate = true;

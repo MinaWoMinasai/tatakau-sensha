@@ -359,6 +359,7 @@
     <ClInclude Include="game\run\TankExpeditionRooms.h" />
     <ClInclude Include="game\run\TankExpeditionContent.h" />
     <ClInclude Include="game\run\SurvivorSpawnConfig.h" />
+    <ClInclude Include="game\run\SurvivorForms.h" />
     <ClInclude Include="game\run\SurvivorParts.h" />
     <ClInclude Include="game\editor\ExpeditionRoomEditor.h" />
     <ClInclude Include="game\editor\ExpeditionMapEditor.h" />

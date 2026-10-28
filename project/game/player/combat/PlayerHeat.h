@@ -61,10 +61,16 @@ public:
     /// @brief 1回の発射の熱を足す。上限を超えたらオーバーヒートにする。
     void AddShot(float scale = 1.0f)
     {
+        AddHeat(config_.heatPerShot * scale);
+    }
+
+    /// @brief 熱を amount だけ足す（ため撃ちなど、1発の熱と違う量を使う技向け）。上限を超えたらオーバーヒートにする。
+    void AddHeat(float amount)
+    {
         if (!config_.enabled) {
             return;
         }
-        heat_ += config_.heatPerShot * scale;
+        heat_ += amount;
         sinceShot_ = 0.0f;
         if (heat_ > config_.maxHeat) {
             heat_ = config_.maxHeat;

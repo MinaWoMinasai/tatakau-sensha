@@ -337,9 +337,11 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     // 次のフレームではなく即座に加速の向きを変えるため。
     inputDir_ = demoInputEnabled_ ? myEngine::Vector3{demoMove_.x, demoMove_.y, 0} : ReadMoveInput(input_);
     RotateToMouse(viewProjection);
-    if (!runRoomAwaitInputRelease_ &&
-        (demoInputEnabled_ ? demoDash_
-                           : input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1]))) {
+    // 試作では Shift でもダッシュでき、右クリックをため撃ちに使う形態では右クリックでダッシュしない。
+    const bool rightClickDash =
+        !HasRailChargeForm() && input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1]);
+    const bool shiftDash = shiftDashEnabled_ && input_->IsTrigger(input_->GetKey()[DIK_LSHIFT], input_->GetPreKey()[DIK_LSHIFT]);
+    if (!runRoomAwaitInputRelease_ && (demoInputEnabled_ ? demoDash_ : rightClickDash || shiftDash)) {
         demoDash_ = false;
         TryActivateSpecialAction();
     }
@@ -760,6 +762,32 @@ void Player::ConfigureSurvivorResources(const PlayerHeat::Config& heat, const Sh
     shieldRegenWait_ = 0.0f;
     shieldAbsorbed_ = 0.0f;
     shield_ = GetShieldMax();
+}
+
+void Player::ApplySurvivorForm(const PlayerClassConfig& config, const SurvivorFormTuning& tuning)
+{
+    if (isDead_ || config.barrels.empty()) {
+        return;
+    }
+    // 遠征の進化と同じく、run 中の機体設定として持つ（GetCurrentClassConfig がこれを返す）。
+    runEvolutionConfig_ = config;
+    runEvolutionActive_ = true;
+    runAuthoredEvolutionActive_ = false;
+    runEvolutionPrepared_ = false;
+    formTuning_ = tuning;
+    bulletCoolTime = 0.0f;
+    shootBarrelIndex_ = 0;
+    shootGroupIndex_ = 0;
+    weaponGroupCooldowns_.clear();
+    railCharge_.Reset();
+    InitializeBarrels();
+    UpdateBarrelLayout();
+}
+
+bool Player::HasRailChargeForm() const
+{
+    const PlayerClassConfig* config = GetCurrentClassConfig();
+    return config && config->specialActionId == "rail_charge";
 }
 
 std::vector<Player::SpecialCombatEvent> Player::ConsumeSpecialCombatEvents()
