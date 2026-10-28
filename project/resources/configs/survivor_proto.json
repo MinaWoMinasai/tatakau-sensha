@@ -15,12 +15,12 @@
   },
   "triangleSwarm": {
     "comment": "三角の群れが周期的に寄ってくる。加速度と最高速度はワールド単位/秒。",
-    "from": 20, "interval": 20, "count": 7, "spread": 3.0,
-    "acceleration": 9.0, "maxSpeed": 6.5
+    "from": 15, "interval": 10, "count": 12, "spread": 5.0,
+    "acceleration": 14.0, "maxSpeed": 9.0
   },
   "tanks": {
     "comment": "敵戦車。同時にいる数は maxAlive まで。種類は expedition_content.json の id。",
-    "from": 60, "interval": 7, "maxAlive": 4, "types": ["Shooter", "Charger", "Sniper"]
+    "from": 30, "interval": 4, "maxAlive": 7, "types": ["Shooter", "Charger", "Sniper", "Charger"]
   },
   "experience": {
     "comment": "経験値の欠片とレベル。次のレベルまでの経験値は base + growth × (レベル-1)^power。",
