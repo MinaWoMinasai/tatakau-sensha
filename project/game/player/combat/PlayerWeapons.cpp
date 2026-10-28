@@ -43,6 +43,7 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
     for (float& cooldown : player_.weaponGroupCooldowns_) {
         cooldown = (std::max)(0.0f, cooldown - deltaTime);
     }
+    player_.heat_.Update(deltaTime);
 
     bool wantsPrimaryAttack =
         player_.demoInputEnabled_ ? player_.demoShoot_ : player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[0]);
@@ -144,7 +145,12 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
                                      GetRunFireIntervalScale();
             myEngine::Vector3 recoilDir = myEngine::Normalize(player_.dir_) * -1.0f;
             float recoilPower = 0.01f;
+            // オーバーヒートの間は撃てない（熱が無効なモードでは常に撃てる）。
+            if (!player_.heat_.CanFire()) {
+                return;
+            }
             if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
+                player_.heat_.AddShot();
                 // 遠征のドローン生成では射撃を記録しない。Player::Updateでドローン射撃による弾数増加を記録する。
                 if (!player_.runCheckpointEvolution_ || !config->usesDrone) {
                     player_.primaryAttackPerformedEvent_ = true;

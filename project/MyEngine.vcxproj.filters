@@ -796,6 +796,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="game\player\combat\PlayerHeat.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\player\combat\PlayerWeapons.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

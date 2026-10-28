@@ -31,6 +31,14 @@
     "comment": "毎レベルの3択。Tab で開き、開いている間はゲームの時間を slowTimeScale 倍にする。autoOpen が true なら、レベルが上がったらすぐ開く。lightBias は1枚目に軽い部品が出やすくなる倍率。",
     "slowTimeScale": 0.25, "autoOpen": false, "lightBias": 2.0
   },
+  "heat": {
+    "comment": "撃つたびに上がる熱。上限を超えると overheatSeconds 秒撃てない。最後に撃ってから coolDelay 秒で coolPerSecond に速く冷える。撃ち続けている間も coolPerSecondWhileFiring で冷える（基本の連射と釣り合わせる）。",
+    "max": 100, "perShot": 3, "coolDelay": 0.5, "coolPerSecond": 40, "coolPerSecondWhileFiring": 9, "overheatSeconds": 2
+  },
+  "shield": {
+    "comment": "シールドの上限は最大HP×maxHpRatio。被弾でHPより先に減り、regenDelay 秒被弾しないと、毎秒 上限×regenPerSecond ずつ戻る。",
+    "maxHpRatio": 0.2, "regenDelay": 3, "regenPerSecond": 0.25
+  },
   "parts": {
     "comment": "軽い部品の1段（Lv）ごとの上がり幅。0.12 なら +12%。装填機は1秒あたりの発射数を上げる。",
     "armor": { "perLevel": 0.12 },

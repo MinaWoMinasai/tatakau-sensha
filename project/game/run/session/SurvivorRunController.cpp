@@ -80,6 +80,13 @@ void SurvivorRunController::Initialize()
     }
     world_.presentation.stagePostCacheValid_ = false;
     world_.resources.player_->ResetRunRoomState(kPlayerStart);
+    // 試作では熱とシールドを基本で持つ。シールドの上限は最大HPに合わせて変わる。
+    Player::ShieldConfig shield{};
+    shield.enabled = true;
+    shield.maxHpRatio = config_.shieldMaxHpRatio;
+    shield.regenDelay = config_.shieldRegenDelay;
+    shield.regenPerSecond = config_.shieldRegenPerSecond;
+    world_.resources.player_->ConfigureSurvivorResources(config_.heat, shield);
     world_.resources.camera->SetTranslate({kPlayerStart.x, kPlayerStart.y, world_.resources.camera->GetTranslate().z});
     world_.resources.camera->Update();
 
@@ -555,6 +562,31 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     const float length = myEngine::Length(move);
     move = length > 0.5f ? move / length : myEngine::Vector3{};
     player.SetDemoInput(true, {move.x, move.y}, aim, true, false);
+    autoMaxHeat_ = (std::max)(autoMaxHeat_, player.GetHeat().GetHeat());
+
+    // シールド：8秒で一度だけ無敵を外して2回当て、先にシールドが減ること、3秒は戻らず、その後に満タンへ戻ることを見る。
+    // 無敵の間の被弾は TakeDamage の入口で弾かれるので、回復の待ち時間は動かない。
+    constexpr std::array<float, 4> kShieldCheckSeconds{8.0f, 10.5f, 12.0f, 16.0f};
+    if (autoShieldStep_ < static_cast<int>(kShieldCheckSeconds.size()) &&
+        autoTestTime_ >= kShieldCheckSeconds[static_cast<size_t>(autoShieldStep_)]) {
+        auto record = [&](const char* label) {
+            autoShieldLog_ << (autoShieldLog_.tellp() > 0 ? "," : "") << "{\"at\":\"" << label << "\",\"t\":" << autoTestTime_
+                           << ",\"shield\":" << player.GetShield() << ",\"shieldMax\":" << player.GetShieldMax()
+                           << ",\"hp\":" << player.GetHp() << "}";
+        };
+        if (autoShieldStep_ == 0) {
+            record("before");
+            player.SetDebugNoDamage(false);
+            player.TakeDamage(10, 0.0f);
+            record("hit10");
+            player.TakeDamage(40, 0.0f);
+            record("hit40");
+            player.SetDebugNoDamage(true);
+        } else {
+            record(autoShieldStep_ == 1 ? "wait2.5" : autoShieldStep_ == 2 ? "wait4" : "wait8");
+        }
+        ++autoShieldStep_;
+    }
 
     // 3択：選択が2つ以上貯まるか、1つを3秒持ったら開き、0.6秒（実時間）見てから札を順番に選ぶ。
     if (choiceOpen_) {
@@ -609,7 +641,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                      << ",\"big\":" << alive.bigPentagons << ",\"total\":" << alive.total << ",\"fps\":" << std::fixed
                      << std::setprecision(1) << fps << std::defaultfloat << ",\"hp\":" << player.GetHp() << ",\"level\":" << level_
                      << ",\"collected\":" << expCollected_ << ",\"dropped\":" << expDropped_ << ",\"shards\":" << pickups_.GetCount()
-                     << "}";
+                     << ",\"shots\":" << player.GetPrimaryAttackCount() - autoSampleShots_ << ",\"heat\":" << player.GetHeat().GetHeat()
+                     << ",\"overheats\":" << player.GetHeat().GetOverheatCount() << "}";
+        autoSampleShots_ = player.GetPrimaryAttackCount();
     }
 
     if (cleared_ && autoTestClearedTime_ < 0.0f) {
@@ -640,8 +674,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 return levels.str();
             }()
             << "},\"maxHp\":" << player.GetMaxHp() << ",\"choices\":[" << autoChoiceLog_.str() << "]"
-            << ",\"expCollected\":" << expCollected_ << ",\"expDropped\":" << expDropped_ << ",\"samples\":[" << autoTestLog_.str()
-            << "]}\n";
+            << ",\"expCollected\":" << expCollected_ << ",\"expDropped\":" << expDropped_ << ",\"maxHeat\":" << autoMaxHeat_
+            << ",\"overheats\":" << player.GetHeat().GetOverheatCount() << ",\"shieldCheck\":[" << autoShieldLog_.str() << "]"
+            << ",\"samples\":[" << autoTestLog_.str() << "]}\n";
         autoTest_ = AutoTest::None;
         PostQuitMessage(0);
     }
@@ -693,7 +728,8 @@ void SurvivorRunController::UpdateTourAutoTest(float dt)
         player.SetDemoInput(true, {offset.x / distance, offset.y / distance}, aim, false, false);
         return;
     }
-    player.SetDemoInput(true, {0.0f, 0.0f}, aim, false, false);
+    // 止まっている間は撃ち、主砲のまわりの熱の輪が画面に写るようにする。
+    player.SetDemoInput(true, {0.0f, 0.0f}, aim, true, false);
     if (autoTestLegTime_ < 1.2f) {
         return;
     }
@@ -704,7 +740,7 @@ void SurvivorRunController::UpdateTourAutoTest(float dt)
     autoTestLog_ << "{\"name\":\"" << waypoint.name << "\",\"target\":[" << waypoint.target.x << "," << waypoint.target.y
                  << "],\"player\":[" << position.x << "," << position.y << "],\"camera\":[" << camera.x << "," << camera.y
                  << "],\"reached\":" << (distance < kAutoTestReachDistance ? "true" : "false")
-                 << ",\"aimError\":" << MeasureAimRoundTripError() << "}";
+                 << ",\"aimError\":" << MeasureAimRoundTripError() << ",\"heat\":" << player.GetHeat().GetHeat() << "}";
     RequestCapture(waypoint.name);
     autoTestCaptureQueued_ = true;
 }

@@ -141,5 +141,10 @@ private:
     float autoMinTimeScale_ = 1.0f;
     size_t autoPick_ = 0;
     std::ostringstream autoChoiceLog_;
+    // 熱とシールドの確認。
+    float autoMaxHeat_ = 0.0f;
+    uint32_t autoSampleShots_ = 0;
+    int autoShieldStep_ = 0;
+    std::ostringstream autoShieldLog_;
 };
 } // namespace gameplay

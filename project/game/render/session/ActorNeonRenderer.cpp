@@ -296,6 +296,38 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             hpColor = lerpColor({hpColor.x * 1.25f, hpColor.y * 1.25f, hpColor.z * 1.25f, 1.0f}, {1.9f, 0.35f, 0.25f, 1.0f},
                                 hpRatio < 0.3f ? 0.75f : 0.0f);
             queueSegmentedArc(radius * 1.55f, 0.0f, 2.05f, 12, hpRatio, hpColor, radius * 0.30f);
+            // シールドはHPの弧のすぐ外側に、細い水色の弧として重ねる（試作のモードだけ）。
+            const float shieldMax = world_.resources.player_->GetShieldMax();
+            if (shieldMax > 0.0f) {
+                queueSegmentedArc(radius * 1.82f, 0.0f, 2.05f, 12, world_.resources.player_->GetShield() / shieldMax,
+                                  {0.55f, 1.35f, 1.95f, 1.0f}, radius * 0.13f);
+            }
+            // 熱は主砲のまわりの輪。真上から時計回りに、熱の割合だけ光る。オーバーヒートの間は赤く点滅する。
+            const PlayerHeat& heat = world_.resources.player_->GetHeat();
+            if (heat.IsEnabled() && (heat.IsOverheated() || heat.GetRatio() > 0.01f)) {
+                constexpr int kHeatSegments = 32;
+                const float ratio = (std::clamp)(heat.GetRatio(), 0.0f, 1.0f);
+                // 本体の白い輪（半径1倍）とHP・スタミナの弧（内側が約1.4倍）の間に置く。
+                const float ringRadius = radius * 1.27f;
+                myEngine::Vector4 lit = lerpColor({2.2f, 1.25f, 0.25f, 1.0f}, {2.4f, 0.35f, 0.18f, 1.0f}, ratio * ratio);
+                if (heat.IsOverheated()) {
+                    const float blink = 0.5f + 0.5f * std::sin(ratio * 40.0f);
+                    lit = {2.0f, 0.30f, 0.22f, 0.45f + 0.55f * blink};
+                }
+                const float step = 6.2831853f / static_cast<float>(kHeatSegments);
+                for (int i = 0; i < kHeatSegments; ++i) {
+                    const bool on = (static_cast<float>(i) + 0.5f) / static_cast<float>(kHeatSegments) < ratio;
+                    // 角度0を真上にし、時計回りに進める。
+                    const float angle = 3.14159265f - step * (static_cast<float>(i) + 0.5f);
+                    const myEngine::Vector3 radial = cameraRight * std::sin(angle) - cameraUp * std::cos(angle);
+                    const myEngine::Vector3 tangent = cameraRight * std::cos(angle) + cameraUp * std::sin(angle);
+                    const myEngine::Vector3 middle = center + radial * ringRadius;
+                    const float half = ringRadius * step * 0.40f;
+                    const myEngine::Vector4 color = on ? lit : myEngine::Vector4{0.55f, 0.34f, 0.12f, 0.40f};
+                    world_.resources.neonGridRenderer_->QueueLine(middle - tangent * half, middle + tangent * half,
+                                                                  on ? radius * 0.12f : radius * 0.06f, color);
+                }
+            }
             if (world_.combat.showPlayerStaminaBar_) {
                 const Player::PlayerStats& stats = world_.resources.player_->GetStats();
                 const float staminaRatio = stats.maxStamina > 0.0f ? stats.stamina / stats.maxStamina : 0.0f;

@@ -302,6 +302,15 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     recentDashTimer_ = (std::max)(0.0f, recentDashTimer_ - deltaTime);
 
     invincibleTimer_ -= deltaTime;
+    if (shieldConfig_.enabled && !isDead_) {
+        const float shieldMax = GetShieldMax();
+        if (shieldRegenWait_ > 0.0f) {
+            shieldRegenWait_ = (std::max)(0.0f, shieldRegenWait_ - deltaTime);
+        } else {
+            shield_ += shieldMax * shieldConfig_.regenPerSecond * deltaTime;
+        }
+        shield_ = (std::clamp)(shield_, 0.0f, shieldMax);
+    }
     if (damageFeedbackTimer_ > 0.0f) {
         damageFeedbackTimer_ = (std::max)(0.0f, damageFeedbackTimer_ - deltaTime);
     }
@@ -720,8 +729,17 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
         }
     }
 
-    const uint32_t appliedDamage = runCheckpointEvolution_ ? runMaintenance_.MitigateDamage(amount) : amount;
+    uint32_t appliedDamage = runCheckpointEvolution_ ? runMaintenance_.MitigateDamage(amount) : amount;
     ++damageTakenCount_;
+    if (shieldConfig_.enabled) {
+        // シールドがHPより先に受ける。端数が残っていれば1点として受け止める。
+        shieldRegenWait_ = shieldConfig_.regenDelay;
+        const float incoming = static_cast<float>(appliedDamage);
+        const float absorbed = (std::min)(incoming, shield_);
+        shield_ -= absorbed;
+        shieldAbsorbed_ += absorbed;
+        appliedDamage -= static_cast<uint32_t>((std::min)(incoming, std::ceil(absorbed)));
+    }
     // 符号付きHPへ変換する前に残HPで制限し、極端な開発用ダメージでも整数変換を安全にする。
     hp_ -= static_cast<int>((std::min)(appliedDamage, static_cast<uint32_t>((std::max)(0, hp_))));
     if (hp_ < 0) {
@@ -733,6 +751,15 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
     if (hp_ <= 0) {
         Die();
     }
+}
+
+void Player::ConfigureSurvivorResources(const PlayerHeat::Config& heat, const ShieldConfig& shield)
+{
+    heat_.Configure(heat);
+    shieldConfig_ = shield;
+    shieldRegenWait_ = 0.0f;
+    shieldAbsorbed_ = 0.0f;
+    shield_ = GetShieldMax();
 }
 
 std::vector<Player::SpecialCombatEvent> Player::ConsumeSpecialCombatEvents()

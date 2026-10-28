@@ -28,6 +28,7 @@
 #include "game/ui/NeonTextEffect.h"
 #include "game/player/TankRunModifiers.h"
 #include "game/player/PlayerDerivedStats.h"
+#include "game/player/combat/PlayerHeat.h"
 #include "game/player/TankSpecialCombat.h"
 #include "game/player/TankCombatStyleBalance.h"
 #include "game/player/TankExpeditionLoadout.h"
@@ -593,6 +594,38 @@ public:
         return debugNoDamage_;
     }
 
+    /// @brief 育つ戦車の試作のシールド。最大HPに比例した上限を持ち、被弾でHPより先に減る。
+    struct ShieldConfig {
+        bool enabled = false;
+        /// @brief シールドの上限の、最大HPに対する割合。
+        float maxHpRatio = 0.2f;
+        /// @brief 最後に被弾してから回復が始まるまでの秒数。
+        float regenDelay = 3.0f;
+        /// @brief 回復中に毎秒戻る量の、シールドの上限に対する割合。
+        float regenPerSecond = 0.25f;
+    };
+    /// @brief 熱とシールドを設定し、熱を0・シールドを満タンにする。既定ではどちらも無効。
+    void ConfigureSurvivorResources(const PlayerHeat::Config& heat, const ShieldConfig& shield);
+    const PlayerHeat& GetHeat() const
+    {
+        return heat_;
+    }
+    /// @brief 今のシールドの量。無効なら0。
+    float GetShield() const
+    {
+        return shieldConfig_.enabled ? shield_ : 0.0f;
+    }
+    /// @brief シールドの上限。無効なら0。
+    float GetShieldMax() const
+    {
+        return shieldConfig_.enabled ? stats_.maxHp * shieldConfig_.maxHpRatio : 0.0f;
+    }
+    /// @brief これまでにシールドが受け止めたダメージの合計。
+    float GetShieldAbsorbed() const
+    {
+        return shieldAbsorbed_;
+    }
+
     /// @brief 死亡状態にして死亡演出を開始する。既に死亡中なら何もしない。
     void Die();
 
@@ -1002,6 +1035,13 @@ private:
     std::unique_ptr<myEngine::Sprite> hpFont;
     static constexpr uint32_t kDamageBlockDamage = 75;
     int hp_ = 10000;
+
+    // 育つ戦車の試作の熱とシールド。既定では無効。
+    PlayerHeat heat_;
+    ShieldConfig shieldConfig_{};
+    float shield_ = 0.0f;
+    float shieldRegenWait_ = 0.0f;
+    float shieldAbsorbed_ = 0.0f;
 
     // 無敵時間
     float invincibleTimer_ = 0.0f;

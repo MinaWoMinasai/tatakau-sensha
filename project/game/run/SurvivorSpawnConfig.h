@@ -4,6 +4,7 @@
 #include <cmath>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include "game/player/combat/PlayerHeat.h"
 #include "game/run/SurvivorParts.h"
 #include <string>
 #include <utility>
@@ -65,6 +66,12 @@ struct SpawnConfig {
     float choiceSlowTimeScale = 0.25f;
     bool choiceAutoOpen = false;
     float choiceLightBias = 2.0f;
+
+    // 熱とシールド。試作では基本で持つ。
+    PlayerHeat::Config heat{true, 100.0f, 3.0f, 0.5f, 40.0f, 0.0f, 2.0f};
+    float shieldMaxHpRatio = 0.2f;
+    float shieldRegenDelay = 3.0f;
+    float shieldRegenPerSecond = 0.25f;
 
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
     int ExpToNextLevel(int level) const
@@ -230,6 +237,26 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
                 number(parts.at(part.key), "perLevel", part.perLevel);
             }
         }
+    }
+    if (data.contains("heat")) {
+        const auto& heat = data.at("heat");
+        number(heat, "max", config.heat.maxHeat);
+        number(heat, "perShot", config.heat.heatPerShot);
+        number(heat, "coolDelay", config.heat.coolDelay);
+        number(heat, "coolPerSecond", config.heat.coolPerSecond);
+        number(heat, "coolPerSecondWhileFiring", config.heat.coolPerSecondWhileFiring);
+        number(heat, "overheatSeconds", config.heat.overheatSeconds);
+        if (heat.is_object() && heat.contains("enabled") && heat.at("enabled").is_boolean()) {
+            config.heat.enabled = heat.at("enabled").get<bool>();
+        }
+        config.heat.maxHeat = (std::max)(1.0f, config.heat.maxHeat);
+    }
+    if (data.contains("shield")) {
+        const auto& shield = data.at("shield");
+        number(shield, "maxHpRatio", config.shieldMaxHpRatio);
+        number(shield, "regenDelay", config.shieldRegenDelay);
+        number(shield, "regenPerSecond", config.shieldRegenPerSecond);
+        config.shieldMaxHpRatio = (std::max)(0.0f, config.shieldMaxHpRatio);
     }
     return true;
 }

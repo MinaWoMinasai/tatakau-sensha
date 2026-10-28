@@ -618,6 +618,7 @@
     <ClCompile Include="game\player\progression\PlayerProgression.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="game\player\combat\PlayerHeat.h" />
     <ClInclude Include="game\player\combat\PlayerWeapons.h" />
     <ClInclude Include="game\player\progression\PlayerProgression.h" />
     <ClInclude Include="game\player\combat\PlayerSystems.h" />
