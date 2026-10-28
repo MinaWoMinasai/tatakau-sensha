@@ -55,14 +55,14 @@ bool ArenaRunController::IsTankRunMenuOpen() const
                                              world_.run.expeditionMapEditorOpen_ || world_.run.expeditionContentEditorOpen_)) {
         return true;
     }
-    if (world_.run.expeditionRun_ && (world_.run.tankExpeditionDetailsOpen_ || world_.run.tankExpeditionBalanceEditorOpen_)) {
+    if (world_.run.IsExpeditionRun() && (world_.run.tankExpeditionDetailsOpen_ || world_.run.tankExpeditionBalanceEditorOpen_)) {
         return true;
     }
-    if (world_.run.expeditionRun_ && world_.run.tankExpedition_.GetPhase() != tankexp::Phase::Dormant &&
+    if (world_.run.IsExpeditionRun() && world_.run.tankExpedition_.GetPhase() != tankexp::Phase::Dormant &&
         !world_.run.tankExpedition_.IsCombat()) {
         return true;
     }
-    return world_.run.prototypeRun_ &&
+    return world_.run.UsesPrototypeRules() &&
            (world_.run.tankRunPaused_ || IsDecision(world_.run.tankRun_.GetPhase()) || world_.run.tankRunMenuAge_ < 0);
 }
 
@@ -82,7 +82,7 @@ myEngine::InitializationTask ArenaRunController::BuildInitialization()
     if (world_.run.tankRunAutoTest_) {
         config.combatSeconds = 24;
     }
-    if (world_.run.expeditionRun_) {
+    if (world_.run.IsExpeditionRun()) {
         config.combatSeconds = 1000000;
     }
     uint32_t runSeed = world_.run.tankRunAutoTest_ ? 20260919u : static_cast<uint32_t>(GetTickCount64());
@@ -104,7 +104,7 @@ myEngine::InitializationTask ArenaRunController::BuildInitialization()
     world_.presentation.showLevelAiEditorPreview_ = false;
     world_.presentation.showGameDebugConsole_ = false;
     world_.runVisualSettings->InitializeTankRunVisuals();
-    if (world_.run.tankRunAutoTest_ && !world_.run.expeditionRun_) {
+    if (world_.run.tankRunAutoTest_ && !world_.run.IsExpeditionRun()) {
         std::filesystem::create_directories("generated/tank_run");
         std::ofstream("generated/tank_run/validation.json") << "{\"completed\":false,\"testMode\":true}\n";
     }
@@ -149,7 +149,7 @@ myEngine::InitializationTask ArenaRunController::BuildInitialization()
         world_.run.tankRunCardBodies_[i] = label(18, {x + 16, 362}, {0.84f, 0.90f, 0.96f, 1});
     }
     co_await std::suspend_always{};
-    if (world_.run.expeditionRun_) {
+    if (world_.run.IsExpeditionRun()) {
         auto expedition = world_.expeditionController->BuildInitialization();
         while (!expedition.Advance()) {
             co_await std::suspend_always{};
@@ -214,9 +214,9 @@ void ArenaRunController::ApplyTankRunCards()
 {
     TankRunModifiers m{};
     m.enabled = true;
-    m.expedition = world_.run.expeditionRun_;
+    m.expedition = world_.run.IsExpeditionRun();
     if (!world_.run.expeditionMapEnabled_ && world_.run.tankRun_.GetCore() != tankrun::CoreId::Count &&
-        (!world_.run.expeditionRun_ || world_.run.tankRun_.GetDraftCount() >= 2)) {
+        (!world_.run.IsExpeditionRun() || world_.run.tankRun_.GetDraftCount() >= 2)) {
         m.core = static_cast<TankRunCore>(static_cast<int>(world_.run.tankRun_.GetCore()) + 1);
     }
     const auto& c = world_.run.tankRun_.GetCardCounts();
@@ -284,7 +284,7 @@ void ArenaRunController::OnTankRunEnemyDefeated(const myEngine::Vector3& positio
         world_.run.tankRunBursts_.push_back({position, 0, false});
     }
     world_.combat.screenEffectDirector_.TriggerEnemyDefeat(world_.gameplayQueries->WorldToScreenUv(position), 0.20f);
-    if (world_.run.expeditionRun_) {
+    if (world_.run.IsExpeditionRun()) {
         world_.run.tankExpeditionAudio_.Kill(world_.run.tankRunCombo_);
         myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(position, {0, 1, 0}, {0.22f, 1.1f, 0.82f, 1}, 10);
         if (world_.run.expeditionMapEnabled_ && world_.presentation.cameraShakeTimer_ <= 0) {
@@ -295,7 +295,7 @@ void ArenaRunController::OnTankRunEnemyDefeated(const myEngine::Vector3& positio
     }
     if (world_.run.tankRunCombo_ % 5 == 0) {
         world_.combatFlow->SetEventCallout(
-            std::to_string(world_.run.tankRunCombo_) + (world_.run.expeditionRun_ ? "連続撃破" : " CHAIN / 資材 +1"), 0.55f);
+            std::to_string(world_.run.tankRunCombo_) + (world_.run.IsExpeditionRun() ? "連続撃破" : " CHAIN / 資材 +1"), 0.55f);
     }
     world_.run.tankRunHudTimer_ = 0;
 }
@@ -308,7 +308,7 @@ void ArenaRunController::OnTankRunResourceClaim(size_t index, bool playerOwned)
     auto& resource = world_.run.tankRunResources_[index];
     resource.active = false;
     resource.respawn = 20;
-    if (world_.run.expeditionRun_) {
+    if (world_.run.IsExpeditionRun()) {
         ++world_.run.tankExpeditionNodes_;
         world_.run.tankExpeditionResourceWon_ |= playerOwned;
         if (playerOwned) {
@@ -386,7 +386,7 @@ void ArenaRunController::UpdateTankRunResources(float dt)
 
 void ArenaRunController::SelectTankRunOption(int index)
 {
-    if (world_.run.expeditionRun_ && !world_.run.tankRunPaused_ && world_.run.tankExpedition_.GetPhase() != tankexp::Phase::Dormant) {
+    if (world_.run.IsExpeditionRun() && !world_.run.tankRunPaused_ && world_.run.tankExpedition_.GetPhase() != tankexp::Phase::Dormant) {
         world_.expeditionController->SelectTankExpeditionOption(index);
         return;
     }
@@ -413,7 +413,7 @@ void ArenaRunController::SelectTankRunOption(int index)
             return;
         }
         ApplyTankRunCards();
-        if (world_.run.expeditionRun_) {
+        if (world_.run.IsExpeditionRun()) {
             world_.run.tankExpedition_.Start();
             world_.expeditionController->StartTankExpeditionRoom();
         } else {
@@ -443,7 +443,7 @@ void ArenaRunController::SelectTankRunOption(int index)
 
 void ArenaRunController::UpdateTankRun(float dt)
 {
-    if (world_.run.expeditionRun_) {
+    if (world_.run.IsExpeditionRun()) {
         world_.expeditionController->UpdateTankExpedition(dt);
         return;
     }
@@ -598,7 +598,7 @@ void ArenaRunController::UpdateTankRun(float dt)
 
 void ArenaRunController::RefreshTankRunUi()
 {
-    if (world_.run.expeditionRun_ && world_.run.tankExpedition_.GetPhase() != tankexp::Phase::Dormant) {
+    if (world_.run.IsExpeditionRun() && world_.run.tankExpedition_.GetPhase() != tankexp::Phase::Dormant) {
         world_.expeditionController->RefreshTankExpeditionUi();
         return;
     }
@@ -716,7 +716,7 @@ void ArenaRunController::RefreshTankRunUi()
     }
     world_.run.tankRunFooter_->SetText(
         "数字キー / クリック: 決定   ← → + Enter: 選択   Esc: 一時停止\nWASD: 移動   マウス: 照準   左クリック: 射撃   右クリック: ダッシュ   E: 改造   C: 進化");
-    if (world_.run.expeditionRun_) {
+    if (world_.run.IsExpeditionRun()) {
         world_.run.tankRunHud_->SetText("分岐遠征 / 地下施設を突破せよ\n単発の戦車から、改造・進化で自分だけのビルドへ");
         world_.run.tankRunBossText_->SetText("全5戦闘エリア\n所持改造とHPを次の部屋へ引き継ぐ");
         if (!world_.run.tankRunPaused_ && phase == RunPhase::Loadout) {
@@ -741,7 +741,7 @@ void ArenaRunController::RefreshTankRunUi()
 
 void ArenaRunController::DrawTankRunUi()
 {
-    if (world_.run.expeditionRun_ && world_.run.tankExpedition_.GetPhase() != tankexp::Phase::Dormant) {
+    if (world_.run.IsExpeditionRun() && world_.run.tankExpedition_.GetPhase() != tankexp::Phase::Dormant) {
         world_.expeditionController->DrawTankExpeditionUi();
         return;
     }
@@ -759,7 +759,7 @@ void ArenaRunController::DrawTankRunUi()
     world_.run.tankRunHudPanel_->Draw();
     world_.run.tankRunHud_->Draw();
     world_.run.tankRunBossText_->Draw();
-    if (!world_.run.expeditionRun_) {
+    if (!world_.run.IsExpeditionRun()) {
         world_.run.tankRunBossTrack_->Draw();
         world_.run.tankRunBossFill_->Draw();
     }
@@ -816,7 +816,7 @@ void ArenaRunController::QueueTankRunTelegraph()
         const float t = burst.age / duration;
         circle(burst.position, 0.7f + t * (burst.resource ? 5.0f : 2.2f), 0.09f * (1 - t),
                burst.resource ? myEngine::Vector4{1, 0.72f, 0.15f, 1 - t} : myEngine::Vector4{0.25f, 1, 0.8f, 1 - t}, 20);
-        if (world_.run.expeditionRun_ && !burst.resource) {
+        if (world_.run.IsExpeditionRun() && !burst.resource) {
             for (int i = 0; i < 8; ++i) {
                 const float a = static_cast<float>(i) * myEngine::pi / 4 + burst.position.x;
                 const myEngine::Vector3 direction{std::cos(a), std::sin(a), 0};
@@ -959,7 +959,7 @@ void ArenaRunController::RequestTankRunCapture(const std::string& name)
     if (!world_.run.tankRunCapturePath_.empty()) {
         return;
     }
-    const std::string directory = world_.run.expeditionRun_
+    const std::string directory = world_.run.IsExpeditionRun()
                                       ? "generated/tank_expedition/variant_" + std::to_string(world_.run.tankExpeditionAutoVariant_)
                                       : "generated/tank_run";
     std::filesystem::create_directories(directory);

@@ -106,7 +106,7 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
                                 session.BeginRecording(static_cast<unsigned>(desc.Width), desc.Height),
                             "Native recording preflight failed.");
         }
-        RequireScenario(world_.run.expeditionRun_ && world_.run.expeditionMapEnabled_ && world_.resources.player_ &&
+        RequireScenario(world_.run.IsExpeditionRun() && world_.run.expeditionMapEnabled_ && world_.resources.player_ &&
                             world_.resources.enemy_ && world_.resources.enemyManager_ && world_.resources.stage_ &&
                             world_.resources.bulletManager_,
                         "Gameplay scenarios require the initialized TANK_EXPEDITION scene.");

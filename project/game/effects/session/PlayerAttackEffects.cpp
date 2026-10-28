@@ -339,7 +339,7 @@ void PlayerAttackEffects::SpawnPlayerMeleeSlash(const Player::MeleeSlashEvent& e
     slash.damage = event.damage;
     slash.knockback = event.knockback;
     slash.finisher = event.comboStep % 3 == 2;
-    if (world_.run.expeditionRun_) {
+    if (world_.run.IsExpeditionRun()) {
         world_.run.tankExpeditionAudio_.Slash();
     }
     slash.life = slash.windupDuration + slash.swingDuration + slash.recoveryDuration;
@@ -501,7 +501,7 @@ void PlayerAttackEffects::UpdateSpecialCombatPresentation(float dt)
         if (world_.run.buildCombatFlashes_.size() < 64) {
             world_.run.buildCombatFlashes_.push_back({event, 0});
         }
-        if (world_.run.expeditionRun_) {
+        if (world_.run.IsExpeditionRun()) {
             world_.run.tankExpeditionAudio_.Hit();
         }
     }
@@ -519,33 +519,33 @@ void PlayerAttackEffects::UpdateSpecialCombatPresentation(float dt)
             world_.presentation.cameraShakeDuration_ = .10f;
             world_.presentation.cameraShakeTimer_ = .10f;
             world_.presentation.cameraShakePower_ = (std::max)(world_.presentation.cameraShakePower_, .09f);
-            if (world_.run.expeditionRun_) {
+            if (world_.run.IsExpeditionRun()) {
                 world_.run.tankExpeditionAudio_.RailShot();
             }
         } else if (event.kind == Player::SpecialEventKind::PerfectParry) {
             // 完全パリィで停止用タイマーを最低0.035秒に設定する。減速の適用は次回Updateで行う。
             world_.run.expeditionImpactHold_ = (std::max)(world_.run.expeditionImpactHold_, .035f);
             world_.combatFlow->SetEventCallout("パリィ成功！", .42f);
-            if (world_.run.expeditionRun_) {
+            if (world_.run.IsExpeditionRun()) {
                 world_.run.tankExpeditionAudio_.Parry(true);
             }
         } else if (event.kind == Player::SpecialEventKind::Parry) {
-            if (world_.run.expeditionRun_) {
+            if (world_.run.IsExpeditionRun()) {
                 world_.run.tankExpeditionAudio_.Parry(false);
             }
-        } else if (event.kind == Player::SpecialEventKind::LinkHit && world_.run.expeditionRun_) {
+        } else if (event.kind == Player::SpecialEventKind::LinkHit && world_.run.IsExpeditionRun()) {
             world_.run.tankExpeditionAudio_.Hit();
         } else if (event.kind == Player::SpecialEventKind::WallSmash || event.kind == Player::SpecialEventKind::DroneBomb) {
-            if (world_.run.expeditionRun_) {
+            if (world_.run.IsExpeditionRun()) {
                 world_.run.tankExpeditionAudio_.ArmorBreak();
             }
             world_.presentation.cameraShakeDuration_ = world_.presentation.cameraShakeTimer_ = .09f;
             world_.presentation.cameraShakePower_ = (std::max)(world_.presentation.cameraShakePower_, .07f);
         } else if (event.kind == Player::SpecialEventKind::DashSlash || event.kind == Player::SpecialEventKind::SpinBlade) {
-            if (world_.run.expeditionRun_) {
+            if (world_.run.IsExpeditionRun()) {
                 world_.run.tankExpeditionAudio_.Slash();
             }
-        } else if (world_.run.expeditionRun_) {
+        } else if (world_.run.IsExpeditionRun()) {
             world_.run.tankExpeditionAudio_.Hit();
         }
         if (world_.run.specialCombatFlashes_.size() < 64) {
@@ -560,7 +560,7 @@ void PlayerAttackEffects::UpdateSpecialCombatPresentation(float dt)
         if (world_.run.specialCombatFlashes_.size() < 64) {
             world_.run.specialCombatFlashes_.push_back({event, 0, hit.position});
         }
-        if (hit.bulletCut && world_.run.expeditionRun_) {
+        if (hit.bulletCut && world_.run.IsExpeditionRun()) {
             world_.run.tankExpeditionAudio_.Parry(false);
         }
     }
@@ -568,7 +568,7 @@ void PlayerAttackEffects::UpdateSpecialCombatPresentation(float dt)
     const float charge = world_.resources.player_->GetRailChargeRatio();
     world_.run.railChargeAudioAge_ += dt;
     if (charge > 0 && world_.run.railChargeAudioAge_ > .30f && !world_.arenaRunController->IsTankRunMenuOpen()) {
-        if (world_.run.expeditionRun_) {
+        if (world_.run.IsExpeditionRun()) {
             world_.run.tankExpeditionAudio_.RailCharge(charge >= .999f);
         }
         world_.run.railChargeAudioAge_ = 0;

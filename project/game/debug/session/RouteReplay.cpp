@@ -165,7 +165,7 @@ void RouteReplay::InitializeNormalRouteReplay()
             lastColumn = (std::max)(lastColumn, n.column);
         }
         const auto& map = world_.run.expeditionMapRun_.GetDefinition();
-        if (!world_.run.expeditionRun_ || !world_.run.expeditionMapEnabled_ || !map.procedural ||
+        if (!world_.run.IsExpeditionRun() || !world_.run.expeditionMapEnabled_ || !map.procedural ||
             map.generationSeed != world_.run.expeditionSeed_ || lastColumn < 17 || lastColumn > 21 || map.generationMinColumns != 18 ||
             map.generationMaxColumns != 22 || map.nodes.size() > 256 || !world_.run.expeditionMapRun_.GetChosenNodeIds().empty() ||
             GameplayScenarioSession::Get().IsActive() || world_.resources.neonBossAutoTest_ ||

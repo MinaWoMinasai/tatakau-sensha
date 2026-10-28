@@ -268,7 +268,7 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                            world_.resources.player_->GetDirection(), world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse),
                            world_.presentation.actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true,
                            world_.presentation.playerNeonEmission_);
-        if (drawBarrels && world_.combat.showFollowHpBars_ && (!world_.run.expeditionRun_ || world_.run.tankExpedition_.IsCombat())) {
+        if (drawBarrels && world_.combat.showFollowHpBars_ && (!world_.run.IsExpeditionRun() || world_.run.tankExpedition_.IsCombat())) {
             // 浮かんだHP/スタミナバーの代わりに、本体に沿った分割ゲージを表示する。
             // HPは本体色の下側の弧、スタミナはそれより短い上側の弧。
             const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};
@@ -325,7 +325,7 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             world_.presentation.bossNeonBillboardRadius_ * (1.0f + impact * 0.07f), world_.presentation.actorNeonBillboardLineWidth_, color,
             &bossBody, &bossBarrels, false, false, world_.presentation.bossNeonEmission_);
     }
-    if (world_.run.prototypeRun_ && world_.resources.player_ && world_.presentation.playerNeonRenderMode_ == 1) {
+    if (world_.run.UsesPrototypeRules() && world_.resources.player_ && world_.presentation.playerNeonRenderMode_ == 1) {
         for (PlayerDrone* drone : world_.resources.player_->GetDronePtrs()) {
             if (!drone || !drone->IsVisualVisible()) {
                 continue;
@@ -492,7 +492,7 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
                        world_.presentation.bossNeonBillboardRadius_ * (1.0f + impact * 0.07f) * 0.96f * roundBodyScale,
                        world_.presentation.enemyGridColor_);
     }
-    if (drawRound && world_.run.prototypeRun_ && world_.resources.player_ && world_.presentation.playerNeonRenderMode_ == 1) {
+    if (drawRound && world_.run.UsesPrototypeRules() && world_.resources.player_ && world_.presentation.playerNeonRenderMode_ == 1) {
         for (PlayerDrone* drone : world_.resources.player_->GetDronePtrs()) {
             if (!drone || !drone->IsVisualVisible()) {
                 continue;

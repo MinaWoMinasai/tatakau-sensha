@@ -32,7 +32,7 @@ void CombatFlow::UpdateGameplayEventEffects(float, bool)
     if (!world_.resources.player_ || !world_.resources.enemy_) {
         return;
     }
-    if (world_.run.expeditionRun_ && world_.resources.player_->ConsumePrimaryAttackPerformedEvent()) {
+    if (world_.run.IsExpeditionRun() && world_.resources.player_->ConsumePrimaryAttackPerformedEvent()) {
         world_.run.tankExpeditionAudio_.Shot();
     }
 
@@ -55,7 +55,7 @@ void CombatFlow::UpdateGameplayEventEffects(float, bool)
         world_.presentation.cameraShakePower_ =
             (std::max)(world_.presentation.cameraShakePower_, world_.combat.screenEffectDirector_.GetConfig().cameraShakeStrength);
         SetEventCallout("ダメージ", 0.42f);
-        if (world_.run.expeditionRun_) {
+        if (world_.run.IsExpeditionRun()) {
             world_.run.tankExpeditionAudio_.ArmorBreak();
         }
     }
@@ -70,7 +70,7 @@ void CombatFlow::UpdateGameplayEventEffects(float, bool)
     if (dashing && !world_.combat.previousDashing_) {
         world_.combat.screenEffectDirector_.TriggerDash(
             world_.gameplayQueries->WorldToScreenUv(world_.resources.player_->GetWorldPosition()));
-        if (world_.run.expeditionRun_) {
+        if (world_.run.IsExpeditionRun()) {
             world_.run.tankExpeditionAudio_.Dash();
         }
     }
@@ -79,7 +79,7 @@ void CombatFlow::UpdateGameplayEventEffects(float, bool)
     if (world_.resources.player_->ConsumeEvolutionConfirmed()) {
         world_.combat.screenEffectDirector_.TriggerUpgradeConfirmed(
             world_.gameplayQueries->WorldToScreenUv(world_.resources.player_->GetWorldPosition()));
-        if (world_.run.expeditionRun_) {
+        if (world_.run.IsExpeditionRun()) {
             world_.run.tankExpeditionAudio_.Upgrade();
         }
         SetEventCallout("EVOLUTION COMPLETE", 0.75f);
@@ -88,22 +88,22 @@ void CombatFlow::UpdateGameplayEventEffects(float, bool)
         SetEventCallout("EVOLUTION CANCELLED", 0.45f);
     }
 
-    if (!world_.run.expeditionRun_ && !world_.combat.bossEntryTriggered_ && world_.combat.phase_ == Phase::kMain &&
+    if (!world_.run.IsExpeditionRun() && !world_.combat.bossEntryTriggered_ && world_.combat.phase_ == Phase::kMain &&
         world_.combat.playTime_ >= 1.25f) {
         world_.combat.bossEntryTriggered_ = true;
         world_.combat.screenEffectDirector_.TriggerBossEntry();
         SetEventCallout("ボス出現", 1.20f);
     }
 
-    if (world_.run.expeditionRun_ && world_.gameplayQueries->IsRunRivalActive() &&
+    if (world_.run.IsExpeditionRun() && world_.gameplayQueries->IsRunRivalActive() &&
         world_.resources.enemy_->GetHp() < world_.combat.previousBossHp_) {
         world_.run.tankExpeditionAudio_.Hit();
     }
     world_.combat.previousBossHp_ = world_.resources.enemy_->GetHp();
     const auto outcome = SelectCombatDeathOutcome(
-        {world_.run.expeditionRun_, world_.resources.player_->IsDead(), world_.combat.playerDeathHandled_,
+        {world_.run.IsExpeditionRun(), world_.resources.player_->IsDead(), world_.combat.playerDeathHandled_,
          world_.gameplayQueries->IsRunRivalActive(), world_.resources.enemy_->IsDead(), world_.combat.bossDefeatHandled_,
-         world_.run.expeditionRun_ && world_.run.tankExpedition_.GetRoomKind() == tankexp::RoomKind::Boss});
+         world_.run.IsExpeditionRun() && world_.run.tankExpedition_.GetRoomKind() == tankexp::RoomKind::Boss});
     if (outcome == CombatDeathOutcome::PlayerDeath) {
         BeginGameOver();
     } else if (outcome == CombatDeathOutcome::BossDefeat) {
@@ -117,10 +117,10 @@ void CombatFlow::BeginBossDefeatSequence()
     if (world_.run.expeditionMapEnabled_) {
         world_.run.expeditionCollectAll_ = true;
     }
-    if (world_.run.expeditionRun_) {
+    if (world_.run.IsExpeditionRun()) {
         world_.run.tankExpedition_.CompleteRoom();
     }
-    if (world_.run.prototypeRun_) {
+    if (world_.run.UsesPrototypeRules()) {
         world_.run.tankRun_.CompleteBoss();
         world_.arenaRunController->RefreshTankRunUi();
     }
@@ -153,10 +153,10 @@ void CombatFlow::BeginGameOver()
     if (world_.run.expeditionMapEnabled_) {
         world_.run.expeditionMapRun_.MarkDead();
     }
-    if (world_.run.expeditionRun_) {
+    if (world_.run.IsExpeditionRun()) {
         world_.run.tankExpedition_.MarkDead();
     }
-    if (world_.run.prototypeRun_) {
+    if (world_.run.UsesPrototypeRules()) {
         world_.run.tankRun_.MarkDead();
         world_.arenaRunController->RefreshTankRunUi();
     }
@@ -203,7 +203,7 @@ void CombatFlow::UpdateGameFlow(float baseDeltaTime)
         world_.combat.combatFlow_.GetState() != GameFlowState::GameOver) {
         return;
     }
-    if (world_.run.prototypeRun_) {
+    if (world_.run.UsesPrototypeRules()) {
         if (world_.run.expeditionMapEnabled_ && (world_.run.tankExpeditionBalanceEditorOpen_ || world_.run.expeditionRoomEditorOpen_ ||
                                                  world_.run.expeditionMapEditorOpen_ || world_.run.expeditionContentEditorOpen_)) {
             return;
@@ -269,8 +269,8 @@ void CombatFlow::EnterResultState(bool stageClear)
 {
     world_.combat.combatFlow_.EnterResult(stageClear);
     if (world_.combat.flowBannerText_) {
-        world_.combat.flowBannerText_->SetText(world_.run.expeditionRun_ ? (stageClear ? "遠征クリア" : "遠征終了")
-                                                                         : (stageClear ? "STAGE CLEAR" : "GAME OVER"));
+        world_.combat.flowBannerText_->SetText(world_.run.IsExpeditionRun() ? (stageClear ? "遠征クリア" : "遠征終了")
+                                                                            : (stageClear ? "STAGE CLEAR" : "GAME OVER"));
     }
     world_.combat.resultSelection_ = 0;
     UpdateResultText();
@@ -282,7 +282,9 @@ void CombatFlow::ConfirmResultSelection()
         return;
     }
     if (world_.combat.resultSelection_ == 0) {
-        world_.combat.nextSceneName_ = world_.run.expeditionRun_ ? "TANK_EXPEDITION" : world_.run.prototypeRun_ ? "TANK_RUN" : "GAME";
+        world_.combat.nextSceneName_ = world_.run.IsExpeditionRun()      ? "TANK_EXPEDITION"
+                                       : world_.run.UsesPrototypeRules() ? "TANK_RUN"
+                                                                         : "GAME";
     } else {
         world_.combat.nextSceneName_ = "TITLE";
     }
@@ -312,7 +314,7 @@ void CombatFlow::UpdateResultText()
          << (world_.combat.resultSelection_ == 1 ? "> " : "  ") << "RETURN TO TITLE\n\n"
          << "W/S or Arrow Keys : Select   Enter/Click : Confirm";
     world_.combat.resultMenuText_->SetText(menu.str());
-    if (world_.run.prototypeRun_ && world_.run.tankRunHeading_) {
+    if (world_.run.UsesPrototypeRules() && world_.run.tankRunHeading_) {
         world_.arenaRunController->RefreshTankRunUi();
     }
 }

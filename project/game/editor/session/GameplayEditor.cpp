@@ -165,7 +165,7 @@ void GameplayEditor::DrawGameplayDebugUi()
                 world_.resources.player_->DrawEvolutionUiStyleEditor();
                 ImGui::Separator();
             }
-            if (world_.run.prototypeRun_ && ImGui::CollapsingHeader("Phase 1.5 / 床・連続壁", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (world_.run.UsesPrototypeRules() && ImGui::CollapsingHeader("Phase 1.5 / 床・連続壁", ImGuiTreeNodeFlags_DefaultOpen)) {
                 auto& surface = world_.presentation.stageSurface_;
                 ImGui::Checkbox("新しいステージ表現を使用", &surface.enabled);
                 if (ImGui::Button("従来表示へ戻す")) {

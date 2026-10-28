@@ -38,7 +38,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     world_.resources.neonGridRenderer_->SetLineStyle(world_.presentation.neonLineSoftEdgeRatio_,
                                                      world_.presentation.neonLineCoreIntensity_);
     const auto& surface = world_.presentation.stageSurface_;
-    const bool surfaceFloor = world_.run.prototypeRun_ && surface.enabled && surface.floorEnabled;
+    const bool surfaceFloor = world_.run.UsesPrototypeRules() && surface.enabled && surface.floorEnabled;
     const float gridZ = surfaceFloor ? surface.floorDepth - stagesurface::kGridClearance : -0.04f;
     const float localGridZ = surfaceFloor ? gridZ : -0.03f;
     float minimumGridWidth = 0.0f;
@@ -118,7 +118,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     if (world_.presentation.showLevelAiEditorPreview_) {
         world_.gameplayEditor->QueueLevelEditorPreview();
     }
-    if (world_.run.prototypeRun_) {
+    if (world_.run.UsesPrototypeRules()) {
         world_.arenaRunController->QueueTankRunTelegraph();
     }
     if (includeStageBlockOutlines &&
@@ -217,7 +217,7 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
     myEngine::Vector3 cameraForward = myEngine::Normalize({cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2]});
     const myEngine::Vector3 cameraPos = GetActiveCameraPosition(world_.resources.camera.get(), world_.resources.debugCamera.get());
     const auto& surface = world_.presentation.stageSurface_;
-    const bool surfaceBlocks = world_.run.prototypeRun_ && surface.enabled && surface.blocksEnabled;
+    const bool surfaceBlocks = world_.run.UsesPrototypeRules() && surface.enabled && surface.blocksEnabled;
     if (surfaceBlocks && surface.wallStyle == 1) {
         // タイルごとに別のBloom付きの枠を付けずに、セルのグリッドをつなげる。
         // 重複を除いた線分の集合で、隣り合う矩形の継ぎ目も消える。

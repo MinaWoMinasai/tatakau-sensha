@@ -2,9 +2,7 @@
 #include "game/render/settings/ArenaLookConfig.h"
 #include "game/session/GameSession.h"
 
-GameScene::GameScene(bool prototypeRun, bool expeditionRun) : session_(std::make_unique<gameplay::GameSession>(prototypeRun, expeditionRun))
-{
-}
+GameScene::GameScene(gameplay::RunMode runMode) : session_(std::make_unique<gameplay::GameSession>(runMode)) {}
 
 GameScene::~GameScene() = default;
 

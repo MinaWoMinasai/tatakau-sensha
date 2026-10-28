@@ -575,6 +575,7 @@
     <ClInclude Include="game\session\GameplayTypes.h" />
     <ClInclude Include="game\session\GameplaySystems.h" />
     <ClInclude Include="game\session\GameSession.h" />
+    <ClInclude Include="game\session\RunMode.h" />
     <ClInclude Include="game\session\TitleDemoStatus.h" />
     <ClInclude Include="game\session\GameplayHelpers.h" />
   </ItemGroup>

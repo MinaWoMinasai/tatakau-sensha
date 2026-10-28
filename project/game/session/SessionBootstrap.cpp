@@ -65,7 +65,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
     world_.resources.input_ = myEngine::Input::GetInstance();
     world_.combatTutorial->LoadTutorialConfig();
     world_.depthEncounter->LoadNeonDepthConfig();
-    world_.combat.tutorialConfig_.enabled = !world_.run.prototypeRun_ && GameStartSession::GetMode() == GameStartMode::Tutorial;
+    world_.combat.tutorialConfig_.enabled = !world_.run.UsesPrototypeRules() && GameStartSession::GetMode() == GameStartMode::Tutorial;
     world_.combat.screenEffectDirector_.LoadConfig("resources/configs/screenEffects.json");
 
     world_.resources.debugCamera = std::make_unique<myEngine::DebugCamera>();
@@ -309,7 +309,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
 
         co_await std::suspend_always{};
         world_.resources.player_ = std::make_unique<Player>();
-        world_.resources.player_->Initialize(world_.resources.playerObject_.get(), playerSpawnPosition, !world_.run.expeditionRun_);
+        world_.resources.player_->Initialize(world_.resources.playerObject_.get(), playerSpawnPosition, !world_.run.IsExpeditionRun());
         world_.resources.player_->SetAttackControllerBulletManager(world_.resources.bulletManager_.get());
 
         co_await std::suspend_always{};
@@ -348,7 +348,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
         });
         ExpEnemy::SetPlayerDefeatCallback([this](const myEngine::Vector3& position) {
             ++world_.combat.defeatedEnemies_;
-            if (world_.run.prototypeRun_) {
+            if (world_.run.UsesPrototypeRules()) {
                 world_.arenaRunController->OnTankRunEnemyDefeated(position);
                 return;
             }
@@ -469,7 +469,7 @@ myEngine::InitializationTask SessionBootstrap::Build()
             world_.classConfigWatcher->InitializePlayerClassConfigWatch();
         }
     }
-    if (world_.run.prototypeRun_) {
+    if (world_.run.UsesPrototypeRules()) {
         auto run = world_.arenaRunController->BuildInitialization();
         while (!run.Advance()) {
             co_await std::suspend_always{};

@@ -187,7 +187,7 @@ bool TitleScene::InitializeDemoStep()
         return false;
     }
     if (!demo_) {
-        demo_ = std::make_unique<GameScene>(false, true);
+        demo_ = std::make_unique<GameScene>(gameplay::RunMode::Expedition);
         demo_->EnableTitleDemo();
         myEngine::StartupTrace::Mark("demo.initialize_begin");
         myEngine::StartupTrace::Flush();

@@ -380,7 +380,7 @@ nlohmann::json TitleDemoController::GetTitleDemoBuild() const
 
 void TitleDemoController::VerifyTitleDemoTransition(float dt)
 {
-    if (world_.demo.titleDemo_ || !world_.run.expeditionRun_ || world_.demo.titleDemoTransitionVerified_) {
+    if (world_.demo.titleDemo_ || !world_.run.IsExpeditionRun() || world_.demo.titleDemoTransitionVerified_) {
         return;
     }
     wchar_t test[8]{};

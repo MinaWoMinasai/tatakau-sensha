@@ -47,7 +47,7 @@ void GameplayRenderer::DrawPostEffect3D()
     if (world_.resources.player_) {
         for (PlayerDrone* drone : world_.resources.player_->GetDronePtrs()) {
             if (drone) {
-                drone->SetNeonVisual(world_.run.prototypeRun_ && world_.presentation.playerNeonRenderMode_ == 1);
+                drone->SetNeonVisual(world_.run.UsesPrototypeRules() && world_.presentation.playerNeonRenderMode_ == 1);
             }
         }
     }
@@ -78,7 +78,7 @@ void GameplayRenderer::DrawPostEffect3D()
     };
 
     stagesurface::Settings surface = world_.presentation.stageSurface_;
-    surface.enabled = surface.enabled && world_.run.prototypeRun_;
+    surface.enabled = surface.enabled && world_.run.UsesPrototypeRules();
     stagesurface::Sanitize(surface);
     if (world_.resources.player_ && world_.resources.player_->IsDead()) {
         surface.floorLocalIntensity = 0.0f;
@@ -319,7 +319,7 @@ void GameplayRenderer::DrawAfterPostEffect3D()
     }
     if (world_.resources.player_) {
         world_.resources.player_->DrawEvolutionAfterPostEffects();
-        if (!world_.run.expeditionRun_) {
+        if (!world_.run.IsExpeditionRun()) {
             world_.resources.player_->DrawUpgradeHudAfterPostEffects();
         }
     }

@@ -697,6 +697,9 @@
     <ClInclude Include="game\session\GameSession.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="game\session\RunMode.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\session\TitleDemoStatus.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

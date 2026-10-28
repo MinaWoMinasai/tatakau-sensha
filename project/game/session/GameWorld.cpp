@@ -1,7 +1,7 @@
 #include "game/session/GameplaySystems.h"
 
 namespace gameplay {
-GameWorld::GameWorld(bool prototypeRun, bool expeditionRun)
+GameWorld::GameWorld(RunMode runMode)
     : performanceMonitor(std::make_unique<PerformanceMonitor>(*this)), sessionBootstrap(std::make_unique<SessionBootstrap>(*this)),
       combatFramePipeline(std::make_unique<CombatFramePipeline>(*this)), combatTutorial(std::make_unique<CombatTutorial>(*this)),
       combatFlow(std::make_unique<CombatFlow>(*this)), classConfigWatcher(std::make_unique<ClassConfigWatcher>(*this)),
@@ -23,8 +23,7 @@ GameWorld::GameWorld(bool prototypeRun, bool expeditionRun)
       gameplayScenarioRunner(std::make_unique<GameplayScenarioRunner>(*this)), depthValidation(std::make_unique<DepthValidation>(*this)),
       routeReplay(std::make_unique<RouteReplay>(*this))
 {
-    run.expeditionRun_ = expeditionRun;
-    run.prototypeRun_ = prototypeRun || expeditionRun;
+    run.runMode_ = runMode;
 }
 
 GameWorld::~GameWorld()

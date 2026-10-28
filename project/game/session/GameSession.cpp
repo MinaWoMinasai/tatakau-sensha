@@ -2,7 +2,7 @@
 #include "game/session/GameplaySystems.h"
 
 namespace gameplay {
-GameSession::GameSession(bool prototypeRun, bool expeditionRun) : world_(std::make_unique<GameWorld>(prototypeRun, expeditionRun)) {}
+GameSession::GameSession(RunMode runMode) : world_(std::make_unique<GameWorld>(runMode)) {}
 
 GameSession::~GameSession() = default;
 
@@ -104,7 +104,7 @@ void GameSession::RecordDeveloperPostParameters(const myEngine::BloomParam& para
 void GameSession::RecordDeveloperFrame(myEngine::DirectXCommon& dx)
 {
     world_->gameplayQueries->RecordDeveloperFrame(dx);
-    if (world_->run.prototypeRun_) {
+    if (world_->run.UsesPrototypeRules()) {
         world_->arenaRunController->CopyTankRunCapture();
     }
 }
