@@ -52,6 +52,37 @@ struct SpawnConfig {
     int bigPentagonHp = 140;
     int bigPentagonExp = 160;
 
+    /// @brief 脅威の段階。stageSeconds ごとに1段上がり、それから湧く敵を硬く、群れを大きく・速く・頻繁にする。
+    struct Threat {
+        float stageSeconds = 60.0f;
+        int maxStage = 8;
+        // 1段ごとに足す量。HP は割合（0.25 なら1段で +25%）、群れの間隔は1段ごとに掛ける倍率。
+        float enemyHpPerStage = 0.25f;
+        int swarmCountPerStage = 3;
+        float swarmIntervalScalePerStage = 0.9f;
+        float swarmSpeedPerStage = 0.6f;
+        int tankMaxAlivePerStage = 1;
+        // 包囲の輪：ringFromStage 段から、ringInterval 秒ごとに、自機を中心とした輪の上に三角を並べて寄らせる。
+        int ringFromStage = 3;
+        float ringInterval = 30.0f;
+        int ringCount = 18;
+        float ringRadius = 17.0f;
+    } threat;
+
+    /// @brief 宿敵。exitOpenSeconds に出口の代わりに現れ、倒すと出口が開く。enabled が偽なら、時間で出口が開く。
+    struct Rival {
+        bool enabled = true;
+        int hp = 1500;
+        int exp = 600;
+    } rival;
+
+    /// @brief 経過秒での脅威の段階（1から）を返す。
+    int ThreatStage(float seconds) const
+    {
+        const float step = (std::max)(1.0f, threat.stageSeconds);
+        return (std::clamp)(1 + static_cast<int>(seconds / step), 1, (std::max)(1, threat.maxStage));
+    }
+
     // 経験値の欠片とレベル。
     float magnetRadius = 5.0f;
     float collectRadius = 1.2f;
@@ -210,6 +241,32 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(big, "scale", config.bigPentagonScale);
         number(big, "hp", config.bigPentagonHp);
         number(big, "exp", config.bigPentagonExp);
+    }
+    if (data.contains("threat")) {
+        const auto& threat = data.at("threat");
+        auto& t = config.threat;
+        number(threat, "stageSeconds", t.stageSeconds);
+        number(threat, "maxStage", t.maxStage);
+        number(threat, "enemyHpPerStage", t.enemyHpPerStage);
+        number(threat, "swarmCountPerStage", t.swarmCountPerStage);
+        number(threat, "swarmIntervalScalePerStage", t.swarmIntervalScalePerStage);
+        number(threat, "swarmSpeedPerStage", t.swarmSpeedPerStage);
+        number(threat, "tankMaxAlivePerStage", t.tankMaxAlivePerStage);
+        number(threat, "ringFromStage", t.ringFromStage);
+        number(threat, "ringInterval", t.ringInterval);
+        number(threat, "ringCount", t.ringCount);
+        number(threat, "ringRadius", t.ringRadius);
+        t.stageSeconds = (std::max)(1.0f, t.stageSeconds);
+        t.ringInterval = (std::max)(1.0f, t.ringInterval);
+        t.swarmIntervalScalePerStage = (std::clamp)(t.swarmIntervalScalePerStage, 0.2f, 2.0f);
+    }
+    if (data.contains("rival")) {
+        const auto& rival = data.at("rival");
+        number(rival, "hp", config.rival.hp);
+        number(rival, "exp", config.rival.exp);
+        if (rival.is_object() && rival.contains("enabled") && rival.at("enabled").is_boolean()) {
+            config.rival.enabled = rival.at("enabled").get<bool>();
+        }
     }
     if (data.contains("experience")) {
         const auto& experience = data.at("experience");
@@ -387,11 +444,27 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     big["scale"] = round(config.bigPentagonScale);
     big["hp"] = config.bigPentagonHp;
     big["exp"] = config.bigPentagonExp;
+    auto& threat = section("threat");
+    threat["stageSeconds"] = round(config.threat.stageSeconds);
+    threat["maxStage"] = config.threat.maxStage;
+    threat["enemyHpPerStage"] = round(config.threat.enemyHpPerStage);
+    threat["swarmCountPerStage"] = config.threat.swarmCountPerStage;
+    threat["swarmIntervalScalePerStage"] = round(config.threat.swarmIntervalScalePerStage);
+    threat["swarmSpeedPerStage"] = round(config.threat.swarmSpeedPerStage);
+    threat["tankMaxAlivePerStage"] = config.threat.tankMaxAlivePerStage;
+    threat["ringFromStage"] = config.threat.ringFromStage;
+    threat["ringInterval"] = round(config.threat.ringInterval);
+    threat["ringCount"] = config.threat.ringCount;
+    threat["ringRadius"] = round(config.threat.ringRadius);
+    auto& rival = section("rival");
+    rival["enabled"] = config.rival.enabled;
+    rival["hp"] = config.rival.hp;
+    rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 15> kOrder{"schemaVersion", "comment",   "exitOpenSeconds", "exitRadius", "spawnRing",
-                                                        "shapes",        "triangleSwarm", "tanks",       "experience", "choices",
-                                                        "heat",          "shield",    "forms",           "parts",      "bigPentagon"};
+    static constexpr std::array<const char*, 17> kOrder{
+        "schemaVersion", "comment", "exitOpenSeconds", "exitRadius", "spawnRing", "shapes", "triangleSwarm", "tanks",  "threat",
+        "rival",         "experience", "choices",      "heat",       "shield",    "forms",  "parts",         "bigPentagon"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
         if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {

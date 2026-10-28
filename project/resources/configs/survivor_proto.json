@@ -22,6 +22,17 @@
     "comment": "敵戦車。同時にいる数は maxAlive まで。種類は expedition_content.json の id。",
     "from": 30, "interval": 4, "maxAlive": 7, "types": ["Shooter", "Charger", "Sniper", "Charger"]
   },
+  "threat": {
+    "comment": "脅威の段階。stageSeconds ごとに1段上がる（最大 maxStage）。1段ごとに、湧く敵のHP +enemyHpPerStage（割合）、三角の群れの数 +swarmCountPerStage・間隔 ×swarmIntervalScalePerStage・最高速度 +swarmSpeedPerStage、敵戦車の同時の上限 +tankMaxAlivePerStage。ringFromStage 段からは ringInterval 秒ごとに、自機を中心とした半径 ringRadius の輪に三角を ringCount 体並べて寄らせる。",
+    "stageSeconds": 60, "maxStage": 8,
+    "enemyHpPerStage": 0.25, "swarmCountPerStage": 3, "swarmIntervalScalePerStage": 0.9, "swarmSpeedPerStage": 0.6,
+    "tankMaxAlivePerStage": 1,
+    "ringFromStage": 3, "ringInterval": 30, "ringCount": 18, "ringRadius": 17.0
+  },
+  "rival": {
+    "comment": "宿敵。exitOpenSeconds に出口の代わりに現れ、倒すと出口が開く。倒すと exp 分の欠片を落とし、宝箱の選択を1つ貯める。enabled が false なら時間で出口が開く。",
+    "enabled": true, "hp": 1500, "exp": 600
+  },
   "experience": {
     "comment": "経験値の欠片とレベル。次のレベルまでの経験値は base + growth × (レベル-1)^power。",
     "magnetRadius": 5.0, "collectRadius": 1.2, "valuePerShard": 30, "maxShards": 600, "maxLevel": 45,

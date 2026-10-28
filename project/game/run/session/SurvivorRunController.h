@@ -59,6 +59,9 @@ public:
         return formChoiceOpen_ || (tuningOpen_ && tuningPause_);
     }
 
+    /// @brief 宿敵が倒れたときに CombatFlow から1回呼ばれる。結果画面へは移らず、欠片と宝箱を落として出口を開く。
+    void OnRivalDefeated();
+
     /// @brief 結果画面の文字を作り直す。CombatFlow::UpdateResultText から呼ぶ。
     /// @param selection 0 なら「もう1回」、1 なら「タイトルへ」を選んでいる。
     void RefreshResult(int selection);
@@ -81,6 +84,18 @@ private:
     bool SpawnShape(const char* prefab, const myEngine::Vector3& position, bool triangleChase);
     /// @brief 出口を開く。自機から最も遠い候補の位置に置く。
     void OpenExit();
+    /// @brief 脅威の段階を経過時間に合わせ、上がったら知らせる。包囲の輪の時刻もここで見る。
+    void UpdateThreat();
+    /// @brief 今の段階で、湧かせた敵のHPに掛ける倍率を返す。
+    float EnemyHpScale() const;
+    /// @brief 最後に湧かせた敵のHPを、今の段階の倍率で上げる。
+    void ScaleLastSpawnHp();
+    /// @brief 包囲の輪：自機を中心とした輪の上に三角を並べ、寄らせる。
+    void SpawnRing();
+    /// @brief 宿敵を、自機から最も遠い出口の候補の位置に出す。
+    void SpawnRival();
+    /// @brief 宿敵が戦っているか。
+    bool IsRivalActive() const;
     /// @brief 区画の時間と敵の数の表示を更新する。
     void RefreshHud();
     /// @brief 拾った経験値を足し、必要な分が貯まるたびにレベルを上げる。
@@ -142,6 +157,14 @@ private:
     size_t nextTankType_ = 0;
     bool exitOpen_ = false;
     bool cleared_ = false;
+    // 脅威の段階と宿敵。
+    int threatStage_ = 1;
+    float nextRing_ = 0.0f;
+    int ringsSpawned_ = 0;
+    bool rivalSpawned_ = false;
+    bool rivalDefeated_ = false;
+    float rivalSpawnedAt_ = -1.0f;
+    float rivalDefeatedAt_ = -1.0f;
     myEngine::Vector3 exitPosition_{};
     SurvivorPickups pickups_;
     survivor::PartLevels partLevels_{};
@@ -230,6 +253,8 @@ private:
     bool autoTourForm_ = false;
     // トゲの確認：0 未実施、2 壊れた、3 壊れなかった、-1 置けなかった。
     int autoSpikeProbe_ = 0;
+    bool autoRingCaptured_ = false;
+    bool autoRivalCaptured_ = false;
     // 200体の fps の確認。場面ごとに1秒ずつの fps・敵の数・画面の中の数を足し込む。
     struct PerfPhase {
         int samples = 0;

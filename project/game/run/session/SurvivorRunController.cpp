@@ -142,7 +142,7 @@ void SurvivorRunController::Initialize()
     choiceHud_.SetPending(0, false);
 
     // 結果画面：暗い板の上に、生き延びた時間・レベル・撃破数・形態・部品と、もう1回／タイトルへ。
-    resultPanel_ = bar({240.0f, 205.0f}, {800.0f, 470.0f}, {0.01f, 0.03f, 0.05f, 0.82f});
+    resultPanel_ = bar({240.0f, 205.0f}, {800.0f, 500.0f}, {0.01f, 0.03f, 0.05f, 0.82f});
     style.fontSize = 24;
     style.color = {0.86f, 0.97f, 1.0f, 1.0f};
     style.outlineThickness = 2;
@@ -153,7 +153,7 @@ void SurvivorRunController::Initialize()
     style.color = {0.48f, 1.0f, 0.66f, 1.0f};
     resultMenu_ = std::make_unique<myEngine::TextLabel>();
     resultMenu_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
-    resultMenu_->SetPosition({290.0f, 560.0f});
+    resultMenu_->SetPosition({290.0f, 612.0f});
     fpsClock_ = std::chrono::steady_clock::now();
     RefreshHud();
 
@@ -245,8 +245,14 @@ void SurvivorRunController::Update(float dt)
             world_.combatFlow->SetEventCallout("宝箱：質の高い選択 +1", 0.9f);
             choiceHud_.SetPending(pendingChoices_, choiceOpen_);
         }
-        if (!exitOpen_ && elapsed_ >= config_.exitOpenSeconds) {
-            OpenExit();
+        UpdateThreat();
+        // exitOpenSeconds で宿敵が現れ、倒すと出口が開く（OnRivalDefeated）。宿敵を使わない設定なら、時間で出口を開く。
+        if (!exitOpen_ && !rivalSpawned_ && elapsed_ >= config_.exitOpenSeconds) {
+            if (config_.rival.enabled) {
+                SpawnRival();
+            } else {
+                OpenExit();
+            }
         }
         if (exitOpen_) {
             const myEngine::Vector3 offset = world_.resources.player_->GetWorldPosition() - exitPosition_;
@@ -387,6 +393,8 @@ void SurvivorRunController::RefreshResult(int selection)
          << "レベル　　　　" << level_ << "\n"
          << "撃破　　　　　" << world_.combat.defeatedEnemies_ << "\n"
          << "形態　　　　　" << FormName() << "\n"
+         << "脅威　　　　　Lv" << threatStage_ << "　　宿敵 "
+         << (rivalDefeated_ ? "撃破（" + Clock(rivalDefeatedAt_) + "）" : rivalSpawned_ ? std::string("未撃破") : std::string("出る前")) << "\n"
          << "受けたダメージ　" << world_.combat.damageTaken_ << "　　オーバーヒート " << player.GetHeat().GetOverheatCount() << " 回\n"
          << "部品\n"
          << DescribeParts(4);
@@ -436,7 +444,8 @@ void SurvivorRunController::WriteRunLog()
     std::ofstream output(directory + "/run_" + name + ".json");
     output << "{\"cleared\":" << (cleared_ ? "true" : "false") << ",\"seconds\":" << elapsed_ << ",\"level\":" << level_
            << ",\"kills\":" << world_.combat.defeatedEnemies_ << ",\"damageTaken\":" << world_.combat.damageTaken_
-           << ",\"form\":\"" << formKey_ << "\",\"levelTimes\":[";
+           << ",\"form\":\"" << formKey_ << "\",\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_
+           << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_ << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"levelTimes\":[";
     for (size_t i = 0; i < levelTimes_.size(); ++i) {
         output << (i ? "," : "") << std::lround(levelTimes_[i]);
     }
@@ -735,11 +744,14 @@ void SurvivorRunController::UpdateSpawns(float dt)
     const AliveCounts alive = CountAlive();
 
     // 三角の群れ：輪の1点から、まとまって自機へ寄ってくる。群れは予算と別に湧かせる。
+    // 脅威の段階が上がるほど、群れは大きく、間隔は短くなる。
+    const int extraStages = threatStage_ - 1;
     if (config_.swarmCount > 0 && elapsed_ >= nextSwarm_) {
-        nextSwarm_ += config_.swarm.interval;
+        nextSwarm_ += config_.swarm.interval * std::pow(config_.threat.swarmIntervalScalePerStage, static_cast<float>(extraStages));
+        const int swarmCount = config_.swarmCount + config_.threat.swarmCountPerStage * extraStages;
         if (const auto center = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance)) {
             std::uniform_real_distribution<float> offset(-config_.swarmSpread, config_.swarmSpread);
-            for (int i = 0; i < config_.swarmCount; ++i) {
+            for (int i = 0; i < swarmCount; ++i) {
                 myEngine::Vector3 position = *center + myEngine::Vector3{offset(random_), offset(random_), 0.0f};
                 position.x = (std::clamp)(position.x, kSpawnMinX, kSpawnMaxX);
                 position.y = (std::clamp)(position.y, kSpawnMinY, kSpawnMaxY);
@@ -753,10 +765,11 @@ void SurvivorRunController::UpdateSpawns(float dt)
     // 敵戦車：一定の間隔で、同時に maxAlive 体まで。種類は順番に回す。
     if (!config_.tankTypes.empty() && elapsed_ >= nextTank_ && spawnBudget_ >= 1.0f) {
         nextTank_ = elapsed_ + config_.tanks.interval;
-        if (alive.tanks < config_.tanks.maxAlive) {
+        if (alive.tanks < config_.tanks.maxAlive + config_.threat.tankMaxAlivePerStage * extraStages) {
             if (const auto position = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance)) {
                 const std::string& type = config_.tankTypes[nextTankType_ % config_.tankTypes.size()];
                 if (world_.resources.enemyManager_->SpawnLevelEnemy(*position, type)) {
+                    ScaleLastSpawnHp();
                     ++nextTankType_;
                     spawnBudget_ -= 1.0f;
                 }
@@ -769,7 +782,8 @@ void SurvivorRunController::UpdateSpawns(float dt)
         nextBigPentagon_ = elapsed_ + config_.bigPentagon.interval;
         if (alive.bigPentagons < config_.bigPentagon.maxAlive) {
             if (const auto position = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance)) {
-                if (world_.resources.enemyManager_->SpawnLevelEnemy(*position, "Pentagon", config_.bigPentagonHp)) {
+                const int hp = static_cast<int>(std::lround(static_cast<float>(config_.bigPentagonHp) * EnemyHpScale()));
+                if (world_.resources.enemyManager_->SpawnLevelEnemy(*position, "Pentagon", hp)) {
                     ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
                     enemy->SetSizeScale(config_.bigPentagonScale);
                     enemy->SetExpValue(static_cast<uint32_t>(config_.bigPentagonExp));
@@ -828,10 +842,133 @@ bool SurvivorRunController::SpawnShape(const char* prefab, const myEngine::Vecto
     if (!world_.resources.enemyManager_->SpawnLevelEnemy(position, prefab)) {
         return false;
     }
+    ScaleLastSpawnHp();
     if (triangleChase) {
-        world_.resources.enemyManager_->GetEnemyPtrs().back()->SetPlayerChase(config_.swarmAcceleration, config_.swarmMaxSpeed);
+        // 段階が上がるほど速く寄る。加速度は最高速度と同じ割合で上げる。
+        const float maxSpeed = config_.swarmMaxSpeed + config_.threat.swarmSpeedPerStage * static_cast<float>(threatStage_ - 1);
+        const float acceleration = config_.swarmMaxSpeed > 0.0f ? config_.swarmAcceleration * maxSpeed / config_.swarmMaxSpeed : 0.0f;
+        world_.resources.enemyManager_->GetEnemyPtrs().back()->SetPlayerChase(acceleration, maxSpeed);
     }
     return true;
+}
+
+float SurvivorRunController::EnemyHpScale() const
+{
+    return (std::max)(0.1f, 1.0f + config_.threat.enemyHpPerStage * static_cast<float>(threatStage_ - 1));
+}
+
+void SurvivorRunController::ScaleLastSpawnHp()
+{
+    const float scale = EnemyHpScale();
+    if (scale == 1.0f || world_.resources.enemyManager_->GetEnemyPtrs().empty()) {
+        return;
+    }
+    ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
+    enemy->SetHp(static_cast<int>(std::lround(static_cast<float>(enemy->GetMaxHp()) * scale)));
+}
+
+void SurvivorRunController::UpdateThreat()
+{
+    const int stage = config_.ThreatStage(elapsed_);
+    if (stage != threatStage_) {
+        threatStage_ = stage;
+        std::string text = "脅威 Lv" + std::to_string(stage);
+        if (stage == config_.threat.ringFromStage) {
+            text += "　─　包囲が来る";
+            nextRing_ = elapsed_ + 3.0f;
+        }
+        world_.combatFlow->SetEventCallout(text, 1.2f);
+    }
+    if (config_.threat.ringCount > 0 && threatStage_ >= config_.threat.ringFromStage && elapsed_ >= nextRing_) {
+        nextRing_ = elapsed_ + config_.threat.ringInterval;
+        SpawnRing();
+    }
+}
+
+void SurvivorRunController::SpawnRing()
+{
+    // 輪の上の点のうち、部屋の中で壁と柱に重ならないところにだけ置く。一部が欠けても、残りで囲む。
+    const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition();
+    const int count = config_.threat.ringCount;
+    std::uniform_real_distribution<float> turn(0.0f, 6.2831853f);
+    const float start = turn(random_);
+    int placed = 0;
+    for (int i = 0; i < count; ++i) {
+        const float angle = start + 6.2831853f * static_cast<float>(i) / static_cast<float>(count);
+        const myEngine::Vector3 position{center.x + std::cos(angle) * config_.threat.ringRadius,
+                                         center.y + std::sin(angle) * config_.threat.ringRadius, 0.0f};
+        if (position.x < kSpawnMinX || position.x > kSpawnMaxX || position.y < kSpawnMinY || position.y > kSpawnMaxY ||
+            world_.resources.stage_->IsCollisionWithAnyBlock(position, 1.2f)) {
+            continue;
+        }
+        if (SpawnShape("Triangle", position, true)) {
+            ++placed;
+        }
+    }
+    if (placed > 0) {
+        ++ringsSpawned_;
+        world_.combatFlow->SetEventCallout("包囲", 0.8f);
+    }
+}
+
+bool SurvivorRunController::IsRivalActive() const
+{
+    return rivalSpawned_ && !rivalDefeated_;
+}
+
+void SurvivorRunController::SpawnRival()
+{
+    // 出口の候補のうち、自機から最も遠いところに出す。
+    const myEngine::Vector3 player = world_.resources.player_->GetWorldPosition();
+    float best = -1.0f;
+    myEngine::Vector3 position = kExitCandidates.front();
+    for (const auto& candidate : kExitCandidates) {
+        const float distance = myEngine::Length(candidate - player);
+        if (distance > best) {
+            best = distance;
+            position = candidate;
+        }
+    }
+    rivalSpawned_ = true;
+    rivalSpawnedAt_ = elapsed_;
+    auto& rival = *world_.resources.enemy_;
+    world_.run.tankExpeditionRivalActive_ = true;
+    rival.ResetRunEncounter(position, (std::max)(1, config_.rival.hp), 1, true);
+    rival.EnableExpeditionRival(true);
+    auto progress = rival.GetEnemyProgressConfig();
+    progress.levelingModeEnabled = false;
+    rival.SetEnemyProgressConfig(progress);
+    world_.combat.previousBossHp_ = rival.GetHp();
+    world_.combat.bossDefeatHandled_ = false;
+    world_.combat.screenEffectDirector_.TriggerBossEntry();
+    world_.combatFlow->SetEventCallout("宿敵が現れた　─　倒すと出口が開く", 1.6f);
+}
+
+void SurvivorRunController::OnRivalDefeated()
+{
+    if (!IsRivalActive()) {
+        return;
+    }
+    auto& rival = *world_.resources.enemy_;
+    const myEngine::Vector3 position = rival.GetWorldPosition();
+    rivalDefeated_ = true;
+    rivalDefeatedAt_ = elapsed_;
+    // 倒した宿敵は、遭遇戦を止めて描画と当たり判定から外す。
+    rival.SetRunEncounterEnabled(false);
+    world_.run.tankExpeditionRivalActive_ = false;
+    pickups_.Drop(position, static_cast<uint32_t>((std::max)(0, config_.rival.exp)), random_);
+    expDropped_ += (std::max)(0, config_.rival.exp);
+    ++pendingChoices_;
+    ++pendingPremium_;
+    ++premiumTotal_;
+    pendingSince_.push_back(elapsed_);
+    choiceHud_.SetPending(pendingChoices_, choiceOpen_);
+    world_.combatEffects->TriggerDeathPostPulse(position, 1.55f);
+    world_.presentation.cameraShakeDuration_ = 0.5f;
+    world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
+    world_.presentation.cameraShakePower_ = 0.9f;
+    OpenExit();
+    world_.combatFlow->SetEventCallout("宿敵を撃破　─　出口が開いた", 1.6f);
 }
 
 void SurvivorRunController::OpenExit()
@@ -885,9 +1022,12 @@ void SurvivorRunController::RefreshHud()
     }
     const AliveCounts alive = CountAlive();
     std::ostringstream text;
-    text << "Lv " << level_ << "   区画  " << Clock(elapsed_);
-    if (!exitOpen_) {
-        text << "   出口まで " << Clock(config_.exitOpenSeconds - elapsed_);
+    text << "Lv " << level_ << "   区画  " << Clock(elapsed_) << "   脅威 Lv" << threatStage_;
+    if (IsRivalActive()) {
+        const auto& rival = *world_.resources.enemy_;
+        text << "   宿敵 " << (std::max)(0, rival.GetHp() * 100 / (std::max)(1, rival.GetMaxHp())) << "%";
+    } else if (!exitOpen_) {
+        text << (config_.rival.enabled ? "   宿敵まで " : "   出口まで ") << Clock(config_.exitOpenSeconds - elapsed_);
     }
     text << "   敵 " << alive.total;
     hudText_->SetText(text.str());
@@ -953,10 +1093,23 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     if (const ExpEnemy* nearest = world_.resources.enemyManager_->FindNearestEnemy(position, 30.0f)) {
         aim = nearest->GetWorldPosition();
     }
+    // 宿敵がいて近ければ、宿敵を撃つ。
+    if (IsRivalActive()) {
+        const myEngine::Vector3 rival = world_.resources.enemy_->GetWorldPosition();
+        if (myEngine::Length(myEngine::Vector3{rival.x - position.x, rival.y - position.y, 0.0f}) < 30.0f) {
+            aim = rival;
+        }
+    }
     myEngine::Vector3 goal{};
     myEngine::Vector3 shard{};
     if (exitOpen_ && elapsed_ >= kSectorAutoTestExitSeconds) {
         goal = exitPosition_;
+    } else if (IsRivalActive()) {
+        // 宿敵がいる間は、宿敵から8ほど離れた位置へ寄る。
+        const myEngine::Vector3 rival = world_.resources.enemy_->GetWorldPosition();
+        myEngine::Vector3 away{position.x - rival.x, position.y - rival.y, 0.0f};
+        const float distance = myEngine::Length(away);
+        goal = distance > 0.1f ? rival + away * (8.0f / distance) : rival;
     } else if (pickups_.FindNearest(position, 12.0f, shard)) {
         goal = shard;
     } else {
@@ -1057,6 +1210,16 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
     }
 
+    // 包囲の輪は最初の輪の1秒後、宿敵は現れて10秒後の画面を保存する。
+    if (ringsSpawned_ == 1 && !autoRingCaptured_ && elapsed_ >= nextRing_ - config_.threat.ringInterval + 1.0f &&
+        world_.run.tankRunCapturePath_.empty()) {
+        RequestCapture("ring");
+        autoRingCaptured_ = true;
+    }
+    if (IsRivalActive() && !autoRivalCaptured_ && elapsed_ >= rivalSpawnedAt_ + 10.0f && world_.run.tankRunCapturePath_.empty()) {
+        RequestCapture("rival");
+        autoRivalCaptured_ = true;
+    }
     if (autoTestNextCapture_ < static_cast<int>(kSectorCaptureSeconds.size()) &&
         elapsed_ >= kSectorCaptureSeconds[static_cast<size_t>(autoTestNextCapture_)]) {
         RequestCapture("sector_" + std::to_string(static_cast<int>(kSectorCaptureSeconds[static_cast<size_t>(autoTestNextCapture_)])));
@@ -1082,7 +1245,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                      << std::setprecision(1) << fps << std::defaultfloat << ",\"hp\":" << player.GetHp() << ",\"level\":" << level_
                      << ",\"collected\":" << expCollected_ << ",\"dropped\":" << expDropped_ << ",\"shards\":" << pickups_.GetCount()
                      << ",\"shots\":" << player.GetPrimaryAttackCount() - autoSampleShots_ << ",\"heat\":" << player.GetHeat().GetHeat()
-                     << ",\"overheats\":" << player.GetHeat().GetOverheatCount() << "}";
+                     << ",\"overheats\":" << player.GetHeat().GetOverheatCount() << ",\"threat\":" << threatStage_
+                     << ",\"rivalHp\":" << (IsRivalActive() ? world_.resources.enemy_->GetHp() : -1) << "}";
         autoSampleShots_ = player.GetPrimaryAttackCount();
     }
 
@@ -1138,6 +1302,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"spikeKills\":" << spikeKills_ << ",\"spikeProbe\":" << autoSpikeProbe_ << ",\"premiumChests\":" << premiumTotal_
             << ",\"dashExplosions\":" << player.GetDashExplosionCount() << ",\"maxStamina\":" << player.GetStats().maxStamina
             << ",\"heatMax\":" << player.GetHeat().GetMaxHeat() << ",\"shieldMax\":" << player.GetShieldMax() << ",\"shieldCheck\":[" << autoShieldLog_.str() << "]"
+            << ",\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_ << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_
+            << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_
             << ",\"samples\":[" << autoTestLog_.str() << "]}\n";
         autoTest_ = AutoTest::None;
         PostQuitMessage(0);

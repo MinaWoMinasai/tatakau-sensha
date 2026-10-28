@@ -100,6 +100,12 @@ void CombatFlow::UpdateGameplayEventEffects(float, bool)
         world_.run.tankExpeditionAudio_.Hit();
     }
     world_.combat.previousBossHp_ = world_.resources.enemy_->GetHp();
+    // 育つ戦車の試作の宿敵は、倒しても結果画面へ移らず、出口を開いて区画を続ける。
+    if (world_.run.IsSurvivorRun() && world_.gameplayQueries->IsRunRivalActive() && world_.resources.enemy_->IsDead() &&
+        !world_.combat.bossDefeatHandled_ && !world_.resources.player_->IsDead()) {
+        world_.combat.bossDefeatHandled_ = true;
+        world_.survivorRunController->OnRivalDefeated();
+    }
     const auto outcome = SelectCombatDeathOutcome(
         {world_.run.IsExpeditionRun(), world_.resources.player_->IsDead(), world_.combat.playerDeathHandled_,
          world_.gameplayQueries->IsRunRivalActive(), world_.resources.enemy_->IsDead(), world_.combat.bossDefeatHandled_,

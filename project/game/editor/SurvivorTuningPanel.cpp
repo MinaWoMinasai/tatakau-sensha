@@ -89,6 +89,34 @@ bool DrawSpawns(SpawnConfig& config)
     return changed;
 }
 
+/// @brief 脅威の段階と宿敵。
+bool DrawThreatAndRival(SpawnConfig& config, float elapsed)
+{
+    bool changed = false;
+    if (!ImGui::CollapsingHeader("脅威の段階と宿敵", ImGuiTreeNodeFlags_DefaultOpen)) {
+        return false;
+    }
+    auto& threat = config.threat;
+    ImGui::TextDisabled("今の段階：Lv%d（変えた値は、これから湧く敵から効く）", config.ThreatStage(elapsed));
+    changed |= ImGui::DragFloat("1段の長さ（秒）", &threat.stageSeconds, 1.0f, 5.0f, 600.0f, "%.0f");
+    changed |= ImGui::DragInt("段の上限", &threat.maxStage, 0.1f, 1, 30);
+    changed |= ImGui::DragFloat("敵のHP（1段ごと、割合）", &threat.enemyHpPerStage, 0.01f, 0.0f, 3.0f, "+%.2f");
+    changed |= ImGui::DragInt("群れの数（1段ごと）", &threat.swarmCountPerStage, 0.1f, 0, 20);
+    changed |= ImGui::DragFloat("群れの間隔（1段ごとの倍率）", &threat.swarmIntervalScalePerStage, 0.005f, 0.2f, 2.0f, "×%.3f");
+    changed |= ImGui::DragFloat("群れの最高速度（1段ごと）", &threat.swarmSpeedPerStage, 0.05f, 0.0f, 5.0f, "+%.2f");
+    changed |= ImGui::DragInt("敵戦車の上限（1段ごと）", &threat.tankMaxAlivePerStage, 0.1f, 0, 10);
+    ImGui::SeparatorText("包囲の輪");
+    changed |= ImGui::DragInt("始まる段", &threat.ringFromStage, 0.1f, 1, 30);
+    changed |= ImGui::DragFloat("間隔（秒）", &threat.ringInterval, 0.5f, 1.0f, 300.0f, "%.1f");
+    changed |= ImGui::DragInt("三角の数", &threat.ringCount, 0.2f, 0, 60);
+    changed |= ImGui::DragFloat("半径", &threat.ringRadius, 0.1f, 5.0f, 40.0f, "%.1f");
+    ImGui::SeparatorText("宿敵（出口の時刻に現れる）");
+    changed |= ImGui::Checkbox("宿敵を出す", &config.rival.enabled);
+    changed |= ImGui::DragInt("宿敵のHP", &config.rival.hp, 10.0f, 1, 100000);
+    changed |= ImGui::DragInt("宿敵の経験値", &config.rival.exp, 5.0f, 0, 10000);
+    return changed;
+}
+
 /// @brief 経験値の曲線。主なレベルまでに要る合計と、欠片の数の目安を表にする。
 bool DrawExperience(SpawnConfig& config)
 {
@@ -192,6 +220,7 @@ TuningPanelResult DrawTuningPanel(SpawnConfig& config, bool& open, bool& pauseWh
     }
     result.changed |= DrawHeatAndShield(config);
     result.changed |= DrawExperience(config);
+    result.changed |= DrawThreatAndRival(config, snapshot.elapsed);
     result.changed |= DrawSpawns(config);
     result.changed |= DrawPartsAndChoices(config);
     ImGui::End();
