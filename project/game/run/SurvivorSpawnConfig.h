@@ -4,6 +4,7 @@
 #include <cmath>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include "game/run/SurvivorParts.h"
 #include <string>
 #include <utility>
 #include <vector>
@@ -58,6 +59,12 @@ struct SpawnConfig {
     float levelGrowth = 30.0f;
     float levelPower = 1.4f;
     int maxLevel = 45;
+
+    // 部品と3択。
+    std::array<PartDefinition, kPartCount> parts = DefaultParts();
+    float choiceSlowTimeScale = 0.25f;
+    bool choiceAutoOpen = false;
+    float choiceLightBias = 2.0f;
 
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
     int ExpToNextLevel(int level) const
@@ -204,6 +211,24 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(curve, "base", config.levelBase);
             number(curve, "growth", config.levelGrowth);
             number(curve, "power", config.levelPower);
+        }
+    }
+    if (data.contains("choices")) {
+        const auto& choices = data.at("choices");
+        number(choices, "slowTimeScale", config.choiceSlowTimeScale);
+        number(choices, "lightBias", config.choiceLightBias);
+        if (choices.contains("autoOpen") && choices.at("autoOpen").is_boolean()) {
+            config.choiceAutoOpen = choices.at("autoOpen").get<bool>();
+        }
+        config.choiceSlowTimeScale = (std::clamp)(config.choiceSlowTimeScale, 0.05f, 1.0f);
+    }
+    if (data.contains("parts") && data.at("parts").is_object()) {
+        // 部品ごとの1段の上がり幅（割合）だけを上書きする。名前は PartDefinition::key。
+        for (auto& part : config.parts) {
+            const auto& parts = data.at("parts");
+            if (parts.contains(part.key)) {
+                number(parts.at(part.key), "perLevel", part.perLevel);
+            }
         }
     }
     return true;

@@ -125,6 +125,8 @@ void SurvivorRunController::Initialize()
     exitText_ = std::make_unique<myEngine::TextLabel>();
     exitText_->Initialize(myEngine::SpriteCommon::GetInstance(), "出口が開いた  ─  光る輪に入ると区画クリア", style);
     exitText_->SetPosition({24.0f, 52.0f});
+    choiceHud_.Initialize();
+    choiceHud_.SetPending(0, false);
     RefreshHud();
 
     wchar_t automatic[8]{};
@@ -151,9 +153,17 @@ void SurvivorRunController::Update(float dt)
         return;
     }
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
-        elapsed_ += dt;
-        UpdateSpawns(dt);
-        AddExperience(pickups_.Update(dt, world_.resources.player_->GetWorldPosition()));
+        UpdateChoiceInput();
+    } else if (choiceOpen_) {
+        CloseChoices();
+    }
+    // 区画の時計・湧き方・欠片は、3択を開いている間のスローに合わせて遅くする。
+    const float gameDt = dt * GetTimeScale();
+    if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
+        elapsed_ += gameDt;
+        UpdateSpawns(gameDt);
+        AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
+                                      survivor::CollectorMagnetScale(config_.parts, partLevels_)));
         if (!exitOpen_ && elapsed_ >= config_.exitOpenSeconds) {
             OpenExit();
         }
@@ -162,6 +172,7 @@ void SurvivorRunController::Update(float dt)
             if (myEngine::Length(myEngine::Vector3{offset.x, offset.y, 0.0f}) <= config_.exitRadius) {
                 // 更新の初めなので、衝突処理の途中ではない。敵と弾を片付けてから結果画面へ移る。
                 cleared_ = true;
+                CloseChoices();
                 pickups_.Clear();
                 world_.resources.enemyManager_->ClearRunActors();
                 world_.resources.bulletManager_->ClearAll();
@@ -200,9 +211,98 @@ void SurvivorRunController::AddExperience(int amount)
         ++pendingChoices_;
         world_.combatFlow->SetEventCallout("レベル " + std::to_string(level_), 0.8f);
     }
+    choiceHud_.SetPending(pendingChoices_, choiceOpen_);
+    if (config_.choiceAutoOpen && pendingChoices_ > 0 && !choiceOpen_) {
+        OpenChoices();
+    }
     if (level_ >= config_.maxLevel) {
         exp_ = 0;
     }
+}
+
+void SurvivorRunController::UpdateChoiceInput()
+{
+    auto& input = *world_.resources.input_;
+    if (input.IsKeyTriggered(DIK_TAB)) {
+        if (choiceOpen_) {
+            CloseChoices();
+        } else {
+            OpenChoices();
+        }
+        return;
+    }
+    if (!choiceOpen_) {
+        return;
+    }
+    // 1〜3キーは3択を開いている間だけ使う。
+    for (size_t i = 0; i < offers_.size() && i < 3; ++i) {
+        if (input.IsKeyTriggered(static_cast<uint8_t>(DIK_1 + i))) {
+            ChooseOffer(i);
+            return;
+        }
+    }
+    const myEngine::Vector2 mouse = input.GetMousePosition();
+    choiceHud_.Update(mouse);
+    if (input.IsTrigger(input.GetMouseState().rgbButtons[0], input.GetPreMouseState().rgbButtons[0])) {
+        const int hit = choiceHud_.HitTest(mouse);
+        if (hit >= 0) {
+            ChooseOffer(static_cast<size_t>(hit));
+        }
+    }
+}
+
+void SurvivorRunController::OpenChoices()
+{
+    if (pendingChoices_ <= 0 || choiceOpen_) {
+        return;
+    }
+    choiceOpen_ = true;
+    offers_ = survivor::DrawOffers(config_.parts, partLevels_, config_.choiceLightBias, random_);
+    choiceHud_.SetOffers(offers_, config_.parts);
+    choiceHud_.SetPending(pendingChoices_, true);
+}
+
+void SurvivorRunController::CloseChoices()
+{
+    choiceOpen_ = false;
+    offers_.clear();
+    choiceHud_.SetPending(pendingChoices_, false);
+}
+
+void SurvivorRunController::ChooseOffer(size_t index)
+{
+    if (!choiceOpen_ || index >= offers_.size() || pendingChoices_ <= 0) {
+        return;
+    }
+    const survivor::PartOffer offer = offers_[index];
+    auto& player = *world_.resources.player_;
+    if (offer.part == survivor::PartId::Count) {
+        player.HealRunPlayer(static_cast<int>(static_cast<float>(player.GetMaxHp()) * 0.3f));
+        world_.combatFlow->SetEventCallout("修理キット", 0.7f);
+    } else {
+        const size_t part = static_cast<size_t>(offer.part);
+        partLevels_[part] = (std::min)(partLevels_[part] + 1, config_.parts[part].maxLevel);
+        ApplyParts();
+        world_.combatFlow->SetEventCallout(std::string(config_.parts[part].name) + " Lv" + std::to_string(partLevels_[part]), 0.7f);
+    }
+    --pendingChoices_;
+    ++choicesTaken_;
+    if (pendingChoices_ > 0) {
+        // まだ貯まっていれば、続けて次の3択を出す。
+        offers_ = survivor::DrawOffers(config_.parts, partLevels_, config_.choiceLightBias, random_);
+        choiceHud_.SetOffers(offers_, config_.parts);
+        choiceHud_.SetPending(pendingChoices_, true);
+    } else {
+        CloseChoices();
+    }
+}
+
+void SurvivorRunController::ApplyParts()
+{
+    TankRunModifiers modifiers{};
+    modifiers.enabled = true;
+    modifiers.partScales = survivor::MakePartScales(config_.parts, partLevels_);
+    world_.resources.player_->SetRunModifiers(modifiers);
 }
 
 SurvivorRunController::AliveCounts SurvivorRunController::CountAlive() const
@@ -410,6 +510,7 @@ void SurvivorRunController::DrawUi()
     if (exitOpen_ && exitText_) {
         exitText_->Draw();
     }
+    choiceHud_.Draw(choiceOpen_, pendingChoices_);
 }
 
 float SurvivorRunController::MeasureAimRoundTripError() const
@@ -454,6 +555,35 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     const float length = myEngine::Length(move);
     move = length > 0.5f ? move / length : myEngine::Vector3{};
     player.SetDemoInput(true, {move.x, move.y}, aim, true, false);
+
+    // 3択：選択が2つ以上貯まるか、1つを3秒持ったら開き、0.6秒（実時間）見てから札を順番に選ぶ。
+    if (choiceOpen_) {
+        autoMinTimeScale_ = (std::min)(autoMinTimeScale_, world_.combat.finalDeltaTime / myEngine::kFixedStepSeconds);
+        autoChoiceTimer_ += dt;
+        if (!autoChoiceCaptured_ && autoChoiceTimer_ > 0.3f) {
+            RequestCapture("choice_open");
+            autoChoiceCaptured_ = true;
+        }
+        if (autoChoiceTimer_ > 0.6f && !offers_.empty()) {
+            const size_t index = autoPick_++ % offers_.size();
+            const survivor::PartOffer offer = offers_[index];
+            const int maxHpBefore = player.GetMaxHp();
+            ChooseOffer(index);
+            if (autoChoiceLog_.tellp() > 0) {
+                autoChoiceLog_ << ",";
+            }
+            autoChoiceLog_ << "{\"t\":" << static_cast<int>(elapsed_) << ",\"part\":\""
+                           << (offer.part == survivor::PartId::Count ? "repair" : config_.parts[static_cast<size_t>(offer.part)].key)
+                           << "\",\"level\":" << offer.nextLevel << ",\"maxHp\":[" << maxHpBefore << "," << player.GetMaxHp() << "]}";
+            autoChoiceTimer_ = 0.0f;
+        }
+    } else if (pendingChoices_ > 0) {
+        autoChoiceTimer_ += dt;
+        if (pendingChoices_ >= 2 || autoChoiceTimer_ > 3.0f) {
+            OpenChoices();
+            autoChoiceTimer_ = 0.0f;
+        }
+    }
 
     if (autoTestNextCapture_ < static_cast<int>(kSectorCaptureSeconds.size()) &&
         elapsed_ >= kSectorCaptureSeconds[static_cast<size_t>(autoTestNextCapture_)]) {
@@ -500,8 +630,18 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"sectorSeconds\":" << elapsed_ << ",\"exitOpen\":" << (exitOpen_ ? "true" : "false") << ",\"exit\":[" << exitPosition_.x
             << "," << exitPosition_.y << "],\"maxAliveAfterTwoMinutes\":" << maxAliveAfterTwoMinutes_
             << ",\"resultState\":" << static_cast<int>(world_.combat.combatFlow_.GetState()) << ",\"level\":" << level_
-            << ",\"pendingChoices\":" << pendingChoices_ << ",\"expCollected\":" << expCollected_ << ",\"expDropped\":" << expDropped_
-            << ",\"samples\":[" << autoTestLog_.str() << "]}\n";
+            << ",\"pendingChoices\":" << pendingChoices_ << ",\"choicesTaken\":" << choicesTaken_
+            << ",\"minTimeScaleWhileOpen\":" << autoMinTimeScale_ << ",\"partLevels\":{" <<
+            [&] {
+                std::ostringstream levels;
+                for (size_t i = 0; i < survivor::kPartCount; ++i) {
+                    levels << (i ? "," : "") << "\"" << config_.parts[i].key << "\":" << partLevels_[i];
+                }
+                return levels.str();
+            }()
+            << "},\"maxHp\":" << player.GetMaxHp() << ",\"choices\":[" << autoChoiceLog_.str() << "]"
+            << ",\"expCollected\":" << expCollected_ << ",\"expDropped\":" << expDropped_ << ",\"samples\":[" << autoTestLog_.str()
+            << "]}\n";
         autoTest_ = AutoTest::None;
         PostQuitMessage(0);
     }

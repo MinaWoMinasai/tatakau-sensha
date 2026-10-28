@@ -359,6 +359,7 @@
     <ClInclude Include="game\run\TankExpeditionRooms.h" />
     <ClInclude Include="game\run\TankExpeditionContent.h" />
     <ClInclude Include="game\run\SurvivorSpawnConfig.h" />
+    <ClInclude Include="game\run\SurvivorParts.h" />
     <ClInclude Include="game\editor\ExpeditionRoomEditor.h" />
     <ClInclude Include="game\editor\ExpeditionMapEditor.h" />
     <ClInclude Include="game\editor\ExpeditionContentEditor.h" />
@@ -523,6 +524,9 @@
     <ClCompile Include="game\ui\session\GameplayHud.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorChoiceHud.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\editor\session\GameplayEditor.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -639,6 +643,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\ui\session\GameplayHud.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorChoiceHud.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\editor\session\GameplayEditor.h">

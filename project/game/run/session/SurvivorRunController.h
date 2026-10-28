@@ -2,6 +2,7 @@
 #include "game/session/GameWorld.h"
 #include "game/run/SurvivorSpawnConfig.h"
 #include "game/run/session/SurvivorPickups.h"
+#include "game/ui/session/SurvivorChoiceHud.h"
 #include <chrono>
 #include <optional>
 #include <random>
@@ -9,7 +10,7 @@
 
 namespace gameplay {
 /// @brief 育つ戦車の試作（RunMode::Survivor）の進行を担当し、同じプレイの共有状態を借用する。
-/// @note 1区画の流れ（時間で増える湧き方と、3:00 で開く出口）と、経験値の欠片・レベルを持つ。部品は後のカードで足す。
+/// @note 1区画の流れ（時間で増える湧き方と、3:00 で開く出口）、経験値の欠片・レベル、毎レベルの部品の3択を持つ。
 class SurvivorRunController {
 public:
     explicit SurvivorRunController(GameWorld& world) : world_(world) {}
@@ -32,10 +33,17 @@ public:
         return level_;
     }
 
-    /// @brief レベルが上がって貯まった、まだ使っていない選択の数を返す（S7 で部品の3択に使う）。
+    /// @brief レベルが上がって貯まった、まだ使っていない選択の数を返す。
     int GetPendingChoices() const
     {
         return pendingChoices_;
+    }
+
+    /// @brief 戦闘の時間に掛ける倍率を返す。3択を開いている間はスロー（既定0.25）、それ以外は1。
+    /// @note CombatFramePipeline が、演出の減速（ジャスト回避など）を掛けた後の時間にさらに掛ける。
+    float GetTimeScale() const
+    {
+        return choiceOpen_ ? config_.choiceSlowTimeScale : 1.0f;
     }
 
 private:
@@ -60,6 +68,16 @@ private:
     void RefreshHud();
     /// @brief 拾った経験値を足し、必要な分が貯まるたびにレベルを上げる。
     void AddExperience(int amount);
+    /// @brief Tab・1〜3キー・クリックで、3択を開閉して選ぶ。押した瞬間で判定する。
+    void UpdateChoiceInput();
+    /// @brief 貯まった選択があれば3択を開き、札を引く。
+    void OpenChoices();
+    /// @brief 3択を閉じる（選択は貯まったまま）。
+    void CloseChoices();
+    /// @brief index 番目の札を選ぶ。まだ貯まっていれば次の3択を引き、無ければ閉じる。
+    void ChooseOffer(size_t index);
+    /// @brief 部品の Lv から自機の性能の倍率を作り直して渡す。
+    void ApplyParts();
 
     /// @brief MYENGINE_SURVIVOR_AUTOTEST=1：区画を最後まで遊び、時間ごとの敵の数と fps を記録して終了する。
     void UpdateSectorAutoTest(float dt);
@@ -83,6 +101,11 @@ private:
     bool cleared_ = false;
     myEngine::Vector3 exitPosition_{};
     SurvivorPickups pickups_;
+    survivor::PartLevels partLevels_{};
+    std::vector<survivor::PartOffer> offers_;
+    bool choiceOpen_ = false;
+    int choicesTaken_ = 0;
+    SurvivorChoiceHud choiceHud_;
     int level_ = 1;
     int exp_ = 0;
     int pendingChoices_ = 0;
@@ -113,5 +136,10 @@ private:
     std::chrono::steady_clock::time_point sampleStart_{};
     int maxAliveAfterTwoMinutes_ = 0;
     std::ostringstream autoTestLog_;
+    float autoChoiceTimer_ = 0.0f;
+    bool autoChoiceCaptured_ = false;
+    float autoMinTimeScale_ = 1.0f;
+    size_t autoPick_ = 0;
+    std::ostringstream autoChoiceLog_;
 };
 } // namespace gameplay

@@ -11,6 +11,15 @@ enum class TankRunCore {
     Drone
 };
 
+/// @brief 育つ戦車の試作の部品による性能の倍率。既定はすべて1で、何も変えない。
+struct TankPartScales {
+    float maxHp = 1.0f;
+    float bodyDamage = 1.0f;
+    float bulletDamage = 1.0f;
+    float reloadInterval = 1.0f;
+    float moveSpeed = 1.0f;
+};
+
 // その遠征の間だけの選択。空の値なら、元のゲームのルールは変わらない。
 /// @brief 遠征で取得した強化効果と補正値を保持する。
 struct TankRunModifiers {
@@ -59,6 +68,7 @@ struct TankRunModifiers {
     bool dashSlash = false;
     bool spinBlade = false;
     bool wallSmash = false;
+    TankPartScales partScales{};
     std::array<float, tankrun::CardCount> effectPower = [] {
         std::array<float, tankrun::CardCount> p{};
         p.fill(1);
@@ -102,6 +112,7 @@ struct TankRunTuning {
     float dashCooldown = 1.0f;
     float bulletHp = 0.0f;
     float bulletInterception = 0.0f;
+    float bodyDamage = 1.0f;
     int extraProjectiles = 0;
     float minimumSpread = 0.0f;
     bool reflects = false;
@@ -161,6 +172,12 @@ inline constexpr TankRunTuning MakeTankRunTuning(const TankRunModifiers& modifie
     if (modifiers.repair) {
         result.maxHp = 1.0f + (modifiers.expedition ? growth.hp : 0.25f) * TankEffectPower(modifiers, tankrun::CardId::Repair);
     }
+    // 試作の部品の倍率は最後に掛ける。既定の1を掛けても値は変わらない。
+    result.maxHp *= modifiers.partScales.maxHp;
+    result.damage *= modifiers.partScales.bulletDamage;
+    result.reloadInterval *= modifiers.partScales.reloadInterval;
+    result.moveSpeed *= modifiers.partScales.moveSpeed;
+    result.bodyDamage = modifiers.partScales.bodyDamage;
     return result;
 }
 

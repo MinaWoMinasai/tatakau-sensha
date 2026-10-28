@@ -202,6 +202,10 @@ void CombatFramePipeline::Update()
         world_.run.expeditionImpactHold_ = (std::max)(0.0f, world_.run.expeditionImpactHold_ - baseDeltaTime);
         world_.combat.finalDeltaTime *= 0.08f;
     }
+    // 育つ戦車の試作で3択を開いている間は、さらにスローにする（ジャスト回避の減速とは掛け合わせる）。
+    if (world_.run.IsSurvivorRun()) {
+        world_.combat.finalDeltaTime *= world_.survivorRunController->GetTimeScale();
+    }
     // 時間倍率が基準時間の95%を超え、命中時の停止も終わったら基準時間へ戻す。
     bool restoreBaseTime = world_.combat.finalDeltaTime * myEngine::kFixedStepsPerSecond > 0.95f;
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)

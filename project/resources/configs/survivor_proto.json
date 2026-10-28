@@ -27,6 +27,19 @@
     "magnetRadius": 5.0, "collectRadius": 1.2, "valuePerShard": 30, "maxShards": 600, "maxLevel": 45,
     "levelCurve": { "base": 25, "growth": 30, "power": 1.4 }
   },
+  "choices": {
+    "comment": "毎レベルの3択。Tab で開き、開いている間はゲームの時間を slowTimeScale 倍にする。autoOpen が true なら、レベルが上がったらすぐ開く。lightBias は1枚目に軽い部品が出やすくなる倍率。",
+    "slowTimeScale": 0.25, "autoOpen": false, "lightBias": 2.0
+  },
+  "parts": {
+    "comment": "軽い部品の1段（Lv）ごとの上がり幅。0.12 なら +12%。装填機は1秒あたりの発射数を上げる。",
+    "armor": { "perLevel": 0.12 },
+    "ram": { "perLevel": 0.20 },
+    "warhead": { "perLevel": 0.10 },
+    "loader": { "perLevel": 0.12 },
+    "thruster": { "perLevel": 0.08 },
+    "collector": { "perLevel": 0.25 }
+  },
   "bigPentagon": {
     "comment": "五角を大きく硬くしたもの。",
     "from": 120, "interval": 18, "maxAlive": 3, "scale": 2.2, "hp": 140, "exp": 160
