@@ -351,6 +351,7 @@
     <ClCompile Include="game\editor\ExpeditionRoomEditor.cpp" />
     <ClCompile Include="game\editor\ExpeditionMapEditor.cpp" />
     <ClCompile Include="game\editor\ExpeditionContentEditor.cpp" />
+    <ClCompile Include="game\editor\SurvivorTuningPanel.cpp" />
     <ClInclude Include="game\run\TankExpeditionMap.h" />
     <ClInclude Include="game\run\TankExpeditionTransition.h" />
     <ClInclude Include="game\run\TankGuidedCombatTutorial.h" />
@@ -364,6 +365,7 @@
     <ClInclude Include="game\editor\ExpeditionRoomEditor.h" />
     <ClInclude Include="game\editor\ExpeditionMapEditor.h" />
     <ClInclude Include="game\editor\ExpeditionContentEditor.h" />
+    <ClInclude Include="game\editor\SurvivorTuningPanel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="game\ui\TankRewardPreviewRenderer.cpp" />

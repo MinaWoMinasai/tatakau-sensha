@@ -97,7 +97,7 @@ void GameplayHud::DrawGameTextBloom()
     const bool showResult =
         world_.combat.combatFlow_.GetState() == GameFlowState::StageClear ||
         (world_.combat.combatFlow_.GetState() == GameFlowState::GameOver && world_.combat.combatFlow_.GetTimer() <= 0.0f);
-    if (showResult && !world_.run.UsesTankRunDirector()) {
+    if (showResult && !world_.run.UsesTankRunDirector() && !world_.run.IsSurvivorRun()) {
         if (world_.combat.resultSummaryText_) {
             labels.push_back(world_.combat.resultSummaryText_.get());
         }
@@ -247,7 +247,7 @@ void GameplayHud::DrawSprite()
         !(world_.run.UsesTankRunDirector() && showResult) && !cinematicTitle) {
         world_.combat.flowBannerText_->Draw();
     }
-    if (showResult && !world_.run.UsesTankRunDirector()) {
+    if (showResult && !world_.run.UsesTankRunDirector() && !world_.run.IsSurvivorRun()) {
         if (world_.combat.resultSummaryText_) {
             world_.combat.resultSummaryText_->Draw();
         }

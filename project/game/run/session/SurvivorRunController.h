@@ -52,6 +52,17 @@ public:
         return formChoiceOpen_;
     }
 
+    /// @brief ゲームを止めているか。形態を選ぶ間と、調整パネルを「止める」にして開いている間は真。
+    /// @note 止めている間も、スロー演出ではないので画面の色は残す（GameplayQueries・CombatFramePipeline）。
+    bool IsPaused() const
+    {
+        return formChoiceOpen_ || (tuningOpen_ && tuningPause_);
+    }
+
+    /// @brief 結果画面の文字を作り直す。CombatFlow::UpdateResultText から呼ぶ。
+    /// @param selection 0 なら「もう1回」、1 なら「タイトルへ」を選んでいる。
+    void RefreshResult(int selection);
+
 private:
     /// @brief 生きている敵を種類ごとに数えた結果。
     struct AliveCounts {
@@ -94,11 +105,27 @@ private:
     void UpdateFormChoiceInput();
     /// @brief index 番目の形態に変える。
     void ChooseForm(size_t index);
+    /// @brief 欠片の引き寄せと拾う範囲を、設定から渡し直す。
+    void ConfigurePickups();
+    /// @brief F2 で調整パネルを開閉して描き、変えた値を自機と欠片に反映する。保存と再読込もここで行う。
+    void UpdateTuningPanel();
+    /// @brief 結果画面が出ているか（クリアか、倒れた演出の後）。
+    bool IsResultVisible() const;
+    /// @brief 取った部品を「名前 Lv」の並びにする。perLine 個ごとに改行する。
+    std::string DescribeParts(size_t perLine) const;
+    /// @brief 形態の名前を返す。まだ選んでいなければ基本砲。
+    std::string FormName() const;
+    /// @brief 実時間で5秒ごとに fps を記録する（遊んだ記録に入れる）。
+    void SampleFps();
+    /// @brief 結果画面に入ったときに1回、遊んだ記録を generated/tank_survivor/runs/ に書く（開発用の構成だけ）。
+    void WriteRunLog();
 
     /// @brief MYENGINE_SURVIVOR_AUTOTEST=1：区画を最後まで遊び、時間ごとの敵の数と fps を記録して終了する。
     void UpdateSectorAutoTest(float dt);
     /// @brief MYENGINE_SURVIVOR_AUTOTEST=tour：部屋の四隅を回って画面を保存し、結果を書いて終了する。
     void UpdateTourAutoTest(float dt);
+    /// @brief MYENGINE_SURVIVOR_AUTOTEST=perf：敵を約200体に保ち、散らばった場面と群がった場面の fps を perf.json に書いて終了する。
+    void UpdatePerfAutoTest(float dt);
     /// @brief 自機の近くの点を画面へ写し、照準と同じ方法でゲームの平面へ戻したときのずれ（ワールド単位）を返す。
     float MeasureAimRoundTripError() const;
     /// @brief 画面の保存を要求する（描画で写し、次の更新で書き出す）。
@@ -142,10 +169,33 @@ private:
     std::unique_ptr<myEngine::TextLabel> hudText_;
     std::unique_ptr<myEngine::TextLabel> exitText_;
 
+    // 調整パネル（F2）。
+    bool tuningOpen_ = false;
+    bool tuningPause_ = true;
+    std::string tuningStatus_;
+
+    // 結果画面。
+    std::unique_ptr<myEngine::Sprite> resultPanel_;
+    std::unique_ptr<myEngine::TextLabel> resultText_;
+    std::unique_ptr<myEngine::TextLabel> resultMenu_;
+    bool runLogWritten_ = false;
+
+    // 遊んだ記録。時刻は区画の時間（秒）。
+    std::vector<float> levelTimes_;
+    // レベルが上がって選択が貯まった時刻。選ぶたびに古いものから取り出し、選ぶまでの待ちを測る。
+    std::vector<float> pendingSince_;
+    float choiceOpenSeconds_ = 0.0f;
+    std::ostringstream choiceRecord_;
+    float heatHighSeconds_ = 0.0f;
+    std::chrono::steady_clock::time_point fpsClock_{};
+    uint64_t fpsFrames_ = 0;
+    std::vector<float> fpsSamples_;
+
     enum class AutoTest {
         None,
         Sector,
-        Tour
+        Tour,
+        Perf
     };
     AutoTest autoTest_ = AutoTest::None;
     float autoTestTime_ = 0.0f;
@@ -180,5 +230,17 @@ private:
     bool autoTourForm_ = false;
     // トゲの確認：0 未実施、2 壊れた、3 壊れなかった、-1 置けなかった。
     int autoSpikeProbe_ = 0;
+    // 200体の fps の確認。場面ごとに1秒ずつの fps・敵の数・画面の中の数を足し込む。
+    struct PerfPhase {
+        int samples = 0;
+        double fpsSum = 0.0;
+        double fpsMin = 1.0e9;
+        double aliveSum = 0.0;
+        double onScreenSum = 0.0;
+    };
+    std::array<PerfPhase, 2> perfPhases_{};
+    float perfNextSample_ = 1.0f;
+    bool perfCrowded_ = false;
+    std::ostringstream perfLog_;
 };
 } // namespace gameplay

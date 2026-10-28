@@ -289,8 +289,8 @@ float GameplayQueries::GetFinalDeltaTime() const
     // 育つ戦車の試作で3択を開いている間のスローは、色を残す（グレースケールはジャスト回避などの演出だけに使う）。
     // 3択の倍率だけを割り戻すので、ジャスト回避の減速が重なっていれば、その分はグレースケールになる。
     if (world_.run.IsSurvivorRun()) {
-        // 形態を選ぶ間の停止も、スロー演出ではないので色を残す。
-        if (world_.survivorRunController->IsFormChoiceOpen()) {
+        // 形態を選ぶ間と調整パネルでの停止も、スロー演出ではないので色を残す。
+        if (world_.survivorRunController->IsPaused()) {
             return myEngine::kFixedStepSeconds;
         }
         const float choiceScale = world_.survivorRunController->GetTimeScale();

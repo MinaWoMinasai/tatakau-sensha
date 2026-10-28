@@ -59,7 +59,7 @@ struct SpawnConfig {
     int maxShards = 600;
     float levelBase = 25.0f;
     float levelGrowth = 30.0f;
-    float levelPower = 1.4f;
+    float levelPower = 1.7f;
     int maxLevel = 45;
 
     // 部品と3択。
@@ -283,5 +283,156 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         }
     }
     return true;
+}
+
+/// @brief 設定を path に書き出す。元のファイルの説明（comment）や知らない項目は残し、項目の順番は決まった並びにする。
+/// @note 調整パネルの保存に使う。数値は小数4桁に丸める。
+inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, std::string& error)
+{
+    nlohmann::json data = nlohmann::json::object();
+    if (std::ifstream input(path); input) {
+        nlohmann::json existing = nlohmann::json::parse(input, nullptr, false);
+        if (!existing.is_discarded() && existing.is_object()) {
+            data = std::move(existing);
+        }
+    }
+    auto round = [](float value) {
+        return std::round(static_cast<double>(value) * 10000.0) / 10000.0;
+    };
+    auto section = [&](const char* key) -> nlohmann::json& {
+        if (!data[key].is_object()) {
+            data[key] = nlohmann::json::object();
+        }
+        return data[key];
+    };
+    auto timed = [&](nlohmann::json& object, const SpawnConfig::Timed& value, bool withMaxAlive) {
+        object["from"] = round(value.from);
+        object["interval"] = round(value.interval);
+        if (withMaxAlive) {
+            object["maxAlive"] = value.maxAlive;
+        }
+    };
+
+    data["exitOpenSeconds"] = round(config.exitOpenSeconds);
+    data["exitRadius"] = round(config.exitRadius);
+    auto& ring = section("spawnRing");
+    ring["minDistance"] = round(config.ringMinDistance);
+    ring["maxDistance"] = round(config.ringMaxDistance);
+    ring["maxPerSecond"] = round(config.maxSpawnsPerSecond);
+    auto& shapes = section("shapes");
+    shapes["targetAlive"] = nlohmann::json::array();
+    for (const auto& [seconds, alive] : config.shapeTargetAlive) {
+        shapes["targetAlive"].push_back({round(seconds), round(alive)});
+    }
+    shapes["overtimePerMinute"] = round(config.shapeOvertimePerMinute);
+    shapes["weights"] = nlohmann::json::array();
+    for (const auto& entry : config.shapeWeights) {
+        shapes["weights"].push_back({{"from", round(entry.from)},
+                                     {"square", round(entry.weights[0])},
+                                     {"triangle", round(entry.weights[1])},
+                                     {"pentagon", round(entry.weights[2])}});
+    }
+    auto& swarm = section("triangleSwarm");
+    timed(swarm, config.swarm, false);
+    swarm["count"] = config.swarmCount;
+    swarm["spread"] = round(config.swarmSpread);
+    swarm["acceleration"] = round(config.swarmAcceleration);
+    swarm["maxSpeed"] = round(config.swarmMaxSpeed);
+    auto& tanks = section("tanks");
+    timed(tanks, config.tanks, true);
+    tanks["types"] = config.tankTypes;
+    auto& experience = section("experience");
+    experience["magnetRadius"] = round(config.magnetRadius);
+    experience["collectRadius"] = round(config.collectRadius);
+    experience["valuePerShard"] = config.valuePerShard;
+    experience["maxShards"] = config.maxShards;
+    experience["maxLevel"] = config.maxLevel;
+    experience["levelCurve"] = {{"base", round(config.levelBase)}, {"growth", round(config.levelGrowth)}, {"power", round(config.levelPower)}};
+    auto& choices = section("choices");
+    choices["slowTimeScale"] = round(config.choiceSlowTimeScale);
+    choices["autoOpen"] = config.choiceAutoOpen;
+    choices["lightBias"] = round(config.choiceLightBias);
+    auto& heat = section("heat");
+    heat["max"] = round(config.heat.maxHeat);
+    heat["perShot"] = round(config.heat.heatPerShot);
+    heat["coolDelay"] = round(config.heat.coolDelay);
+    heat["coolPerSecond"] = round(config.heat.coolPerSecond);
+    heat["coolPerSecondWhileFiring"] = round(config.heat.coolPerSecondWhileFiring);
+    heat["overheatSeconds"] = round(config.heat.overheatSeconds);
+    auto& shield = section("shield");
+    shield["maxHpRatio"] = round(config.shieldMaxHpRatio);
+    shield["regenDelay"] = round(config.shieldRegenDelay);
+    shield["regenPerSecond"] = round(config.shieldRegenPerSecond);
+    auto& forms = section("forms");
+    forms["level"] = config.formLevel;
+    for (const auto& form : config.forms) {
+        auto& item = forms[form.key];
+        item["reloadScale"] = round(form.reloadScale);
+        item["damageScale"] = round(form.damageScale);
+        item["speedScale"] = round(form.speedScale);
+        item["heatScale"] = round(form.heatScale);
+        item["barrelLength"] = round(form.barrelLength);
+        if (form.railCharge) {
+            item["railPower"] = round(form.railPower);
+            item["railHeatBase"] = round(form.railHeatBase);
+            item["railHeatPerCharge"] = round(form.railHeatPerCharge);
+        }
+    }
+    auto& parts = section("parts");
+    for (const auto& part : config.parts) {
+        parts[part.key]["perLevel"] = round(part.perLevel);
+    }
+    auto& big = section("bigPentagon");
+    timed(big, config.bigPentagon, true);
+    big["scale"] = round(config.bigPentagonScale);
+    big["hp"] = config.bigPentagonHp;
+    big["exp"] = config.bigPentagonExp;
+
+    // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
+    static constexpr std::array<const char*, 15> kOrder{"schemaVersion", "comment",   "exitOpenSeconds", "exitRadius", "spawnRing",
+                                                        "shapes",        "triangleSwarm", "tanks",       "experience", "choices",
+                                                        "heat",          "shield",    "forms",           "parts",      "bigPentagon"};
+    std::vector<std::string> keys(kOrder.begin(), kOrder.end());
+    for (const auto& item : data.items()) {
+        if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {
+            keys.push_back(item.key());
+        }
+    }
+    std::string text = "{\n";
+    bool first = true;
+    for (const auto& key : keys) {
+        if (!data.contains(key)) {
+            continue;
+        }
+        const nlohmann::json& value = data.at(key);
+        text += std::string(first ? "" : ",\n") + "  " + nlohmann::json(key).dump() + ": ";
+        first = false;
+        if (!value.is_object() || value.empty()) {
+            text += value.dump();
+            continue;
+        }
+        text += "{\n";
+        std::vector<std::string> inner;
+        if (value.contains("comment")) {
+            inner.push_back("comment");
+        }
+        for (const auto& item : value.items()) {
+            if (item.key() != "comment") {
+                inner.push_back(item.key());
+            }
+        }
+        for (size_t i = 0; i < inner.size(); ++i) {
+            text += "    " + nlohmann::json(inner[i]).dump() + ": " + value.at(inner[i]).dump() + (i + 1 < inner.size() ? ",\n" : "\n");
+        }
+        text += "  }";
+    }
+    text += "\n}\n";
+    std::ofstream output(path, std::ios::binary | std::ios::trunc);
+    if (!output) {
+        error = "survivor config could not be written: " + path;
+        return false;
+    }
+    output << text;
+    return static_cast<bool>(output);
 }
 } // namespace survivor

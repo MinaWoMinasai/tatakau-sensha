@@ -25,7 +25,7 @@
   "experience": {
     "comment": "経験値の欠片とレベル。次のレベルまでの経験値は base + growth × (レベル-1)^power。",
     "magnetRadius": 5.0, "collectRadius": 1.2, "valuePerShard": 30, "maxShards": 600, "maxLevel": 45,
-    "levelCurve": { "base": 25, "growth": 30, "power": 1.4 }
+    "levelCurve": { "base": 25, "growth": 30, "power": 1.7 }
   },
   "choices": {
     "comment": "毎レベルの3択。Tab で開き、開いている間はゲームの時間を slowTimeScale 倍にする。autoOpen が true なら、レベルが上がったらすぐ開く。lightBias は1枚目に軽い部品が出やすくなる倍率。",

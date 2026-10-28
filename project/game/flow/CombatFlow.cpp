@@ -163,7 +163,7 @@ void CombatFlow::BeginGameOver()
     world_.combat.playerDeathHandled_ = true;
     world_.combat.combatFlow_.BeginGameOver(world_.combat.screenEffectDirector_.GetConfig().gameOverDuration);
     if (world_.combat.flowBannerText_) {
-        world_.combat.flowBannerText_->SetText("GAME OVER");
+        world_.combat.flowBannerText_->SetText(world_.run.IsSurvivorRun() ? "撃破された" : "GAME OVER");
     }
     world_.combat.screenEffectDirector_.TriggerGameOver();
     world_.combatEffects->TriggerDeathPostPulse(world_.resources.player_->GetWorldPosition(), 1.10f);
@@ -269,7 +269,8 @@ void CombatFlow::EnterResultState(bool stageClear)
 {
     world_.combat.combatFlow_.EnterResult(stageClear);
     if (world_.combat.flowBannerText_) {
-        world_.combat.flowBannerText_->SetText(world_.run.IsExpeditionRun() ? (stageClear ? "遠征クリア" : "遠征終了")
+        world_.combat.flowBannerText_->SetText(world_.run.IsExpeditionRun()  ? (stageClear ? "遠征クリア" : "遠征終了")
+                                               : world_.run.IsSurvivorRun() ? (stageClear ? "区画クリア" : "撃破された")
                                                                             : (stageClear ? "STAGE CLEAR" : "GAME OVER"));
     }
     world_.combat.resultSelection_ = 0;
@@ -295,6 +296,11 @@ void CombatFlow::ConfirmResultSelection()
 
 void CombatFlow::UpdateResultText()
 {
+    // 育つ戦車の試作は、自分の結果画面（生き延びた時間・レベル・形態・部品）を出す。
+    if (world_.run.IsSurvivorRun()) {
+        world_.survivorRunController->RefreshResult(world_.combat.resultSelection_);
+        return;
+    }
     if (!world_.combat.resultSummaryText_ || !world_.combat.resultMenuText_) {
         return;
     }

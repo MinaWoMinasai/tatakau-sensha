@@ -45,8 +45,8 @@ bool ArenaRunController::IsTankRunMenuOpen() const
     if (world_.run.expeditionAuthoringHubOpen_) {
         return true;
     }
-    // 育つ戦車の試作で形態を選んでいる間は、メニューと同じくゲームを止める。
-    if (world_.run.IsSurvivorRun() && world_.survivorRunController && world_.survivorRunController->IsFormChoiceOpen()) {
+    // 育つ戦車の試作で形態を選んでいる間と、調整パネルを「止める」で開いている間は、メニューと同じくゲームを止める。
+    if (world_.run.IsSurvivorRun() && world_.survivorRunController && world_.survivorRunController->IsPaused()) {
         return true;
     }
     if (world_.expeditionExperience->IsGuidedExpeditionPaused() || world_.run.expeditionCollectAll_) {

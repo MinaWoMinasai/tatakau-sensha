@@ -1,4 +1,5 @@
 #include "game/run/session/SurvivorRunController.h"
+#include "game/editor/SurvivorTuningPanel.h"
 #include "game/session/GameplaySystems.h"
 #include "game/player/TankRunModifiers.h"
 #include "game/render/settings/ArenaCameraProfile.h"
@@ -93,12 +94,7 @@ void SurvivorRunController::Initialize()
     world_.resources.camera->Update();
 
     // 自機が倒した敵は、経験値を直接渡さずに欠片を落とす。コールバックは衝突処理の途中から呼ばれるので、欠片の列に足すだけにする。
-    SurvivorPickups::Config pickupConfig;
-    pickupConfig.magnetRadius = config_.magnetRadius;
-    pickupConfig.collectRadius = config_.collectRadius;
-    pickupConfig.valuePerShard = config_.valuePerShard;
-    pickupConfig.maxShards = static_cast<size_t>((std::max)(1, config_.maxShards));
-    pickups_.SetConfig(pickupConfig);
+    ConfigurePickups();
     // 大五角は宝箱：倒すと、軽い部品の出ない3択を1つ貯める。
     ExpEnemy::SetPlayerExpDropCallback([this](const ExpEnemy& enemy, uint32_t value) {
         pickups_.Drop(enemy.GetWorldPosition(), value, random_);
@@ -108,6 +104,7 @@ void SurvivorRunController::Initialize()
             ++pendingPremium_;
             ++premiumTotal_;
             premiumGained_ = true;
+            pendingSince_.push_back(elapsed_);
         }
     });
 
@@ -143,12 +140,43 @@ void SurvivorRunController::Initialize()
     exitText_->SetPosition({24.0f, 52.0f});
     choiceHud_.Initialize();
     choiceHud_.SetPending(0, false);
+
+    // 結果画面：暗い板の上に、生き延びた時間・レベル・撃破数・形態・部品と、もう1回／タイトルへ。
+    resultPanel_ = bar({240.0f, 205.0f}, {800.0f, 470.0f}, {0.01f, 0.03f, 0.05f, 0.82f});
+    style.fontSize = 24;
+    style.color = {0.86f, 0.97f, 1.0f, 1.0f};
+    style.outlineThickness = 2;
+    resultText_ = std::make_unique<myEngine::TextLabel>();
+    resultText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    resultText_->SetPosition({290.0f, 225.0f});
+    style.fontSize = 28;
+    style.color = {0.48f, 1.0f, 0.66f, 1.0f};
+    resultMenu_ = std::make_unique<myEngine::TextLabel>();
+    resultMenu_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    resultMenu_->SetPosition({290.0f, 560.0f});
+    fpsClock_ = std::chrono::steady_clock::now();
     RefreshHud();
 
     wchar_t automatic[8]{};
     const DWORD length = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_AUTOTEST", automatic, 8);
     if (!world_.demo.titleDemo_ && length > 0) {
-        autoTest_ = std::wstring(automatic) == L"tour" ? AutoTest::Tour : automatic[0] == L'1' ? AutoTest::Sector : AutoTest::None;
+        const std::wstring mode(automatic);
+        autoTest_ = mode == L"tour"   ? AutoTest::Tour
+                    : mode == L"perf" ? AutoTest::Perf
+                    : mode[0] == L'1' ? AutoTest::Sector
+                                      : AutoTest::None;
+    }
+    if (autoTest_ == AutoTest::Perf) {
+        // 図形を200体に保ち、敵戦車8体と大五角3体を最初から出す。形態の2択と出口は出さない。
+        config_.shapeTargetAlive = {{0.0f, 200.0f}};
+        config_.shapeOvertimePerMinute = 0.0f;
+        config_.maxSpawnsPerSecond = 100.0f;
+        config_.swarmCount = 0;
+        config_.tanks = {0.0f, 1.0f, 8};
+        config_.bigPentagon = {0.0f, 4.0f, 3};
+        config_.exitOpenSeconds = 9999.0f;
+        config_.choiceAutoOpen = false;
+        formChosen_ = true;
     }
     random_.seed(autoTest_ != AutoTest::None ? 20261028u : static_cast<uint32_t>(GetTickCount64()));
     if (autoTest_ != AutoTest::None) {
@@ -185,6 +213,8 @@ void SurvivorRunController::Update(float dt)
         UpdateTourAutoTest(dt);
         return;
     }
+    UpdateTuningPanel();
+    SampleFps();
     if (formChoiceOpen_) {
         UpdateFormChoiceInput();
     } else if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
@@ -192,10 +222,17 @@ void SurvivorRunController::Update(float dt)
     } else if (choiceOpen_) {
         CloseChoices();
     }
-    // 区画の時計・湧き方・欠片は、3択を開いている間のスローに合わせて遅くし、形態を選ぶ間は止める。
-    const float gameDt = formChoiceOpen_ ? 0.0f : dt * GetTimeScale();
+    if (choiceOpen_) {
+        choiceOpenSeconds_ += dt;
+    }
+    // 区画の時計・湧き方・欠片は、3択を開いている間のスローに合わせて遅くし、形態を選ぶ間と調整パネルで止めた間は止める。
+    const float gameDt = IsPaused() ? 0.0f : dt * GetTimeScale();
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
         elapsed_ += gameDt;
+        const PlayerHeat& heat = world_.resources.player_->GetHeat();
+        if (heat.GetHeat() >= heat.GetMaxHeat() * 0.7f) {
+            heatHighSeconds_ += gameDt;
+        }
         UpdateSpawns(gameDt);
         AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
                                       survivor::CollectorMagnetScale(config_.parts, partLevels_),
@@ -229,9 +266,189 @@ void SurvivorRunController::Update(float dt)
         hudRefresh_ = 0.1f;
         RefreshHud();
     }
+    // 結果画面：出た最初の更新で遊んだ記録を書く。R キーで、その場からもう1回。
+    if (IsResultVisible()) {
+        if (!runLogWritten_) {
+            runLogWritten_ = true;
+            WriteRunLog();
+            RefreshResult(world_.combat.resultSelection_);
+        }
+        if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(DIK_R)) {
+            world_.combat.resultSelection_ = 0;
+            world_.combatFlow->ConfirmResultSelection();
+            return;
+        }
+    }
     if (autoTest_ == AutoTest::Sector) {
         UpdateSectorAutoTest(dt);
+    } else if (autoTest_ == AutoTest::Perf) {
+        UpdatePerfAutoTest(dt);
     }
+}
+
+void SurvivorRunController::ConfigurePickups()
+{
+    SurvivorPickups::Config pickupConfig;
+    pickupConfig.magnetRadius = config_.magnetRadius;
+    pickupConfig.collectRadius = config_.collectRadius;
+    pickupConfig.valuePerShard = config_.valuePerShard;
+    pickupConfig.maxShards = static_cast<size_t>((std::max)(1, config_.maxShards));
+    pickups_.SetConfig(pickupConfig);
+}
+
+void SurvivorRunController::UpdateTuningPanel()
+{
+#if defined(USE_IMGUI)
+    if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(DIK_F2)) {
+        tuningOpen_ = !tuningOpen_;
+        tuningStatus_.clear();
+    }
+    if (!tuningOpen_) {
+        return;
+    }
+    const PlayerHeat& heat = world_.resources.player_->GetHeat();
+    survivor::TuningSnapshot snapshot;
+    snapshot.elapsed = elapsed_;
+    snapshot.level = level_;
+    snapshot.exp = exp_;
+    snapshot.alive = CountAlive().total;
+    snapshot.fps = fpsSamples_.empty() ? 0.0f : fpsSamples_.back();
+    snapshot.heat = heat.GetHeat();
+    snapshot.heatMax = heat.GetMaxHeat();
+    snapshot.overheats = heat.GetOverheatCount();
+    const survivor::TuningPanelResult result = survivor::DrawTuningPanel(config_, tuningOpen_, tuningPause_, tuningStatus_, snapshot);
+    if (result.reloadRequested) {
+        survivor::SpawnConfig loaded;
+        std::string error;
+        if (survivor::LoadSpawnConfig(kConfigPath, loaded, error)) {
+            config_ = loaded;
+            tuningStatus_ = "再読込しました";
+        } else {
+            tuningStatus_ = error;
+        }
+    }
+    if (result.changed || result.reloadRequested) {
+        // 部品の倍率・熱・シールド・欠片を、今の値で作り直す。形態の数値は次に選んだときから効く。
+        ConfigurePickups();
+        ApplyParts();
+        if (result.changed) {
+            tuningStatus_ = "変更あり（未保存）";
+        }
+    }
+    if (result.saveRequested) {
+        std::string error;
+        tuningStatus_ = survivor::SaveSpawnConfig(kConfigPath, config_, error) ? std::string("保存しました") : error;
+    }
+#endif
+}
+
+bool SurvivorRunController::IsResultVisible() const
+{
+    const auto& flow = world_.combat.combatFlow_;
+    return flow.GetState() == GameFlowState::StageClear || (flow.GetState() == GameFlowState::GameOver && flow.GetTimer() <= 0.0f);
+}
+
+std::string SurvivorRunController::FormName() const
+{
+    for (const auto& form : config_.forms) {
+        if (formKey_ == form.key) {
+            return form.name;
+        }
+    }
+    return "基本砲";
+}
+
+std::string SurvivorRunController::DescribeParts(size_t perLine) const
+{
+    std::string text;
+    size_t count = 0;
+    for (size_t i = 0; i < survivor::kPartCount; ++i) {
+        if (partLevels_[i] <= 0) {
+            continue;
+        }
+        if (count > 0) {
+            text += count % perLine == 0 ? "\n" : "　";
+        }
+        text += std::string(config_.parts[i].name) + " Lv" + std::to_string(partLevels_[i]);
+        ++count;
+    }
+    return count > 0 ? text : std::string("なし");
+}
+
+void SurvivorRunController::RefreshResult(int selection)
+{
+    if (!resultText_ || !resultMenu_) {
+        return;
+    }
+    const auto& player = *world_.resources.player_;
+    std::ostringstream text;
+    // 見出し（区画クリア・撃破された）は、上の帯の文字（CombatFlow）が出す。
+    text << (cleared_ ?"区画の時間　　" : "生き延びた時間　") << Clock(elapsed_) << "\n"
+         << "レベル　　　　" << level_ << "\n"
+         << "撃破　　　　　" << world_.combat.defeatedEnemies_ << "\n"
+         << "形態　　　　　" << FormName() << "\n"
+         << "受けたダメージ　" << world_.combat.damageTaken_ << "　　オーバーヒート " << player.GetHeat().GetOverheatCount() << " 回\n"
+         << "部品\n"
+         << DescribeParts(4);
+    resultText_->SetText(text.str());
+    std::ostringstream menu;
+    menu << (selection == 0 ? "> " : "   ") << "もう1回（R）\n"
+         << (selection == 1 ? "> " : "   ") << "タイトルへ";
+    resultMenu_->SetText(menu.str());
+}
+
+void SurvivorRunController::SampleFps()
+{
+    const auto now = std::chrono::steady_clock::now();
+    const double seconds = std::chrono::duration<double>(now - fpsClock_).count();
+    if (seconds < 5.0) {
+        return;
+    }
+    fpsSamples_.push_back(static_cast<float>(static_cast<double>(drawnFrames_ - fpsFrames_) / seconds));
+    fpsClock_ = now;
+    fpsFrames_ = drawnFrames_;
+}
+
+void SurvivorRunController::WriteRunLog()
+{
+    if (!myEngine::kDeveloperTools || world_.demo.titleDemo_) {
+        return;
+    }
+    // 自分で遊んだ回を後で見比べるための記録。自動確認では同じ名前に上書きする。
+    const std::string directory = std::string(kAutoTestDirectory) + "/runs";
+    std::error_code ignored;
+    std::filesystem::create_directories(directory, ignored);
+    std::string name = "autotest";
+    if (autoTest_ == AutoTest::None) {
+        SYSTEMTIME time{};
+        GetLocalTime(&time);
+        std::ostringstream stamp;
+        stamp << std::setfill('0') << time.wYear << std::setw(2) << time.wMonth << std::setw(2) << time.wDay << "_" << std::setw(2)
+              << time.wHour << std::setw(2) << time.wMinute << std::setw(2) << time.wSecond;
+        name = stamp.str();
+    }
+    const auto& player = *world_.resources.player_;
+    float fpsMin = 0.0f, fpsSum = 0.0f;
+    for (size_t i = 0; i < fpsSamples_.size(); ++i) {
+        fpsMin = i == 0 ? fpsSamples_[i] : (std::min)(fpsMin, fpsSamples_[i]);
+        fpsSum += fpsSamples_[i];
+    }
+    std::ofstream output(directory + "/run_" + name + ".json");
+    output << "{\"cleared\":" << (cleared_ ? "true" : "false") << ",\"seconds\":" << elapsed_ << ",\"level\":" << level_
+           << ",\"kills\":" << world_.combat.defeatedEnemies_ << ",\"damageTaken\":" << world_.combat.damageTaken_
+           << ",\"form\":\"" << formKey_ << "\",\"levelTimes\":[";
+    for (size_t i = 0; i < levelTimes_.size(); ++i) {
+        output << (i ? "," : "") << std::lround(levelTimes_[i]);
+    }
+    output << "],\"partLevels\":{";
+    for (size_t i = 0; i < survivor::kPartCount; ++i) {
+        output << (i ? "," : "") << "\"" << config_.parts[i].key << "\":" << partLevels_[i];
+    }
+    output << "},\"choices\":[" << choiceRecord_.str() << "],\"pendingAtEnd\":" << pendingChoices_
+           << ",\"heat\":{\"overheats\":" << player.GetHeat().GetOverheatCount() << ",\"secondsAbove70\":" << heatHighSeconds_
+           << ",\"railShots\":" << player.GetSpecialCombatStats().railShots << "},\"fps\":{\"min\":" << fpsMin << ",\"avg\":"
+           << (fpsSamples_.empty() ? 0.0f : fpsSum / static_cast<float>(fpsSamples_.size())) << ",\"samples\":"
+           << fpsSamples_.size() << "}}\n";
 }
 
 void SurvivorRunController::OnEnemyDefeated(const myEngine::Vector3& position)
@@ -253,6 +470,8 @@ void SurvivorRunController::AddExperience(int amount)
         exp_ -= config_.ExpToNextLevel(level_);
         ++level_;
         ++pendingChoices_;
+        levelTimes_.push_back(elapsed_);
+        pendingSince_.push_back(elapsed_);
         world_.combatFlow->SetEventCallout("レベル " + std::to_string(level_), 0.8f);
     }
     choiceHud_.SetPending(pendingChoices_, choiceOpen_);
@@ -329,6 +548,22 @@ void SurvivorRunController::ChooseOffer(size_t index)
     }
     const survivor::PartOffer offer = offers_[index];
     auto& player = *world_.resources.player_;
+    // 遊んだ記録：出た3枚・選んだ札・貯まってから選ぶまでの区画の秒・3択を開いていた秒。
+    auto key = [&](const survivor::PartOffer& item) {
+        return item.part == survivor::PartId::Count ? std::string("repair") : std::string(config_.parts[static_cast<size_t>(item.part)].key);
+    };
+    float waited = 0.0f;
+    if (!pendingSince_.empty()) {
+        waited = elapsed_ - pendingSince_.front();
+        pendingSince_.erase(pendingSince_.begin());
+    }
+    choiceRecord_ << (choiceRecord_.tellp() > 0 ? "," : "") << "{\"t\":" << std::lround(elapsed_) << ",\"offered\":[";
+    for (size_t i = 0; i < offers_.size(); ++i) {
+        choiceRecord_ << (i ? "," : "") << "\"" << key(offers_[i]) << "\"";
+    }
+    choiceRecord_ << "],\"picked\":\"" << key(offer) << "\",\"premium\":" << (offersPremium_ ? "true" : "false")
+                  << ",\"waited\":" << std::lround(waited) << ",\"open\":" << std::round(choiceOpenSeconds_ * 10.0f) / 10.0f << "}";
+    choiceOpenSeconds_ = 0.0f;
     if (offer.part == survivor::PartId::Count) {
         player.HealRunPlayer(static_cast<int>(static_cast<float>(player.GetMaxHp()) * 0.3f));
         world_.combatFlow->SetEventCallout("修理キット", 0.7f);
@@ -668,6 +903,13 @@ void SurvivorRunController::RefreshHud()
 void SurvivorRunController::DrawUi()
 {
     ++drawnFrames_;
+    if (IsResultVisible() && resultPanel_ && resultText_ && resultMenu_) {
+        myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+        resultPanel_->Draw();
+        resultText_->Draw();
+        resultMenu_->Draw();
+        return;
+    }
     if (world_.combat.combatFlow_.GetState() != GameFlowState::Playing || !hudText_) {
         return;
     }
@@ -857,8 +1099,24 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         if (!world_.run.tankRunCapturePath_.empty()) {
             return;
         }
+        // 調整パネルの保存：今の設定を別のファイルへ書いて読み戻し、主な値が同じになるかを見る。
+        bool roundTrip = false;
+        {
+            const std::string path = std::string(kAutoTestDirectory) + "/config_roundtrip.json";
+            std::error_code ignored;
+            std::filesystem::copy_file(kConfigPath, path, std::filesystem::copy_options::overwrite_existing, ignored);
+            std::string error;
+            survivor::SpawnConfig loaded;
+            if (survivor::SaveSpawnConfig(path, config_, error) && survivor::LoadSpawnConfig(path, loaded, error)) {
+                roundTrip = loaded.ExpToNextLevel(10) == config_.ExpToNextLevel(10) && loaded.heat.maxHeat == config_.heat.maxHeat &&
+                            loaded.heat.coolPerSecondWhileFiring == config_.heat.coolPerSecondWhileFiring &&
+                            loaded.shapeTargetAlive == config_.shapeTargetAlive && loaded.choiceSlowTimeScale == config_.choiceSlowTimeScale &&
+                            loaded.parts[0].perLevel == config_.parts[0].perLevel && loaded.forms[1].damageScale == config_.forms[1].damageScale &&
+                            loaded.tankTypes == config_.tankTypes;
+            }
+        }
         std::ofstream(std::string(kAutoTestDirectory) + "/autotest.json")
-            << "{\"completed\":" << (cleared_ ? "true" : "false") << ",\"cleared\":" << (cleared_ ? "true" : "false")
+            << "{\"configRoundTrip\":" << (roundTrip ? "true" : "false") << ",\"completed\":" << (cleared_ ? "true" : "false") << ",\"cleared\":" << (cleared_ ? "true" : "false")
             << ",\"sectorSeconds\":" << elapsed_ << ",\"exitOpen\":" << (exitOpen_ ? "true" : "false") << ",\"exit\":[" << exitPosition_.x
             << "," << exitPosition_.y << "],\"maxAliveAfterTwoMinutes\":" << maxAliveAfterTwoMinutes_
             << ",\"resultState\":" << static_cast<int>(world_.combat.combatFlow_.GetState()) << ",\"level\":" << level_
@@ -951,6 +1209,108 @@ void SurvivorRunController::UpdateTourAutoTest(float dt)
                  << ",\"aimError\":" << MeasureAimRoundTripError() << ",\"heat\":" << player.GetHeat().GetHeat() << "}";
     RequestCapture(waypoint.name);
     autoTestCaptureQueued_ = true;
+}
+
+void SurvivorRunController::UpdatePerfAutoTest(float dt)
+{
+    // 0〜15秒：敵を200体まで湧かせる（自機は中央で止まり、撃たない）。
+    // 15〜35秒：散らばった場面を測る（敵はほぼ画面の外）。35秒から：画面の外の図形を2秒ごとに画面の中へ移し、
+    // 自機は撃ち始める。45〜65秒：画面が敵で埋まった場面を測る。
+    constexpr float kSpreadFrom = 15.0f, kSpreadTo = 35.0f, kCrowdFrom = 45.0f, kCrowdTo = 65.0f;
+    auto& player = *world_.resources.player_;
+    autoTestTime_ += dt;
+    const myEngine::Vector3 position = player.GetWorldPosition();
+    myEngine::Vector3 aim = position + myEngine::Vector3{6.0f, 0.0f, 0.0f};
+    if (const ExpEnemy* nearest = world_.resources.enemyManager_->FindNearestEnemy(position, 30.0f)) {
+        aim = nearest->GetWorldPosition();
+    }
+    player.SetDemoInput(true, {0.0f, 0.0f}, aim, perfCrowded_, false);
+    if (autoTestTime_ >= kSpreadTo && (!perfCrowded_ || std::fmod(autoTestTime_ - kSpreadTo, 2.0f) < dt)) {
+        perfCrowded_ = true;
+        const myEngine::Vector3 camera = world_.resources.camera->GetTranslate();
+        const float halfHeight = arenacamera::HalfViewHeight() - 1.5f;
+        const float halfWidth = arenacamera::HalfViewHeight() * arenacamera::kAspect - 1.5f;
+        std::uniform_real_distribution<float> x(camera.x - halfWidth, camera.x + halfWidth), y(camera.y - halfHeight, camera.y + halfHeight);
+        for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (!enemy || enemy->IsDead() || enemy->IsExpeditionCombatRole() || enemy->GetType() == ExpEnemyType::Shooter) {
+                continue;
+            }
+            const myEngine::Vector3 at = enemy->GetWorldPosition();
+            if (std::abs(at.x - camera.x) <= halfWidth && std::abs(at.y - camera.y) <= halfHeight) {
+                continue;
+            }
+            for (int attempt = 0; attempt < 8; ++attempt) {
+                const myEngine::Vector3 target{x(random_), y(random_), at.z};
+                const float dx = target.x - position.x, dy = target.y - position.y;
+                if (dx * dx + dy * dy > 16.0f && !world_.resources.stage_->IsCollisionWithAnyBlock(target, 1.2f)) {
+                    enemy->SetWorldPosition(target);
+                    break;
+                }
+            }
+        }
+    }
+    if (autoTestTime_ >= 30.0f && autoTestNextCapture_ == 0 && world_.run.tankRunCapturePath_.empty()) {
+        RequestCapture("perf_spread");
+        ++autoTestNextCapture_;
+    }
+    if (autoTestTime_ >= 60.0f && autoTestNextCapture_ == 1 && world_.run.tankRunCapturePath_.empty()) {
+        RequestCapture("perf_crowd");
+        ++autoTestNextCapture_;
+    }
+
+    // 1秒ごとに、その1秒の fps・敵の数・画面の中の敵の数を記録する。
+    if (autoTestTime_ >= perfNextSample_) {
+        perfNextSample_ += 1.0f;
+        const auto now = std::chrono::steady_clock::now();
+        const double seconds = std::chrono::duration<double>(now - sampleStart_).count();
+        const double fps = seconds > 0.0 ? static_cast<double>(drawnFrames_ - sampleFrames_) / seconds : 0.0;
+        sampleStart_ = now;
+        sampleFrames_ = drawnFrames_;
+        const myEngine::Vector3 camera = world_.resources.camera->GetTranslate();
+        const float halfHeight = arenacamera::HalfViewHeight();
+        const float halfWidth = halfHeight * arenacamera::kAspect;
+        int alive = 0, onScreen = 0;
+        for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (!enemy || enemy->IsDead()) {
+                continue;
+            }
+            ++alive;
+            const myEngine::Vector3 at = enemy->GetWorldPosition();
+            if (std::abs(at.x - camera.x) <= halfWidth && std::abs(at.y - camera.y) <= halfHeight) {
+                ++onScreen;
+            }
+        }
+        const float t = autoTestTime_ - 1.0f;
+        const int phase = t >= kSpreadFrom && t < kSpreadTo ? 0 : t >= kCrowdFrom && t < kCrowdTo ? 1 : -1;
+        if (phase >= 0) {
+            PerfPhase& sum = perfPhases_[static_cast<size_t>(phase)];
+            ++sum.samples;
+            sum.fpsSum += fps;
+            sum.fpsMin = (std::min)(sum.fpsMin, fps);
+            sum.aliveSum += alive;
+            sum.onScreenSum += onScreen;
+        }
+        perfLog_ << (perfLog_.tellp() > 0 ? "," : "") << "{\"t\":" << static_cast<int>(t) << ",\"fps\":" << std::fixed << std::setprecision(1)
+                 << fps << std::defaultfloat << ",\"alive\":" << alive << ",\"onScreen\":" << onScreen
+                 << ",\"bullets\":" << world_.resources.bulletManager_->GetBulletCount() << "}";
+    }
+
+    if (autoTestTime_ < kCrowdTo + 0.5f || !world_.run.tankRunCapturePath_.empty()) {
+        return;
+    }
+    auto phaseJson = [](const char* name, const PerfPhase& sum) {
+        std::ostringstream text;
+        const double n = (std::max)(1, sum.samples);
+        text << "{\"name\":\"" << name << "\",\"samples\":" << sum.samples << ",\"fpsAvg\":" << std::fixed << std::setprecision(1)
+             << sum.fpsSum / n << ",\"fpsMin\":" << (sum.samples > 0 ? sum.fpsMin : 0.0) << ",\"aliveAvg\":" << sum.aliveSum / n
+             << ",\"onScreenAvg\":" << sum.onScreenSum / n << "}";
+        return text.str();
+    };
+    std::ofstream(std::string(kAutoTestDirectory) + "/perf.json")
+        << "{\"completed\":true,\"phases\":[" << phaseJson("spread", perfPhases_[0]) << "," << phaseJson("crowd", perfPhases_[1])
+        << "],\"samples\":[" << perfLog_.str() << "]}\n";
+    autoTest_ = AutoTest::None;
+    PostQuitMessage(0);
 }
 
 } // namespace gameplay
