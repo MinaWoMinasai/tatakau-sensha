@@ -367,6 +367,20 @@ void ExpEnemy::Update(Stage& stage, float deltaTime)
 
     // --- 慣性処理 ---
     velocity_ += (velocity_ * -1.0f) * 0.98f * deltaTime;
+    if (chaseAcceleration_ > 0.0f && type_ != ExpEnemyType::Shooter && player_ && !player_->IsDead()) {
+        // 寄ってくる図形は、自機の方向へ加速し、最高速度で頭打ちにする。velocity_ は60FPSの1ステップあたりの変位。
+        myEngine::Vector3 toPlayer = player_->GetWorldPosition() - GetWorldPosition();
+        toPlayer.z = 0.0f;
+        const float distance = myEngine::Length(toPlayer);
+        if (distance > 0.001f) {
+            velocity_ += toPlayer * (chaseAcceleration_ * deltaTime / (distance * myEngine::kFixedStepsPerSecond));
+        }
+        const float maxStep = chaseMaxSpeed_ / myEngine::kFixedStepsPerSecond;
+        const float speed = myEngine::Length(velocity_);
+        if (speed > maxStep && speed > 0.0f) {
+            velocity_ = velocity_ * (maxStep / speed);
+        }
+    }
 
     float timeWeight = deltaTime * myEngine::kFixedStepsPerSecond;
 

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "comment": "育つ戦車の試作（TANK_SURVIVOR）の1区画の湧き方。時間は区画の開始からの秒。",
+  "exitOpenSeconds": 180,
+  "exitRadius": 3.0,
+  "spawnRing": { "minDistance": 26.0, "maxDistance": 36.0, "maxPerSecond": 10.0 },
+  "shapes": {
+    "comment": "生存数の目標（時間, 数）を直線でつなぐ。最後の点より後は overtimePerMinute ずつ増える。",
+    "targetAlive": [[0, 24], [60, 45], [120, 88], [180, 100], [240, 112]],
+    "overtimePerMinute": 24,
+    "weights": [
+      { "from": 0, "square": 6, "triangle": 3, "pentagon": 1 },
+      { "from": 120, "square": 5, "triangle": 3, "pentagon": 2 }
+    ]
+  },
+  "triangleSwarm": {
+    "comment": "三角の群れが周期的に寄ってくる。加速度と最高速度はワールド単位/秒。",
+    "from": 20, "interval": 20, "count": 7, "spread": 3.0,
+    "acceleration": 9.0, "maxSpeed": 6.5
+  },
+  "tanks": {
+    "comment": "敵戦車。同時にいる数は maxAlive まで。種類は expedition_content.json の id。",
+    "from": 60, "interval": 7, "maxAlive": 4, "types": ["Shooter", "Charger", "Sniper"]
+  },
+  "bigPentagon": {
+    "comment": "五角を大きく硬くしたもの。",
+    "from": 120, "interval": 18, "maxAlive": 3, "scale": 2.2, "hp": 140, "exp": 160
+  }
+}

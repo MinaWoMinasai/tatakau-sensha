@@ -115,10 +115,32 @@ public:
         return worldTransform_.translate;
     }
 
-    /// @brief 球の衝突半径を返す。資源は1.2、それ以外は0.8ワールド単位。
+    /// @brief 球の衝突半径を返す。資源は1.2、それ以外は0.8ワールド単位に、大きさの倍率（既定1）を掛ける。
     float GetRadius() const override
     {
-        return isRunResource_ ? 1.2f : 0.8f;
+        return (isRunResource_ ? 1.2f : 0.8f) * sizeScale_;
+    }
+
+    /// @brief 図形を自機へ寄せる。加速度と最高速度はワールド単位/秒。0以下で寄らない（既定）。
+    /// @note 図形（Square・Triangle・Pentagon）だけに効く。移動は既存の慣性・地形補正と同じ経路を通る。
+    void SetPlayerChase(float acceleration, float maxSpeed)
+    {
+        chaseAcceleration_ = acceleration;
+        chaseMaxSpeed_ = maxSpeed;
+    }
+
+    /// @brief 表示と衝突半径を scale 倍にする（大五角など）。生成直後に1回だけ呼ぶ。
+    void SetSizeScale(float scale)
+    {
+        sizeScale_ = scale;
+        baseScale_ = baseScale_ * scale;
+        worldTransform_.scale = baseScale_;
+    }
+
+    /// @brief 撃破時の経験値量を上書きする。
+    void SetExpValue(uint32_t value)
+    {
+        expValue_ = value;
     }
 
     /// @brief 射撃で使うBulletManagerを借用する。発射時には有効な管理先が必要。
@@ -496,6 +518,9 @@ private:
     std::function<void(bool playerOwned)> runResourceClaimCallback_;
 
     uint32_t expValue_ = 10;
+    float sizeScale_ = 1.0f;
+    float chaseAcceleration_ = 0.0f;
+    float chaseMaxSpeed_ = 0.0f;
     ExpEnemyType type_ = ExpEnemyType::Square;
     bool hasAuthoredDefinition_ = false;
     uint32_t authoredContactDamage_ = 0, authoredBulletDamage_ = 1;

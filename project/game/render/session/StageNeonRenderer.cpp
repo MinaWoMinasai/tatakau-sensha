@@ -120,6 +120,8 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     }
     if (world_.run.UsesTankRunDirector()) {
         world_.arenaRunController->QueueTankRunTelegraph();
+    } else if (world_.run.IsSurvivorRun()) {
+        world_.survivorRunController->QueueWorldVisuals();
     }
     if (includeStageBlockOutlines &&
         (world_.presentation.showStageBlockNeonOutlines_ || world_.presentation.showStageDamageBlockNeonOutlines_)) {

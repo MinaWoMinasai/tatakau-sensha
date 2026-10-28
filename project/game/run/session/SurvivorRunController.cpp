@@ -3,16 +3,25 @@
 #include "game/player/TankRunModifiers.h"
 #include "game/render/settings/ArenaCameraProfile.h"
 #include <array>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 
 namespace gameplay {
 
 namespace {
 constexpr const char* kAutoTestDirectory = "generated/tank_survivor";
+constexpr const char* kConfigPath = "resources/configs/survivor_proto.json";
+constexpr const char* kContentPath = "resources/configs/expedition_content.json";
 // 格子 45×30 全体を外壁で囲んだ部屋（約90×60）。画面の約2×2.4倍の広さ。
 constexpr const char* kArenaMap = "resources/maps/survivor_arena.csv";
 const myEngine::Vector3 kPlayerStart{44.0f, 28.0f, 0.0f};
+// 外壁の内側で、敵を置いてよい範囲（ワールド座標）。
+constexpr float kSpawnMinX = 3.0f, kSpawnMaxX = 85.0f, kSpawnMinY = 3.0f, kSpawnMaxY = 55.0f;
+// 出口の候補。辺の中ほどの柱の外側（壁際）に置く。
+const std::array<myEngine::Vector3, 4> kExitCandidates{
+    {{44.0f, 52.0f, 0.0f}, {44.0f, 5.0f, 0.0f}, {6.0f, 28.0f, 0.0f}, {82.0f, 28.0f, 0.0f}}};
 
 struct AutoTestWaypoint {
     const char* name;
@@ -20,13 +29,20 @@ struct AutoTestWaypoint {
 };
 
 // 中央から四隅を回って中央へ戻る。柱の並ぶ線（x=16〜18・30・58・70〜72、y=8・28〜30・50）を避けた経路にする。
-const std::array<AutoTestWaypoint, 5> kAutoTestWaypoints{{{"northeast", {82, 54, 0}},
-                                                          {"southeast", {82, 4, 0}},
-                                                          {"southwest", {6, 4, 0}},
-                                                          {"northwest", {6, 54, 0}},
-                                                          {"center", {44, 28, 0}}}};
+const std::array<AutoTestWaypoint, 5> kTourWaypoints{
+    {{"northeast", {82, 54, 0}}, {"southeast", {82, 4, 0}}, {"southwest", {6, 4, 0}}, {"northwest", {6, 54, 0}}, {"center", {44, 28, 0}}}};
 // 入力を止めても少し滑るので、着いたかどうかはこの距離で見る。
 constexpr float kAutoTestReachDistance = 4.0f;
+// 区画の自動確認で画面を保存する時刻（秒）。
+constexpr std::array<float, 3> kSectorCaptureSeconds{30.0f, 125.0f, 183.0f};
+
+std::string Clock(float seconds)
+{
+    const int total = (std::max)(0, static_cast<int>(seconds));
+    std::ostringstream text;
+    text << total / 60 << ":" << std::setw(2) << std::setfill('0') << total % 60;
+    return text.str();
+}
 } // namespace
 
 void SurvivorRunController::Initialize()
@@ -39,6 +55,16 @@ void SurvivorRunController::Initialize()
     world_.presentation.showLevelAiEditorPreview_ = false;
     world_.presentation.showGameDebugConsole_ = false;
     world_.runVisualSettings->InitializeTankRunVisuals();
+
+    // 湧き方の設定と、敵戦車の性能（遠征と同じ制作カタログ）を読む。読めなければ既定値で続ける。
+    std::string error;
+    if (!survivor::LoadSpawnConfig(kConfigPath, config_, error)) {
+        OutputDebugStringA(("[Survivor] " + error + "\n").c_str());
+    }
+    tankcontent::Catalog content = tankcontent::DefaultCatalog();
+    if (tankcontent::LoadCatalog(kContentPath, content, error)) {
+        world_.resources.enemyManager_->SetExpeditionContent(content);
+    }
 
     // レベルデータが置いた敵と出現領域を片付け、宿敵も出さない。
     world_.resources.enemy_->SetRunEncounterEnabled(false);
@@ -55,12 +81,37 @@ void SurvivorRunController::Initialize()
     world_.resources.camera->SetTranslate({kPlayerStart.x, kPlayerStart.y, world_.resources.camera->GetTranslate().z});
     world_.resources.camera->Update();
 
-    wchar_t automatic[4]{};
-    autoTest_ = !world_.demo.titleDemo_ && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_AUTOTEST", automatic, 4) > 0 && automatic[0] == L'1';
-    if (autoTest_) {
+    nextSwarm_ = config_.swarm.from;
+    nextTank_ = config_.tanks.from;
+    nextBigPentagon_ = config_.bigPentagon.from;
+
+    myEngine::TextStyle style{};
+    style.fontFamily = "Meiryo";
+    style.fontSize = 22;
+    style.color = {0.82f, 0.97f, 1.0f, 1.0f};
+    style.outlineThickness = 0;
+    style.padding = 4;
+    hudText_ = std::make_unique<myEngine::TextLabel>();
+    hudText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    hudText_->SetPosition({24.0f, 14.0f});
+    style.fontSize = 26;
+    style.color = {1.0f, 0.86f, 0.36f, 1.0f};
+    exitText_ = std::make_unique<myEngine::TextLabel>();
+    exitText_->Initialize(myEngine::SpriteCommon::GetInstance(), "出口が開いた  ─  光る輪に入ると区画クリア", style);
+    exitText_->SetPosition({24.0f, 50.0f});
+    RefreshHud();
+
+    wchar_t automatic[8]{};
+    const DWORD length = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_AUTOTEST", automatic, 8);
+    if (!world_.demo.titleDemo_ && length > 0) {
+        autoTest_ = std::wstring(automatic) == L"tour" ? AutoTest::Tour : automatic[0] == L'1' ? AutoTest::Sector : AutoTest::None;
+    }
+    random_.seed(autoTest_ != AutoTest::None ? 20261028u : static_cast<uint32_t>(GetTickCount64()));
+    if (autoTest_ != AutoTest::None) {
         world_.presentation.debugPlayerNoDamage_ = true;
         world_.resources.player_->SetDebugNoDamage(true);
         std::filesystem::create_directories(kAutoTestDirectory);
+        sampleStart_ = std::chrono::steady_clock::now();
     }
 }
 
@@ -69,8 +120,34 @@ void SurvivorRunController::Update(float dt)
     if (world_.combat.phase_ != Phase::kMain) {
         return;
     }
-    if (autoTest_) {
-        UpdateAutoTest(dt);
+    if (autoTest_ == AutoTest::Tour) {
+        UpdateTourAutoTest(dt);
+        return;
+    }
+    if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
+        elapsed_ += dt;
+        UpdateSpawns(dt);
+        if (!exitOpen_ && elapsed_ >= config_.exitOpenSeconds) {
+            OpenExit();
+        }
+        if (exitOpen_) {
+            const myEngine::Vector3 offset = world_.resources.player_->GetWorldPosition() - exitPosition_;
+            if (myEngine::Length(myEngine::Vector3{offset.x, offset.y, 0.0f}) <= config_.exitRadius) {
+                // 更新の初めなので、衝突処理の途中ではない。敵と弾を片付けてから結果画面へ移る。
+                cleared_ = true;
+                world_.resources.enemyManager_->ClearRunActors();
+                world_.resources.bulletManager_->ClearAll();
+                world_.combatFlow->EnterResultState(true);
+            }
+        }
+    }
+    hudRefresh_ -= dt;
+    if (hudRefresh_ <= 0.0f) {
+        hudRefresh_ = 0.25f;
+        RefreshHud();
+    }
+    if (autoTest_ == AutoTest::Sector) {
+        UpdateSectorAutoTest(dt);
     }
 }
 
@@ -79,7 +156,192 @@ void SurvivorRunController::OnEnemyDefeated(const myEngine::Vector3& position)
     world_.combat.screenEffectDirector_.TriggerEnemyDefeat(world_.gameplayQueries->WorldToScreenUv(position), 1.0f);
 }
 
-void SurvivorRunController::DrawUi() {}
+SurvivorRunController::AliveCounts SurvivorRunController::CountAlive() const
+{
+    AliveCounts counts;
+    for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+        if (!enemy || enemy->IsDead()) {
+            continue;
+        }
+        ++counts.total;
+        if (enemy->GetType() == ExpEnemyType::Shooter || enemy->IsExpeditionCombatRole()) {
+            ++counts.tanks;
+        } else if (enemy->GetType() == ExpEnemyType::Pentagon && enemy->GetRadius() > 1.0f) {
+            ++counts.bigPentagons;
+        } else {
+            ++counts.shapes;
+        }
+    }
+    return counts;
+}
+
+void SurvivorRunController::UpdateSpawns(float dt)
+{
+    spawnBudget_ = (std::min)(spawnBudget_ + config_.maxSpawnsPerSecond * dt, config_.maxSpawnsPerSecond);
+    const AliveCounts alive = CountAlive();
+
+    // 三角の群れ：輪の1点から、まとまって自機へ寄ってくる。群れは予算と別に湧かせる。
+    if (config_.swarmCount > 0 && elapsed_ >= nextSwarm_) {
+        nextSwarm_ += config_.swarm.interval;
+        if (const auto center = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance)) {
+            std::uniform_real_distribution<float> offset(-config_.swarmSpread, config_.swarmSpread);
+            for (int i = 0; i < config_.swarmCount; ++i) {
+                myEngine::Vector3 position = *center + myEngine::Vector3{offset(random_), offset(random_), 0.0f};
+                position.x = (std::clamp)(position.x, kSpawnMinX, kSpawnMaxX);
+                position.y = (std::clamp)(position.y, kSpawnMinY, kSpawnMaxY);
+                if (!world_.resources.stage_->IsCollisionWithAnyBlock(position, 1.2f)) {
+                    SpawnShape("Triangle", position, true);
+                }
+            }
+        }
+    }
+
+    // 敵戦車：一定の間隔で、同時に maxAlive 体まで。種類は順番に回す。
+    if (!config_.tankTypes.empty() && elapsed_ >= nextTank_ && spawnBudget_ >= 1.0f) {
+        nextTank_ = elapsed_ + config_.tanks.interval;
+        if (alive.tanks < config_.tanks.maxAlive) {
+            if (const auto position = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance)) {
+                const std::string& type = config_.tankTypes[nextTankType_ % config_.tankTypes.size()];
+                if (world_.resources.enemyManager_->SpawnLevelEnemy(*position, type)) {
+                    ++nextTankType_;
+                    spawnBudget_ -= 1.0f;
+                }
+            }
+        }
+    }
+
+    // 大五角：五角を大きく硬くしたもの。
+    if (elapsed_ >= nextBigPentagon_ && spawnBudget_ >= 1.0f) {
+        nextBigPentagon_ = elapsed_ + config_.bigPentagon.interval;
+        if (alive.bigPentagons < config_.bigPentagon.maxAlive) {
+            if (const auto position = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance)) {
+                if (world_.resources.enemyManager_->SpawnLevelEnemy(*position, "Pentagon", config_.bigPentagonHp)) {
+                    ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
+                    enemy->SetSizeScale(config_.bigPentagonScale);
+                    enemy->SetExpValue(static_cast<uint32_t>(config_.bigPentagonExp));
+                    spawnBudget_ -= 1.0f;
+                }
+            }
+        }
+    }
+
+    // 図形：生存数が目標に届くまで、予算の分だけ湧かせる。
+    int missing = static_cast<int>(config_.ShapeTarget(elapsed_)) - alive.shapes;
+    const auto& weights = config_.ShapeWeightsAt(elapsed_);
+    std::discrete_distribution<int> pick(weights.begin(), weights.end());
+    static constexpr std::array<const char*, 3> kShapes{"Square", "Triangle", "Pentagon"};
+    while (missing > 0 && spawnBudget_ >= 1.0f) {
+        const auto position = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance);
+        if (!position) {
+            break;
+        }
+        SpawnShape(kShapes[static_cast<size_t>(pick(random_))], *position, false);
+        spawnBudget_ -= 1.0f;
+        --missing;
+    }
+}
+
+std::optional<myEngine::Vector3> SurvivorRunController::FindSpawnPosition(float minDistance, float maxDistance)
+{
+    // 自機の周りの輪から探す。壁際で輪が部屋の外に出るときは、画面の外でありさえすればよい。
+    const myEngine::Vector3 player = world_.resources.player_->GetWorldPosition();
+    const myEngine::Vector3 camera = world_.resources.camera->GetTranslate();
+    const float halfHeight = arenacamera::HalfViewHeight() + 2.0f;
+    const float halfWidth = arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f;
+    std::uniform_real_distribution<float> angle(0.0f, 6.2831853f);
+    std::uniform_real_distribution<float> distance(minDistance, maxDistance);
+    std::uniform_real_distribution<float> anyX(kSpawnMinX, kSpawnMaxX), anyY(kSpawnMinY, kSpawnMaxY);
+    for (int attempt = 0; attempt < 24; ++attempt) {
+        myEngine::Vector3 position{};
+        if (attempt < 16) {
+            const float a = angle(random_), d = distance(random_);
+            position = {player.x + std::cos(a) * d, player.y + std::sin(a) * d, 0.0f};
+            position.x = (std::clamp)(position.x, kSpawnMinX, kSpawnMaxX);
+            position.y = (std::clamp)(position.y, kSpawnMinY, kSpawnMaxY);
+        } else {
+            position = {anyX(random_), anyY(random_), 0.0f};
+        }
+        const bool offScreen = std::abs(position.x - camera.x) > halfWidth || std::abs(position.y - camera.y) > halfHeight;
+        if (offScreen && !world_.resources.stage_->IsCollisionWithAnyBlock(position, 1.2f)) {
+            return position;
+        }
+    }
+    return std::nullopt;
+}
+
+bool SurvivorRunController::SpawnShape(const char* prefab, const myEngine::Vector3& position, bool triangleChase)
+{
+    if (!world_.resources.enemyManager_->SpawnLevelEnemy(position, prefab)) {
+        return false;
+    }
+    if (triangleChase) {
+        world_.resources.enemyManager_->GetEnemyPtrs().back()->SetPlayerChase(config_.swarmAcceleration, config_.swarmMaxSpeed);
+    }
+    return true;
+}
+
+void SurvivorRunController::OpenExit()
+{
+    exitOpen_ = true;
+    const myEngine::Vector3 player = world_.resources.player_->GetWorldPosition();
+    float best = -1.0f;
+    for (const auto& candidate : kExitCandidates) {
+        const float distance = myEngine::Length(candidate - player);
+        if (distance > best) {
+            best = distance;
+            exitPosition_ = candidate;
+        }
+    }
+    world_.combatFlow->SetEventCallout("出口が開いた", 1.4f);
+}
+
+void SurvivorRunController::QueueWorldVisuals()
+{
+    if (!exitOpen_ || cleared_ || !world_.resources.neonGridRenderer_) {
+        return;
+    }
+    // 出口：脈打つ2重の輪。輪の中に入ると区画クリア。
+    const float pulse = 0.5f + 0.5f * std::sin(elapsed_ * 5.0f);
+    auto circle = [&](float radius, float width, const myEngine::Vector4& color) {
+        constexpr int kSides = 40;
+        for (int n = 0; n < kSides; ++n) {
+            const float a = 6.2831853f * static_cast<float>(n) / kSides, b = 6.2831853f * static_cast<float>(n + 1) / kSides;
+            world_.resources.neonGridRenderer_->QueueLine(
+                exitPosition_ + myEngine::Vector3{std::cos(a) * radius, std::sin(a) * radius, -0.3f},
+                exitPosition_ + myEngine::Vector3{std::cos(b) * radius, std::sin(b) * radius, -0.3f}, width, color);
+        }
+    };
+    circle(config_.exitRadius, 0.22f, {1.6f, 1.25f, 0.35f, 1.0f});
+    circle(config_.exitRadius * (0.55f + 0.25f * pulse), 0.14f, {1.2f, 0.95f, 0.25f, 0.8f});
+}
+
+void SurvivorRunController::RefreshHud()
+{
+    if (!hudText_) {
+        return;
+    }
+    const AliveCounts alive = CountAlive();
+    std::ostringstream text;
+    text << "区画  " << Clock(elapsed_);
+    if (!exitOpen_) {
+        text << "   出口まで " << Clock(config_.exitOpenSeconds - elapsed_);
+    }
+    text << "   敵 " << alive.total;
+    hudText_->SetText(text.str());
+}
+
+void SurvivorRunController::DrawUi()
+{
+    ++drawnFrames_;
+    if (world_.combat.combatFlow_.GetState() != GameFlowState::Playing || !hudText_) {
+        return;
+    }
+    myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+    hudText_->Draw();
+    if (exitOpen_ && exitText_) {
+        exitText_->Draw();
+    }
+}
 
 float SurvivorRunController::MeasureAimRoundTripError() const
 {
@@ -91,7 +353,85 @@ float SurvivorRunController::MeasureAimRoundTripError() const
     return myEngine::Length(myEngine::Vector3{back.x - target.x, back.y - target.y, 0.0f});
 }
 
-void SurvivorRunController::UpdateAutoTest(float dt)
+void SurvivorRunController::RequestCapture(const std::string& name)
+{
+    if (world_.run.tankRunCapturePath_.empty()) {
+        world_.run.tankRunCapturePath_ = std::string(kAutoTestDirectory) + "/" + name + ".png";
+    }
+}
+
+void SurvivorRunController::UpdateSectorAutoTest(float dt)
+{
+    // 部屋の中央の周りを回りながら、近い敵を撃ち続ける。出口が開いたら出口へ向かう。自機は無敵。
+    auto& player = *world_.resources.player_;
+    autoTestTime_ += dt;
+    const myEngine::Vector3 position = player.GetWorldPosition();
+    myEngine::Vector3 aim = position + myEngine::Vector3{6.0f, 0.0f, 0.0f};
+    if (const ExpEnemy* nearest = world_.resources.enemyManager_->FindNearestEnemy(position, 30.0f)) {
+        aim = nearest->GetWorldPosition();
+    }
+    myEngine::Vector3 goal{};
+    if (exitOpen_) {
+        goal = exitPosition_;
+    } else {
+        const float angle = autoTestTime_ * 0.35f;
+        goal = {44.0f + std::cos(angle) * 18.0f, 28.0f + std::sin(angle) * 11.0f, 0.0f};
+    }
+    myEngine::Vector3 move{goal.x - position.x, goal.y - position.y, 0.0f};
+    const float length = myEngine::Length(move);
+    move = length > 0.5f ? move / length : myEngine::Vector3{};
+    player.SetDemoInput(true, {move.x, move.y}, aim, true, false);
+
+    if (autoTestNextCapture_ < static_cast<int>(kSectorCaptureSeconds.size()) &&
+        elapsed_ >= kSectorCaptureSeconds[static_cast<size_t>(autoTestNextCapture_)]) {
+        RequestCapture("sector_" + std::to_string(static_cast<int>(kSectorCaptureSeconds[static_cast<size_t>(autoTestNextCapture_)])));
+        ++autoTestNextCapture_;
+    }
+
+    const AliveCounts alive = CountAlive();
+    if (elapsed_ >= 120.0f) {
+        maxAliveAfterTwoMinutes_ = (std::max)(maxAliveAfterTwoMinutes_, alive.total);
+    }
+    if (autoTestTime_ >= autoTestNextSample_) {
+        autoTestNextSample_ += 10.0f;
+        const auto now = std::chrono::steady_clock::now();
+        const double seconds = std::chrono::duration<double>(now - sampleStart_).count();
+        const double fps = seconds > 0.0 ? static_cast<double>(drawnFrames_ - sampleFrames_) / seconds : 0.0;
+        sampleStart_ = now;
+        sampleFrames_ = drawnFrames_;
+        if (autoTestLog_.tellp() > 0) {
+            autoTestLog_ << ",";
+        }
+        autoTestLog_ << "{\"t\":" << static_cast<int>(elapsed_) << ",\"shapes\":" << alive.shapes << ",\"tanks\":" << alive.tanks
+                     << ",\"big\":" << alive.bigPentagons << ",\"total\":" << alive.total << ",\"fps\":" << std::fixed
+                     << std::setprecision(1) << fps << std::defaultfloat << ",\"hp\":" << player.GetHp() << "}";
+    }
+
+    if (cleared_ && autoTestClearedTime_ < 0.0f) {
+        autoTestClearedTime_ = autoTestTime_;
+    }
+    const bool timedOut = autoTestTime_ > config_.exitOpenSeconds + 90.0f;
+    if ((autoTestClearedTime_ >= 0.0f && autoTestTime_ - autoTestClearedTime_ > 1.5f) || timedOut) {
+        if (!autoTestCaptureQueued_) {
+            RequestCapture(cleared_ ? "cleared" : "timeout");
+            autoTestCaptureQueued_ = true;
+            return;
+        }
+        if (!world_.run.tankRunCapturePath_.empty()) {
+            return;
+        }
+        std::ofstream(std::string(kAutoTestDirectory) + "/autotest.json")
+            << "{\"completed\":" << (cleared_ ? "true" : "false") << ",\"cleared\":" << (cleared_ ? "true" : "false")
+            << ",\"sectorSeconds\":" << elapsed_ << ",\"exitOpen\":" << (exitOpen_ ? "true" : "false") << ",\"exit\":[" << exitPosition_.x
+            << "," << exitPosition_.y << "],\"maxAliveAfterTwoMinutes\":" << maxAliveAfterTwoMinutes_
+            << ",\"resultState\":" << static_cast<int>(world_.combat.combatFlow_.GetState()) << ",\"samples\":[" << autoTestLog_.str()
+            << "]}\n";
+        autoTest_ = AutoTest::None;
+        PostQuitMessage(0);
+    }
+}
+
+void SurvivorRunController::UpdateTourAutoTest(float dt)
 {
     // 各地点へまっすぐ進み、着いたら（または10秒で）止まってカメラが落ち着くのを待ち、画面を保存する。
     auto& player = *world_.resources.player_;
@@ -111,7 +451,7 @@ void SurvivorRunController::UpdateAutoTest(float dt)
         ++autoTestWaypoint_;
     }
 
-    if (autoTestWaypoint_ >= kAutoTestWaypoints.size()) {
+    if (autoTestWaypoint_ >= kTourWaypoints.size()) {
         float minX = 0, minY = 0, maxX = 0, maxY = 0;
         arenacamera::ArenaBounds(world_.resources.stage_->GetBlocks(), minX, minY, maxX, maxY);
         std::ofstream(std::string(kAutoTestDirectory) + "/autotest.json")
@@ -121,12 +461,12 @@ void SurvivorRunController::UpdateAutoTest(float dt)
             << ",\"rivalActive\":" << (world_.gameplayQueries->IsRunRivalActive() ? "true" : "false")
             << ",\"menuOpen\":" << (world_.arenaRunController->IsTankRunMenuOpen() ? "true" : "false")
             << ",\"playerDead\":" << (player.IsDead() ? "true" : "false") << ",\"seconds\":" << autoTestTime_ << "}\n";
-        autoTest_ = false;
+        autoTest_ = AutoTest::None;
         PostQuitMessage(0);
         return;
     }
 
-    const AutoTestWaypoint& waypoint = kAutoTestWaypoints[autoTestWaypoint_];
+    const AutoTestWaypoint& waypoint = kTourWaypoints[autoTestWaypoint_];
     const myEngine::Vector3 offset{waypoint.target.x - position.x, waypoint.target.y - position.y, 0.0f};
     const float distance = myEngine::Length(offset);
     if (!autoTestSettling_ && (distance < 1.5f || autoTestLegTime_ > 10.0f)) {
@@ -147,8 +487,9 @@ void SurvivorRunController::UpdateAutoTest(float dt)
     }
     autoTestLog_ << "{\"name\":\"" << waypoint.name << "\",\"target\":[" << waypoint.target.x << "," << waypoint.target.y
                  << "],\"player\":[" << position.x << "," << position.y << "],\"camera\":[" << camera.x << "," << camera.y
-                 << "],\"reached\":" << (distance < kAutoTestReachDistance ? "true" : "false") << ",\"aimError\":" << MeasureAimRoundTripError() << "}";
-    world_.run.tankRunCapturePath_ = std::string(kAutoTestDirectory) + "/" + waypoint.name + ".png";
+                 << "],\"reached\":" << (distance < kAutoTestReachDistance ? "true" : "false")
+                 << ",\"aimError\":" << MeasureAimRoundTripError() << "}";
+    RequestCapture(waypoint.name);
     autoTestCaptureQueued_ = true;
 }
 
