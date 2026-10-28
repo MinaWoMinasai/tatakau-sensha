@@ -358,7 +358,9 @@
     <ClInclude Include="game\run\TankExpeditionTutorial.h" />
     <None Include="resources\configs\tankExpeditionBalance.json" />
     <None Include="resources\maps\expedition_outskirts.csv" />
+    <None Include="resources\maps\survivor_arena.csv" />
     <None Include="resources\projects\tank_game.project.json" />
+    <None Include="resources\projects\tank_survivor.project.json" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="game\ui\TankRewardCard.cpp" />
