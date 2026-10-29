@@ -528,6 +528,7 @@
     <ClCompile Include="game\run\session\ArenaRunController.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunController.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunAutoTest.cpp" />
+    <ClCompile Include="game\run\session\SurvivorRunCinematic.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunLoadout.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunResult.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunSpawns.cpp" />

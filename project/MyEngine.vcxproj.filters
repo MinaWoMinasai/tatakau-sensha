@@ -548,6 +548,9 @@
     <ClCompile Include="game\run\session\SurvivorRunAutoTest.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunCinematic.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\run\session\SurvivorRunLoadout.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>

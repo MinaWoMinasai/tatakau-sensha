@@ -380,6 +380,10 @@ void CombatFramePipeline::Update()
         }
         world_.resources.camera->SetTranslate(nextCameraPos);
     }
+    // 育つ戦車の試作の演出（宿敵の登場・戦闘・撃破、自機の撃破）は、追従カメラの後に演出のカメラで上書きする。
+    if (world_.run.IsSurvivorRun() && !world_.resources.neonDepthCameraScoped_) {
+        world_.survivorRunController->ApplyCinematicCamera();
+    }
 
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (world_.presentation.developerStageTilt_ && world_.run.UsesPrototypeRules() && !world_.demo.titleDemo_ &&

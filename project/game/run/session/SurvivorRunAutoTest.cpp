@@ -241,6 +241,32 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
     }
 
+    // 演出：宿敵の登場（1.6秒）・撃破（0.9秒）・自機が倒れた演出（1.0秒）の画面を保存する。
+    if (world_.run.tankRunCapturePath_.empty()) {
+        if (cineMode_ == CineMode::RivalIntro && !autoIntroCaptured_ && cineTime_ >= 1.6f) {
+            RequestCapture("rival_intro");
+            autoIntroCaptured_ = true;
+        } else if (cineMode_ == CineMode::RivalDefeat && !autoDefeatCaptured_ && cineTime_ >= 0.9f) {
+            RequestCapture("rival_defeat");
+            autoDefeatCaptured_ = true;
+        } else if (cineMode_ == CineMode::PlayerDown && !autoDownCaptured_ && cineTime_ >= 1.0f) {
+            RequestCapture("player_down");
+            autoDownCaptured_ = true;
+        }
+    }
+    // MYENGINE_SURVIVOR_DEATH=秒：その区画の時刻で無敵を外して倒れ、倒れた演出と結果画面を確かめる。
+    if (autoDeathAt_ < 0.0f) {
+        wchar_t death[16]{};
+        autoDeathAt_ = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_DEATH", death, 16) > 0 ? static_cast<float>(_wtof(death)) : 1.0e9f;
+    }
+    if (!player.IsDead() && elapsed_ >= autoDeathAt_) {
+        world_.presentation.debugPlayerNoDamage_ = false;
+        player.SetDebugNoDamage(false);
+        player.TakeDamage(1000000, 0.0f);
+    }
+    if (player.IsDead() && IsResultVisible() && autoTestClearedTime_ < 0.0f) {
+        autoTestClearedTime_ = autoTestTime_;
+    }
     // 予告：群れと輪のそれぞれ最初の予告を、湧く0.5秒前に保存する。寄ってくる敵の数の最大も見る。
     for (const PendingWave& wave : pendingWaves_) {
         bool& captured = wave.ring ? autoRingWarningCaptured_ : autoSwarmWarningCaptured_;

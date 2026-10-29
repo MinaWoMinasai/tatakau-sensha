@@ -115,6 +115,21 @@ void SurvivorRunController::Initialize()
     qText_ = std::make_unique<myEngine::TextLabel>();
     qText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
     qText_->SetPosition({520.0f, 676.0f});
+    // 演出の上下の黒い帯と題字。
+    cineBarTop_ = bar({0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.92f});
+    cineBarBottom_ = bar({0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.92f});
+    style.fontSize = 40;
+    style.color = {1.0f, 0.55f, 0.45f, 1.0f};
+    // 題字は文字ごとに1つ作り、遊んでいる間は文字を変えない。
+    auto title = [&](const char* text) {
+        auto label = std::make_unique<myEngine::TextLabel>();
+        label->Initialize(myEngine::SpriteCommon::GetInstance(), text, style);
+        label->SetAnchorPoint({0.5f, 0.5f});
+        label->SetPosition({static_cast<float>(myEngine::WinApp::kClientWidth) * 0.5f, static_cast<float>(myEngine::WinApp::kClientHeight) - 43.0f});
+        return label;
+    };
+    cineTitleIntro_ = title("宿敵　出現");
+    cineTitleDefeat_ = title("宿敵　撃破");
     // 群れの予告の「！」。
     style.fontSize = 64;
     style.color = {1.0f, 0.25f, 0.25f, 1.0f};
@@ -192,6 +207,11 @@ void SurvivorRunController::Initialize()
             }
             ApplyParts();
         }
+        // MYENGINE_SURVIVOR_RIVAL_AT=秒：宿敵が現れる区画の時刻を早める（宿敵の演出の確認用）。
+        wchar_t rivalAt[16]{};
+        if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_RIVAL_AT", rivalAt, 16) > 0) {
+            config_.exitOpenSeconds = (std::max)(1.0f, static_cast<float>(_wtof(rivalAt)));
+        }
         // MYENGINE_SURVIVOR_START_PARTS=heatVent=1,pierce=3：指定した部品を、その Lv で積んだ状態から始める（部品ごとの確認用）。
         wchar_t startParts[256]{};
         const DWORD startLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_START_PARTS", startParts, 256);
@@ -227,6 +247,7 @@ void SurvivorRunController::Update(float dt)
         return;
     }
     UpdateTuningPanel();
+    UpdateCinematic(dt);
     SampleFps();
     if (formChoiceOpen_) {
         UpdateFormChoiceInput();
@@ -465,6 +486,8 @@ void SurvivorRunController::DrawUi()
         return;
     }
     if (world_.combat.combatFlow_.GetState() != GameFlowState::Playing || !hudText_) {
+        // 自機が倒れた演出の間も、上下の黒い帯は描く。
+        DrawCinematic();
         return;
     }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
@@ -501,6 +524,7 @@ void SurvivorRunController::DrawUi()
     }
     loadoutHud_.DrawLoadout();
     choiceHud_.Draw(choiceOpen_ || formChoiceOpen_, formChoiceOpen_ ? 0 : pendingChoices_);
+    DrawCinematic();
 }
 
 } // namespace gameplay

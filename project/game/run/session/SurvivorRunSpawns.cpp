@@ -381,7 +381,13 @@ void SurvivorRunController::SpawnRival()
     world_.combat.previousBossHp_ = rival.GetHp();
     world_.combat.bossDefeatHandled_ = false;
     world_.combat.screenEffectDirector_.TriggerBossEntry();
-    world_.combatFlow->SetEventCallout("宿敵が現れた　─　倒すと出口が開く", 1.6f);
+    // 試作では、立体の宿敵の頭を常に画面の上へ向け、少し大きく置く（照準へ頭を向けると横に寝て見えるため）。
+    if (world_.resources.neonBossVisual_) {
+        world_.resources.neonBossVisual_->SetUpright(true, 1.5f);
+    }
+    // 登場の演出：ゲームを止め、カメラを宿敵へ寄せる（UpdateCinematic）。
+    cineMode_ = CineMode::RivalIntro;
+    cineTime_ = 0.0f;
 }
 
 void SurvivorRunController::OnRivalDefeated()
@@ -389,13 +395,28 @@ void SurvivorRunController::OnRivalDefeated()
     if (!IsRivalActive()) {
         return;
     }
+    // 倒れた宿敵は、スローとカメラの寄りで撃破の演出を見せてから、欠片と宝箱を落として出口を開く（FinishRivalDefeat）。
+    // 遭遇戦はすぐに止める。倒れたまま有効にしておくと、立体の宿敵の資源が描画の途中で解放されて落ちるため。
     auto& rival = *world_.resources.enemy_;
     const myEngine::Vector3 position = rival.GetWorldPosition();
-    rivalDefeated_ = true;
-    rivalDefeatedAt_ = elapsed_;
-    // 倒した宿敵は、遭遇戦を止めて描画と当たり判定から外す。
     rival.SetRunEncounterEnabled(false);
     world_.run.tankExpeditionRivalActive_ = false;
+    rivalDefeated_ = true;
+    rivalDefeatedAt_ = elapsed_;
+    cineMode_ = CineMode::RivalDefeat;
+    cineTime_ = 0.0f;
+    cineBursts_ = 0;
+    cineAnchor_ = position;
+    world_.combatEffects->TriggerDeathPostPulse(position, 1.55f);
+    world_.presentation.cameraShakeDuration_ = 0.5f;
+    world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
+    world_.presentation.cameraShakePower_ = 0.9f;
+    world_.combatFlow->SetEventCallout("宿敵を撃破", 1.4f);
+}
+
+void SurvivorRunController::FinishRivalDefeat()
+{
+    const myEngine::Vector3 position = cineAnchor_;
     pickups_.Drop(position, static_cast<uint32_t>((std::max)(0, config_.rival.exp)), random_);
     expDropped_ += (std::max)(0, config_.rival.exp);
     ++pendingChoices_;
@@ -403,12 +424,8 @@ void SurvivorRunController::OnRivalDefeated()
     ++premiumTotal_;
     pendingSince_.push_back(elapsed_);
     choiceHud_.SetPending(pendingChoices_, choiceOpen_);
-    world_.combatEffects->TriggerDeathPostPulse(position, 1.55f);
-    world_.presentation.cameraShakeDuration_ = 0.5f;
-    world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
-    world_.presentation.cameraShakePower_ = 0.9f;
     OpenExit();
-    world_.combatFlow->SetEventCallout("宿敵を撃破　─　出口が開いた", 1.6f);
+    world_.combatFlow->SetEventCallout("出口が開いた", 1.6f);
 }
 
 void SurvivorRunController::OpenExit()

@@ -46,6 +46,9 @@ public:
     /// @note CombatFramePipeline が、演出の減速（ジャスト回避など）を掛けた後の時間にさらに掛ける。
     float GetTimeScale() const
     {
+        if (cineMode_ == CineMode::RivalDefeat) {
+            return 0.3f;
+        }
         return choiceOpen_ ? config_.choiceSlowTimeScale : 1.0f;
     }
 
@@ -55,12 +58,25 @@ public:
         return formChoiceOpen_;
     }
 
-    /// @brief ゲームを止めているか。形態を選ぶ間と、調整パネルを「止める」にして開いている間は真。
+    /// @brief ゲームを止めているか。形態を選ぶ間・調整パネルを「止める」にして開いている間・宿敵の登場の間は真。
     /// @note 止めている間も、スロー演出ではないので画面の色は残す（GameplayQueries・CombatFramePipeline）。
     bool IsPaused() const
     {
-        return formChoiceOpen_ || (tuningOpen_ && tuningPause_);
+        return formChoiceOpen_ || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro;
     }
+
+    /// @brief 演出のカメラ。active なら、CombatFramePipeline が追従カメラの代わりに使う。
+    struct CameraDirective {
+        bool active = false;
+        myEngine::Vector3 focus{};    // 見る床の点
+        float distanceScale = 1.0f;   // 通常の距離に対する倍率（小さいほど寄る）
+        float tiltDegrees = 0.0f;     // 手前へ傾ける角度（0 で真上から）
+    };
+    /// @brief 今の演出のカメラ（なめらかにした値）を返す。
+    CameraDirective GetCameraDirective() const;
+    /// @brief 演出のカメラがあれば、追従カメラの後にカメラの位置と傾きを上書きする。CombatFramePipeline が毎フレーム呼ぶ。
+    /// @note 傾けている間は、自機の照準を床の平面とのレイで求める。演出が終わると元の向きに戻す。
+    void ApplyCinematicCamera();
 
     /// @brief 宿敵が倒れたときに CombatFlow から1回呼ばれる。結果画面へは移らず、欠片と宝箱を落として出口を開く。
     void OnRivalDefeated();
@@ -103,6 +119,12 @@ private:
     void SpawnRival();
     /// @brief 宿敵が戦っているか。
     bool IsRivalActive() const;
+    /// @brief 撃破の演出を終えた宿敵を片付け、欠片と宝箱を落として出口を開く。
+    void FinishRivalDefeat();
+    /// @brief 演出の段階（登場・戦闘・撃破・自機の撃破）を進め、カメラの値をなめらかに目標へ寄せる。dt は基準時間。
+    void UpdateCinematic(float dt);
+    /// @brief 演出の上下の黒い帯と題字を描く。
+    void DrawCinematic();
     /// @brief 敵どうしが重ならないように、近い組を押し離す。格子のマスで絞り、同じマスと隣のマスの組だけを調べる。
     void SeparateEnemies();
     /// @brief 区画の時間と敵の数の表示を更新する。
@@ -203,6 +225,30 @@ private:
     bool separationEnabled_ = true;
     double separationSeconds_ = 0.0;
     uint64_t separationCalls_ = 0;
+    // 宿敵と自機の撃破の演出。RivalIntro はゲームを止め、RivalDefeat はスローにする。
+    enum class CineMode {
+        None,
+        RivalIntro,
+        RivalFight,
+        RivalDefeat,
+        PlayerDown
+    };
+    CineMode cineMode_ = CineMode::None;
+    float cineTime_ = 0.0f;
+    myEngine::Vector3 cineAnchor_{};  // 撃破の演出で見る点（倒れた位置）
+    int cineBursts_ = 0;
+    // なめらかにしたカメラの値。
+    myEngine::Vector3 cineFocus_{};
+    float cineDistance_ = 1.0f;
+    float cineTilt_ = 0.0f;
+    float cineLetterbox_ = 0.0f;
+    bool cineFocusReady_ = false;
+    bool cameraTilted_ = false;
+    myEngine::Vector3 cameraBaseRotation_{};
+    std::unique_ptr<myEngine::Sprite> cineBarTop_;
+    std::unique_ptr<myEngine::Sprite> cineBarBottom_;
+    std::unique_ptr<myEngine::TextLabel> cineTitleIntro_;
+    std::unique_ptr<myEngine::TextLabel> cineTitleDefeat_;
     // 脅威の段階と宿敵。
     int threatStage_ = 1;
     float nextRing_ = 0.0f;
@@ -344,6 +390,11 @@ private:
     bool autoSwarmWarningCaptured_ = false;
     bool autoRingWarningCaptured_ = false;
     int autoMaxChasers_ = 0;
+    bool autoIntroCaptured_ = false;
+    bool autoDefeatCaptured_ = false;
+    bool autoDownCaptured_ = false;
+    // 倒れる確認の時刻（MYENGINE_SURVIVOR_DEATH）。-1 はまだ読んでいない。
+    float autoDeathAt_ = -1.0f;
     bool autoRivalCaptured_ = false;
     // 200体の fps の確認。場面ごとに1秒ずつの fps・敵の数・画面の中の数を足し込む。
     struct PerfPhase {
