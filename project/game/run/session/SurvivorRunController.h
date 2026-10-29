@@ -3,6 +3,7 @@
 #include "game/run/SurvivorSpawnConfig.h"
 #include "game/run/session/SurvivorPickups.h"
 #include "game/ui/session/SurvivorChoiceHud.h"
+#include "game/ui/session/SurvivorLoadoutHud.h"
 #include <chrono>
 #include <optional>
 #include <random>
@@ -124,6 +125,14 @@ private:
     void UpdateFormChoiceInput();
     /// @brief index 番目の形態に変える。
     void ChooseForm(size_t index);
+    /// @brief 今のレベルでの積載量を返す。
+    int Capacity() const;
+    /// @brief offerIndex 番目の札を積むために、外す部品を選ぶ画面を開く（3択は開いたまま）。
+    void OpenRemoval(size_t offerIndex);
+    /// @brief 外す画面の入力：数字キーかクリックで外し、Esc でやめる。
+    void UpdateRemovalInput();
+    /// @brief 部品を外して欠片を落とす。積載が足りたら、待っていた札を積む。
+    void RemovePart(survivor::PartId id);
     /// @brief 欠片の引き寄せと拾う範囲を、設定から渡し直す。
     void ConfigurePickups();
     /// @brief F2 で調整パネルを開閉して描き、変えた値を自機と欠片に反映する。保存と再読込もここで行う。
@@ -197,6 +206,13 @@ private:
     bool offersPremium_ = false;
     int spikeKills_ = 0;
     SurvivorChoiceHud choiceHud_;
+    // 積載。積載を超える札を選ぶと、外す部品を選ぶ画面（removalOpen_）を開き、removalOffer_ 番目の札を待たせる。
+    SurvivorLoadoutHud loadoutHud_;
+    bool removalOpen_ = false;
+    size_t removalOffer_ = 0;
+    int removals_ = 0;
+    int maxLoad_ = 0;
+    std::ostringstream removalRecord_;
     bool formChoiceOpen_ = false;
     bool formChosen_ = false;
     std::string formKey_ = "basic";
@@ -273,6 +289,7 @@ private:
     // トゲの確認：0 未実施、2 壊れた、3 壊れなかった、-1 置けなかった。
     int autoSpikeProbe_ = 0;
     bool autoRingCaptured_ = false;
+    bool autoRemovalCaptured_ = false;
     bool autoRivalCaptured_ = false;
     // 200体の fps の確認。場面ごとに1秒ずつの fps・敵の数・画面の中の数を足し込む。
     struct PerfPhase {

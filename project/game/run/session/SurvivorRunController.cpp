@@ -111,6 +111,8 @@ void SurvivorRunController::Initialize()
     exitText_->SetPosition({24.0f, 52.0f});
     choiceHud_.Initialize();
     choiceHud_.SetPending(0, false);
+    loadoutHud_.Initialize();
+    loadoutHud_.SetLoadout(config_.parts, partLevels_, Capacity());
 
     // 結果画面：暗い板の上に、生き延びた時間・レベル・撃破数・形態・部品と、もう1回／タイトルへ。
     resultPanel_ = bar({240.0f, 205.0f}, {800.0f, 500.0f}, {0.01f, 0.03f, 0.05f, 0.82f});
@@ -411,6 +413,12 @@ void SurvivorRunController::DrawUi()
     if (exitOpen_ && exitText_) {
         exitText_->Draw();
     }
+    // 外す画面は持っている部品を並べるので、左下の積載の表示は出さない。
+    if (removalOpen_ && choiceOpen_) {
+        loadoutHud_.DrawRemoval();
+        return;
+    }
+    loadoutHud_.DrawLoadout();
     choiceHud_.Draw(choiceOpen_ || formChoiceOpen_, formChoiceOpen_ ? 0 : pendingChoices_);
 }
 

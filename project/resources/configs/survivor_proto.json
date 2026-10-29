@@ -38,6 +38,10 @@
     "magnetRadius": 5.0, "collectRadius": 1.2, "valuePerShard": 30, "maxShards": 600, "maxLevel": 45,
     "levelCurve": { "base": 25, "growth": 30, "power": 1.7 }
   },
+  "load": {
+    "comment": "積載量 = base + Lv / perLevels（3レベルごとに+1）。積んでいる部品の重さの合計がこれを超える部品は、何かを外さないと積めない。外した部品は Lv × refundPerLevel の経験値の欠片を落とす。",
+    "base": 6, "perLevels": 3, "refundPerLevel": 60
+  },
   "choices": {
     "comment": "毎レベルの3択。Tab で開き、開いている間はゲームの時間を slowTimeScale 倍にする。autoOpen が true なら、レベルが上がったらすぐ開く。lightBias は1枚目に軽い部品が出やすくなる倍率。",
     "slowTimeScale": 0.25, "autoOpen": false, "lightBias": 2.0
@@ -58,20 +62,20 @@
                     "railPower": 1.0, "railHeatBase": 10, "railHeatPerCharge": 25 }
   },
   "parts": {
-    "comment": "軽い部品（Lv1〜5）は1段ごとの上がり幅。0.12 なら +12%。装填機は1秒あたりの発射数、冷却器は冷える速さ（撃っている間も）を上げる。ほかの部品（Lv1〜3）は Lv2 から1段ごとに効果の強さへ足す量。",
-    "armor": { "perLevel": 0.12 },
-    "ram": { "perLevel": 0.20 },
-    "warhead": { "perLevel": 0.10 },
-    "loader": { "perLevel": 0.12 },
-    "thruster": { "perLevel": 0.08 },
-    "collector": { "perLevel": 0.25 },
-    "cooler": { "perLevel": 0.20 },
-    "shieldCapacity": { "perLevel": 0.25 },
-    "pierce": { "perLevel": 0.5 },
-    "chainLightning": { "perLevel": 0.5 },
-    "killBurst": { "perLevel": 0.5 },
-    "dashBurst": { "perLevel": 0.5 },
-    "heavyWarhead": { "perLevel": 0.5 }
+    "comment": "軽い部品（Lv1〜5）は1段ごとの上がり幅。0.12 なら +12%。装填機は1秒あたりの発射数、冷却器は冷える速さ（撃っている間も）を上げる。ほかの部品（Lv1〜3）は Lv2 から1段ごとに効果の強さへ足す量。weight は積載に使う重さ（Lv を上げても変わらない）。",
+    "armor": { "perLevel": 0.12, "weight": 1 },
+    "ram": { "perLevel": 0.20, "weight": 1 },
+    "warhead": { "perLevel": 0.10, "weight": 1 },
+    "loader": { "perLevel": 0.12, "weight": 1 },
+    "thruster": { "perLevel": 0.08, "weight": 1 },
+    "collector": { "perLevel": 0.25, "weight": 1 },
+    "cooler": { "perLevel": 0.20, "weight": 1 },
+    "shieldCapacity": { "perLevel": 0.25, "weight": 1 },
+    "pierce": { "perLevel": 0.5, "weight": 1 },
+    "chainLightning": { "perLevel": 0.5, "weight": 2 },
+    "killBurst": { "perLevel": 0.5, "weight": 2 },
+    "dashBurst": { "perLevel": 0.5, "weight": 1 },
+    "heavyWarhead": { "perLevel": 0.5, "weight": 1 }
   },
   "bigPentagon": {
     "comment": "五角を大きく硬くしたもの。",

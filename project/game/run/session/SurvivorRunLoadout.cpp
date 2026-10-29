@@ -29,6 +29,8 @@ void SurvivorRunController::AddExperience(int amount)
         world_.combatFlow->SetEventCallout("レベル " + std::to_string(level_), 0.8f);
     }
     choiceHud_.SetPending(pendingChoices_, choiceOpen_);
+    // 3レベルごとに積載量が増えるので、左下の表示を作り直す。
+    loadoutHud_.SetLoadout(config_.parts, partLevels_, Capacity());
     if (!formChosen_ && level_ >= config_.formLevel) {
         OpenFormChoice();
     } else if (config_.choiceAutoOpen && pendingChoices_ > 0 && !choiceOpen_) {
@@ -51,6 +53,10 @@ void SurvivorRunController::UpdateChoiceInput()
         return;
     }
     if (!choiceOpen_) {
+        return;
+    }
+    if (removalOpen_) {
+        UpdateRemovalInput();
         return;
     }
     // 1〜3キーは3択を開いている間だけ使う。
@@ -84,13 +90,14 @@ void SurvivorRunController::DrawNextOffers()
     // 宝箱の選択が貯まっていれば、先にそれを出す。
     offersPremium_ = pendingPremium_ > 0;
     offers_ = survivor::DrawOffers(config_.parts, partLevels_, config_.choiceLightBias, random_, offersPremium_);
-    choiceHud_.SetOffers(offers_, config_.parts, offersPremium_);
+    choiceHud_.SetOffers(offers_, config_.parts, offersPremium_, partLevels_, Capacity());
     choiceHud_.SetPending(pendingChoices_, true);
 }
 
 void SurvivorRunController::CloseChoices()
 {
     choiceOpen_ = false;
+    removalOpen_ = false;
     offers_.clear();
     choiceHud_.SetPending(pendingChoices_, false);
 }
@@ -101,6 +108,11 @@ void SurvivorRunController::ChooseOffer(size_t index)
         return;
     }
     const survivor::PartOffer offer = offers_[index];
+    // 積載を超える札は、外す部品を選んでから積む（RemovePart が外し終えたら、もう一度ここへ来る）。
+    if (survivor::ExceedsLoad(config_.parts, partLevels_, offer.part, Capacity())) {
+        OpenRemoval(index);
+        return;
+    }
     auto& player = *world_.resources.player_;
     // 遊んだ記録：出た3枚・選んだ札・貯まってから選ぶまでの区画の秒・3択を開いていた秒。
     auto key = [&](const survivor::PartOffer& item) {
@@ -138,6 +150,76 @@ void SurvivorRunController::ChooseOffer(size_t index)
     } else {
         CloseChoices();
     }
+}
+
+int SurvivorRunController::Capacity() const
+{
+    return config_.CapacityAt(level_);
+}
+
+void SurvivorRunController::OpenRemoval(size_t offerIndex)
+{
+    removalOpen_ = true;
+    removalOffer_ = offerIndex;
+    loadoutHud_.SetRemoval(config_.parts, partLevels_, Capacity(), offers_[offerIndex].part, config_.load.refundPerLevel);
+}
+
+void SurvivorRunController::UpdateRemovalInput()
+{
+    auto& input = *world_.resources.input_;
+    if (input.IsKeyTriggered(DIK_ESCAPE)) {
+        // やめたら、積まずに同じ3択へ戻る（選択は使わない）。Tab は UpdateChoiceInput が3択ごと閉じる。
+        removalOpen_ = false;
+        return;
+    }
+    // 1〜9 と 0（10番目）で外す。
+    for (size_t row = 0; row < loadoutHud_.RowCount() && row < 10; ++row) {
+        const uint8_t key = row < 9 ? static_cast<uint8_t>(DIK_1 + row) : static_cast<uint8_t>(DIK_0);
+        if (input.IsKeyTriggered(key)) {
+            RemovePart(loadoutHud_.RowPart(row));
+            return;
+        }
+    }
+    const myEngine::Vector2 mouse = input.GetMousePosition();
+    loadoutHud_.Update(mouse);
+    if (input.IsTrigger(input.GetMouseState().rgbButtons[0], input.GetPreMouseState().rgbButtons[0])) {
+        const int hit = loadoutHud_.HitTest(mouse);
+        if (hit >= 0) {
+            RemovePart(loadoutHud_.RowPart(static_cast<size_t>(hit)));
+        }
+    }
+}
+
+void SurvivorRunController::RemovePart(survivor::PartId id)
+{
+    if (!removalOpen_ || id == survivor::PartId::Count || removalOffer_ >= offers_.size()) {
+        return;
+    }
+    const size_t index = static_cast<size_t>(id);
+    const int level = partLevels_[index];
+    if (level <= 0) {
+        return;
+    }
+    // 外した部品は、Lv に応じた経験値の欠片を自機の足もとに落とす。
+    const int refund = level * (std::max)(0, config_.load.refundPerLevel);
+    if (refund > 0) {
+        pickups_.Drop(world_.resources.player_->GetWorldPosition(), static_cast<uint32_t>(refund), random_);
+        expDropped_ += refund;
+    }
+    partLevels_[index] = 0;
+    ApplyParts();
+    ++removals_;
+    const auto& incoming = config_.parts[static_cast<size_t>(offers_[removalOffer_].part)];
+    removalRecord_ << (removalRecord_.tellp() > 0 ? "," : "") << "{\"t\":" << std::lround(elapsed_) << ",\"removed\":\""
+                   << config_.parts[index].key << "\",\"level\":" << level << ",\"for\":\"" << incoming.key << "\"}";
+    world_.combatFlow->SetEventCallout(std::string(config_.parts[index].name) + " を外した", 0.7f);
+    // まだ足りなければ外す画面のまま。足りたら、その札を積む。
+    if (survivor::ExceedsLoad(config_.parts, partLevels_, offers_[removalOffer_].part, Capacity())) {
+        loadoutHud_.SetRemoval(config_.parts, partLevels_, Capacity(), offers_[removalOffer_].part, config_.load.refundPerLevel);
+        return;
+    }
+    removalOpen_ = false;
+    ChooseOffer(removalOffer_);
 }
 
 void SurvivorRunController::OpenFormChoice()
@@ -240,6 +322,8 @@ void SurvivorRunController::ApplyParts()
     effects.spikes = survivor::HasChange(partLevels_, PartId::Ram);
     effects.invincibleScale = survivor::HasChange(partLevels_, PartId::Armor) ? 1.8f : 1.0f;
     player.SetSurvivorPartEffects(effects);
+    loadoutHud_.SetLoadout(config_.parts, partLevels_, Capacity());
+    maxLoad_ = (std::max)(maxLoad_, survivor::LoadOf(config_.parts, partLevels_));
 }
 
 void SurvivorRunController::UpdateSpikes()

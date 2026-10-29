@@ -109,7 +109,8 @@ void SurvivorRunController::WriteRunLog()
     output << "{\"cleared\":" << (cleared_ ? "true" : "false") << ",\"seconds\":" << elapsed_ << ",\"level\":" << level_
            << ",\"kills\":" << world_.combat.defeatedEnemies_ << ",\"damageTaken\":" << world_.combat.damageTaken_
            << ",\"form\":\"" << formKey_ << "\",\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_
-           << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_ << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"levelTimes\":[";
+           << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_ << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"capacity\":" << Capacity()
+           << ",\"load\":" << survivor::LoadOf(config_.parts, partLevels_) << ",\"removals\":[" << removalRecord_.str() << "],\"levelTimes\":[";
     for (size_t i = 0; i < levelTimes_.size(); ++i) {
         output << (i ? "," : "") << std::lround(levelTimes_[i]);
     }

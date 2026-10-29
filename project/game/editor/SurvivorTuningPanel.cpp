@@ -169,10 +169,21 @@ bool DrawPartsAndChoices(SpawnConfig& config)
     changed |= ImGui::SliderFloat("3択を開いている間の時間", &config.choiceSlowTimeScale, 0.05f, 1.0f, "×%.2f");
     changed |= ImGui::DragFloat("1枚目に軽い部品が出やすい倍率", &config.choiceLightBias, 0.05f, 0.0f, 10.0f, "%.2f");
     changed |= ImGui::Checkbox("レベルが上がったらすぐ開く", &config.choiceAutoOpen);
-    ImGui::SeparatorText("1段の上がり幅（軽い部品は割合、ほかは効果の強さ）");
+    ImGui::SeparatorText("積載量（base + Lv / perLevels）");
+    changed |= ImGui::DragInt("最初の積載量", &config.load.base, 0.1f, 1, 40);
+    changed |= ImGui::DragInt("何レベルごとに+1", &config.load.perLevels, 0.1f, 1, 20);
+    changed |= ImGui::DragInt("外したときの欠片（Lv あたり）", &config.load.refundPerLevel, 1.0f, 0, 1000);
+    ImGui::SeparatorText("1段の上がり幅（軽い部品は割合、ほかは効果の強さ）と重さ");
     for (auto& part : config.parts) {
-        const std::string label = std::string(part.name) + (part.light ? "（軽）" : "") + "##" + part.key;
-        changed |= ImGui::DragFloat(label.c_str(), &part.perLevel, 0.005f, 0.0f, 3.0f, "%.3f");
+        ImGui::PushID(part.key);
+        ImGui::SetNextItemWidth(180.0f);
+        changed |= ImGui::DragFloat("##perLevel", &part.perLevel, 0.005f, 0.0f, 3.0f, "%.3f");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(70.0f);
+        changed |= ImGui::DragInt("##weight", &part.weight, 0.05f, 0, 9, "重さ %d");
+        ImGui::SameLine();
+        ImGui::Text("%s%s", part.name, part.light ? "（軽）" : "");
+        ImGui::PopID();
     }
     ImGui::SeparatorText("形態（次に選んだときから効く）");
     for (auto& form : config.forms) {

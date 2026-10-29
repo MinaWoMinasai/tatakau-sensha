@@ -87,6 +87,27 @@ inline int LevelOf(const PartLevels& levels, PartId id)
     return levels[static_cast<size_t>(id)];
 }
 
+/// @brief 積んでいる部品（Lv1以上）の重さの合計を返す。Lv を上げても重さは変わらない。
+inline int LoadOf(const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels)
+{
+    int load = 0;
+    for (size_t i = 0; i < kPartCount; ++i) {
+        if (levels[i] > 0) {
+            load += parts[i].weight;
+        }
+    }
+    return load;
+}
+
+/// @brief 3択の札を積むと、積載を超えるか。持っている部品の Lv 上げと修理は超えない。
+inline bool ExceedsLoad(const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels, PartId id, int capacity)
+{
+    if (id == PartId::Count || levels[static_cast<size_t>(id)] > 0) {
+        return false;
+    }
+    return LoadOf(parts, levels) + parts[static_cast<size_t>(id)].weight > capacity;
+}
+
 /// @brief 軽い部品が3段に達しているか。
 inline bool HasChange(const PartLevels& levels, PartId id)
 {

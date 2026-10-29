@@ -93,6 +93,19 @@ struct SpawnConfig {
     float levelPower = 1.7f;
     int maxLevel = 45;
 
+    /// @brief 積載量。base + Lv / perLevels（3レベルごとに+1）。外した部品は Lv × refundPerLevel の経験値の欠片を落とす。
+    struct Load {
+        int base = 6;
+        int perLevels = 3;
+        int refundPerLevel = 60;
+    } load;
+
+    /// @brief レベル level での積載量を返す。
+    int CapacityAt(int level) const
+    {
+        return load.base + (std::max)(0, level) / (std::max)(1, load.perLevels);
+    }
+
     // 部品と3択。
     std::array<PartDefinition, kPartCount> parts = DefaultParts();
     float choiceSlowTimeScale = 0.25f;
@@ -282,6 +295,14 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(curve, "power", config.levelPower);
         }
     }
+    if (data.contains("load")) {
+        const auto& load = data.at("load");
+        number(load, "base", config.load.base);
+        number(load, "perLevels", config.load.perLevels);
+        number(load, "refundPerLevel", config.load.refundPerLevel);
+        config.load.base = (std::max)(1, config.load.base);
+        config.load.perLevels = (std::max)(1, config.load.perLevels);
+    }
     if (data.contains("choices")) {
         const auto& choices = data.at("choices");
         number(choices, "slowTimeScale", config.choiceSlowTimeScale);
@@ -297,6 +318,8 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             const auto& parts = data.at("parts");
             if (parts.contains(part.key)) {
                 number(parts.at(part.key), "perLevel", part.perLevel);
+                number(parts.at(part.key), "weight", part.weight);
+                part.weight = (std::clamp)(part.weight, 0, 9);
             }
         }
     }
@@ -405,6 +428,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     experience["maxShards"] = config.maxShards;
     experience["maxLevel"] = config.maxLevel;
     experience["levelCurve"] = {{"base", round(config.levelBase)}, {"growth", round(config.levelGrowth)}, {"power", round(config.levelPower)}};
+    auto& load = section("load");
+    load["base"] = config.load.base;
+    load["perLevels"] = config.load.perLevels;
+    load["refundPerLevel"] = config.load.refundPerLevel;
     auto& choices = section("choices");
     choices["slowTimeScale"] = round(config.choiceSlowTimeScale);
     choices["autoOpen"] = config.choiceAutoOpen;
@@ -438,6 +465,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     auto& parts = section("parts");
     for (const auto& part : config.parts) {
         parts[part.key]["perLevel"] = round(part.perLevel);
+        parts[part.key]["weight"] = part.weight;
     }
     auto& big = section("bigPentagon");
     timed(big, config.bigPentagon, true);
@@ -462,9 +490,9 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 17> kOrder{
-        "schemaVersion", "comment", "exitOpenSeconds", "exitRadius", "spawnRing", "shapes", "triangleSwarm", "tanks",  "threat",
-        "rival",         "experience", "choices",      "heat",       "shield",    "forms",  "parts",         "bigPentagon"};
+    static constexpr std::array<const char*, 18> kOrder{
+        "schemaVersion", "comment", "exitOpenSeconds", "exitRadius", "spawnRing", "shapes", "triangleSwarm", "tanks", "threat",
+        "rival",         "experience", "load",         "choices",    "heat",      "shield", "forms",         "parts", "bigPentagon"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
         if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {

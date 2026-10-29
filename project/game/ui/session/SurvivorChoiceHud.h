@@ -17,8 +17,10 @@ public:
     void Initialize();
     /// @brief 3択の中身を差し替える。offers が3枚より少ないときは、残りの札を出さない。
     /// @param premium 真なら、宝箱から得た質の高い選択だと見出しに出す。
+    /// @param levels 今の部品の Lv。新しく積む札に、重さと積載（今→積んだ後／上限）を書く。
+    /// @param capacity 今の積載量。超える札には「何かを外して積む」と書く。
     void SetOffers(const std::vector<survivor::PartOffer>& offers, const std::array<survivor::PartDefinition, survivor::kPartCount>& parts,
-                   bool premium = false);
+                   bool premium, const survivor::PartLevels& levels, int capacity);
     /// @brief 部品以外の選択（形態など）の札を出す。見出しと下の案内も差し替え、次の SetOffers まで SetPending は案内を変えない。
     void SetCards(const std::string& heading, const std::string& footer, const std::vector<std::pair<std::string, std::string>>& cards);
     /// @brief 貯まった選択の数の表示を更新する。

@@ -155,6 +155,25 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             RequestCapture("choice_open");
             autoChoiceCaptured_ = true;
         }
+        // 積載を超えて外す画面が開いたら、0.3秒で画面を保存し、0.6秒で一番 Lv の低い部品を外す。
+        if (removalOpen_) {
+            if (!autoRemovalCaptured_ && autoChoiceTimer_ > 0.3f && world_.run.tankRunCapturePath_.empty()) {
+                RequestCapture("removal_open");
+                autoRemovalCaptured_ = true;
+            }
+            if (autoChoiceTimer_ > 0.6f && loadoutHud_.RowCount() > 0) {
+                size_t lowest = 0;
+                for (size_t row = 1; row < loadoutHud_.RowCount(); ++row) {
+                    if (partLevels_[static_cast<size_t>(loadoutHud_.RowPart(row))] <
+                        partLevels_[static_cast<size_t>(loadoutHud_.RowPart(lowest))]) {
+                        lowest = row;
+                    }
+                }
+                RemovePart(loadoutHud_.RowPart(lowest));
+                autoChoiceTimer_ = 0.0f;
+            }
+            return;
+        }
         if (autoChoiceTimer_ > 0.6f && !offers_.empty()) {
             const size_t index = autoPick_++ % offers_.size();
             const survivor::PartOffer offer = offers_[index];
@@ -269,7 +288,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"dashExplosions\":" << player.GetDashExplosionCount() << ",\"maxStamina\":" << player.GetStats().maxStamina
             << ",\"heatMax\":" << player.GetHeat().GetMaxHeat() << ",\"shieldMax\":" << player.GetShieldMax() << ",\"shieldCheck\":[" << autoShieldLog_.str() << "]"
             << ",\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_ << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_
-            << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_
+            << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"removals\":" << removals_ << ",\"maxLoad\":" << maxLoad_
+            << ",\"loadAtEnd\":" << survivor::LoadOf(config_.parts, partLevels_) << ",\"capacityAtEnd\":" << Capacity()
+            << ",\"removalLog\":[" << removalRecord_.str() << "]"
             << ",\"samples\":[" << autoTestLog_.str() << "]}\n";
         autoTest_ = AutoTest::None;
         PostQuitMessage(0);

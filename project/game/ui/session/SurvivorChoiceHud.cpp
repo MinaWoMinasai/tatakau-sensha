@@ -53,22 +53,35 @@ void SurvivorChoiceHud::Initialize()
 }
 
 void SurvivorChoiceHud::SetOffers(const std::vector<survivor::PartOffer>& offers,
-                                  const std::array<survivor::PartDefinition, survivor::kPartCount>& parts, bool premium)
+                                  const std::array<survivor::PartDefinition, survivor::kPartCount>& parts, bool premium,
+                                  const survivor::PartLevels& levels, int capacity)
 {
     offerCount_ = (std::min)(offers.size(), cards_.size());
     customCards_ = false;
-    heading_->SetText(premium ? "部品を選ぶ（宝箱：軽い部品なし）" : "部品を選ぶ");
+    const int load = survivor::LoadOf(parts, levels);
+    heading_->SetText(std::string(premium ? "部品を選ぶ（宝箱：軽い部品なし）" : "部品を選ぶ") + "　　積載 " + std::to_string(load) + " / " +
+                      std::to_string(capacity));
     LayoutCards();
     for (size_t i = 0; i < offerCount_; ++i) {
         const auto& offer = offers[i];
         std::string title = std::to_string(i + 1) + "  ";
+        std::string body = survivor::DescribeOffer(parts, offer);
         if (offer.part == survivor::PartId::Count) {
             title += "修理キット";
         } else {
-            title += std::string(parts[static_cast<size_t>(offer.part)].name) + "  Lv" + std::to_string(offer.nextLevel);
+            const auto& part = parts[static_cast<size_t>(offer.part)];
+            title += std::string(part.name) + "  Lv" + std::to_string(offer.nextLevel);
+            // 新しく積む札だけ、重さと積んだ後の積載を書く（Lv 上げは重さが変わらない）。
+            if (offer.nextLevel == 1) {
+                const int after = load + part.weight;
+                body += "\n重さ " + std::to_string(part.weight) + "　積載 " + std::to_string(after) + "/" + std::to_string(capacity);
+                if (survivor::ExceedsLoad(parts, levels, offer.part, capacity)) {
+                    body += "　→ 外して積む";
+                }
+            }
         }
         titles_[i]->SetText(title);
-        bodies_[i]->SetText(survivor::DescribeOffer(parts, offer));
+        bodies_[i]->SetText(body);
     }
 }
 
