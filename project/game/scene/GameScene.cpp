@@ -78,7 +78,11 @@ IScene::BloomViewSettings GameScene::GetBloomViewSettings() const
 
 IScene::ArenaLookSettings GameScene::GetArenaLookSettings() const
 {
-    return arenalook::Get();
+    IScene::ArenaLookSettings look = arenalook::Get();
+    if (session_) {
+        session_->ApplyArenaLookOverrides(look);
+    }
+    return look;
 }
 
 bool GameScene::IsNeonShowcaseActive() const

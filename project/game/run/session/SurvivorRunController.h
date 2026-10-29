@@ -96,6 +96,8 @@ private:
     void SpawnRival();
     /// @brief 宿敵が戦っているか。
     bool IsRivalActive() const;
+    /// @brief 敵どうしが重ならないように、近い組を押し離す。格子のマスで絞り、同じマスと隣のマスの組だけを調べる。
+    void SeparateEnemies();
     /// @brief 区画の時間と敵の数の表示を更新する。
     void RefreshHud();
     /// @brief 拾った経験値を足し、必要な分が貯まるたびにレベルを上げる。
@@ -157,6 +159,21 @@ private:
     size_t nextTankType_ = 0;
     bool exitOpen_ = false;
     bool cleared_ = false;
+    // 敵の押し離しで毎回使う作業用の配列（確保をくり返さないために持っておく）。
+    struct SeparationItem {
+        ExpEnemy* enemy = nullptr;
+        myEngine::Vector3 position{};
+        myEngine::Vector3 push{};
+        float radius = 0.0f;
+        float mass = 1.0f;
+        int64_t cell = 0;
+    };
+    std::vector<SeparationItem> separationItems_;
+    std::vector<uint32_t> separationOrder_;
+    // 押し離しにかかった時間（200体の fps の確認で記録する）。
+    bool separationEnabled_ = true;
+    double separationSeconds_ = 0.0;
+    uint64_t separationCalls_ = 0;
     // 脅威の段階と宿敵。
     int threatStage_ = 1;
     float nextRing_ = 0.0f;

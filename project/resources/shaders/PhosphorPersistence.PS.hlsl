@@ -27,5 +27,11 @@ float4 main(PSInput input) : SV_TARGET
     // 残るのは発光エネルギーだけで、暗い床や本体に幕が積み重なることはない。
     float historyPeak = max(max(history.r, history.g), history.b);
     history *= smoothstep(0.18f, 0.65f, historyPeak);
+    // 指定された円の中は残光を出さない（自機に付いたゲージが、移動中に重なって見えないようにする）。
+    if (arenaPersistenceMaskRadius > 0.0f)
+    {
+        float2 offset = (uv - float2(arenaPersistenceMaskX, arenaPersistenceMaskY)) * float2(arenaPersistenceMaskAspect, 1.0f);
+        history *= smoothstep(arenaPersistenceMaskRadius * 0.85f, arenaPersistenceMaskRadius, length(offset));
+    }
     return float4(max(currentColor, history), 1.0f);
 }

@@ -74,6 +74,10 @@ struct ArenaLookSettings {
     float nebulaDrift = 0.004f;
     Vector3 nebulaColorA{0.30f, 0.05f, 0.42f};
     Vector3 nebulaColorB{0.06f, 0.02f, 0.30f};
+    // 残光を出さない円（画面のUV、半径は画面の高さに対する比）。半径0で無効。
+    // 自機に付いて動くゲージのように、カメラと一緒に動くものの残光だけを消したいときに使う。
+    Vector2 persistenceMaskCenter{0.5f, 0.5f};
+    float persistenceMaskRadius = 0.0f;
 };
 
 /// @brief ブルームの説明用の表示切り替え。view: 0=通常, 1=OFF, 2=ピラミッドの1段だけ, 3=光の成分だけ。

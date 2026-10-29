@@ -846,6 +846,10 @@ void Bloom::ApplyArenaLook()
 {
     const ArenaLookSettings& look = arenaLook_;
     bloomParam_.arenaEnabled = look.enabled ? 1.0f : 0.0f;
+    bloomParam_.arenaPersistenceMaskX = look.persistenceMaskCenter.x;
+    bloomParam_.arenaPersistenceMaskY = look.persistenceMaskCenter.y;
+    bloomParam_.arenaPersistenceMaskRadius = look.enabled ? (std::max)(0.0f, look.persistenceMaskRadius) : 0.0f;
+    bloomParam_.arenaPersistenceMaskAspect = static_cast<float>(WinApp::kRenderWidth) / static_cast<float>(WinApp::kRenderHeight);
     // 入力側も同じ歪みで論理座標へ戻し、照準とUIの当たり判定を見た目に合わせる。
     WinApp::GetInstance()->SetPresentationCurvature(look.enabled ? (std::max)(0.0f, look.curvature) : 0.0f);
     if (!look.enabled) {

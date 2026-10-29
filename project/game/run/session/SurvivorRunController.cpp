@@ -3,6 +3,7 @@
 #include "game/session/GameplaySystems.h"
 #include "game/player/TankRunModifiers.h"
 #include "game/render/settings/ArenaCameraProfile.h"
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <filesystem>
@@ -189,6 +190,11 @@ void SurvivorRunController::Initialize()
         if (formLength > 0 && std::wstring(formName) == L"twin") {
             autoFormIndex_ = static_cast<size_t>(survivor::FormId::Twin);
         }
+        // MYENGINE_SURVIVOR_SEPARATION=0：敵どうしの押し離しを止める（fps の比べ方の確認用）。
+        wchar_t separation[4]{};
+        if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_SEPARATION", separation, 4) > 0 && separation[0] == L'0') {
+            separationEnabled_ = false;
+        }
         // 四隅の確認では、指定があれば最初から形態に変えて、止まった自機の形を写す。
         autoTourForm_ = formLength > 0;
         // MYENGINE_SURVIVOR_LIGHT3=1：軽い部品をすべて3段から始め、3段の変化をまとめて確かめる。
@@ -239,6 +245,12 @@ void SurvivorRunController::Update(float dt)
                                       survivor::HasChange(partLevels_, survivor::PartId::Collector)));
         if (gameDt > 0.0f && survivor::HasChange(partLevels_, survivor::PartId::Ram)) {
             UpdateSpikes();
+        }
+        if (gameDt > 0.0f && separationEnabled_) {
+            const auto separationStart = std::chrono::steady_clock::now();
+            SeparateEnemies();
+            separationSeconds_ += std::chrono::duration<double>(std::chrono::steady_clock::now() - separationStart).count();
+            ++separationCalls_;
         }
         if (premiumGained_) {
             premiumGained_ = false;
@@ -911,6 +923,86 @@ void SurvivorRunController::SpawnRing()
     }
 }
 
+void SurvivorRunController::SeparateEnemies()
+{
+    // 重なりの半分ずつを、1回の更新で押し戻す（重いもの＝大きいものほど動きにくい）。壁や柱に入る押し戻しはしない。
+    constexpr float kCell = 3.2f;
+    constexpr float kResolve = 0.5f;
+    auto cellKey = [](int x, int y) {
+        return (static_cast<int64_t>(x) << 32) ^ static_cast<int64_t>(static_cast<uint32_t>(y));
+    };
+    separationItems_.clear();
+    for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+        if (!enemy || enemy->IsDead() || enemy->IsRunResource()) {
+            continue;
+        }
+        SeparationItem item;
+        item.enemy = enemy;
+        item.position = enemy->GetWorldPosition();
+        item.radius = enemy->GetRadius();
+        item.mass = item.radius * item.radius;
+        item.cell = cellKey(static_cast<int>(std::floor(item.position.x / kCell)), static_cast<int>(std::floor(item.position.y / kCell)));
+        separationItems_.push_back(item);
+    }
+    const uint32_t count = static_cast<uint32_t>(separationItems_.size());
+    separationOrder_.resize(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        separationOrder_[i] = i;
+    }
+    std::sort(separationOrder_.begin(), separationOrder_.end(),
+              [&](uint32_t a, uint32_t b) { return separationItems_[a].cell < separationItems_[b].cell; });
+    auto firstInCell = [&](int64_t cell) {
+        return std::lower_bound(separationOrder_.begin(), separationOrder_.end(), cell,
+                                [&](uint32_t index, int64_t key) { return separationItems_[index].cell < key; });
+    };
+    for (uint32_t i = 0; i < count; ++i) {
+        SeparationItem& a = separationItems_[i];
+        const int cx = static_cast<int>(std::floor(a.position.x / kCell));
+        const int cy = static_cast<int>(std::floor(a.position.y / kCell));
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dx = -1; dx <= 1; ++dx) {
+                const int64_t cell = cellKey(cx + dx, cy + dy);
+                for (auto it = firstInCell(cell); it != separationOrder_.end() && separationItems_[*it].cell == cell; ++it) {
+                    // 組は1回だけ扱う（番号の小さい側から）。
+                    if (*it <= i) {
+                        continue;
+                    }
+                    SeparationItem& b = separationItems_[*it];
+                    const float ox = b.position.x - a.position.x, oy = b.position.y - a.position.y;
+                    const float limit = a.radius + b.radius;
+                    const float distanceSq = ox * ox + oy * oy;
+                    if (distanceSq >= limit * limit) {
+                        continue;
+                    }
+                    float distance = std::sqrt(distanceSq);
+                    myEngine::Vector3 normal{1.0f, 0.0f, 0.0f};
+                    if (distance > 0.0001f) {
+                        normal = {ox / distance, oy / distance, 0.0f};
+                    } else {
+                        // 完全に重なっているときは、番号から決まる向きに離す。
+                        const float angle = static_cast<float>((i * 7 + *it * 13) % 360) * 0.0174533f;
+                        normal = {std::cos(angle), std::sin(angle), 0.0f};
+                        distance = 0.0f;
+                    }
+                    const float overlap = (limit - distance) * kResolve;
+                    const float total = a.mass + b.mass;
+                    a.push -= normal * (overlap * b.mass / total);
+                    b.push += normal * (overlap * a.mass / total);
+                }
+            }
+        }
+    }
+    for (SeparationItem& item : separationItems_) {
+        if (item.push.x == 0.0f && item.push.y == 0.0f) {
+            continue;
+        }
+        const myEngine::Vector3 moved = item.position + item.push;
+        if (!world_.resources.stage_->IsCollisionWithAnyBlock(moved, item.radius)) {
+            item.enemy->SetWorldPosition(moved);
+        }
+    }
+}
+
 bool SurvivorRunController::IsRivalActive() const
 {
     return rivalSpawned_ && !rivalDefeated_;
@@ -1474,7 +1566,8 @@ void SurvivorRunController::UpdatePerfAutoTest(float dt)
     };
     std::ofstream(std::string(kAutoTestDirectory) + "/perf.json")
         << "{\"completed\":true,\"phases\":[" << phaseJson("spread", perfPhases_[0]) << "," << phaseJson("crowd", perfPhases_[1])
-        << "],\"samples\":[" << perfLog_.str() << "]}\n";
+        << "],\"separationMsAvg\":" << (separationCalls_ > 0 ? separationSeconds_ * 1000.0 / static_cast<double>(separationCalls_) : 0.0)
+        << ",\"samples\":[" << perfLog_.str() << "]}\n";
     autoTest_ = AutoTest::None;
     PostQuitMessage(0);
 }

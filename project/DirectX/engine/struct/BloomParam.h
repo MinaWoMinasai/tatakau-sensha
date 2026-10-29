@@ -144,6 +144,11 @@ struct BloomParam {
     float arenaVignette = 0.0f;
     float arenaScanlineIntensity = 0.0f;
     float arenaScanlineFrequency = 0.0f; // ラジアン/UV
+    // 残光を出さない円（UV）。半径は画面の高さに対する比で、0で無効。aspectは横/縦。
+    float arenaPersistenceMaskX = 0.5f;
+    float arenaPersistenceMaskY = 0.5f;
+    float arenaPersistenceMaskRadius = 0.0f;
+    float arenaPersistenceMaskAspect = 1.0f;
 };
 
 static_assert(sizeof(BloomParam) % 16 == 0, "BloomParam must stay a whole number of HLSL cbuffer rows.");

@@ -66,6 +66,24 @@ PostEffectPulse GameSession::GetPostEffectPulse() const
     return world_->gameplayQueries->GetPostEffectPulse();
 }
 
+void GameSession::ApplyArenaLookOverrides(IScene::ArenaLookSettings& look) const
+{
+    // 試作ではカメラが自機を追うので、自機に付いたHP・シールド・スタミナ・熱のゲージは、残光がワールドに置き去りになって
+    // 何重にも見える。ゲージの外側（自機の描画半径の約2.2倍）までを、残光を出さない円にする。
+    // 自機の本体の残像（PlayerNeonAfterimage）は毎フレーム描く形なので、この円の中でも残る。
+    const auto& world = *world_;
+    if (!world.run.IsSurvivorRun() || !world.resources.player_ || world.resources.player_->IsDead() || !world.gameplayHud) {
+        return;
+    }
+    const myEngine::Vector3 position = world.resources.player_->GetWorldPosition();
+    const float reach = world.presentation.playerNeonBillboardRadius_ * 2.2f;
+    const myEngine::Vector2 center = world.gameplayHud->WorldToScreen(position);
+    const myEngine::Vector2 edge = world.gameplayHud->WorldToScreen(position + myEngine::Vector3{0.0f, reach, 0.0f});
+    const float height = static_cast<float>(myEngine::WinApp::kClientHeight);
+    look.persistenceMaskCenter = {center.x / static_cast<float>(myEngine::WinApp::kClientWidth), center.y / height};
+    look.persistenceMaskRadius = std::abs(edge.y - center.y) / height;
+}
+
 IScene::BloomViewSettings GameSession::GetBloomViewSettings() const
 {
     IScene::BloomViewSettings settings;
