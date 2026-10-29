@@ -169,6 +169,10 @@ bool DrawPartsAndChoices(SpawnConfig& config)
     changed |= ImGui::SliderFloat("3択を開いている間の時間", &config.choiceSlowTimeScale, 0.05f, 1.0f, "×%.2f");
     changed |= ImGui::DragFloat("1枚目に軽い部品が出やすい倍率", &config.choiceLightBias, 0.05f, 0.0f, 10.0f, "%.2f");
     changed |= ImGui::Checkbox("レベルが上がったらすぐ開く", &config.choiceAutoOpen);
+    ImGui::SeparatorText("排熱砲（Q）");
+    changed |= ImGui::DragFloat("待ち時間（秒）", &config.heatVent.cooldown, 0.05f, 0.0f, 30.0f, "%.2f");
+    changed |= ImGui::DragFloat("使える熱の下限", &config.heatVent.minHeat, 0.5f, 0.0f, 200.0f, "%.0f");
+    changed |= ImGui::DragFloat("熱1あたりの威力", &config.heatVent.damagePerHeat, 0.002f, 0.0f, 2.0f, "x%.3f");
     ImGui::SeparatorText("積載量（base + Lv / perLevels）");
     changed |= ImGui::DragInt("最初の積載量", &config.load.base, 0.1f, 1, 40);
     changed |= ImGui::DragInt("何レベルごとに+1", &config.load.perLevels, 0.1f, 1, 20);

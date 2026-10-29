@@ -100,6 +100,13 @@ struct SpawnConfig {
         int refundPerLevel = 60;
     } load;
 
+    /// @brief 排熱砲（Q）。熱が minHeat 未満なら使えない。威力の倍率は 熱 × damagePerHeat × 効果の強さ（Lv）。使うと cooldown 秒待つ。
+    struct HeatVent {
+        float cooldown = 3.0f;
+        float minHeat = 15.0f;
+        float damagePerHeat = 0.12f;
+    } heatVent;
+
     /// @brief レベル level での積載量を返す。
     int CapacityAt(int level) const
     {
@@ -295,6 +302,13 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(curve, "power", config.levelPower);
         }
     }
+    if (data.contains("heatVent")) {
+        const auto& vent = data.at("heatVent");
+        number(vent, "cooldown", config.heatVent.cooldown);
+        number(vent, "minHeat", config.heatVent.minHeat);
+        number(vent, "damagePerHeat", config.heatVent.damagePerHeat);
+        config.heatVent.cooldown = (std::max)(0.0f, config.heatVent.cooldown);
+    }
     if (data.contains("load")) {
         const auto& load = data.at("load");
         number(load, "base", config.load.base);
@@ -428,6 +442,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     experience["maxShards"] = config.maxShards;
     experience["maxLevel"] = config.maxLevel;
     experience["levelCurve"] = {{"base", round(config.levelBase)}, {"growth", round(config.levelGrowth)}, {"power", round(config.levelPower)}};
+    auto& vent = section("heatVent");
+    vent["cooldown"] = round(config.heatVent.cooldown);
+    vent["minHeat"] = round(config.heatVent.minHeat);
+    vent["damagePerHeat"] = round(config.heatVent.damagePerHeat);
     auto& load = section("load");
     load["base"] = config.load.base;
     load["perLevels"] = config.load.perLevels;
@@ -490,9 +508,9 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 18> kOrder{
-        "schemaVersion", "comment", "exitOpenSeconds", "exitRadius", "spawnRing", "shapes", "triangleSwarm", "tanks", "threat",
-        "rival",         "experience", "load",         "choices",    "heat",      "shield", "forms",         "parts", "bigPentagon"};
+    static constexpr std::array<const char*, 19> kOrder{
+        "schemaVersion", "comment", "exitOpenSeconds", "exitRadius", "spawnRing", "shapes", "triangleSwarm", "tanks",    "threat", "rival",
+        "experience",    "load",    "choices",         "heat",       "shield",    "forms",  "parts",         "heatVent", "bigPentagon"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
         if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {

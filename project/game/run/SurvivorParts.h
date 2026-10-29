@@ -23,6 +23,7 @@ enum class PartId {
     KillBurst,      // 撃破バースト
     DashBurst,      // 衝撃放電
     HeavyWarhead,   // 重弾頭
+    HeatVent,       // 排熱砲（Q）
     Count
 };
 
@@ -51,11 +52,12 @@ struct PartDefinition {
     const char* name = ""; // 画面に出す名前
     const char* stat = ""; // 軽い部品：1段ごとに上がるもの。ほかの部品：効果の説明
     PartCategory category = PartCategory::Body;
-    int weight = 1;        // 積載量に使う重さ（積載量は後のカード）
+    int weight = 1;        // 積載量に使う重さ
     int maxLevel = 5;      // 軽い部品は5、ほかは3
     bool light = true;     // 軽い部品（能力値の代わり）か
     float perLevel = 0.1f;
     const char* change = ""; // 軽い部品の3段で変わること
+    bool qSkill = false;     // Q で使う部品か。Q の枠は1つなので、2つ目は入れ替えになる
 };
 
 /// @brief 部品の既定値（設計案 4章・5.3）。数値は旧 diep 風の能力値の上がり幅と、遠征のカードの強さを出発点にした。
@@ -76,6 +78,7 @@ inline std::array<PartDefinition, kPartCount> DefaultParts()
         {PartId::KillBurst, "killBurst", "撃破バースト", "倒した敵から\n6方向に小さな弾", PartCategory::Kill, 2, 3, false, 0.5f, ""},
         {PartId::DashBurst, "dashBurst", "衝撃放電", "ダッシュの始めに\n周りへ衝撃波", PartCategory::Dash, 1, 3, false, 0.5f, ""},
         {PartId::HeavyWarhead, "heavyWarhead", "重弾頭", "威力 +60%\n1発ごとの熱 +2", PartCategory::Heat, 1, 3, false, 0.5f, ""},
+        {PartId::HeatVent, "heatVent", "排熱砲", "Q：熱を全部放ち、\n熱に比例した太い弾", PartCategory::Heat, 2, 3, false, 0.5f, "", true},
     }};
 }
 
@@ -99,13 +102,38 @@ inline int LoadOf(const std::array<PartDefinition, kPartCount>& parts, const Par
     return load;
 }
 
-/// @brief 3択の札を積むと、積載を超えるか。持っている部品の Lv 上げと修理は超えない。
+/// @brief 積んでいる Q の部品を返す。無ければ Count。
+inline PartId OwnedQSkill(const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels)
+{
+    for (size_t i = 0; i < kPartCount; ++i) {
+        if (levels[i] > 0 && parts[i].qSkill) {
+            return static_cast<PartId>(i);
+        }
+    }
+    return PartId::Count;
+}
+
+/// @brief この札を積むと、今の Q の部品と入れ替えになるか（Q の枠は1つ）。入れ替えになるなら、外れる部品を返す。
+inline PartId ReplacedQSkill(const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels, PartId id)
+{
+    if (id == PartId::Count || !parts[static_cast<size_t>(id)].qSkill || levels[static_cast<size_t>(id)] > 0) {
+        return PartId::Count;
+    }
+    return OwnedQSkill(parts, levels);
+}
+
+/// @brief 3択の札を積むと、積載を超えるか。持っている部品の Lv 上げと修理は超えない。Q の入れ替えは、外れる部品の重さを引いて見る。
 inline bool ExceedsLoad(const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels, PartId id, int capacity)
 {
     if (id == PartId::Count || levels[static_cast<size_t>(id)] > 0) {
         return false;
     }
-    return LoadOf(parts, levels) + parts[static_cast<size_t>(id)].weight > capacity;
+    int load = LoadOf(parts, levels);
+    const PartId replaced = ReplacedQSkill(parts, levels, id);
+    if (replaced != PartId::Count) {
+        load -= parts[static_cast<size_t>(replaced)].weight;
+    }
+    return load + parts[static_cast<size_t>(id)].weight > capacity;
 }
 
 /// @brief 軽い部品が3段に達しているか。

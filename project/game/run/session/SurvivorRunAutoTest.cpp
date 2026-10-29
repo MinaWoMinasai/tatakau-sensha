@@ -120,6 +120,16 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         RequestCapture("form_" + formKey_);
         autoFormCaptureAt_ = -1.0f;
     }
+    // Q：Q の部品を積んでいて、熱が上限の2割（使える下限より低ければ下限）を超え、待ち時間が無ければ使う。最初に使った0.15秒後の画面を保存する。
+    if (!choiceOpen_ && qCooldown_ <= 0.0f && survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count &&
+        player.GetHeat().GetHeat() >= (std::max)(config_.heatVent.minHeat, player.GetHeat().GetMaxHeat() * 0.2f) && UseQ() &&
+        autoQCaptureAt_ < 0.0f) {
+        autoQCaptureAt_ = autoTestTime_ + 0.15f;
+    }
+    if (autoQCaptureAt_ > 0.0f && autoTestTime_ >= autoQCaptureAt_ && world_.run.tankRunCapturePath_.empty()) {
+        RequestCapture("q_vent");
+        autoQCaptureAt_ = 0.0f;
+    }
     // 長砲身：5秒ごとに0.7秒、右クリックを押してため撃ちする。
     player.SetDemoSpecialHold(player.HasRailChargeForm() && std::fmod(autoTestTime_, 5.0f) < 0.7f);
 
@@ -290,7 +300,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_ << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_
             << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"removals\":" << removals_ << ",\"maxLoad\":" << maxLoad_
             << ",\"loadAtEnd\":" << survivor::LoadOf(config_.parts, partLevels_) << ",\"capacityAtEnd\":" << Capacity()
-            << ",\"removalLog\":[" << removalRecord_.str() << "]"
+            << ",\"removalLog\":[" << removalRecord_.str() << "]" << ",\"qUses\":" << qUses_ << ",\"qLog\":[" << qRecord_.str() << "]"
             << ",\"samples\":[" << autoTestLog_.str() << "]}\n";
         autoTest_ = AutoTest::None;
         PostQuitMessage(0);

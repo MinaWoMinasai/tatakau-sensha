@@ -484,6 +484,34 @@ void PlayerWeapons::AttackRailCannon(BulletManager* bullets, bool pressed, float
     FireRailShot(bullets, charge, TankEffectPower(player_.runModifiers_, tankrun::CardId::RailCannon));
 }
 
+void PlayerWeapons::FireHeatVent(BulletManager* bullets, float heat, float damagePerHeat)
+{
+    // 砲身の数によらず、車体の正面から1発だけ撃つ。見た目はため撃ちの弾（Rail）を、熱の量で太くして使う。
+    const auto* config = player_.GetCurrentClassConfig();
+    const myEngine::Vector3 aim = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1, 0, 0}, .001f);
+    const float fullness = (std::clamp)(heat / 100.0f, 0.0f, 1.5f);
+    AttackParam param{};
+    param.damage = static_cast<uint32_t>((std::max)(
+        1.0f, std::round(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * heat * (std::max)(0.0f, damagePerHeat))));
+    param.bulletSpeed = player_.stats_.bulletSpeed * (config ? config->bulletSpeedScale : 1.0f) * 1.5f;
+    param.penetrate = true;
+    ApplyRunProjectileRules(param);
+    param.actorPierceCount = (std::max)(6 + static_cast<int>(fullness * 10.0f), param.actorPierceCount);
+    param.bulletHp = (std::max)(4.0f + fullness * 8.0f, param.bulletHp);
+    const myEngine::Vector3 muzzle = player_.GetWorldPosition() + aim * 1.7f;
+    auto bullet = std::make_unique<Bullet>();
+    bullet->Initialize(muzzle, aim * param.bulletSpeed, param.damage, kPlayer, false, param.bulletHp, param.bulletPenetration);
+    bullet->ConfigureGrowth(0, param.actorPierceCount, 0);
+    bullet->ConfigureSpecial(Bullet::SpecialKind::Rail, .5f + .6f * (std::min)(fullness, 1.0f), 1.6f);
+    bullet->ConfigureShooterAbilities(param.shooterChain, param.shooterMark, param.shooterBoomerang, param.shooterKillBurst,
+                                      param.shooterChainPower, param.shooterMarkPower, param.shooterBoomerangPower, param.shooterKillBurstPower);
+    bullets->Add(std::move(bullet));
+    if (player_.pendingSpecialCombatEvents_.size() < 32) {
+        player_.pendingSpecialCombatEvents_.push_back({SpecialEventKind::RailShot, muzzle, aim, (std::min)(fullness, 1.0f)});
+    }
+    player_.velocity_ += aim * (-.08f - .08f * (std::min)(fullness, 1.0f));
+}
+
 void PlayerWeapons::FireRailShot(BulletManager* bullets, float charge, float power)
 {
     const auto* config = player_.GetCurrentClassConfig();

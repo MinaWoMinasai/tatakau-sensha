@@ -78,6 +78,11 @@ void SurvivorChoiceHud::SetOffers(const std::vector<survivor::PartOffer>& offers
                 if (survivor::ExceedsLoad(parts, levels, offer.part, capacity)) {
                     body += "　→ 外して積む";
                 }
+                // Q の枠は1つ。今の Q の部品があれば、それを外して入れ替える。
+                const survivor::PartId replaced = survivor::ReplacedQSkill(parts, levels, offer.part);
+                if (replaced != survivor::PartId::Count) {
+                    body += std::string("\nQ を入れ替え（") + parts[static_cast<size_t>(replaced)].name + " を外す）";
+                }
             }
         }
         titles_[i]->SetText(title);

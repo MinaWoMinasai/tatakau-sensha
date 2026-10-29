@@ -133,6 +133,14 @@ private:
     void UpdateRemovalInput();
     /// @brief 部品を外して欠片を落とす。積載が足りたら、待っていた札を積む。
     void RemovePart(survivor::PartId id);
+    /// @brief 部品を1つ外し、Lv に応じた欠片を落として記録する。incoming は代わりに積む部品（記録用）。
+    void DiscardPart(survivor::PartId id, survivor::PartId incoming);
+    /// @brief Q の待ち時間を進め、Q キーで Q の部品を使う。
+    void UpdateQ(float gameDt);
+    /// @brief 積んでいる Q の部品を使う。使えたら真。
+    bool UseQ();
+    /// @brief 画面の下に出す Q の部品の状態（名前・待ち時間・威力）。Q の部品が無ければ空。
+    std::string DescribeQ() const;
     /// @brief 欠片の引き寄せと拾う範囲を、設定から渡し直す。
     void ConfigurePickups();
     /// @brief F2 で調整パネルを開閉して描き、変えた値を自機と欠片に反映する。保存と再読込もここで行う。
@@ -213,6 +221,11 @@ private:
     int removals_ = 0;
     int maxLoad_ = 0;
     std::ostringstream removalRecord_;
+    // Q の枠（1つ）。待ち時間は区画の時間で減る。
+    float qCooldown_ = 0.0f;
+    int qUses_ = 0;
+    std::ostringstream qRecord_;
+    std::unique_ptr<myEngine::TextLabel> qText_;
     bool formChoiceOpen_ = false;
     bool formChosen_ = false;
     std::string formKey_ = "basic";
@@ -290,6 +303,8 @@ private:
     int autoSpikeProbe_ = 0;
     bool autoRingCaptured_ = false;
     bool autoRemovalCaptured_ = false;
+    // Q の画面を保存する時刻。-1 はまだ使っていない、0 は保存済み。
+    float autoQCaptureAt_ = -1.0f;
     bool autoRivalCaptured_ = false;
     // 200体の fps の確認。場面ごとに1秒ずつの fps・敵の数・画面の中の数を足し込む。
     struct PerfPhase {

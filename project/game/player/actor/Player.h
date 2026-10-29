@@ -650,6 +650,11 @@ public:
     }
     /// @brief 右クリックをため撃ちに使う形態か。
     bool HasRailChargeForm() const;
+    /// @brief 排熱砲（育つ戦車の試作の Q）：今の熱を全部0にし、熱に比例した威力の太い貫通弾を、向いている方へ1発撃つ。
+    /// @param damagePerHeat 熱1あたりの威力の倍率（主砲1発の威力に対する）。熱100・0.12なら12倍。
+    /// @return 放った熱。弾を撃てなかったら（弾の管理が無いなど）0 で、熱も減らさない。
+    /// @note オーバーヒート中でも使え、熱を0に戻すので、オーバーヒートも解ける。
+    float FireSurvivorHeatVent(float damagePerHeat);
 
     /// @brief 育つ戦車の試作の部品による、撃ち方・守りの挙動の変化。既定では何も変えない。
     struct SurvivorPartEffects {

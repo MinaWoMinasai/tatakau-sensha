@@ -3,6 +3,7 @@
 #include "game/session/GameplaySystems.h"
 #include "game/player/TankRunModifiers.h"
 #include <cmath>
+#include <iomanip>
 
 // 育つ戦車の試作の経験値とレベル・部品の3択・形態の2択・部品の効果の反映。
 
@@ -134,6 +135,12 @@ void SurvivorRunController::ChooseOffer(size_t index)
         player.HealRunPlayer(static_cast<int>(static_cast<float>(player.GetMaxHp()) * 0.3f));
         world_.combatFlow->SetEventCallout("修理キット", 0.7f);
     } else {
+        // Q の枠は1つ。別の Q の部品を積んでいれば、外して入れ替える（D6）。
+        const survivor::PartId replaced = survivor::ReplacedQSkill(config_.parts, partLevels_, offer.part);
+        if (replaced != survivor::PartId::Count) {
+            DiscardPart(replaced, offer.part);
+            qCooldown_ = 0.0f;
+        }
         const size_t part = static_cast<size_t>(offer.part);
         partLevels_[part] = (std::min)(partLevels_[part] + 1, config_.parts[part].maxLevel);
         ApplyParts();
@@ -190,16 +197,10 @@ void SurvivorRunController::UpdateRemovalInput()
     }
 }
 
-void SurvivorRunController::RemovePart(survivor::PartId id)
+void SurvivorRunController::DiscardPart(survivor::PartId id, survivor::PartId incoming)
 {
-    if (!removalOpen_ || id == survivor::PartId::Count || removalOffer_ >= offers_.size()) {
-        return;
-    }
     const size_t index = static_cast<size_t>(id);
     const int level = partLevels_[index];
-    if (level <= 0) {
-        return;
-    }
     // 外した部品は、Lv に応じた経験値の欠片を自機の足もとに落とす。
     const int refund = level * (std::max)(0, config_.load.refundPerLevel);
     if (refund > 0) {
@@ -209,10 +210,21 @@ void SurvivorRunController::RemovePart(survivor::PartId id)
     partLevels_[index] = 0;
     ApplyParts();
     ++removals_;
-    const auto& incoming = config_.parts[static_cast<size_t>(offers_[removalOffer_].part)];
     removalRecord_ << (removalRecord_.tellp() > 0 ? "," : "") << "{\"t\":" << std::lround(elapsed_) << ",\"removed\":\""
-                   << config_.parts[index].key << "\",\"level\":" << level << ",\"for\":\"" << incoming.key << "\"}";
+                   << config_.parts[index].key << "\",\"level\":" << level << ",\"for\":\""
+                   << (incoming == survivor::PartId::Count ? "" : config_.parts[static_cast<size_t>(incoming)].key) << "\"}";
     world_.combatFlow->SetEventCallout(std::string(config_.parts[index].name) + " を外した", 0.7f);
+}
+
+void SurvivorRunController::RemovePart(survivor::PartId id)
+{
+    if (!removalOpen_ || id == survivor::PartId::Count || removalOffer_ >= offers_.size()) {
+        return;
+    }
+    if (partLevels_[static_cast<size_t>(id)] <= 0) {
+        return;
+    }
+    DiscardPart(id, offers_[removalOffer_].part);
     // まだ足りなければ外す画面のまま。足りたら、その札を積む。
     if (survivor::ExceedsLoad(config_.parts, partLevels_, offers_[removalOffer_].part, Capacity())) {
         loadoutHud_.SetRemoval(config_.parts, partLevels_, Capacity(), offers_[removalOffer_].part, config_.load.refundPerLevel);
@@ -220,6 +232,67 @@ void SurvivorRunController::RemovePart(survivor::PartId id)
     }
     removalOpen_ = false;
     ChooseOffer(removalOffer_);
+}
+
+void SurvivorRunController::UpdateQ(float gameDt)
+{
+    qCooldown_ = (std::max)(0.0f, qCooldown_ - gameDt);
+    if (world_.resources.input_->IsKeyTriggered(DIK_Q)) {
+        UseQ();
+    }
+}
+
+bool SurvivorRunController::UseQ()
+{
+    const survivor::PartId skill = survivor::OwnedQSkill(config_.parts, partLevels_);
+    if (skill == survivor::PartId::Count || qCooldown_ > 0.0f) {
+        return false;
+    }
+    auto& player = *world_.resources.player_;
+    if (skill == survivor::PartId::HeatVent) {
+        // 排熱砲：熱が少なすぎると撃てない。撃つと熱は0に戻る。
+        const float heat = player.GetHeat().GetHeat();
+        if (heat < config_.heatVent.minHeat) {
+            world_.combatFlow->SetEventCallout("排熱砲：熱が足りない", 0.6f);
+            return false;
+        }
+        const float power = survivor::EffectPower(config_.parts, partLevels_, skill);
+        const float vented = player.FireSurvivorHeatVent(config_.heatVent.damagePerHeat * power);
+        if (vented <= 0.0f) {
+            return false;
+        }
+        qCooldown_ = config_.heatVent.cooldown;
+        ++qUses_;
+        qRecord_ << (qRecord_.tellp() > 0 ? "," : "") << "{\"t\":" << std::round(elapsed_ * 10.0f) / 10.0f << ",\"skill\":\"heatVent\",\"heat\":"
+                 << std::lround(vented) << ",\"damageScale\":" << std::round(vented * config_.heatVent.damagePerHeat * power * 10.0f) / 10.0f
+                 << "}";
+        world_.combatFlow->SetEventCallout("排熱砲", 0.5f);
+        return true;
+    }
+    return false;
+}
+
+std::string SurvivorRunController::DescribeQ() const
+{
+    const survivor::PartId skill = survivor::OwnedQSkill(config_.parts, partLevels_);
+    if (skill == survivor::PartId::Count) {
+        return {};
+    }
+    const auto& part = config_.parts[static_cast<size_t>(skill)];
+    std::ostringstream text;
+    text << "[Q] " << part.name << " Lv" << survivor::LevelOf(partLevels_, skill) << "　";
+    if (qCooldown_ > 0.0f) {
+        text << "待ち " << std::fixed << std::setprecision(1) << qCooldown_ << "秒";
+    } else if (skill == survivor::PartId::HeatVent) {
+        const float heat = world_.resources.player_->GetHeat().GetHeat();
+        if (heat < config_.heatVent.minHeat) {
+            text << "熱が足りない";
+        } else {
+            const float scale = heat * config_.heatVent.damagePerHeat * survivor::EffectPower(config_.parts, partLevels_, skill);
+            text << "威力 x" << std::fixed << std::setprecision(1) << scale;
+        }
+    }
+    return text.str();
 }
 
 void SurvivorRunController::OpenFormChoice()

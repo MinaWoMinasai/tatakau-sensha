@@ -109,6 +109,12 @@ void SurvivorRunController::Initialize()
     exitText_ = std::make_unique<myEngine::TextLabel>();
     exitText_->Initialize(myEngine::SpriteCommon::GetInstance(), "出口が開いた  ─  光る輪に入ると区画クリア", style);
     exitText_->SetPosition({24.0f, 52.0f});
+    // Q の部品の状態（画面の下の中ほど）。
+    style.fontSize = 24;
+    style.color = {1.0f, 0.62f, 0.30f, 1.0f};
+    qText_ = std::make_unique<myEngine::TextLabel>();
+    qText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    qText_->SetPosition({520.0f, 676.0f});
     choiceHud_.Initialize();
     choiceHud_.SetPending(0, false);
     loadoutHud_.Initialize();
@@ -179,6 +185,28 @@ void SurvivorRunController::Initialize()
             }
             ApplyParts();
         }
+        // MYENGINE_SURVIVOR_START_PARTS=heatVent=1,pierce=3：指定した部品を、その Lv で積んだ状態から始める（部品ごとの確認用）。
+        wchar_t startParts[256]{};
+        const DWORD startLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_START_PARTS", startParts, 256);
+        if (startLength > 0 && startLength < 256) {
+            std::wstringstream list(startParts);
+            std::wstring item;
+            while (std::getline(list, item, L',')) {
+                const size_t equal = item.find(L'=');
+                // 部品の名前は英字だけなので、1文字ずつ char に移す。
+                std::string key;
+                for (size_t c = 0; c < (equal == std::wstring::npos ? item.size() : equal); ++c) {
+                    key.push_back(static_cast<char>(item[c]));
+                }
+                const int level = equal == std::wstring::npos ? 1 : _wtoi(item.c_str() + equal + 1);
+                for (size_t i = 0; i < survivor::kPartCount; ++i) {
+                    if (key == config_.parts[i].key) {
+                        partLevels_[i] = (std::clamp)(level, 0, config_.parts[i].maxLevel);
+                    }
+                }
+            }
+            ApplyParts();
+        }
     }
 }
 
@@ -217,6 +245,10 @@ void SurvivorRunController::Update(float dt)
                                       survivor::HasChange(partLevels_, survivor::PartId::Collector)));
         if (gameDt > 0.0f && survivor::HasChange(partLevels_, survivor::PartId::Ram)) {
             UpdateSpikes();
+        }
+        // Q は3択を開いている間（スロー中）には使わない。
+        if (gameDt > 0.0f && !choiceOpen_) {
+            UpdateQ(gameDt);
         }
         if (gameDt > 0.0f && separationEnabled_) {
             const auto separationStart = std::chrono::steady_clock::now();
@@ -382,6 +414,10 @@ void SurvivorRunController::RefreshHud()
     }
     text << "   敵 " << alive.total;
     hudText_->SetText(text.str());
+    if (qText_) {
+        const std::string q = DescribeQ();
+        qText_->SetText(q.empty() ? std::string(" ") : q);
+    }
     if (expFill_) {
         const float ratio = level_ >= config_.maxLevel
                                 ? 1.0f
@@ -412,6 +448,9 @@ void SurvivorRunController::DrawUi()
     hudText_->Draw();
     if (exitOpen_ && exitText_) {
         exitText_->Draw();
+    }
+    if (qText_ && survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count) {
+        qText_->Draw();
     }
     // 外す画面は持っている部品を並べるので、左下の積載の表示は出さない。
     if (removalOpen_ && choiceOpen_) {

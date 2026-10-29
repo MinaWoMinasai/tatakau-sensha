@@ -790,6 +790,17 @@ bool Player::HasRailChargeForm() const
     return config && config->specialActionId == "rail_charge";
 }
 
+float Player::FireSurvivorHeatVent(float damagePerHeat)
+{
+    const float heat = heat_.GetHeat();
+    if (!runBulletManager_ || !playerWeapons_ || heat <= 0.0f) {
+        return 0.0f;
+    }
+    playerWeapons_->FireHeatVent(runBulletManager_, heat, damagePerHeat);
+    heat_.Reset();
+    return heat;
+}
+
 std::vector<Player::SpecialCombatEvent> Player::ConsumeSpecialCombatEvents()
 {
     auto events = std::move(pendingSpecialCombatEvents_);
