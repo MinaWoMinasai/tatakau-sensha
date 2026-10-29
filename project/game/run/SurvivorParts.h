@@ -24,6 +24,10 @@ enum class PartId {
     DashBurst,      // 衝撃放電
     HeavyWarhead,   // 重弾頭
     HeatVent,       // 排熱砲（Q）
+    ResidualHeat,   // 余熱
+    RamShield,      // 衝角シールド
+    Morale,         // 戦意
+    EmergencyPurge, // 緊急放出（Q、使い切り）
     Count
 };
 
@@ -79,6 +83,11 @@ inline std::array<PartDefinition, kPartCount> DefaultParts()
         {PartId::DashBurst, "dashBurst", "衝撃放電", "ダッシュの始めに\n周りへ衝撃波", PartCategory::Dash, 1, 3, false, 0.5f, ""},
         {PartId::HeavyWarhead, "heavyWarhead", "重弾頭", "威力 +60%\n1発ごとの熱 +2", PartCategory::Heat, 1, 3, false, 0.5f, ""},
         {PartId::HeatVent, "heatVent", "排熱砲", "Q：熱を全部放ち、\n熱に比例した太い弾", PartCategory::Heat, 2, 3, false, 0.5f, "", true},
+        {PartId::ResidualHeat, "residualHeat", "余熱", "熱が低いほど威力が上がる\n（熱0で +50%）", PartCategory::Heat, 1, 3, false, 0.5f, ""},
+        {PartId::RamShield, "ramShield", "衝角シールド", "シールドが多いほど\n体当たりが強い（満タンで +150%）", PartCategory::Shield, 2, 3, false, 0.5f, ""},
+        {PartId::Morale, "morale", "戦意", "倒すたびに主砲の威力 +0.1%\n（区画の間ずっと）", PartCategory::Kill, 1, 3, false, 0.5f, ""},
+        {PartId::EmergencyPurge, "emergencyPurge", "緊急放出", "Q：一番重い部品を壊し、\n重さに比例した大爆発（1回）", PartCategory::Kill, 0, 3, false, 0.5f, "",
+         true},
     }};
 }
 
@@ -226,12 +235,13 @@ inline std::string DescribeOffer(const std::array<PartDefinition, kPartCount>& p
 /// @brief 3択を引く。最大 Lv の部品は出さず、同じ部品は重ねない。1枚目は軽い部品を lightBias 倍出やすくする。
 /// @param premium 真なら軽い部品を出さない（大五角の宝箱から得た、質の高い選択）。
 /// @note 引ける部品が3つに足りないときは、残りを修理の札で埋める。
+/// @param banned 真の部品は出さない（緊急放出で壊した部品）。nullptr なら全部出せる。
 inline std::vector<PartOffer> DrawOffers(const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels, float lightBias,
-                                         std::mt19937& random, bool premium = false)
+                                         std::mt19937& random, bool premium = false, const std::array<bool, kPartCount>* banned = nullptr)
 {
     std::vector<size_t> pool;
     for (size_t i = 0; i < kPartCount; ++i) {
-        if (levels[i] < parts[i].maxLevel && !(premium && parts[i].light)) {
+        if (levels[i] < parts[i].maxLevel && !(premium && parts[i].light) && !(banned && (*banned)[i])) {
             pool.push_back(i);
         }
     }

@@ -1194,6 +1194,17 @@ bool PlayerWeapons::FireConfiguredClass(const PlayerClassConfig& config, BulletM
                 mountParam.damage *= 2;
                 ++player_.critShots_;
             }
+            // 試作の余熱（熱が低いほど威力↑）と戦意（撃破で積み上がる倍率）。どちらも無ければ何もしない。
+            const auto& effects = player_.partEffects_;
+            float shotScale = effects.shotDamageScale;
+            if (effects.residualHeat > 0.0f) {
+                const float heatMax = (std::max)(1.0f, player_.heat_.GetMaxHeat());
+                shotScale *= 1.0f + effects.residualHeat * (1.0f - (std::clamp)(player_.heat_.GetHeat() / heatMax, 0.0f, 1.0f));
+            }
+            if (shotScale != 1.0f) {
+                mountParam.damage =
+                    static_cast<uint32_t>((std::max)(1.0f, std::round(static_cast<float>(mountParam.damage) * shotScale)));
+            }
             player_.attackController_.FireFromMuzzle(muzzle, fireDir, mountParam, BulletOwner::kPlayer);
             if (index < player_.barrels_.size()) {
                 player_.barrels_[index].muzzleFlashTimer = player_.kMuzzleFlashDuration;

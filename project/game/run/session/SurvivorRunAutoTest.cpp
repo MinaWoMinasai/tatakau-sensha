@@ -120,14 +120,50 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         RequestCapture("form_" + formKey_);
         autoFormCaptureAt_ = -1.0f;
     }
-    // Q：Q の部品を積んでいて、熱が上限の2割（使える下限より低ければ下限）を超え、待ち時間が無ければ使う。最初に使った0.15秒後の画面を保存する。
-    if (!choiceOpen_ && qCooldown_ <= 0.0f && survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count &&
-        player.GetHeat().GetHeat() >= (std::max)(config_.heatVent.minHeat, player.GetHeat().GetMaxHeat() * 0.2f) && UseQ() &&
-        autoQCaptureAt_ < 0.0f) {
-        autoQCaptureAt_ = autoTestTime_ + 0.15f;
+    // Q の入れ替え（MYENGINE_SURVIVOR_Q_SWAP=1）：10秒で一度、排熱砲を積んでいれば、緊急放出の札だけの3択を作って選び、
+    // 排熱砲が外れて緊急放出に替わるかを見る。
+    if (autoQSwapProbe_ == 0 && autoTestTime_ >= 10.0f && !choiceOpen_ &&
+        survivor::OwnedQSkill(config_.parts, partLevels_) == survivor::PartId::HeatVent) {
+        wchar_t swap[4]{};
+        if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_Q_SWAP", swap, 4) > 0 && swap[0] == L'1') {
+            ++pendingChoices_;
+            pendingSince_.push_back(elapsed_);
+            choiceOpen_ = true;
+            offers_ = {{survivor::PartId::EmergencyPurge, 1}};
+            ChooseOffer(0);
+            autoQSwapProbe_ = survivor::OwnedQSkill(config_.parts, partLevels_) == survivor::PartId::EmergencyPurge &&
+                                      survivor::LevelOf(partLevels_, survivor::PartId::HeatVent) == 0
+                                  ? 2
+                                  : 3;
+        } else {
+            autoQSwapProbe_ = -1;
+        }
+    }
+    // Q：排熱砲は、熱が上限の2割（使える下限より低ければ下限）を超え、待ち時間が無ければ使う。
+    // 緊急放出は、0:20 を過ぎて部品を3つ以上積んでいれば使う。使った0.15秒後の画面を保存する（それぞれ最初の1回）。
+    const survivor::PartId qSkill = survivor::OwnedQSkill(config_.parts, partLevels_);
+    bool qReady = false;
+    if (qSkill == survivor::PartId::HeatVent) {
+        qReady = player.GetHeat().GetHeat() >= (std::max)(config_.heatVent.minHeat, player.GetHeat().GetMaxHeat() * 0.2f);
+    } else if (qSkill == survivor::PartId::EmergencyPurge) {
+        int owned = 0;
+        for (int level : partLevels_) {
+            owned += level > 0 ? 1 : 0;
+        }
+        qReady = elapsed_ >= 20.0f && owned >= 3;
+    }
+    if (!choiceOpen_ && qCooldown_ <= 0.0f && qReady && UseQ()) {
+        if (qSkill == survivor::PartId::HeatVent && autoQCaptureAt_ < 0.0f) {
+            autoQCaptureAt_ = autoTestTime_ + 0.15f;
+            autoQCaptureName_ = "q_vent";
+        } else if (qSkill == survivor::PartId::EmergencyPurge && autoPurgeCaptured_ == false) {
+            autoQCaptureAt_ = autoTestTime_ + 0.15f;
+            autoQCaptureName_ = "q_purge";
+            autoPurgeCaptured_ = true;
+        }
     }
     if (autoQCaptureAt_ > 0.0f && autoTestTime_ >= autoQCaptureAt_ && world_.run.tankRunCapturePath_.empty()) {
-        RequestCapture("q_vent");
+        RequestCapture(autoQCaptureName_);
         autoQCaptureAt_ = 0.0f;
     }
     // 長砲身：5秒ごとに0.7秒、右クリックを押してため撃ちする。
@@ -301,6 +337,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"removals\":" << removals_ << ",\"maxLoad\":" << maxLoad_
             << ",\"loadAtEnd\":" << survivor::LoadOf(config_.parts, partLevels_) << ",\"capacityAtEnd\":" << Capacity()
             << ",\"removalLog\":[" << removalRecord_.str() << "]" << ",\"qUses\":" << qUses_ << ",\"qLog\":[" << qRecord_.str() << "]"
+            << ",\"qSwapProbe\":" << autoQSwapProbe_ << ",\"purges\":" << purges_ << ",\"moraleKills\":" << moraleKills_
+            << ",\"effects\":{\"shotDamageScale\":" << MakePartEffects().shotDamageScale << ",\"residualHeat\":" << MakePartEffects().residualHeat
+            << ",\"ramShield\":" << MakePartEffects().ramShield << ",\"bodyDamage\":" << player.GetStats().bodyDamage
+            << ",\"colliderDamage\":" << player.GetDamage() << ",\"shield\":\"" << player.GetShield() << "/" << player.GetShieldMax() << "\"}"
             << ",\"samples\":[" << autoTestLog_.str() << "]}\n";
         autoTest_ = AutoTest::None;
         PostQuitMessage(0);

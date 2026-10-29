@@ -90,7 +90,7 @@ void SurvivorRunController::DrawNextOffers()
 {
     // 宝箱の選択が貯まっていれば、先にそれを出す。
     offersPremium_ = pendingPremium_ > 0;
-    offers_ = survivor::DrawOffers(config_.parts, partLevels_, config_.choiceLightBias, random_, offersPremium_);
+    offers_ = survivor::DrawOffers(config_.parts, partLevels_, config_.choiceLightBias, random_, offersPremium_, &destroyedParts_);
     choiceHud_.SetOffers(offers_, config_.parts, offersPremium_, partLevels_, Capacity());
     choiceHud_.SetPending(pendingChoices_, true);
 }
@@ -248,6 +248,9 @@ bool SurvivorRunController::UseQ()
     if (skill == survivor::PartId::Count || qCooldown_ > 0.0f) {
         return false;
     }
+    if (skill == survivor::PartId::EmergencyPurge) {
+        return UseEmergencyPurge();
+    }
     auto& player = *world_.resources.player_;
     if (skill == survivor::PartId::HeatVent) {
         // 排熱砲：熱が少なすぎると撃てない。撃つと熱は0に戻る。
@@ -272,6 +275,48 @@ bool SurvivorRunController::UseQ()
     return false;
 }
 
+bool SurvivorRunController::UseEmergencyPurge()
+{
+    using survivor::PartId;
+    // 壊すのは、緊急放出のほかで一番重い部品（同じ重さなら Lv の高い方）。重さ0しか無ければ使えない。
+    size_t target = survivor::kPartCount;
+    for (size_t i = 0; i < survivor::kPartCount; ++i) {
+        if (partLevels_[i] <= 0 || static_cast<PartId>(i) == PartId::EmergencyPurge || config_.parts[i].weight <= 0) {
+            continue;
+        }
+        if (target == survivor::kPartCount || config_.parts[i].weight > config_.parts[target].weight ||
+            (config_.parts[i].weight == config_.parts[target].weight && partLevels_[i] > partLevels_[target])) {
+            target = i;
+        }
+    }
+    if (target == survivor::kPartCount) {
+        world_.combatFlow->SetEventCallout("緊急放出：壊せる部品がない", 0.6f);
+        return false;
+    }
+    const auto& tuning = config_.partTuning;
+    const float power = survivor::EffectPower(config_.parts, partLevels_, PartId::EmergencyPurge);
+    const float weight = static_cast<float>(config_.parts[target].weight);
+    const float radius = tuning.purgeRadiusBase + tuning.purgeRadiusPerWeight * weight;
+    const float damageScale = tuning.purgeDamagePerWeight * weight * power;
+    world_.resources.player_->TriggerSurvivorBlast(radius, damageScale);
+    // 壊した部品は区画の間なくなり（欠片も落とさない）、緊急放出も使い切る。
+    const int destroyedLevel = partLevels_[target];
+    partLevels_[target] = 0;
+    destroyedParts_[target] = true;
+    partLevels_[static_cast<size_t>(PartId::EmergencyPurge)] = 0;
+    ApplyParts();
+    ++qUses_;
+    ++purges_;
+    qRecord_ << (qRecord_.tellp() > 0 ? "," : "") << "{\"t\":" << std::round(elapsed_ * 10.0f) / 10.0f
+             << ",\"skill\":\"emergencyPurge\",\"destroyed\":\"" << config_.parts[target].key << "\",\"level\":" << destroyedLevel
+             << ",\"radius\":" << radius << ",\"damageScale\":" << damageScale << "}";
+    world_.presentation.cameraShakeDuration_ = 0.45f;
+    world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
+    world_.presentation.cameraShakePower_ = 0.8f;
+    world_.combatFlow->SetEventCallout(std::string("緊急放出：") + config_.parts[target].name + " を壊した", 1.0f);
+    return true;
+}
+
 std::string SurvivorRunController::DescribeQ() const
 {
     const survivor::PartId skill = survivor::OwnedQSkill(config_.parts, partLevels_);
@@ -283,6 +328,8 @@ std::string SurvivorRunController::DescribeQ() const
     text << "[Q] " << part.name << " Lv" << survivor::LevelOf(partLevels_, skill) << "　";
     if (qCooldown_ > 0.0f) {
         text << "待ち " << std::fixed << std::setprecision(1) << qCooldown_ << "秒";
+    } else if (skill == survivor::PartId::EmergencyPurge) {
+        text << "一番重い部品を壊して爆発（1回）";
     } else if (skill == survivor::PartId::HeatVent) {
         const float heat = world_.resources.player_->GetHeat().GetHeat();
         if (heat < config_.heatVent.minHeat) {
@@ -387,16 +434,41 @@ void SurvivorRunController::ApplyParts()
     shield.regenPerSecond = config_.shieldRegenPerSecond;
     player.SetShieldConfig(shield);
 
-    // 軽い部品の3段の変化と、重弾頭の熱。
+    player.SetSurvivorPartEffects(MakePartEffects());
+    moraleApplied_ = moraleKills_;
+    loadoutHud_.SetLoadout(config_.parts, partLevels_, Capacity());
+    maxLoad_ = (std::max)(maxLoad_, survivor::LoadOf(config_.parts, partLevels_));
+}
+
+Player::SurvivorPartEffects SurvivorRunController::MakePartEffects() const
+{
+    using survivor::PartId;
+    // 軽い部品の3段の変化・重弾頭の熱・余熱・戦意・衝角シールド。
+    const auto power = [&](PartId id) {
+        return survivor::EffectPower(config_.parts, partLevels_, id);
+    };
     Player::SurvivorPartEffects effects{};
-    effects.extraHeatPerShot = 2.0f * survivor::EffectPower(config_.parts, partLevels_, PartId::HeavyWarhead);
+    effects.extraHeatPerShot = 2.0f * power(PartId::HeavyWarhead);
     effects.critChance = survivor::HasChange(partLevels_, PartId::Warhead) ? 0.15f : 0.0f;
     effects.loaderRamp = survivor::HasChange(partLevels_, PartId::Loader);
     effects.spikes = survivor::HasChange(partLevels_, PartId::Ram);
     effects.invincibleScale = survivor::HasChange(partLevels_, PartId::Armor) ? 1.8f : 1.0f;
-    player.SetSurvivorPartEffects(effects);
-    loadoutHud_.SetLoadout(config_.parts, partLevels_, Capacity());
-    maxLoad_ = (std::max)(maxLoad_, survivor::LoadOf(config_.parts, partLevels_));
+    effects.residualHeat = config_.partTuning.residualHeatBonus * power(PartId::ResidualHeat);
+    effects.ramShield = config_.partTuning.ramShieldBonus * power(PartId::RamShield);
+    effects.shotDamageScale = 1.0f + config_.partTuning.moralePerKill * power(PartId::Morale) * static_cast<float>(moraleKills_);
+    return effects;
+}
+
+void SurvivorRunController::RefreshMorale(float dt)
+{
+    // 戦意の倍率は、倒すたびではなく0.5秒ごとにまとめて渡す（部品の倍率を作り直さず、効果だけを差し替える）。
+    moraleRefresh_ -= dt;
+    if (moraleRefresh_ > 0.0f || moraleKills_ == moraleApplied_) {
+        return;
+    }
+    moraleRefresh_ = 0.5f;
+    moraleApplied_ = moraleKills_;
+    world_.resources.player_->SetSurvivorPartEffects(MakePartEffects());
 }
 
 void SurvivorRunController::UpdateSpikes()

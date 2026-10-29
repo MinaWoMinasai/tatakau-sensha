@@ -310,6 +310,11 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
             shield_ += shieldMax * shieldConfig_.regenPerSecond * deltaTime;
         }
         shield_ = (std::clamp)(shield_, 0.0f, shieldMax);
+        // 衝角シールド：今のシールドの割合に比例して、体当たりの威力を上げる（部品を持っているときだけ書き換える）。
+        if (partEffects_.ramShield > 0.0f) {
+            const float ratio = shieldMax > 0.0f ? shield_ / shieldMax : 0.0f;
+            SetDamage(static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bodyDamage * (1.0f + partEffects_.ramShield * ratio)))));
+        }
     }
     if (damageFeedbackTimer_ > 0.0f) {
         damageFeedbackTimer_ = (std::max)(0.0f, damageFeedbackTimer_ - deltaTime);
@@ -788,6 +793,18 @@ bool Player::HasRailChargeForm() const
 {
     const PlayerClassConfig* config = GetCurrentClassConfig();
     return config && config->specialActionId == "rail_charge";
+}
+
+void Player::TriggerSurvivorBlast(float radius, float damageScale)
+{
+    MineDropEvent explosion{};
+    explosion.position = GetWorldPosition();
+    explosion.radius = radius;
+    explosion.fuseTime = 0.06f;
+    explosion.lifeTime = 0.2f;
+    explosion.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * damageScale)));
+    explosion.color = {1.9f, 0.35f, 0.16f, 1.0f};
+    pendingMineDrops_.push_back(explosion);
 }
 
 float Player::FireSurvivorHeatVent(float damagePerHeat)

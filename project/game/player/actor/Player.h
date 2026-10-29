@@ -655,6 +655,8 @@ public:
     /// @return 放った熱。弾を撃てなかったら（弾の管理が無いなど）0 で、熱も減らさない。
     /// @note オーバーヒート中でも使え、熱を0に戻すので、オーバーヒートも解ける。
     float FireSurvivorHeatVent(float damagePerHeat);
+    /// @brief 自機の位置で爆発を起こす（緊急放出）。威力は 主砲1発 × damageScale。衝撃放電と同じ爆発の仕組みを使う。
+    void TriggerSurvivorBlast(float radius, float damageScale);
 
     /// @brief 育つ戦車の試作の部品による、撃ち方・守りの挙動の変化。既定では何も変えない。
     struct SurvivorPartEffects {
@@ -668,6 +670,12 @@ public:
         bool spikes = false;
         /// @brief 被弾後の無敵時間の倍率（装甲板の3段）。
         float invincibleScale = 1.0f;
+        /// @brief 余熱：熱0のときの威力の上がり幅（0.5 なら +50%）。熱が上限に近いほど0に近づく。
+        float residualHeat = 0.0f;
+        /// @brief 主砲1発の威力に掛ける倍率（戦意の積み上げ）。
+        float shotDamageScale = 1.0f;
+        /// @brief 衝角シールド：シールドが満タンのときの、体当たりの威力の上がり幅（1.5 なら +150%）。
+        float ramShield = 0.0f;
     };
     void SetSurvivorPartEffects(const SurvivorPartEffects& effects)
     {

@@ -135,6 +135,12 @@ private:
     void RemovePart(survivor::PartId id);
     /// @brief 部品を1つ外し、Lv に応じた欠片を落として記録する。incoming は代わりに積む部品（記録用）。
     void DiscardPart(survivor::PartId id, survivor::PartId incoming);
+    /// @brief 部品の Lv と戦意の撃破数から、自機の撃ち方・守りの変化を作る。
+    Player::SurvivorPartEffects MakePartEffects() const;
+    /// @brief 戦意の撃破数が増えていれば、0.5秒ごとに自機の効果を差し替える。
+    void RefreshMorale(float dt);
+    /// @brief 緊急放出：一番重い部品を壊して大爆発を起こし、緊急放出も使い切る。使えたら真。
+    bool UseEmergencyPurge();
     /// @brief Q の待ち時間を進め、Q キーで Q の部品を使う。
     void UpdateQ(float gameDt);
     /// @brief 積んでいる Q の部品を使う。使えたら真。
@@ -221,6 +227,13 @@ private:
     int removals_ = 0;
     int maxLoad_ = 0;
     std::ostringstream removalRecord_;
+    // 戦意：積んでいる間に倒した数と、自機に渡し済みの数。
+    int moraleKills_ = 0;
+    int moraleApplied_ = 0;
+    float moraleRefresh_ = 0.0f;
+    // 緊急放出で壊した部品（その区画の間、3択に出さない）。
+    std::array<bool, survivor::kPartCount> destroyedParts_{};
+    int purges_ = 0;
     // Q の枠（1つ）。待ち時間は区画の時間で減る。
     float qCooldown_ = 0.0f;
     int qUses_ = 0;
@@ -305,6 +318,10 @@ private:
     bool autoRemovalCaptured_ = false;
     // Q の画面を保存する時刻。-1 はまだ使っていない、0 は保存済み。
     float autoQCaptureAt_ = -1.0f;
+    std::string autoQCaptureName_;
+    bool autoPurgeCaptured_ = false;
+    // Q の入れ替えの確認：0 未実施、2 入れ替わった、3 入れ替わらなかった、-1 行わない。
+    int autoQSwapProbe_ = 0;
     bool autoRivalCaptured_ = false;
     // 200体の fps の確認。場面ごとに1秒ずつの fps・敵の数・画面の中の数を足し込む。
     struct PerfPhase {

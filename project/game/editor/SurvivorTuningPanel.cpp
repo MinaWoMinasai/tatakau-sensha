@@ -173,6 +173,14 @@ bool DrawPartsAndChoices(SpawnConfig& config)
     changed |= ImGui::DragFloat("待ち時間（秒）", &config.heatVent.cooldown, 0.05f, 0.0f, 30.0f, "%.2f");
     changed |= ImGui::DragFloat("使える熱の下限", &config.heatVent.minHeat, 0.5f, 0.0f, 200.0f, "%.0f");
     changed |= ImGui::DragFloat("熱1あたりの威力", &config.heatVent.damagePerHeat, 0.002f, 0.0f, 2.0f, "x%.3f");
+    ImGui::SeparatorText("余熱・衝角シールド・戦意・緊急放出（Lv1 の値）");
+    auto& tuning = config.partTuning;
+    changed |= ImGui::DragFloat("余熱：熱0での威力の上がり幅", &tuning.residualHeatBonus, 0.01f, 0.0f, 5.0f, "+%.2f");
+    changed |= ImGui::DragFloat("衝角シールド：満タンでの体当たりの上がり幅", &tuning.ramShieldBonus, 0.02f, 0.0f, 10.0f, "+%.2f");
+    changed |= ImGui::DragFloat("戦意：1体ごとの威力の上がり幅", &tuning.moralePerKill, 0.0005f, 0.0f, 0.2f, "+%.4f");
+    changed |= ImGui::DragFloat("緊急放出：半径（基本）", &tuning.purgeRadiusBase, 0.1f, 0.0f, 40.0f, "%.1f");
+    changed |= ImGui::DragFloat("緊急放出：半径（重さ1ごと）", &tuning.purgeRadiusPerWeight, 0.1f, 0.0f, 20.0f, "%.1f");
+    changed |= ImGui::DragFloat("緊急放出：威力（重さ1ごと）", &tuning.purgeDamagePerWeight, 0.5f, 0.0f, 200.0f, "x%.1f");
     ImGui::SeparatorText("積載量（base + Lv / perLevels）");
     changed |= ImGui::DragInt("最初の積載量", &config.load.base, 0.1f, 1, 40);
     changed |= ImGui::DragInt("何レベルごとに+1", &config.load.perLevels, 0.1f, 1, 20);

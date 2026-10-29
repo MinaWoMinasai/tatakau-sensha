@@ -107,6 +107,16 @@ struct SpawnConfig {
         float damagePerHeat = 0.12f;
     } heatVent;
 
+    /// @brief T3 の部品の強さ（Lv1 の値。Lv2・3 は効果の強さ effectPower を掛ける）。
+    struct PartTuning {
+        float residualHeatBonus = 0.5f;   // 余熱：熱0のときの威力の上がり幅
+        float ramShieldBonus = 1.5f;      // 衝角シールド：シールドが満タンのときの体当たりの上がり幅
+        float moralePerKill = 0.001f;     // 戦意：1体倒すごとの主砲の威力の上がり幅（区画で千体以上倒すので、設計案の1%より小さい）
+        float purgeRadiusBase = 6.0f;     // 緊急放出：爆発の半径 = base + 重さ × perWeight
+        float purgeRadiusPerWeight = 2.0f;
+        float purgeDamagePerWeight = 15.0f; // 緊急放出：威力 = 主砲1発 × 重さ × これ
+    } partTuning;
+
     /// @brief レベル level での積載量を返す。
     int CapacityAt(int level) const
     {
@@ -302,6 +312,16 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(curve, "power", config.levelPower);
         }
     }
+    if (data.contains("partTuning")) {
+        const auto& tuning = data.at("partTuning");
+        auto& t = config.partTuning;
+        number(tuning, "residualHeatBonus", t.residualHeatBonus);
+        number(tuning, "ramShieldBonus", t.ramShieldBonus);
+        number(tuning, "moralePerKill", t.moralePerKill);
+        number(tuning, "purgeRadiusBase", t.purgeRadiusBase);
+        number(tuning, "purgeRadiusPerWeight", t.purgeRadiusPerWeight);
+        number(tuning, "purgeDamagePerWeight", t.purgeDamagePerWeight);
+    }
     if (data.contains("heatVent")) {
         const auto& vent = data.at("heatVent");
         number(vent, "cooldown", config.heatVent.cooldown);
@@ -442,6 +462,13 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     experience["maxShards"] = config.maxShards;
     experience["maxLevel"] = config.maxLevel;
     experience["levelCurve"] = {{"base", round(config.levelBase)}, {"growth", round(config.levelGrowth)}, {"power", round(config.levelPower)}};
+    auto& tuning = section("partTuning");
+    tuning["residualHeatBonus"] = round(config.partTuning.residualHeatBonus);
+    tuning["ramShieldBonus"] = round(config.partTuning.ramShieldBonus);
+    tuning["moralePerKill"] = round(config.partTuning.moralePerKill);
+    tuning["purgeRadiusBase"] = round(config.partTuning.purgeRadiusBase);
+    tuning["purgeRadiusPerWeight"] = round(config.partTuning.purgeRadiusPerWeight);
+    tuning["purgeDamagePerWeight"] = round(config.partTuning.purgeDamagePerWeight);
     auto& vent = section("heatVent");
     vent["cooldown"] = round(config.heatVent.cooldown);
     vent["minHeat"] = round(config.heatVent.minHeat);
@@ -508,9 +535,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 19> kOrder{
-        "schemaVersion", "comment", "exitOpenSeconds", "exitRadius", "spawnRing", "shapes", "triangleSwarm", "tanks",    "threat", "rival",
-        "experience",    "load",    "choices",         "heat",       "shield",    "forms",  "parts",         "heatVent", "bigPentagon"};
+    static constexpr std::array<const char*, 20> kOrder{
+        "schemaVersion", "comment", "exitOpenSeconds", "exitRadius", "spawnRing", "shapes",   "triangleSwarm", "tanks",
+        "threat",        "rival",   "experience",      "load",       "choices",   "heat",     "shield",        "forms",
+        "parts",         "heatVent", "partTuning",     "bigPentagon"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
         if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {

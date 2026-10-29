@@ -250,6 +250,7 @@ void SurvivorRunController::Update(float dt)
         if (gameDt > 0.0f && !choiceOpen_) {
             UpdateQ(gameDt);
         }
+        RefreshMorale(dt);
         if (gameDt > 0.0f && separationEnabled_) {
             const auto separationStart = std::chrono::steady_clock::now();
             SeparateEnemies();
@@ -367,6 +368,10 @@ void SurvivorRunController::UpdateTuningPanel()
 void SurvivorRunController::OnEnemyDefeated(const myEngine::Vector3& position)
 {
     world_.combat.screenEffectDirector_.TriggerEnemyDefeat(world_.gameplayQueries->WorldToScreenUv(position), 1.0f);
+    // 戦意：積んでいる間に倒した数を数える（倍率への反映は RefreshMorale がまとめて行う）。
+    if (survivor::LevelOf(partLevels_, survivor::PartId::Morale) > 0) {
+        ++moraleKills_;
+    }
 }
 
 void SurvivorRunController::QueueWorldVisuals()

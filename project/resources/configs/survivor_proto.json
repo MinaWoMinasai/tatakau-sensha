@@ -76,7 +76,16 @@
     "killBurst": { "perLevel": 0.5, "weight": 2 },
     "dashBurst": { "perLevel": 0.5, "weight": 1 },
     "heavyWarhead": { "perLevel": 0.5, "weight": 1 },
-    "heatVent": { "perLevel": 0.5, "weight": 2 }
+    "heatVent": { "perLevel": 0.5, "weight": 2 },
+    "residualHeat": { "perLevel": 0.5, "weight": 1 },
+    "ramShield": { "perLevel": 0.5, "weight": 2 },
+    "morale": { "perLevel": 0.5, "weight": 1 },
+    "emergencyPurge": { "perLevel": 0.5, "weight": 0 }
+  },
+  "partTuning": {
+    "comment": "部品の強さ（Lv1。Lv2・3 は効果の強さを掛ける）。余熱は熱0のときの主砲の威力の上がり幅（熱が上限に近いほど0）。衝角シールドはシールド満タンのときの体当たりの上がり幅。戦意は1体倒すごとの主砲の威力の上がり幅（区画の間ずっと。設計案は +1% だが、区画で千体以上倒すので +0.1% にした）。緊急放出（Q・使い切り）は一番重い部品を壊し、半径 purgeRadiusBase + 重さ × purgeRadiusPerWeight、威力 主砲1発 × 重さ × purgeDamagePerWeight の爆発。壊した部品はその区画の間、3択に出ない。",
+    "residualHeatBonus": 0.5, "ramShieldBonus": 1.5, "moralePerKill": 0.001,
+    "purgeRadiusBase": 6, "purgeRadiusPerWeight": 2, "purgeDamagePerWeight": 15
   },
   "heatVent": {
     "comment": "排熱砲（Q）。Q で今の熱を全部0にし、熱に比例した威力の太い貫通弾を撃つ（オーバーヒート中も使え、解ける）。熱が minHeat 未満なら使えない。威力は 主砲1発 × 熱 × damagePerHeat × 効果の強さ（Lv1 で1）。使うと cooldown 秒待つ。",
