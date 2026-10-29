@@ -44,6 +44,7 @@ void SurvivorRunController::UpdateSpawns(float dt)
         const int swarmCount = config_.swarmCount + config_.threat.swarmCountPerStage * extraStages;
         if (const auto center = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance)) {
             pendingWaves_.push_back({at, *center, swarmCount, false});
+            QueueHint(Hint::Swarm);
         }
     }
     ReleasePendingWaves();
@@ -242,6 +243,7 @@ void SurvivorRunController::UpdateThreat()
     // 包囲の輪も lead 秒前に予告する（輪の中心は、湧く時刻の自機の位置）。
     if (config_.threat.ringCount > 0 && threatStage_ >= config_.threat.ringFromStage && elapsed_ >= nextRing_ - config_.telegraph.lead) {
         pendingWaves_.push_back({nextRing_, {}, config_.threat.ringCount, true});
+        QueueHint(Hint::Ring);
         nextRing_ += config_.threat.ringInterval;
     }
 }

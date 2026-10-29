@@ -241,6 +241,12 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
     }
 
+    // 案内：それぞれの案内が出て0.8秒の画面を保存する。
+    if (hintShowing_ >= 0 && hintTimer_ >= 0.8f && !autoHintCaptured_[static_cast<size_t>(hintShowing_)] &&
+        world_.run.tankRunCapturePath_.empty()) {
+        RequestCapture("hint_" + std::to_string(hintShowing_));
+        autoHintCaptured_[static_cast<size_t>(hintShowing_)] = true;
+    }
     // 演出：宿敵の登場（1.6秒）・撃破（0.9秒）・自機が倒れた演出（1.0秒）の画面を保存する。
     if (world_.run.tankRunCapturePath_.empty()) {
         if (cineMode_ == CineMode::RivalIntro && !autoIntroCaptured_ && cineTime_ >= 1.6f) {

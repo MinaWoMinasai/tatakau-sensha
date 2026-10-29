@@ -225,6 +225,30 @@ private:
     bool separationEnabled_ = true;
     double separationSeconds_ = 0.0;
     uint64_t separationCalls_ = 0;
+    // 最小の案内（U3）。それぞれ初めて出てきたときに1回だけ、画面の下に短く出す。
+    enum class Hint {
+        Move,      // 始め：移動・射撃・ダッシュ
+        Choice,    // 選択が貯まった：Tab で3択
+        Load,      // 初めて3択を開いた：重さと積載
+        Heat,      // 熱が7割を超えた
+        Swarm,     // 群れの予告
+        Ring,      // 包囲の輪の予告
+        QSkill,    // Q の部品を積んだ
+        Rival,     // 宿敵が現れた
+        Count
+    };
+    /// @brief 1つの案内を出す秒数（実時間）。
+    static constexpr float kHintSeconds = 5.0f;
+    /// @brief 案内を出す順番に並べる。すでに出した案内は何もしない。
+    void QueueHint(Hint hint);
+    /// @brief 出している案内の時間を進め、終わったら次を出す。dt は基準時間。
+    void UpdateHints(float dt);
+    std::array<std::unique_ptr<myEngine::TextLabel>, static_cast<size_t>(Hint::Count)> hintTexts_;
+    std::unique_ptr<myEngine::Sprite> hintPanel_;
+    std::array<bool, static_cast<size_t>(Hint::Count)> hintQueued_{};
+    std::vector<Hint> hintQueue_;
+    int hintShowing_ = -1;
+    float hintTimer_ = 0.0f;
     // 宿敵と自機の撃破の演出。RivalIntro はゲームを止め、RivalDefeat はスローにする。
     enum class CineMode {
         None,
@@ -391,6 +415,7 @@ private:
     bool autoRingWarningCaptured_ = false;
     int autoMaxChasers_ = 0;
     bool autoIntroCaptured_ = false;
+    std::array<bool, static_cast<size_t>(Hint::Count)> autoHintCaptured_{};
     bool autoDefeatCaptured_ = false;
     bool autoDownCaptured_ = false;
     // 倒れる確認の時刻（MYENGINE_SURVIVOR_DEATH）。-1 はまだ読んでいない。

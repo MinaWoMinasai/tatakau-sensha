@@ -83,6 +83,7 @@ void SurvivorRunController::OpenChoices()
         return;
     }
     choiceOpen_ = true;
+    QueueHint(Hint::Load);
     DrawNextOffers();
 }
 
@@ -436,6 +437,9 @@ void SurvivorRunController::ApplyParts()
 
     player.SetSurvivorPartEffects(MakePartEffects());
     moraleApplied_ = moraleKills_;
+    if (survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count) {
+        QueueHint(Hint::QSkill);
+    }
     loadoutHud_.SetLoadout(config_.parts, partLevels_, Capacity());
     maxLoad_ = (std::max)(maxLoad_, survivor::LoadOf(config_.parts, partLevels_));
 }

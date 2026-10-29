@@ -115,6 +115,25 @@ void SurvivorRunController::Initialize()
     qText_ = std::make_unique<myEngine::TextLabel>();
     qText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
     qText_->SetPosition({520.0f, 676.0f});
+    // 最小の案内。文字は案内ごとに作り、遊んでいる間は書き換えない（描画中の SetText は落ちる原因になるため）。
+    hintPanel_ = bar({190.0f, 548.0f}, {900.0f, 46.0f}, {0.01f, 0.03f, 0.05f, 0.80f});
+    style.fontSize = 21;
+    style.color = {0.92f, 0.98f, 1.0f, 1.0f};
+    static constexpr std::array<const char*, static_cast<size_t>(Hint::Count)> kHintTexts{
+        "WASD で移動　／　マウスで狙い、左クリックで撃つ　／　Shift でダッシュ",
+        "レベルが上がると部品を選べる。Tab で開く（開いている間はスロー）。貯めておいてもよい",
+        "部品には重さがある。左下の積載を超える部品は、何かを外してから積む",
+        "撃ち続けると熱がたまる。上限を超えるとオーバーヒートで少しの間撃てない",
+        "画面の端の「！」の方向から、三角の群れが来る",
+        "赤い破線の円：まわりを三角に囲まれる。早めに円の外へ抜ける",
+        "Q で Q の部品を使う（状態は画面の下に出る）",
+        "宿敵を倒すと出口が開く"};
+    for (size_t i = 0; i < hintTexts_.size(); ++i) {
+        hintTexts_[i] = std::make_unique<myEngine::TextLabel>();
+        hintTexts_[i]->Initialize(myEngine::SpriteCommon::GetInstance(), kHintTexts[i], style);
+        hintTexts_[i]->SetAnchorPoint({0.5f, 0.5f});
+        hintTexts_[i]->SetPosition({640.0f, 571.0f});
+    }
     // 演出の上下の黒い帯と題字。
     cineBarTop_ = bar({0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.92f});
     cineBarBottom_ = bar({0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.92f});
@@ -157,6 +176,7 @@ void SurvivorRunController::Initialize()
     resultMenu_->SetPosition({290.0f, 612.0f});
     fpsClock_ = std::chrono::steady_clock::now();
     RefreshHud();
+    QueueHint(Hint::Move);
 
     wchar_t automatic[8]{};
     const DWORD length = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_AUTOTEST", automatic, 8);
@@ -279,6 +299,14 @@ void SurvivorRunController::Update(float dt)
             UpdateQ(gameDt);
         }
         RefreshMorale(dt);
+        // 案内のきっかけ：選択が貯まった・熱が7割を超えた。
+        if (pendingChoices_ > 0) {
+            QueueHint(Hint::Choice);
+        }
+        if (heat.GetHeat() >= heat.GetMaxHeat() * 0.7f) {
+            QueueHint(Hint::Heat);
+        }
+        UpdateHints(dt);
         if (gameDt > 0.0f && separationEnabled_) {
             const auto separationStart = std::chrono::steady_clock::now();
             SeparateEnemies();
@@ -524,7 +552,43 @@ void SurvivorRunController::DrawUi()
     }
     loadoutHud_.DrawLoadout();
     choiceHud_.Draw(choiceOpen_ || formChoiceOpen_, formChoiceOpen_ ? 0 : pendingChoices_);
+    // 案内（3択を開いている間も、暗幕の上に出す）。
+    if (hintShowing_ >= 0 && hintPanel_) {
+        const float fade = (std::clamp)((std::min)(hintTimer_, kHintSeconds - hintTimer_) / 0.3f, 0.0f, 1.0f);
+        myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+        hintPanel_->SetColor({0.01f, 0.03f, 0.05f, 0.80f * fade});
+        hintPanel_->Update();
+        hintPanel_->Draw();
+        hintTexts_[static_cast<size_t>(hintShowing_)]->SetAlpha(fade);
+        hintTexts_[static_cast<size_t>(hintShowing_)]->Draw();
+    }
     DrawCinematic();
+}
+
+void SurvivorRunController::QueueHint(Hint hint)
+{
+    const size_t index = static_cast<size_t>(hint);
+    if (hintQueued_[index]) {
+        return;
+    }
+    hintQueued_[index] = true;
+    hintQueue_.push_back(hint);
+}
+
+void SurvivorRunController::UpdateHints(float dt)
+{
+    if (hintShowing_ >= 0) {
+        hintTimer_ += dt;
+        if (hintTimer_ < kHintSeconds) {
+            return;
+        }
+        hintShowing_ = -1;
+    }
+    if (!hintQueue_.empty()) {
+        hintShowing_ = static_cast<int>(hintQueue_.front());
+        hintQueue_.erase(hintQueue_.begin());
+        hintTimer_ = 0.0f;
+    }
 }
 
 } // namespace gameplay

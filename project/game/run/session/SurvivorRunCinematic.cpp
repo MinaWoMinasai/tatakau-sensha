@@ -47,6 +47,7 @@ void SurvivorRunController::UpdateCinematic(float dt)
         letterbox = 1.0f;
         if (cineTime_ >= kIntroSeconds) {
             cineMode_ = CineMode::RivalFight;
+            QueueHint(Hint::Rival);
             cineTime_ = 0.0f;
         }
         break;
