@@ -36,21 +36,33 @@ void SurvivorRunController::UpdateSpawns(float dt)
     const AliveCounts alive = CountAlive();
 
     // 三角の群れ：輪の1点から、まとまって自機へ寄ってくる。群れは予算と別に湧かせる。
-    // 脅威の段階が上がるほど、群れは大きく、間隔は短くなる。
+    // 脅威の段階が上がるほど、群れは大きく、間隔は短くなる。湧く lead 秒前に場所を決めて予告し、時刻が来たら湧かせる。
     const int extraStages = threatStage_ - 1;
-    if (config_.swarmCount > 0 && elapsed_ >= nextSwarm_) {
+    if (config_.swarmCount > 0 && elapsed_ >= nextSwarm_ - config_.telegraph.lead) {
+        const float at = nextSwarm_;
         nextSwarm_ += config_.swarm.interval * std::pow(config_.threat.swarmIntervalScalePerStage, static_cast<float>(extraStages));
         const int swarmCount = config_.swarmCount + config_.threat.swarmCountPerStage * extraStages;
         if (const auto center = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance)) {
-            std::uniform_real_distribution<float> offset(-config_.swarmSpread, config_.swarmSpread);
-            for (int i = 0; i < swarmCount; ++i) {
-                myEngine::Vector3 position = *center + myEngine::Vector3{offset(random_), offset(random_), 0.0f};
-                position.x = (std::clamp)(position.x, kSpawnMinX, kSpawnMaxX);
-                position.y = (std::clamp)(position.y, kSpawnMinY, kSpawnMaxY);
-                if (!world_.resources.stage_->IsCollisionWithAnyBlock(position, 1.2f)) {
-                    SpawnShape("Triangle", position, true);
-                }
+            pendingWaves_.push_back({at, *center, swarmCount, false});
+        }
+    }
+    ReleasePendingWaves();
+
+    // 重い四角：大きく硬く、ゆっくり迫る。脅威の段階が fromStage に達してから、一定の間隔で湧く。
+    if (config_.heavySquare.count > 0 && threatStage_ >= config_.heavySquare.fromStage && elapsed_ >= nextHeavy_) {
+        nextHeavy_ = elapsed_ + config_.heavySquare.interval;
+        const int room = config_.telegraph.maxChasers - CountChasers();
+        for (int i = 0; i < (std::min)(config_.heavySquare.count, room); ++i) {
+            const auto position = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance);
+            if (!position || !SpawnShape("Square", *position, false)) {
+                continue;
             }
+            const auto& heavy = config_.heavySquare;
+            ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
+            enemy->SetSizeScale(heavy.scale);
+            enemy->SetHp(static_cast<int>(std::lround(static_cast<float>(enemy->GetMaxHp()) * heavy.hpScale)));
+            enemy->SetPlayerChase(heavy.acceleration, heavy.maxSpeed);
+            ++heavySpawned_;
         }
     }
 
@@ -90,14 +102,70 @@ void SurvivorRunController::UpdateSpawns(float dt)
     const auto& weights = config_.ShapeWeightsAt(elapsed_);
     std::discrete_distribution<int> pick(weights.begin(), weights.end());
     static constexpr std::array<const char*, 3> kShapes{"Square", "Triangle", "Pentagon"};
+    const auto& lunge = config_.lungePentagon;
+    std::uniform_real_distribution<float> chance(0.0f, 1.0f);
+    std::uniform_real_distribution<float> phase(0.0f, (std::max)(0.1f, lunge.interval));
+    int chasers = CountChasers();
     while (missing > 0 && spawnBudget_ >= 1.0f) {
         const auto position = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance);
         if (!position) {
             break;
         }
-        SpawnShape(kShapes[static_cast<size_t>(pick(random_))], *position, false);
+        const size_t kind = static_cast<size_t>(pick(random_));
+        if (SpawnShape(kShapes[kind], *position, false) && kind == 2 && threatStage_ >= lunge.fromStage && chasers < config_.telegraph.maxChasers &&
+            chance(random_) < lunge.chance) {
+            // 突進する五角：ゆっくり寄り、周期ごとに溜めてから速く迫る。周期は個体ごとにずらす。
+            ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
+            enemy->SetPlayerChase(lunge.acceleration, lunge.maxSpeed);
+            enemy->SetPlayerLunge(lunge.interval, lunge.windup, lunge.duration, lunge.lungeSpeed, phase(random_));
+            ++chasers;
+            ++lungeSpawned_;
+        }
         spawnBudget_ -= 1.0f;
         --missing;
+    }
+}
+
+int SurvivorRunController::CountChasers() const
+{
+    int count = 0;
+    for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+        if (enemy && !enemy->IsDead() && enemy->IsChasingPlayer()) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+void SurvivorRunController::ReleasePendingWaves()
+{
+    // 予告の時刻が来た群れと輪を湧かせる。寄ってくる敵が上限に近ければ、その分だけ数を減らす。
+    for (size_t i = 0; i < pendingWaves_.size();) {
+        const PendingWave wave = pendingWaves_[i];
+        if (elapsed_ < wave.at) {
+            ++i;
+            continue;
+        }
+        pendingWaves_.erase(pendingWaves_.begin() + static_cast<std::ptrdiff_t>(i));
+        const int count = (std::min)(wave.count, config_.telegraph.maxChasers - CountChasers());
+        if (count <= 0) {
+            ++wavesSkipped_;
+            continue;
+        }
+        if (wave.ring) {
+            SpawnRing(count);
+            continue;
+        }
+        std::uniform_real_distribution<float> offset(-config_.swarmSpread, config_.swarmSpread);
+        for (int n = 0; n < count; ++n) {
+            myEngine::Vector3 position = wave.center + myEngine::Vector3{offset(random_), offset(random_), 0.0f};
+            position.x = (std::clamp)(position.x, kSpawnMinX, kSpawnMaxX);
+            position.y = (std::clamp)(position.y, kSpawnMinY, kSpawnMaxY);
+            if (!world_.resources.stage_->IsCollisionWithAnyBlock(position, 1.2f)) {
+                SpawnShape("Triangle", position, true);
+            }
+        }
+        ++swarmsSpawned_;
     }
 }
 
@@ -171,17 +239,17 @@ void SurvivorRunController::UpdateThreat()
         }
         world_.combatFlow->SetEventCallout(text, 1.2f);
     }
-    if (config_.threat.ringCount > 0 && threatStage_ >= config_.threat.ringFromStage && elapsed_ >= nextRing_) {
-        nextRing_ = elapsed_ + config_.threat.ringInterval;
-        SpawnRing();
+    // 包囲の輪も lead 秒前に予告する（輪の中心は、湧く時刻の自機の位置）。
+    if (config_.threat.ringCount > 0 && threatStage_ >= config_.threat.ringFromStage && elapsed_ >= nextRing_ - config_.telegraph.lead) {
+        pendingWaves_.push_back({nextRing_, {}, config_.threat.ringCount, true});
+        nextRing_ += config_.threat.ringInterval;
     }
 }
 
-void SurvivorRunController::SpawnRing()
+void SurvivorRunController::SpawnRing(int count)
 {
     // 輪の上の点のうち、部屋の中で壁と柱に重ならないところにだけ置く。一部が欠けても、残りで囲む。
     const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition();
-    const int count = config_.threat.ringCount;
     std::uniform_real_distribution<float> turn(0.0f, 6.2831853f);
     const float start = turn(random_);
     int placed = 0;

@@ -29,6 +29,18 @@
     "tankMaxAlivePerStage": 1,
     "ringFromStage": 3, "ringInterval": 30, "ringCount": 18, "ringRadius": 17.0
   },
+  "telegraph": {
+    "comment": "予告。三角の群れと包囲の輪は lead 秒前に予告してから湧く（群れは画面の端に方向の「！」、輪は自機のまわりに破線の円）。寄ってくる敵（群れ・輪・重い四角・突進する五角）は maxChasers 体までにし、超える分は群れと輪を減らす。",
+    "lead": 1.5, "maxChasers": 70
+  },
+  "heavySquare": {
+    "comment": "重い四角。大きく（scale 倍）硬く（HP hpScale 倍）、ゆっくり迫る四角。脅威 fromStage 段から interval 秒ごとに count 体。",
+    "fromStage": 2, "interval": 14, "count": 2, "scale": 1.7, "hpScale": 5, "acceleration": 3, "maxSpeed": 2.6
+  },
+  "lungePentagon": {
+    "comment": "突進する五角。脅威 fromStage 段から、湧く五角の chance の割合が、ゆっくり寄りながら interval 秒ごとに windup 秒溜めて（ほぼ止まる）duration 秒だけ lungeSpeed で迫る。",
+    "fromStage": 2, "chance": 0.5, "acceleration": 4, "maxSpeed": 2, "lungeSpeed": 13, "interval": 3.5, "windup": 0.5, "duration": 0.5
+  },
   "rival": {
     "comment": "宿敵。exitOpenSeconds に出口の代わりに現れ、倒すと出口が開く。倒すと exp 分の欠片を落とし、宝箱の選択を1つ貯める。enabled が false なら時間で出口が開く。",
     "enabled": true, "hp": 1500, "exp": 600

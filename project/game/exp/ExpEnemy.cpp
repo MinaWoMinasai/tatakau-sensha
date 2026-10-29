@@ -378,10 +378,24 @@ void ExpEnemy::Update(Stage& stage, float deltaTime)
         myEngine::Vector3 toPlayer = player_->GetWorldPosition() - GetWorldPosition();
         toPlayer.z = 0.0f;
         const float distance = myEngine::Length(toPlayer);
-        if (distance > 0.001f) {
-            velocity_ += toPlayer * (chaseAcceleration_ * deltaTime / (distance * myEngine::kFixedStepsPerSecond));
+        float acceleration = chaseAcceleration_;
+        float maxSpeed = chaseMaxSpeed_;
+        // 突進：周期の終わりの windup 秒は溜め（ほぼ止まる）、最後の duration 秒は速く迫る。
+        if (lungeInterval_ > 0.0f) {
+            lungeTimer_ += deltaTime;
+            const float cycle = std::fmod(lungeTimer_, lungeInterval_);
+            if (cycle >= lungeInterval_ - lungeDuration_) {
+                acceleration *= 6.0f;
+                maxSpeed = lungeSpeed_;
+            } else if (cycle >= lungeInterval_ - lungeDuration_ - lungeWindup_) {
+                acceleration = 0.0f;
+                maxSpeed = 0.4f;
+            }
         }
-        const float maxStep = chaseMaxSpeed_ / myEngine::kFixedStepsPerSecond;
+        if (distance > 0.001f) {
+            velocity_ += toPlayer * (acceleration * deltaTime / (distance * myEngine::kFixedStepsPerSecond));
+        }
+        const float maxStep = maxSpeed / myEngine::kFixedStepsPerSecond;
         const float speed = myEngine::Length(velocity_);
         if (speed > maxStep && speed > 0.0f) {
             velocity_ = velocity_ * (maxStep / speed);

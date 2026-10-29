@@ -241,6 +241,15 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
     }
 
+    // 予告：群れと輪のそれぞれ最初の予告を、湧く0.5秒前に保存する。寄ってくる敵の数の最大も見る。
+    for (const PendingWave& wave : pendingWaves_) {
+        bool& captured = wave.ring ? autoRingWarningCaptured_ : autoSwarmWarningCaptured_;
+        if (!captured && elapsed_ >= wave.at - 0.5f && world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture(wave.ring ? "ring_warning" : "swarm_warning");
+            captured = true;
+        }
+    }
+    autoMaxChasers_ = (std::max)(autoMaxChasers_, CountChasers());
     // 包囲の輪は最初の輪の1秒後、宿敵は現れて10秒後の画面を保存する。
     if (ringsSpawned_ == 1 && !autoRingCaptured_ && elapsed_ >= nextRing_ - config_.threat.ringInterval + 1.0f &&
         world_.run.tankRunCapturePath_.empty()) {
@@ -337,7 +346,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"removals\":" << removals_ << ",\"maxLoad\":" << maxLoad_
             << ",\"loadAtEnd\":" << survivor::LoadOf(config_.parts, partLevels_) << ",\"capacityAtEnd\":" << Capacity()
             << ",\"removalLog\":[" << removalRecord_.str() << "]" << ",\"qUses\":" << qUses_ << ",\"qLog\":[" << qRecord_.str() << "]"
-            << ",\"qSwapProbe\":" << autoQSwapProbe_ << ",\"purges\":" << purges_ << ",\"moraleKills\":" << moraleKills_
+            << ",\"swarms\":" << swarmsSpawned_ << ",\"wavesSkipped\":" << wavesSkipped_ << ",\"heavySquares\":" << heavySpawned_
+            << ",\"lungePentagons\":" << lungeSpawned_ << ",\"maxChasers\":" << autoMaxChasers_ << ",\"qSwapProbe\":" << autoQSwapProbe_ << ",\"purges\":" << purges_ << ",\"moraleKills\":" << moraleKills_
             << ",\"effects\":{\"shotDamageScale\":" << MakePartEffects().shotDamageScale << ",\"residualHeat\":" << MakePartEffects().residualHeat
             << ",\"ramShield\":" << MakePartEffects().ramShield << ",\"bodyDamage\":" << player.GetStats().bodyDamage
             << ",\"colliderDamage\":" << player.GetDamage() << ",\"shield\":\"" << player.GetShield() << "/" << player.GetShieldMax() << "\"}"

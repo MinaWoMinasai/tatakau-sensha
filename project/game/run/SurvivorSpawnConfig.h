@@ -69,6 +69,37 @@ struct SpawnConfig {
         float ringRadius = 17.0f;
     } threat;
 
+    /// @brief 予告と、寄ってくる敵の上限。群れと包囲の輪は lead 秒前に予告してから湧く。
+    /// 寄ってくる敵（三角の群れ・輪・重い四角・突進する五角）が maxChasers 体いる間は、群れと輪を湧かせない分だけ減らす。
+    struct Telegraph {
+        float lead = 1.5f;
+        int maxChasers = 70;
+    } telegraph;
+
+    /// @brief 重い四角：大きく硬く、ゆっくり迫る四角。fromStage 段から interval 秒ごとに count 体。
+    struct HeavySquare {
+        int fromStage = 2;
+        float interval = 14.0f;
+        int count = 2;
+        float scale = 1.7f;
+        float hpScale = 5.0f;
+        float acceleration = 3.0f;
+        float maxSpeed = 2.6f;
+    } heavySquare;
+
+    /// @brief 突進する五角：fromStage 段から、湧く五角の chance の割合が、ゆっくり寄りながら interval 秒ごとに
+    /// windup 秒溜めて duration 秒 lungeSpeed で迫る。
+    struct LungePentagon {
+        int fromStage = 2;
+        float chance = 0.5f;
+        float acceleration = 4.0f;
+        float maxSpeed = 2.0f;
+        float lungeSpeed = 13.0f;
+        float interval = 3.5f;
+        float windup = 0.5f;
+        float duration = 0.5f;
+    } lungePentagon;
+
     /// @brief 宿敵。exitOpenSeconds に出口の代わりに現れ、倒すと出口が開く。enabled が偽なら、時間で出口が開く。
     struct Rival {
         bool enabled = true;
@@ -289,6 +320,37 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         t.stageSeconds = (std::max)(1.0f, t.stageSeconds);
         t.ringInterval = (std::max)(1.0f, t.ringInterval);
         t.swarmIntervalScalePerStage = (std::clamp)(t.swarmIntervalScalePerStage, 0.2f, 2.0f);
+    }
+    if (data.contains("telegraph")) {
+        const auto& telegraph = data.at("telegraph");
+        number(telegraph, "lead", config.telegraph.lead);
+        number(telegraph, "maxChasers", config.telegraph.maxChasers);
+        config.telegraph.lead = (std::max)(0.0f, config.telegraph.lead);
+    }
+    if (data.contains("heavySquare")) {
+        const auto& heavy = data.at("heavySquare");
+        auto& h = config.heavySquare;
+        number(heavy, "fromStage", h.fromStage);
+        number(heavy, "interval", h.interval);
+        number(heavy, "count", h.count);
+        number(heavy, "scale", h.scale);
+        number(heavy, "hpScale", h.hpScale);
+        number(heavy, "acceleration", h.acceleration);
+        number(heavy, "maxSpeed", h.maxSpeed);
+        h.interval = (std::max)(0.5f, h.interval);
+    }
+    if (data.contains("lungePentagon")) {
+        const auto& lunge = data.at("lungePentagon");
+        auto& l = config.lungePentagon;
+        number(lunge, "fromStage", l.fromStage);
+        number(lunge, "chance", l.chance);
+        number(lunge, "acceleration", l.acceleration);
+        number(lunge, "maxSpeed", l.maxSpeed);
+        number(lunge, "lungeSpeed", l.lungeSpeed);
+        number(lunge, "interval", l.interval);
+        number(lunge, "windup", l.windup);
+        number(lunge, "duration", l.duration);
+        l.interval = (std::max)(l.windup + l.duration + 0.1f, l.interval);
     }
     if (data.contains("rival")) {
         const auto& rival = data.at("rival");
@@ -529,16 +591,36 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     threat["ringInterval"] = round(config.threat.ringInterval);
     threat["ringCount"] = config.threat.ringCount;
     threat["ringRadius"] = round(config.threat.ringRadius);
+    auto& telegraph = section("telegraph");
+    telegraph["lead"] = round(config.telegraph.lead);
+    telegraph["maxChasers"] = config.telegraph.maxChasers;
+    auto& heavy = section("heavySquare");
+    heavy["fromStage"] = config.heavySquare.fromStage;
+    heavy["interval"] = round(config.heavySquare.interval);
+    heavy["count"] = config.heavySquare.count;
+    heavy["scale"] = round(config.heavySquare.scale);
+    heavy["hpScale"] = round(config.heavySquare.hpScale);
+    heavy["acceleration"] = round(config.heavySquare.acceleration);
+    heavy["maxSpeed"] = round(config.heavySquare.maxSpeed);
+    auto& lunge = section("lungePentagon");
+    lunge["fromStage"] = config.lungePentagon.fromStage;
+    lunge["chance"] = round(config.lungePentagon.chance);
+    lunge["acceleration"] = round(config.lungePentagon.acceleration);
+    lunge["maxSpeed"] = round(config.lungePentagon.maxSpeed);
+    lunge["lungeSpeed"] = round(config.lungePentagon.lungeSpeed);
+    lunge["interval"] = round(config.lungePentagon.interval);
+    lunge["windup"] = round(config.lungePentagon.windup);
+    lunge["duration"] = round(config.lungePentagon.duration);
     auto& rival = section("rival");
     rival["enabled"] = config.rival.enabled;
     rival["hp"] = config.rival.hp;
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 20> kOrder{
-        "schemaVersion", "comment", "exitOpenSeconds", "exitRadius", "spawnRing", "shapes",   "triangleSwarm", "tanks",
-        "threat",        "rival",   "experience",      "load",       "choices",   "heat",     "shield",        "forms",
-        "parts",         "heatVent", "partTuning",     "bigPentagon"};
+    static constexpr std::array<const char*, 23> kOrder{
+        "schemaVersion", "comment",     "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",     "triangleSwarm", "tanks",
+        "threat",        "telegraph",   "heavySquare",     "lungePentagon", "rival",     "experience", "load",          "choices",
+        "heat",          "shield",      "forms",           "parts",         "heatVent",  "partTuning", "bigPentagon"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
         if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {

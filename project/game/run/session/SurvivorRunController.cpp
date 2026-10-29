@@ -115,6 +115,13 @@ void SurvivorRunController::Initialize()
     qText_ = std::make_unique<myEngine::TextLabel>();
     qText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
     qText_->SetPosition({520.0f, 676.0f});
+    // 群れの予告の「！」。
+    style.fontSize = 64;
+    style.color = {1.0f, 0.25f, 0.25f, 1.0f};
+    for (auto& warning : warningTexts_) {
+        warning = std::make_unique<myEngine::TextLabel>();
+        warning->Initialize(myEngine::SpriteCommon::GetInstance(), "！", style);
+    }
     choiceHud_.Initialize();
     choiceHud_.SetPending(0, false);
     loadoutHud_.Initialize();
@@ -385,6 +392,21 @@ void SurvivorRunController::QueueWorldVisuals()
     const myEngine::Vector3 cameraUp = myEngine::Normalize({cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2]});
     pickups_.Queue(*world_.resources.neonGridRenderer_, cameraRight, cameraUp, world_.resources.camera->GetTranslate(),
                    arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f, arenacamera::HalfViewHeight() + 2.0f);
+    // 予告：輪は自機のまわりに、群れは湧く場所に、赤い破線の円を描く。湧く時刻が近いほど速く点滅する。
+    for (const PendingWave& wave : pendingWaves_) {
+        const float left = (std::max)(0.0f, wave.at - elapsed_);
+        const float blink = 0.5f + 0.5f * std::sin(elapsed_ * (10.0f + 14.0f * (1.0f - left / (std::max)(0.1f, config_.telegraph.lead))));
+        const myEngine::Vector3 center = wave.ring ? world_.resources.player_->GetWorldPosition() : wave.center;
+        const float radius = wave.ring ? config_.threat.ringRadius : config_.swarmSpread + 1.5f;
+        const myEngine::Vector4 color{1.8f, 0.18f, 0.22f, 0.45f + 0.55f * blink};
+        constexpr int kDashes = 48;
+        for (int n = 0; n < kDashes; n += 2) {
+            const float a = 6.2831853f * static_cast<float>(n) / kDashes, b = 6.2831853f * static_cast<float>(n + 1) / kDashes;
+            world_.resources.neonGridRenderer_->QueueLine(center + myEngine::Vector3{std::cos(a) * radius, std::sin(a) * radius, -0.3f},
+                                                          center + myEngine::Vector3{std::cos(b) * radius, std::sin(b) * radius, -0.3f},
+                                                          0.16f, color);
+        }
+    }
     if (!exitOpen_) {
         return;
     }
@@ -456,6 +478,21 @@ void SurvivorRunController::DrawUi()
     }
     if (qText_ && survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count) {
         qText_->Draw();
+    }
+    // 予告の「！」：湧く群れの方向へ、画面の端（画面の中なら、その場所）に出す。
+    size_t warning = 0;
+    for (const PendingWave& wave : pendingWaves_) {
+        if (wave.ring || warning >= warningTexts_.size() || !warningTexts_[warning]) {
+            continue;
+        }
+        const myEngine::Vector2 screen = world_.gameplayHud->WorldToScreen(wave.center);
+        const float x = (std::clamp)(screen.x, 96.0f, static_cast<float>(myEngine::WinApp::kClientWidth) - 96.0f);
+        const float y = (std::clamp)(screen.y, 120.0f, static_cast<float>(myEngine::WinApp::kClientHeight) - 110.0f);
+        const float blink = 0.5f + 0.5f * std::sin(elapsed_ * 16.0f);
+        warningTexts_[warning]->SetPosition({x - 20.0f, y - 34.0f});
+        warningTexts_[warning]->SetAlpha(0.55f + 0.45f * blink);
+        warningTexts_[warning]->Draw();
+        ++warning;
     }
     // 外す画面は持っている部品を並べるので、左下の積載の表示は出さない。
     if (removalOpen_ && choiceOpen_) {

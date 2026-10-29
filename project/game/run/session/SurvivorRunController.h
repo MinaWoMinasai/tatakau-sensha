@@ -94,7 +94,11 @@ private:
     /// @brief 最後に湧かせた敵のHPを、今の段階の倍率で上げる。
     void ScaleLastSpawnHp();
     /// @brief 包囲の輪：自機を中心とした輪の上に三角を並べ、寄らせる。
-    void SpawnRing();
+    void SpawnRing(int count);
+    /// @brief 自機へ寄ってくる敵（群れ・輪・重い四角・突進する五角）の数を返す。
+    int CountChasers() const;
+    /// @brief 予告の時刻が来た群れと輪を湧かせる。寄ってくる敵の上限を超える分は減らす。
+    void ReleasePendingWaves();
     /// @brief 宿敵を、自機から最も遠い出口の候補の位置に出す。
     void SpawnRival();
     /// @brief 宿敵が戦っているか。
@@ -202,6 +206,21 @@ private:
     // 脅威の段階と宿敵。
     int threatStage_ = 1;
     float nextRing_ = 0.0f;
+    // 予告してから湧く群れと輪。at は湧く区画の時刻。輪の中心は湧く時刻の自機の位置なので center を使わない。
+    struct PendingWave {
+        float at = 0.0f;
+        myEngine::Vector3 center{};
+        int count = 0;
+        bool ring = false;
+    };
+    std::vector<PendingWave> pendingWaves_;
+    // 予告の「！」（画面の端）。群れの数だけ使う。
+    std::array<std::unique_ptr<myEngine::TextLabel>, 4> warningTexts_;
+    float nextHeavy_ = 0.0f;
+    int heavySpawned_ = 0;
+    int lungeSpawned_ = 0;
+    int swarmsSpawned_ = 0;
+    int wavesSkipped_ = 0;
     int ringsSpawned_ = 0;
     bool rivalSpawned_ = false;
     bool rivalDefeated_ = false;
@@ -322,6 +341,9 @@ private:
     bool autoPurgeCaptured_ = false;
     // Q の入れ替えの確認：0 未実施、2 入れ替わった、3 入れ替わらなかった、-1 行わない。
     int autoQSwapProbe_ = 0;
+    bool autoSwarmWarningCaptured_ = false;
+    bool autoRingWarningCaptured_ = false;
+    int autoMaxChasers_ = 0;
     bool autoRivalCaptured_ = false;
     // 200体の fps の確認。場面ごとに1秒ずつの fps・敵の数・画面の中の数を足し込む。
     struct PerfPhase {

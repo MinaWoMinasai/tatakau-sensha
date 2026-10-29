@@ -132,6 +132,23 @@ public:
         chaseMaxSpeed_ = maxSpeed;
     }
 
+    /// @brief 寄ってくる図形に突進を足す。interval 秒ごとに、windup 秒ほぼ止まって溜め、duration 秒だけ最高速度 lungeSpeed で迫る。
+    /// @param phase 周期の始まりをずらす秒（群れが一斉に突進しないように）。SetPlayerChase と一緒に使う。
+    void SetPlayerLunge(float interval, float windup, float duration, float lungeSpeed, float phase)
+    {
+        lungeInterval_ = interval;
+        lungeWindup_ = windup;
+        lungeDuration_ = duration;
+        lungeSpeed_ = lungeSpeed;
+        lungeTimer_ = phase;
+    }
+
+    /// @brief 自機へ寄ってくる図形か。
+    bool IsChasingPlayer() const
+    {
+        return chaseAcceleration_ > 0.0f;
+    }
+
     /// @brief SetSizeScale で付けた大きさの倍率を返す（既定1）。
     float GetSizeScale() const
     {
@@ -531,6 +548,12 @@ private:
     float sizeScale_ = 1.0f;
     float chaseAcceleration_ = 0.0f;
     float chaseMaxSpeed_ = 0.0f;
+    // 突進（SetPlayerLunge）。interval が0なら突進しない（既定）。
+    float lungeInterval_ = 0.0f;
+    float lungeWindup_ = 0.0f;
+    float lungeDuration_ = 0.0f;
+    float lungeSpeed_ = 0.0f;
+    float lungeTimer_ = 0.0f;
     ExpEnemyType type_ = ExpEnemyType::Square;
     bool hasAuthoredDefinition_ = false;
     uint32_t authoredContactDamage_ = 0, authoredBulletDamage_ = 1;
