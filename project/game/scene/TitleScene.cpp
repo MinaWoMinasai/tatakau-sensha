@@ -140,17 +140,22 @@ void TitleScene::CreateLabels()
     subtitle_ = label("強化を重ねて最深部を目指す、ローグライトアクション", 23, {w * 0.5f, h * 0.44f}, {0.73f, 0.91f, 0.94f, 1});
     Fit(*subtitle_, {w * 0.78f, 42});
     menu_[0] = label("遠征をはじめる", 31, {w * 0.5f, h * 0.60f}, {0.47f, 1, 0.76f, 1});
+    menu_[1] = label("育つ戦車（試作）をはじめる", 27, {w * 0.5f, h * 0.68f}, {0.47f, 1, 0.76f, 1});
     for (auto& item : menu_) {
         Fit(*item, {w * 0.72f, 58});
     }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    hint_ = label("クリックで決定 / F7 ボス戦へ直接移動（制作確認・自機無敵）", 15, {w * 0.5f, h - 36}, {0.57f, 0.71f, 0.77f, 1});
+    hint_ = label("クリックか W/S・Enter で決定 / F7 ボス戦へ直接移動（制作確認・自機無敵）", 15, {w * 0.5f, h - 36}, {0.57f, 0.71f, 0.77f, 1});
 #else
-    hint_ = label("クリックで決定", 15, {w * 0.5f, h - 36}, {0.57f, 0.71f, 0.77f, 1});
+    hint_ = label("クリックか W/S・Enter で決定", 15, {w * 0.5f, h - 36}, {0.57f, 0.71f, 0.77f, 1});
 #endif
     demoCaption_ = label(" ", 13, {w - 130, 30}, {0.47f, 0.62f, 0.67f, 1});
     menuSelection_ = 0;
-    menuHovered_ = HitTestMenu(input_->GetMousePosition()) == 0;
+    const int hoveredAtStart = HitTestMenu(input_->GetMousePosition());
+    menuHovered_ = hoveredAtStart >= 0;
+    if (menuHovered_) {
+        menuSelection_ = hoveredAtStart;
+    }
     UpdateMenuVisuals();
     if (tanksubmission::Enabled()) {
         ++tanksubmission::state.titles;
@@ -286,9 +291,27 @@ void TitleScene::Update()
         previousMousePosition_ = mouse;
         const bool click = input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0]);
         const int hovered = HitTestMenu(mouse);
-        if (menuHovered_ != (hovered == 0)) {
-            menuHovered_ = hovered == 0;
+        // マウスが乗った項目を選ぶ。W/S・上下キーでも選べる（選んだ項目が明るくなる）。
+        if (hovered >= 0 && (!menuHovered_ || hovered != menuSelection_)) {
+            menuHovered_ = true;
+            menuSelection_ = hovered;
             UpdateMenuVisuals();
+        }
+        if (triggered(DIK_W) || triggered(DIK_UP) || triggered(DIK_S) || triggered(DIK_DOWN)) {
+            const int step = triggered(DIK_W) || triggered(DIK_UP) ? -1 : 1;
+            const int count = static_cast<int>(menu_.size());
+            int next = menuHovered_ ? menuSelection_ : (step > 0 ? -1 : count);
+            for (int tries = 0; tries < count; ++tries) {
+                next = (next + step + count) % count;
+                if (IsMenuAvailable(next)) {
+                    break;
+                }
+            }
+            if (IsMenuAvailable(next)) {
+                menuSelection_ = next;
+                menuHovered_ = true;
+                UpdateMenuVisuals();
+            }
         }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
         if (triggered(DIK_F7)) {
@@ -300,8 +323,11 @@ void TitleScene::Update()
             if (myEngine::kDeveloperTools && triggered(DIK_F9)) {
             StartTransitionIfAvailable("TANK_EXPEDITION", 0.5f);
         } else if (triggered(DIK_RETURN) || triggered(DIK_SPACE) || (click && hovered >= 0)) {
-            if (menuSelection_ == 0) {
+            const int chosen = click && hovered >= 0 ? hovered : menuSelection_;
+            if (chosen == 0) {
                 StartTransitionIfAvailable("TANK_EXPEDITION", 0.65f);
+            } else if (chosen == 1) {
+                StartTransitionIfAvailable("TANK_SURVIVOR", 0.65f);
             }
         }
         if (autoTest_ && demoReady_ && capturedStages_ == 15 && demo_->GetTitleDemoStatus().totalSeconds >= 81.0f) {
@@ -376,7 +402,7 @@ void TitleScene::Update()
             }
         }
     }
-    PrepareLabels({title_.get(), subtitle_.get(), hint_.get(), demoCaption_.get(), menu_[0].get()});
+    PrepareLabels({title_.get(), subtitle_.get(), hint_.get(), demoCaption_.get(), menu_[0].get(), menu_[1].get()});
 }
 
 void TitleScene::Draw()
@@ -412,7 +438,7 @@ void TitleScene::DrawAfterPostEffect3D()
     backgroundVeil_->Draw();
     if (titleTextNeonEffect_) {
         if (menuHovered_) {
-            titleTextNeonEffect_->DrawBloom({title_.get(), menu_[0].get()});
+            titleTextNeonEffect_->DrawBloom({title_.get(), menu_[menuSelection_].get()});
         } else {
             titleTextNeonEffect_->DrawBloom({title_.get()});
         }
@@ -433,7 +459,7 @@ void TitleScene::DrawSprite()
     }
     title_->Draw();
     subtitle_->Draw();
-    for (int i = 0; i < 1; ++i) {
+    for (int i = 0; i < static_cast<int>(menu_.size()); ++i) {
         if (IsMenuAvailable(i)) {
             menu_[i]->Draw();
         }
@@ -473,13 +499,16 @@ IScene::ScreenEffectState TitleScene::GetScreenEffectState() const
 
 void TitleScene::UpdateMenuVisuals()
 {
-    for (int i = 0; i < 1; ++i) {
+    for (int i = 0; i < static_cast<int>(menu_.size()); ++i) {
         const auto size = menu_[i]->GetSprite()->GetSize();
         auto style = menu_[i]->GetStyle();
-        style.color = menuHovered_ ? myEngine::Vector4{0.47f, 1, 0.76f, 1} : myEngine::Vector4{0.48f, 0.52f, 0.55f, 1};
+        // 選んでいる項目だけを明るくする（マウスが離れていれば、どれも暗い）。
+        const bool lit = menuHovered_ && i == menuSelection_;
+        style.color = lit ? myEngine::Vector4{0.47f, 1, 0.76f, 1} : myEngine::Vector4{0.48f, 0.52f, 0.55f, 1};
         menu_[i]->SetStyle(style);
         menu_[i]->PrepareForDraw();
         menu_[i]->GetSprite()->SetSize(size);
+        menu_[i]->SetAlpha(1.0f);
     }
 }
 
@@ -490,12 +519,12 @@ bool TitleScene::IsSceneAvailable(std::string_view name) const
 
 bool TitleScene::IsMenuAvailable(int selection) const
 {
-    return selection == 0 && IsSceneAvailable("TANK_EXPEDITION");
+    return (selection == 0 && IsSceneAvailable("TANK_EXPEDITION")) || (selection == 1 && IsSceneAvailable("TANK_SURVIVOR"));
 }
 
 int TitleScene::HitTestMenu(const myEngine::Vector2& mouse) const
 {
-    for (int i = 0; i < 1; ++i) {
+    for (int i = 0; i < static_cast<int>(menu_.size()); ++i) {
         if (IsMenuAvailable(i)) {
             auto* sprite = menu_[i]->GetSprite();
             const auto center = sprite->GetPosition(), size = sprite->GetSize();

@@ -112,7 +112,8 @@ private:
     std::unique_ptr<myEngine::Sprite> backgroundVeil_;
     myEngine::Input* input_ = nullptr;
     std::unique_ptr<myEngine::TextLabel> title_, subtitle_, hint_, demoCaption_;
-    std::array<std::unique_ptr<myEngine::TextLabel>, 1> menu_;
+    // 0：遠征、1：育つ戦車の試作。
+    std::array<std::unique_ptr<myEngine::TextLabel>, 2> menu_;
 
     /// @brief タイトルデモの1時点の状態と表示用の計測値を表す。
     struct DemoSample {
