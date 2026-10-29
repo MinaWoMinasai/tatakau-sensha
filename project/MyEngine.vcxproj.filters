@@ -542,6 +542,18 @@
     <ClCompile Include="game\run\session\SurvivorRunController.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunAutoTest.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunLoadout.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunResult.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunSpawns.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\run\session\SurvivorPickups.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -661,6 +673,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\run\session\SurvivorRunController.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\SurvivorRunShared.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\run\session\SurvivorPickups.h">

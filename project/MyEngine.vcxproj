@@ -526,6 +526,10 @@
     <ClCompile Include="game\demo\TitleDemoController.cpp" />
     <ClCompile Include="game\run\session\ArenaRunController.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunController.cpp" />
+    <ClCompile Include="game\run\session\SurvivorRunAutoTest.cpp" />
+    <ClCompile Include="game\run\session\SurvivorRunLoadout.cpp" />
+    <ClCompile Include="game\run\session\SurvivorRunResult.cpp" />
+    <ClCompile Include="game\run\session\SurvivorRunSpawns.cpp" />
     <ClCompile Include="game\run\session\SurvivorPickups.cpp" />
     <ClCompile Include="game\render\settings\RunVisualSettings.cpp" />
     <ClCompile Include="game\run\session\ExpeditionController.cpp" />
@@ -569,6 +573,7 @@
     <ClInclude Include="game\demo\TitleDemoController.h" />
     <ClInclude Include="game\run\session\ArenaRunController.h" />
     <ClInclude Include="game\run\session\SurvivorRunController.h" />
+    <ClInclude Include="game\run\session\SurvivorRunShared.h" />
     <ClInclude Include="game\run\session\SurvivorPickups.h" />
     <ClInclude Include="game\render\settings\RunVisualSettings.h" />
     <ClInclude Include="game\run\session\ExpeditionController.h" />

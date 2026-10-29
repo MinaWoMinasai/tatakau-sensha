@@ -11,6 +11,8 @@
 namespace gameplay {
 /// @brief 育つ戦車の試作（RunMode::Survivor）の進行を担当し、同じプレイの共有状態を借用する。
 /// @note 1区画の流れ（時間で増える湧き方と、3:00 で開く出口）、経験値の欠片・レベル、毎レベルの部品の3択を持つ。
+/// 実装は役割ごとに分けてある：中心（SurvivorRunController.cpp）、湧き方・脅威・宿敵（SurvivorRunSpawns.cpp）、
+/// 部品と選択（SurvivorRunLoadout.cpp）、結果画面と記録（SurvivorRunResult.cpp）、自動確認（SurvivorRunAutoTest.cpp）。
 class SurvivorRunController {
 public:
     explicit SurvivorRunController(GameWorld& world) : world_(world) {}
