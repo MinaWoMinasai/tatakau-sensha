@@ -42,27 +42,34 @@ public:
         return pendingChoices_;
     }
 
-    /// @brief 戦闘の時間に掛ける倍率を返す。3択を開いている間はスロー（既定0.25）、それ以外は1。
+    /// @brief 戦闘の時間に掛ける倍率を返す。3択を止めずに開いている間（choices.pause が false）はスロー（既定0.25）、それ以外は1。
     /// @note CombatFramePipeline が、演出の減速（ジャスト回避など）を掛けた後の時間にさらに掛ける。
     float GetTimeScale() const
     {
         if (cineMode_ == CineMode::RivalDefeat) {
             return 0.3f;
         }
-        return choiceOpen_ ? config_.choiceSlowTimeScale : 1.0f;
+        return choiceOpen_ && !config_.choicePause ? config_.choiceSlowTimeScale : 1.0f;
     }
 
-    /// @brief 形態の2択を開いているか。開いている間はゲームを止める（ArenaRunController::IsTankRunMenuOpen が真を返す）。
+    /// @brief 選ぶ画面（形態・特性・レリックの2択と、止める設定の3択）を開いているか。
+    /// 開いている間はゲームを止める（ArenaRunController::IsTankRunMenuOpen が真を返す）。
     bool IsFormChoiceOpen() const
     {
-        return formChoiceOpen_ || traitChoiceOpen_ || relicChoiceOpen_;
+        return formChoiceOpen_ || traitChoiceOpen_ || relicChoiceOpen_ || IsChoicePausing();
     }
 
-    /// @brief ゲームを止めているか。形態を選ぶ間・調整パネルを「止める」にして開いている間・宿敵の登場の間は真。
+    /// @brief ゲームを止めているか。選ぶ画面の間・調整パネルを「止める」にして開いている間・宿敵の登場の間は真。
     /// @note 止めている間も、スロー演出ではないので画面の色は残す（GameplayQueries・CombatFramePipeline）。
     bool IsPaused() const
     {
-        return formChoiceOpen_ || traitChoiceOpen_ || relicChoiceOpen_ || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro;
+        return IsFormChoiceOpen() || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro;
+    }
+
+    /// @brief 部品の3択を開いていて、その間はゲームを止める設定か（遊んだ感想から、読む時間を取るため既定で止める）。
+    bool IsChoicePausing() const
+    {
+        return choiceOpen_ && config_.choicePause;
     }
 
     /// @brief 演出のカメラ。active なら、CombatFramePipeline が追従カメラの代わりに使う。

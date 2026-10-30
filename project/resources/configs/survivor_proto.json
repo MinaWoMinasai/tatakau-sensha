@@ -55,8 +55,8 @@
     "base": 6, "perLevels": 3, "refundPerLevel": 60
   },
   "choices": {
-    "comment": "毎レベルの3択。Tab で開き、開いている間はゲームの時間を slowTimeScale 倍にする。autoOpen が true なら、レベルが上がったらすぐ開く。lightBias は1枚目に軽い部品が出やすくなる倍率。fusionBias は合体の札（元の2つが最大 Lv のとき）が出やすくなる倍率。",
-    "slowTimeScale": 0.25, "autoOpen": false, "lightBias": 2.0, "fusionBias": 3.0
+    "comment": "毎レベルの3択。Tab で開き、pause が true なら開いている間はゲームを止める（遊んだ感想から。読む時間を取るため）。false なら slowTimeScale 倍のスローにする。autoOpen が true なら、レベルが上がったらすぐ開く。lightBias は1枚目に軽い部品が出やすくなる倍率。fusionBias は合体の札（元の2つが最大 Lv のとき）が出やすくなる倍率。",
+    "pause": true, "slowTimeScale": 0.25, "autoOpen": false, "lightBias": 2.0, "fusionBias": 3.0
   },
   "heat": {
     "comment": "撃つたびに上がる熱。上限を超えると overheatSeconds 秒撃てない。最後に撃ってから coolDelay 秒で coolPerSecond に速く冷える。撃ち続けている間も coolPerSecondWhileFiring で冷える（基本の連射と釣り合わせる）。",

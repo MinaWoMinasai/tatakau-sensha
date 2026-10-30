@@ -130,9 +130,11 @@ void SurvivorRunController::Initialize()
     hintPanel_ = bar({190.0f, 548.0f}, {900.0f, 46.0f}, {0.01f, 0.03f, 0.05f, 0.80f});
     style.fontSize = 21;
     style.color = {0.92f, 0.98f, 1.0f, 1.0f};
-    static constexpr std::array<const char*, static_cast<size_t>(Hint::Count)> kHintTexts{
+    // 選択の案内は、3択の間に止めるかスローにするか（choices.pause）で文を変える。2番目と3番目のどちらかを使う。
+    static constexpr std::array<const char*, static_cast<size_t>(Hint::Count) + 1> kHintTexts{
         "WASD で移動　／　マウスで狙い、左クリックで撃つ　／　Shift でダッシュ",
         "レベルが上がると部品を選べる。Tab で開く（開いている間はスロー）。貯めておいてもよい",
+        "レベルが上がると部品を選べる。Tab で開く（開いている間は止まる）。貯めておいてもよい",
         "部品には重さがある。左下の積載を超える部品は、何かを外してから積む",
         "撃ち続けると熱がたまる。上限を超えるとオーバーヒートで少しの間撃てない",
         "画面の端の「！」の方向から、三角の群れが来る",
@@ -141,7 +143,8 @@ void SurvivorRunController::Initialize()
         "宿敵を倒すと出口が開く"};
     for (size_t i = 0; i < hintTexts_.size(); ++i) {
         hintTexts_[i] = std::make_unique<myEngine::TextLabel>();
-        hintTexts_[i]->Initialize(myEngine::SpriteCommon::GetInstance(), kHintTexts[i], style);
+        const size_t text = i == 0 ? 0 : i == 1 ? (config_.choicePause ? 2 : 1) : i + 1;
+        hintTexts_[i]->Initialize(myEngine::SpriteCommon::GetInstance(), kHintTexts[text], style);
         hintTexts_[i]->SetAnchorPoint({0.5f, 0.5f});
         hintTexts_[i]->SetPosition({640.0f, 571.0f});
     }
@@ -313,7 +316,7 @@ void SurvivorRunController::Update(float dt)
     if (choiceOpen_) {
         choiceOpenSeconds_ += dt;
     }
-    // 区画の時計・湧き方・欠片は、3択を開いている間のスローに合わせて遅くし、形態を選ぶ間と調整パネルで止めた間は止める。
+    // 区画の時計・湧き方・欠片は、3択を止めずに開いている間のスローに合わせて遅くし、選ぶ画面の間と調整パネルで止めた間は止める。
     const float gameDt = IsPaused() ? 0.0f : dt * GetTimeScale();
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
         elapsed_ += gameDt;

@@ -172,6 +172,8 @@ struct SpawnConfig {
     std::array<PartDefinition, kPartCount> parts = DefaultParts();
     float choiceSlowTimeScale = 0.25f;
     bool choiceAutoOpen = false;
+    /// @brief 3択を開いている間はゲームを止めるか。false ならスロー（choiceSlowTimeScale）にする。
+    bool choicePause = true;
     float choiceLightBias = 2.0f;
     /// @brief 合体の札（元の2つが最大 Lv のとき）がほかの札より出やすい倍率。
     float choiceFusionBias = 3.0f;
@@ -439,6 +441,9 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         if (choices.contains("autoOpen") && choices.at("autoOpen").is_boolean()) {
             config.choiceAutoOpen = choices.at("autoOpen").get<bool>();
         }
+        if (choices.contains("pause") && choices.at("pause").is_boolean()) {
+            config.choicePause = choices.at("pause").get<bool>();
+        }
         config.choiceSlowTimeScale = (std::clamp)(config.choiceSlowTimeScale, 0.05f, 1.0f);
     }
     if (data.contains("parts") && data.at("parts").is_object()) {
@@ -583,6 +588,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     auto& choices = section("choices");
     choices["slowTimeScale"] = round(config.choiceSlowTimeScale);
     choices["autoOpen"] = config.choiceAutoOpen;
+    choices["pause"] = config.choicePause;
     choices["lightBias"] = round(config.choiceLightBias);
     choices["fusionBias"] = round(config.choiceFusionBias);
     auto& heat = section("heat");

@@ -181,7 +181,8 @@ bool DrawPartsAndChoices(SpawnConfig& config)
     if (!ImGui::CollapsingHeader("部品と3択")) {
         return false;
     }
-    changed |= ImGui::SliderFloat("3択を開いている間の時間", &config.choiceSlowTimeScale, 0.05f, 1.0f, "×%.2f");
+    changed |= ImGui::Checkbox("3択を開いている間は止める", &config.choicePause);
+    changed |= ImGui::SliderFloat("止めないときの時間", &config.choiceSlowTimeScale, 0.05f, 1.0f, "×%.2f");
     changed |= ImGui::DragFloat("1枚目に軽い部品が出やすい倍率", &config.choiceLightBias, 0.05f, 0.0f, 10.0f, "%.2f");
     changed |= ImGui::DragFloat("合体の札が出やすい倍率", &config.choiceFusionBias, 0.05f, 0.0f, 20.0f, "%.2f");
     changed |= ImGui::Checkbox("レベルが上がったらすぐ開く", &config.choiceAutoOpen);

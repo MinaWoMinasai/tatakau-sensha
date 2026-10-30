@@ -37,7 +37,7 @@ const myEngine::Vector4 kCardHoverColor{0.045f, 0.16f, 0.19f, 0.97f};
 
 void SurvivorChoiceHud::Initialize()
 {
-    // ゲームは止めずにスローで動くので、暗幕は薄くして後ろの戦いが見えるようにする。
+    // 止めても後ろの戦いの様子が分かるよう、暗幕は薄くする（止めない設定ではスローで動く）。
     dimmer_ = MakePanel({0.0f, 0.0f}, {1280.0f, 720.0f}, {0.004f, 0.008f, 0.018f, 0.55f});
     for (size_t i = 0; i < cards_.size(); ++i) {
         const float x = CardLeft(i);
