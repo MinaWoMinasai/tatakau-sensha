@@ -222,7 +222,7 @@ void SurvivorRunController::Initialize()
         config_.bigPentagon = {0.0f, 4.0f, 3};
         config_.exitOpenSeconds = 9999.0f;
         config_.choiceAutoOpen = false;
-        formChosen_ = true;
+        formStage_ = 2;
     }
     random_.seed(autoTest_ != AutoTest::None ? 20261028u : static_cast<uint32_t>(GetTickCount64()));
     if (autoTest_ != AutoTest::None) {
@@ -248,6 +248,12 @@ void SurvivorRunController::Initialize()
         const DWORD formLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_FORM", formName, 16);
         if (formLength > 0 && std::wstring(formName) == L"twin") {
             autoFormIndex_ = static_cast<size_t>(survivor::FormId::Twin);
+        }
+        // MYENGINE_SURVIVOR_FORM2=triple など：進化（第2段）で選ぶ形態。形態の名前は英字だけなので、1文字ずつ char に移す。
+        wchar_t form2Name[24]{};
+        const DWORD form2Length = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_FORM2", form2Name, 24);
+        for (DWORD c = 0; c < form2Length && c < 24; ++c) {
+            autoForm2Key_.push_back(static_cast<char>(form2Name[c]));
         }
         // MYENGINE_SURVIVOR_SEPARATION=0：敵どうしの押し離しを止める（fps の比べ方の確認用）。
         wchar_t separation[4]{};

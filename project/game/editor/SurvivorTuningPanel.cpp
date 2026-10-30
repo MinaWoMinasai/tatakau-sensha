@@ -146,6 +146,7 @@ bool DrawExperience(SpawnConfig& config)
     changed |= ImGui::DragInt("欠片1つの経験値", &config.valuePerShard, 0.2f, 1, 500);
     changed |= ImGui::DragFloat("引き寄せの半径", &config.magnetRadius, 0.05f, 0.5f, 30.0f, "%.2f");
     changed |= ImGui::DragInt("形態を選ぶ Lv", &config.formLevel, 0.1f, 2, 30);
+    changed |= ImGui::DragInt("進化（第2段）の Lv", &config.stage2Level, 0.1f, 3, 40);
     changed |= ImGui::DragInt("Lv の上限", &config.maxLevel, 0.2f, 2, 99);
     if (ImGui::BeginTable("levelCurve", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
         ImGui::TableSetupColumn("Lv");

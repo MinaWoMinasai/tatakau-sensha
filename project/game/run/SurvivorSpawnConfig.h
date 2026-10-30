@@ -209,6 +209,8 @@ struct SpawnConfig {
 
     // 形態。formLevel に上がったら、止めて形態を選ぶ。
     int formLevel = 5;
+    /// @brief 進化（第2段）の Lv。今の形態の子の2択（鍵があれば3枚目）を出す。
+    int stage2Level = 12;
     std::array<FormDefinition, kFormCount> forms = DefaultForms();
 
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
@@ -527,6 +529,8 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
     if (data.contains("forms") && data.at("forms").is_object()) {
         const auto& forms = data.at("forms");
         number(forms, "level", config.formLevel);
+        number(forms, "stage2Level", config.stage2Level);
+        config.stage2Level = (std::max)(config.formLevel + 1, config.stage2Level);
         for (auto& form : config.forms) {
             if (!forms.contains(form.key)) {
                 continue;
@@ -665,6 +669,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     shield["regenPerSecond"] = round(config.shieldRegenPerSecond);
     auto& forms = section("forms");
     forms["level"] = config.formLevel;
+    forms["stage2Level"] = config.stage2Level;
     for (const auto& form : config.forms) {
         auto& item = forms[form.key];
         item["reloadScale"] = round(form.reloadScale);

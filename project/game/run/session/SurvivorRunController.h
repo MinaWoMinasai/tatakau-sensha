@@ -200,8 +200,6 @@ private:
     bool IsResultVisible() const;
     /// @brief 取った部品を「名前 Lv」の並びにする。perLine 個ごとに改行する。
     std::string DescribeParts(size_t perLine) const;
-    /// @brief 形態の名前を返す。まだ選んでいなければ基本砲。
-    std::string FormName() const;
     /// @brief 特性の札の説明文（設定の倍率から作る）。
     std::string DescribeTrait(survivor::TraitId id) const;
     /// @brief 実時間で5秒ごとに fps を記録する（遊んだ記録に入れる）。
@@ -370,8 +368,14 @@ private:
     std::array<bool, survivor::kRelicCount> relics_{};
     std::ostringstream relicRecord_;
     std::unique_ptr<myEngine::TextLabel> relicText_;
-    bool formChosen_ = false;
+    // 形態の段（0：基本砲、1：Lv5 の形態、2：進化した形態）と、今の形態（基本砲は Count）・開いている選択の候補・たどった道。
+    int formStage_ = 0;
+    survivor::FormId formId_ = survivor::FormId::Count;
+    std::vector<survivor::FormId> formOffers_;
+    std::string formPath_ = "基本砲";
     std::string formKey_ = "basic";
+    /// @brief 形態を変える（選択の画面を閉じ、段を1つ進める）。
+    void EvolveTo(survivor::FormId id);
     int level_ = 1;
     int exp_ = 0;
     int pendingChoices_ = 0;
@@ -439,6 +443,10 @@ private:
     size_t autoFormIndex_ = static_cast<size_t>(survivor::FormId::LongBarrel);
     float autoFormTimer_ = 0.0f;
     bool autoFormCaptured_ = false;
+    // 進化（第2段）で選ぶ形態の名前（MYENGINE_SURVIVOR_FORM2）。空か候補に無ければ1枚目。
+    std::string autoForm2Key_;
+    float autoEvolvedAt_ = -1.0f;
+    int autoEvolveOffers_ = 0;
     float autoFormChosenAt_ = -1.0f;
     float autoFormCaptureAt_ = -1.0f;
     bool autoTourForm_ = false;

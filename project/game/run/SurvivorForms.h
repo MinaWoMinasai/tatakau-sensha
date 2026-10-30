@@ -1,14 +1,23 @@
 #pragma once
 #include "game/player/PlayerClassConfig.h"
+#include "game/run/SurvivorParts.h"
 #include <array>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 namespace survivor {
-/// @brief 育つ戦車の試作の、Lv5 で選ぶ形態。
+/// @brief 育つ戦車の試作の形態。Twin・LongBarrel は Lv5 で選ぶ第1段、ほかは親から進化する第2段（FormDefinition::stage・parent）。
+/// @note 並びは保存や設定の名前（key）と結び付けないので、途中に足してよい。
 enum class FormId {
     Twin,
     LongBarrel,
+    Triple,     // 三連（連装から）
+    MachineGun, // 機関砲（連装から）
+    Thunder,    // 雷砲（連装から、鍵：連鎖放電）
+    Sniper,     // 狙撃（長砲身から）
+    Ricochet,   // 反射砲（長砲身から）
+    Beam,       // 光線砲（長砲身から、鍵：貫通）
     Count
 };
 inline constexpr size_t kFormCount = static_cast<size_t>(FormId::Count);
@@ -53,12 +62,21 @@ inline const char* TraitName(TraitId id)
     return id == TraitId::CoolingFurnace ? "冷却炉" : "標準";
 }
 
-/// @brief 形態の数値。倍率は元の機体設定（連装は Twin、長砲身は Basic）に対して掛けるのではなく、そのまま使う。
+/// @brief 形態の数値。倍率は元の機体設定（sourceClass）に対して掛けるのではなく、そのまま使う。
+/// @note stage 1 は Lv5（formLevel）で選ぶ形態、stage 2 は親（parent）の形態から stage2Level で進化する形態。
+/// key が Count でなければ、その部品が最大 Lv（合体の元も含む）のときだけ候補に出る（鍵付きの進化）。
 struct FormDefinition {
     const char* key = "";
     const char* name = "";
+    /// @brief 札に出す一言（何が変わるか）。
+    const char* summary = "";
     /// @brief 元にする playerClasses.json の機体。
     const char* sourceClass = "Basic";
+    int stage = 1;
+    FormId parent = FormId::Count;
+    PartId keyPart = PartId::Count;
+    /// @brief 長砲身の系統（1本の長い砲身・五角の車体・右クリックのため撃ち）か。
+    bool longLine = false;
     float reloadScale = 1.0f;
     float damageScale = 1.0f;
     float speedScale = 1.0f;
@@ -73,41 +91,118 @@ struct FormDefinition {
     float railHeatPerCharge = 25.0f;
 };
 
-/// @brief 形態の既定値。survivor_proto.json の forms で上書きする。
+/// @brief 形態の既定値。survivor_proto.json の forms で上書きする。第2段の数値は仮（固有の能力は V1〜V3 で足す）。
 inline std::array<FormDefinition, kFormCount> DefaultForms()
 {
     std::array<FormDefinition, kFormCount> forms{};
-    auto& twin = forms[static_cast<size_t>(FormId::Twin)];
+    auto form = [&](FormId id) -> FormDefinition& {
+        return forms[static_cast<size_t>(id)];
+    };
+    auto& twin = form(FormId::Twin);
     twin.key = "twin";
     twin.name = "連装";
+    twin.summary = "砲が2本になり、同時に撃つ";
     twin.sourceClass = "Twin";
     twin.reloadScale = 0.9f;
     twin.damageScale = 0.7f;
     twin.heatScale = 1.1f;
-    auto& longBarrel = forms[static_cast<size_t>(FormId::LongBarrel)];
+    auto& longBarrel = form(FormId::LongBarrel);
     longBarrel.key = "longBarrel";
     longBarrel.name = "長砲身";
+    longBarrel.summary = "長い砲身で、速く遠くまで届く弾";
+    longBarrel.longLine = true;
     longBarrel.reloadScale = 1.35f;
     longBarrel.damageScale = 1.8f;
     longBarrel.speedScale = 1.6f;
     longBarrel.heatScale = 1.2f;
     longBarrel.barrelLength = 1.7f;
     longBarrel.railCharge = true;
+
+    // 第2段：連装の系統。
+    auto& triple = form(FormId::Triple);
+    triple = twin;
+    triple.key = "triple";
+    triple.name = "三連";
+    triple.summary = "3門を扇形に開いて撃つ";
+    triple.sourceClass = "Triple";
+    triple.stage = 2;
+    triple.parent = FormId::Twin;
+    triple.reloadScale = 1.0f;
+    triple.damageScale = 0.62f;
+    triple.heatScale = 1.15f;
+    auto& machineGun = form(FormId::MachineGun);
+    machineGun = twin;
+    machineGun.key = "machineGun";
+    machineGun.name = "機関砲";
+    machineGun.summary = "弾がばらける高速連射";
+    machineGun.sourceClass = "MachineGun";
+    machineGun.stage = 2;
+    machineGun.parent = FormId::Twin;
+    machineGun.reloadScale = 0.55f;
+    machineGun.damageScale = 0.45f;
+    machineGun.heatScale = 0.7f;
+    auto& thunder = form(FormId::Thunder);
+    thunder = twin;
+    thunder.key = "thunder";
+    thunder.name = "雷砲";
+    thunder.summary = "当てた敵から放電が広がる";
+    thunder.stage = 2;
+    thunder.parent = FormId::Twin;
+    thunder.keyPart = PartId::ChainLightning;
+    thunder.damageScale = 0.75f;
+
+    // 第2段：長砲身の系統。
+    auto& sniper = form(FormId::Sniper);
+    sniper = longBarrel;
+    sniper.key = "sniper";
+    sniper.name = "狙撃";
+    sniper.summary = "重く速い一撃。当てた敵に印を付ける";
+    sniper.stage = 2;
+    sniper.parent = FormId::LongBarrel;
+    sniper.reloadScale = 1.6f;
+    sniper.damageScale = 2.6f;
+    sniper.speedScale = 2.0f;
+    sniper.heatScale = 1.3f;
+    sniper.barrelLength = 2.0f;
+    auto& ricochet = form(FormId::Ricochet);
+    ricochet = longBarrel;
+    ricochet.key = "ricochet";
+    ricochet.name = "反射砲";
+    ricochet.summary = "弾が壁で跳ね返る";
+    ricochet.stage = 2;
+    ricochet.parent = FormId::LongBarrel;
+    ricochet.reloadScale = 1.2f;
+    ricochet.damageScale = 1.6f;
+    ricochet.speedScale = 1.4f;
+    ricochet.barrelLength = 1.6f;
+    auto& beam = form(FormId::Beam);
+    beam = longBarrel;
+    beam.key = "beam";
+    beam.name = "光線砲";
+    beam.summary = "ため撃ちが太い貫通の光線になる";
+    beam.stage = 2;
+    beam.parent = FormId::LongBarrel;
+    beam.keyPart = PartId::Pierce;
+    beam.damageScale = 1.9f;
+    beam.speedScale = 1.8f;
+    beam.barrelLength = 1.9f;
+    beam.railPower = 1.6f;
     return forms;
 }
 
 /// @brief 元の機体設定から、形態の機体設定を作る。
 inline PlayerClassConfig BuildFormConfig(const PlayerClassConfig& source, const FormDefinition& form, FormId id)
 {
+    (void)id;
     PlayerClassConfig config = source;
-    config.id = id == FormId::Twin ? "SurvivorTwin" : "SurvivorLongBarrel";
+    config.id = std::string("Survivor_") + form.key;
     config.displayName = form.name;
-    config.requiredRank = 2;
+    config.requiredRank = 1 + form.stage;
     config.usesDrone = false;
     config.reloadScale = form.reloadScale;
     config.bulletDamageScale = form.damageScale;
     config.bulletSpeedScale = form.speedScale;
-    if (id == FormId::LongBarrel) {
+    if (form.longLine) {
         // 1本の長い砲身。まっすぐ飛ばす。
         if (config.barrels.size() > 1) {
             config.barrels.resize(1);
@@ -121,7 +216,7 @@ inline PlayerClassConfig BuildFormConfig(const PlayerClassConfig& source, const 
     for (auto& barrel : config.barrels) {
         barrel.scale.x *= form.barrelLength;
         barrel.muzzleForward *= form.barrelLength;
-        if (id == FormId::LongBarrel) {
+        if (form.longLine) {
             barrel.offset.y = 0.0f;
             barrel.angleDeg = 0.0f;
         }
@@ -133,12 +228,45 @@ inline PlayerClassConfig BuildFormConfig(const PlayerClassConfig& source, const 
 /// @brief 形態の札の説明文。
 inline std::string DescribeForm(const FormDefinition& form, FormId id)
 {
+    (void)id;
     char numbers[160]{};
     std::snprintf(numbers, sizeof(numbers), "威力 x%.2f　発射間隔 x%.2f\n弾速 x%.2f　熱 x%.2f", form.damageScale, form.reloadScale,
                   form.speedScale, form.heatScale);
-    std::string text = id == FormId::Twin ? "砲が2本になり、同時に撃つ\n" : "長い砲身で、速く遠くまで届く弾\n";
+    std::string text = std::string(form.summary) + "\n";
     text += numbers;
     text += form.railCharge ? "\n右長押し：ため撃ち（貫通・熱）\nダッシュは Shift" : "\n右クリック・Shift：ダッシュ";
     return text;
+}
+
+/// @brief 形態を、設定での名前から探す。無ければ Count。
+inline FormId FindForm(const std::array<FormDefinition, kFormCount>& forms, const std::string& key)
+{
+    for (size_t i = 0; i < kFormCount; ++i) {
+        if (key == forms[i].key) {
+            return static_cast<FormId>(i);
+        }
+    }
+    return FormId::Count;
+}
+
+/// @brief 次に選べる形態の候補を返す。current が Count（基本砲）なら第1段、そうでなければ current の子。
+/// 鍵付きの形態は、鍵の部品が最大 Lv のときだけ入れる（levels には合体の元も含めた Lv を渡す）。
+inline std::vector<FormId> FormCandidates(const std::array<FormDefinition, kFormCount>& forms, FormId current,
+                                          const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels)
+{
+    std::vector<FormId> candidates;
+    for (size_t i = 0; i < kFormCount; ++i) {
+        const FormDefinition& form = forms[i];
+        const bool next = current == FormId::Count ? form.stage == 1 : form.stage == 2 && form.parent == current;
+        if (!next) {
+            continue;
+        }
+        if (form.keyPart != PartId::Count &&
+            levels[static_cast<size_t>(form.keyPart)] < parts[static_cast<size_t>(form.keyPart)].maxLevel) {
+            continue;
+        }
+        candidates.push_back(static_cast<FormId>(i));
+    }
+    return candidates;
 }
 } // namespace survivor

@@ -140,13 +140,29 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     if (formChoiceOpen_) {
         autoFormTimer_ += dt;
         if (!autoFormCaptured_ && autoFormTimer_ > 0.3f && world_.run.tankRunCapturePath_.empty()) {
-            RequestCapture("form_open");
+            RequestCapture(formStage_ == 0 ? "form_open" : "evolve_open");
             autoFormCaptured_ = true;
         }
         if (autoFormCaptured_ && autoFormTimer_ > 0.6f) {
-            ChooseForm(autoFormIndex_);
-            autoFormChosenAt_ = elapsed_;
+            // 第1段は連装か長砲身（MYENGINE_SURVIVOR_FORM）、第2段は MYENGINE_SURVIVOR_FORM2 の形態（無ければ1枚目）。
+            size_t index = formStage_ == 0 ? autoFormIndex_ : 0;
+            for (size_t i = 0; formStage_ >= 1 && i < formOffers_.size(); ++i) {
+                if (autoForm2Key_ == config_.forms[static_cast<size_t>(formOffers_[i])].key) {
+                    index = i;
+                }
+            }
+            if (formStage_ >= 1) {
+                autoEvolveOffers_ = static_cast<int>(formOffers_.size());
+            }
+            ChooseForm(index);
+            if (formStage_ >= 2) {
+                autoEvolvedAt_ = elapsed_;
+            } else {
+                autoFormChosenAt_ = elapsed_;
+            }
             autoFormCaptureAt_ = autoTestTime_ + 2.0f;
+            autoFormCaptured_ = false;
+            autoFormTimer_ = 0.0f;
         }
         return;
     }
@@ -437,7 +453,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << "},\"maxHp\":" << player.GetMaxHp() << ",\"choices\":[" << autoChoiceLog_.str() << "]"
             << ",\"expCollected\":" << expCollected_ << ",\"expDropped\":" << expDropped_ << ",\"maxHeat\":" << autoMaxHeat_
             << ",\"overheats\":" << player.GetHeat().GetOverheatCount() << ",\"form\":\"" << formKey_
-            << "\",\"formChosenAt\":" << autoFormChosenAt_ << ",\"formClass\":\""
+            << "\",\"formChosenAt\":" << autoFormChosenAt_ << ",\"formPath\":\"" << formPath_ << "\",\"evolvedAt\":" << autoEvolvedAt_
+            << ",\"evolveOffers\":" << autoEvolveOffers_ << ",\"formClass\":\""
             << (player.GetActiveClassConfig() ? player.GetActiveClassConfig()->id : std::string("none"))
             << "\",\"railShots\":" << player.GetSpecialCombatStats().railShots << ",\"critShots\":" << player.GetCritShots()
             << ",\"spikeKills\":" << spikeKills_ << ",\"spikeProbe\":" << autoSpikeProbe_ << ",\"premiumChests\":" << premiumTotal_
@@ -473,9 +490,8 @@ void SurvivorRunController::UpdateTourAutoTest(float dt)
     auto& player = *world_.resources.player_;
     autoTestTime_ += dt;
     autoTestLegTime_ += dt;
-    if (autoTourForm_ && !formChosen_) {
-        formChoiceOpen_ = true;
-        ChooseForm(autoFormIndex_);
+    if (autoTourForm_ && formStage_ == 0) {
+        EvolveTo(static_cast<survivor::FormId>(autoFormIndex_));
     }
     const myEngine::Vector3 position = player.GetWorldPosition();
     const myEngine::Vector3 aim = position + myEngine::Vector3{6.0f, 0.0f, 0.0f};

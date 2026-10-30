@@ -32,7 +32,8 @@ void SurvivorRunController::AddExperience(int amount)
     choiceHud_.SetPending(pendingChoices_, choiceOpen_);
     // 3レベルごとに積載量が増えるので、左下の表示を作り直す。
     loadoutHud_.SetLoadout(config_.parts, partLevels_, Capacity());
-    if (!formChosen_ && level_ >= config_.formLevel) {
+    // 形態：Lv5（formLevel）で第1段、stage2Level で第2段（進化）の選択を出す。
+    if ((formStage_ == 0 && level_ >= config_.formLevel) || (formStage_ == 1 && level_ >= config_.stage2Level)) {
         OpenFormChoice();
     } else if (config_.choiceAutoOpen && pendingChoices_ > 0 && !choiceOpen_) {
         OpenChoices();
@@ -480,7 +481,13 @@ std::string SurvivorRunController::RelicNames() const
 
 void SurvivorRunController::OpenFormChoice()
 {
-    if (formChoiceOpen_ || formChosen_ || traitChoiceOpen_ || relicChoiceOpen_) {
+    if (formChoiceOpen_ || formStage_ >= 2 || traitChoiceOpen_ || relicChoiceOpen_) {
+        return;
+    }
+    // 候補：第1段は連装と長砲身、第2段は今の形態の子（鍵付きは、鍵の部品が最大 Lv のときだけ）。
+    formOffers_ = survivor::FormCandidates(config_.forms, formId_, config_.parts, survivor::EffectiveLevels(config_.parts, partLevels_));
+    if (formOffers_.empty()) {
+        formStage_ = 2;
         return;
     }
     if (choiceOpen_) {
@@ -488,19 +495,27 @@ void SurvivorRunController::OpenFormChoice()
     }
     formChoiceOpen_ = true;
     std::vector<std::pair<std::string, std::string>> cards;
-    for (size_t i = 0; i < survivor::kFormCount; ++i) {
-        const auto& form = config_.forms[i];
-        cards.emplace_back(std::to_string(i + 1) + "  " + form.name, survivor::DescribeForm(form, static_cast<survivor::FormId>(i)));
+    for (size_t i = 0; i < formOffers_.size(); ++i) {
+        const auto& form = config_.forms[static_cast<size_t>(formOffers_[i])];
+        std::string title = std::to_string(i + 1) + "  " + form.name;
+        if (form.keyPart != survivor::PartId::Count) {
+            title += std::string("  ［鍵：") + config_.parts[static_cast<size_t>(form.keyPart)].name + "］";
+        }
+        cards.emplace_back(title, survivor::DescribeForm(form, formOffers_[i]));
     }
-    choiceHud_.SetCards("形態を選ぶ（Lv" + std::to_string(config_.formLevel) + "）", "1・2 キーかクリックで選ぶ　/　選ぶまで止まる",
-                        cards);
-    world_.combatFlow->SetEventCallout("形態の進化", 0.8f);
+    const bool evolve = formStage_ >= 1;
+    const std::string keys = formOffers_.size() >= 3 ? "1〜3" : "1・2";
+    choiceHud_.SetCards(evolve ? "進化を選ぶ（" + std::string(config_.forms[static_cast<size_t>(formId_)].name) + "・Lv" +
+                                     std::to_string(config_.stage2Level) + "）"
+                               : "形態を選ぶ（Lv" + std::to_string(config_.formLevel) + "）",
+                        keys + " キーかクリックで選ぶ　/　選ぶまで止まる", cards);
+    world_.combatFlow->SetEventCallout(evolve ? "進化" : "形態の進化", 0.8f);
 }
 
 void SurvivorRunController::UpdateFormChoiceInput()
 {
     auto& input = *world_.resources.input_;
-    for (size_t i = 0; i < survivor::kFormCount; ++i) {
+    for (size_t i = 0; i < formOffers_.size(); ++i) {
         if (input.IsKeyTriggered(static_cast<uint8_t>(DIK_1 + i))) {
             ChooseForm(i);
             return;
@@ -518,12 +533,19 @@ void SurvivorRunController::UpdateFormChoiceInput()
 
 void SurvivorRunController::ChooseForm(size_t index)
 {
-    if (!formChoiceOpen_ || index >= survivor::kFormCount) {
+    if (!formChoiceOpen_ || index >= formOffers_.size()) {
+        return;
+    }
+    EvolveTo(formOffers_[index]);
+}
+
+void SurvivorRunController::EvolveTo(survivor::FormId id)
+{
+    if (id == survivor::FormId::Count) {
         return;
     }
     auto& player = *world_.resources.player_;
-    const auto id = static_cast<survivor::FormId>(index);
-    const auto& form = config_.forms[index];
+    const auto& form = config_.forms[static_cast<size_t>(id)];
     const PlayerClassConfig* source = player.FindCatalogClassConfig(form.sourceClass);
     if (!source) {
         source = player.GetActiveClassConfig();
@@ -537,10 +559,13 @@ void SurvivorRunController::ChooseForm(size_t index)
         player.ApplySurvivorForm(survivor::BuildFormConfig(*source, form, id), tuning);
     }
     formKey_ = form.key;
-    formChosen_ = true;
+    formId_ = id;
+    formStage_ = form.stage;
+    formPath_ += std::string(" → ") + form.name;
+    formOffers_.clear();
     formChoiceOpen_ = false;
     choiceHud_.SetPending(pendingChoices_, false);
-    world_.combatFlow->SetEventCallout(std::string("形態：") + form.name, 1.0f);
+    world_.combatFlow->SetEventCallout(std::string(form.stage >= 2 ? "進化：" : "形態：") + form.name, 1.0f);
 }
 
 void SurvivorRunController::ApplyParts()

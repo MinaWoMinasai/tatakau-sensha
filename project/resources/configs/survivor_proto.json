@@ -67,8 +67,9 @@
     "maxHpRatio": 0.2, "regenDelay": 3, "regenPerSecond": 0.25
   },
   "forms": {
-    "comment": "level に上がったら止めて形態を選ぶ。倍率は基本砲に対する値（連装は砲2本なので、1発の威力を下げてある）。長砲身は右クリック長押しでため撃ち（熱 = railHeatBase + railHeatPerCharge × ためた秒数、最大1秒）。",
+    "comment": "level に上がったら止めて形態を選ぶ（第1段：連装・長砲身）。stage2Level に上がったら、今の形態の子へ進化する（連装→三連・機関砲・雷砲［鍵：連鎖放電 Lv3］、長砲身→狙撃・反射砲・光線砲［鍵：貫通 Lv3］。鍵付きは鍵の部品が Lv3 のときだけ出る）。第2段の数値は、ここに無ければ既定値（保存すると書き出す）。倍率は基本砲に対する値（連装は砲2本なので、1発の威力を下げてある）。長砲身は右クリック長押しでため撃ち（熱 = railHeatBase + railHeatPerCharge × ためた秒数、最大1秒）。",
     "level": 5,
+    "stage2Level": 12,
     "twin": { "reloadScale": 0.9, "damageScale": 0.7, "speedScale": 1.0, "heatScale": 1.1, "barrelLength": 1.0 },
     "longBarrel": { "reloadScale": 1.35, "damageScale": 1.8, "speedScale": 1.6, "heatScale": 1.2, "barrelLength": 1.7,
                     "railPower": 1.0, "railHeatBase": 10, "railHeatPerCharge": 25 }
