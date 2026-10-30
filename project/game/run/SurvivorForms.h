@@ -27,6 +27,26 @@ inline const char* TraitKey(TraitId id)
     return id == TraitId::CoolingFurnace ? "coolingFurnace" : "standard";
 }
 
+/// @brief 育つ戦車の試作の、大五角の宝箱から得るレリック（D4）。重さ0で、積載を使わない。数値は survivor_proto.json の relics。
+enum class RelicId {
+    OneShot,     // 一発屋：威力が大きく上がり、連射が大きく落ちる
+    FixedTurret, // 不動砲台：止まっている間は威力が上がり、ダッシュできない
+    Count
+};
+inline constexpr size_t kRelicCount = static_cast<size_t>(RelicId::Count);
+
+/// @brief レリックの設定での名前（遊んだ記録にも使う）。
+inline const char* RelicKey(RelicId id)
+{
+    return id == RelicId::FixedTurret ? "fixedTurret" : "oneShot";
+}
+
+/// @brief レリックの画面に出す名前。
+inline const char* RelicName(RelicId id)
+{
+    return id == RelicId::FixedTurret ? "不動砲台" : "一発屋";
+}
+
 /// @brief 特性の画面に出す名前。
 inline const char* TraitName(TraitId id)
 {

@@ -55,14 +55,14 @@ public:
     /// @brief 形態の2択を開いているか。開いている間はゲームを止める（ArenaRunController::IsTankRunMenuOpen が真を返す）。
     bool IsFormChoiceOpen() const
     {
-        return formChoiceOpen_ || traitChoiceOpen_;
+        return formChoiceOpen_ || traitChoiceOpen_ || relicChoiceOpen_;
     }
 
     /// @brief ゲームを止めているか。形態を選ぶ間・調整パネルを「止める」にして開いている間・宿敵の登場の間は真。
     /// @note 止めている間も、スロー演出ではないので画面の色は残す（GameplayQueries・CombatFramePipeline）。
     bool IsPaused() const
     {
-        return formChoiceOpen_ || traitChoiceOpen_ || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro;
+        return formChoiceOpen_ || traitChoiceOpen_ || relicChoiceOpen_ || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro;
     }
 
     /// @brief 演出のカメラ。active なら、CombatFramePipeline が追従カメラの代わりに使う。
@@ -155,6 +155,13 @@ private:
     void OpenTraitChoice();
     void UpdateTraitChoiceInput();
     void ChooseTrait(size_t index);
+    /// @brief 大五角の宝箱から、まだ持っていないレリックの2択を出す（選ぶまで止める）。1つしか残っていなければ、もう1枚は質の高い選択。
+    void OpenRelicChoice();
+    void UpdateRelicChoiceInput();
+    void ChooseRelic(size_t index);
+    std::string DescribeRelic(survivor::RelicId id) const;
+    /// @brief 持っているレリックの名前を「・」でつなぐ。無ければ「なし」。
+    std::string RelicNames() const;
     /// @brief 今のレベルでの積載量を返す。
     int Capacity() const;
     /// @brief offerIndex 番目の札を積むために、外す部品を選ぶ画面を開く（3択は開いたまま）。
@@ -341,6 +348,13 @@ private:
     // 特性。区画の始めに2択を開き、選ぶまで止める。
     bool traitChoiceOpen_ = false;
     survivor::TraitId trait_ = survivor::TraitId::Standard;
+    // レリック。宝箱で貯めた数・2択を開いているか・その札（Count は質の高い選択）・持っているもの・記録。
+    int pendingRelics_ = 0;
+    bool relicChoiceOpen_ = false;
+    std::vector<survivor::RelicId> relicOffers_;
+    std::array<bool, survivor::kRelicCount> relics_{};
+    std::ostringstream relicRecord_;
+    std::unique_ptr<myEngine::TextLabel> relicText_;
     bool formChosen_ = false;
     std::string formKey_ = "basic";
     int level_ = 1;
@@ -425,6 +439,10 @@ private:
     float autoTraitTimer_ = 0.0f;
     size_t autoTraitIndex_ = static_cast<size_t>(survivor::TraitId::CoolingFurnace);
     bool autoTraitCaptured_ = false;
+    // レリックの2択を開いていた秒・画面を保存したか。
+    float autoRelicTimer_ = 0.0f;
+    bool autoRelicCaptured_ = false;
+    std::ostringstream autoRelicLog_;
     // 撃破バーストの発動・再発動・子弾の数（区画を出る前の値）と、連鎖崩壊を積んでいた秒・その間の再発動の数。
     std::array<uint64_t, 3> autoBurstStats_{};
     float autoFusedSeconds_ = 0.0f;

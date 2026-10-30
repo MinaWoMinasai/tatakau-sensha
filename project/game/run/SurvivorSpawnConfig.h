@@ -137,6 +137,14 @@ struct SpawnConfig {
         float furnaceCool = 0.7f;
     } traits;
 
+    /// @brief レリック（大五角の宝箱から）。一発屋は威力 oneShotDamage 倍・1秒の発射数 oneShotFireRate 倍。
+    /// 不動砲台は、移動の入力が無い間の威力 +turretDamage（0.8 で +80%）で、ダッシュできない。
+    struct Relics {
+        float oneShotDamage = 3.5f;
+        float oneShotFireRate = 0.3f;
+        float turretDamage = 0.8f;
+    } relics;
+
     /// @brief 排熱砲（Q）。熱が minHeat 未満なら使えない。威力の倍率は 熱 × damagePerHeat × 効果の強さ（Lv）。使うと cooldown 秒待つ。
     struct HeatVent {
         float cooldown = 3.0f;
@@ -397,6 +405,15 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         config.traits.furnaceHeatMax = (std::max)(0.1f, config.traits.furnaceHeatMax);
         config.traits.furnaceCool = (std::max)(0.0f, config.traits.furnaceCool);
     }
+    if (data.contains("relics")) {
+        const auto& relics = data.at("relics");
+        number(relics, "oneShotDamage", config.relics.oneShotDamage);
+        number(relics, "oneShotFireRate", config.relics.oneShotFireRate);
+        number(relics, "turretDamage", config.relics.turretDamage);
+        config.relics.oneShotDamage = (std::max)(0.1f, config.relics.oneShotDamage);
+        config.relics.oneShotFireRate = (std::max)(0.05f, config.relics.oneShotFireRate);
+        config.relics.turretDamage = (std::max)(0.0f, config.relics.turretDamage);
+    }
     if (data.contains("heatVent")) {
         const auto& vent = data.at("heatVent");
         number(vent, "cooldown", config.heatVent.cooldown);
@@ -548,6 +565,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     auto& traits = section("traits");
     traits["furnaceHeatMax"] = round(config.traits.furnaceHeatMax);
     traits["furnaceCool"] = round(config.traits.furnaceCool);
+    auto& relics = section("relics");
+    relics["oneShotDamage"] = round(config.relics.oneShotDamage);
+    relics["oneShotFireRate"] = round(config.relics.oneShotFireRate);
+    relics["turretDamage"] = round(config.relics.turretDamage);
     auto& vent = section("heatVent");
     vent["cooldown"] = round(config.heatVent.cooldown);
     vent["minHeat"] = round(config.heatVent.minHeat);
@@ -634,10 +655,11 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 24> kOrder{
+    static constexpr std::array<const char*, 25> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "traits",        "parts",     "heatVent", "partTuning",    "bigPentagon"};
+        "heat",          "shield",    "forms",           "traits",        "relics",    "parts",      "heatVent",    "partTuning",
+        "bigPentagon"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
         if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {

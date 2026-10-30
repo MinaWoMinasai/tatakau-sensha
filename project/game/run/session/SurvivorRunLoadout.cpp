@@ -79,7 +79,7 @@ void SurvivorRunController::UpdateChoiceInput()
 
 void SurvivorRunController::OpenChoices()
 {
-    if (pendingChoices_ <= 0 || choiceOpen_ || formChoiceOpen_ || traitChoiceOpen_) {
+    if (pendingChoices_ <= 0 || choiceOpen_ || formChoiceOpen_ || traitChoiceOpen_ || relicChoiceOpen_) {
         return;
     }
     choiceOpen_ = true;
@@ -395,9 +395,91 @@ void SurvivorRunController::ChooseTrait(size_t index)
     world_.combatFlow->SetEventCallout(std::string("特性：") + survivor::TraitName(trait_), 1.0f);
 }
 
+void SurvivorRunController::OpenRelicChoice()
+{
+    relicOffers_.clear();
+    for (size_t i = 0; i < survivor::kRelicCount; ++i) {
+        if (!relics_[i]) {
+            relicOffers_.push_back(static_cast<survivor::RelicId>(i));
+        }
+    }
+    if (relicOffers_.empty()) {
+        pendingRelics_ = 0;
+        return;
+    }
+    if (relicOffers_.size() < 2) {
+        relicOffers_.push_back(survivor::RelicId::Count);
+    }
+    relicChoiceOpen_ = true;
+    std::vector<std::pair<std::string, std::string>> cards;
+    for (size_t i = 0; i < relicOffers_.size(); ++i) {
+        const survivor::RelicId id = relicOffers_[i];
+        cards.emplace_back(std::to_string(i + 1) + "  " + (id == survivor::RelicId::Count ? std::string("質の高い選択") : survivor::RelicName(id)),
+                           id == survivor::RelicId::Count ? std::string("軽い部品の出ない3択を1つ貯める") : DescribeRelic(id));
+    }
+    choiceHud_.SetCards("宝箱：レリックを選ぶ（重さ0・積載を使わない）", "1・2 キーかクリックで選ぶ　/　選ぶまで止まる", cards);
+    world_.combatFlow->SetEventCallout("宝箱：レリック", 0.9f);
+}
+
+void SurvivorRunController::UpdateRelicChoiceInput()
+{
+    auto& input = *world_.resources.input_;
+    for (size_t i = 0; i < relicOffers_.size(); ++i) {
+        if (input.IsKeyTriggered(static_cast<uint8_t>(DIK_1 + i))) {
+            ChooseRelic(i);
+            return;
+        }
+    }
+    const myEngine::Vector2 mouse = input.GetMousePosition();
+    choiceHud_.Update(mouse);
+    if (input.IsTrigger(input.GetMouseState().rgbButtons[0], input.GetPreMouseState().rgbButtons[0])) {
+        const int hit = choiceHud_.HitTest(mouse);
+        if (hit >= 0) {
+            ChooseRelic(static_cast<size_t>(hit));
+        }
+    }
+}
+
+void SurvivorRunController::ChooseRelic(size_t index)
+{
+    if (!relicChoiceOpen_ || index >= relicOffers_.size()) {
+        return;
+    }
+    const survivor::RelicId id = relicOffers_[index];
+    relicChoiceOpen_ = false;
+    pendingRelics_ = (std::max)(0, pendingRelics_ - 1);
+    relicRecord_ << (relicRecord_.tellp() > 0 ? "," : "") << "{\"t\":" << std::lround(elapsed_) << ",\"picked\":\""
+                 << (id == survivor::RelicId::Count ? "premium" : survivor::RelicKey(id)) << "\"}";
+    if (id == survivor::RelicId::Count) {
+        // 残りが1つのときの、もう1枚：質の高い3択を1つ貯める。
+        ++pendingChoices_;
+        ++pendingPremium_;
+        ++premiumTotal_;
+        pendingSince_.push_back(elapsed_);
+        world_.combatFlow->SetEventCallout("宝箱：質の高い選択 +1", 0.9f);
+    } else {
+        relics_[static_cast<size_t>(id)] = true;
+        ApplyParts();
+        world_.combatFlow->SetEventCallout(std::string("レリック：") + survivor::RelicName(id), 1.0f);
+    }
+    relicText_->SetText("レリック：" + RelicNames());
+    choiceHud_.SetPending(pendingChoices_, false);
+}
+
+std::string SurvivorRunController::RelicNames() const
+{
+    std::string names;
+    for (size_t i = 0; i < survivor::kRelicCount; ++i) {
+        if (relics_[i]) {
+            names += (names.empty() ? "" : "・") + std::string(survivor::RelicName(static_cast<survivor::RelicId>(i)));
+        }
+    }
+    return names.empty() ? std::string("なし") : names;
+}
+
 void SurvivorRunController::OpenFormChoice()
 {
-    if (formChoiceOpen_ || formChosen_ || traitChoiceOpen_) {
+    if (formChoiceOpen_ || formChosen_ || traitChoiceOpen_ || relicChoiceOpen_) {
         return;
     }
     if (choiceOpen_) {
@@ -469,6 +551,11 @@ void SurvivorRunController::ApplyParts()
     modifiers.survivor = true;
     modifiers.partScales = survivor::MakePartScales(config_.parts, partLevels_);
     survivor::ApplyPartCards(config_.parts, partLevels_, modifiers);
+    // レリックの一発屋：威力を上げ、1秒の発射数を落とす（間隔は割る）。
+    if (relics_[static_cast<size_t>(survivor::RelicId::OneShot)]) {
+        modifiers.partScales.bulletDamage *= config_.relics.oneShotDamage;
+        modifiers.partScales.reloadInterval /= config_.relics.oneShotFireRate;
+    }
     player.SetRunModifiers(modifiers);
     // 連鎖崩壊：撃破バーストの小さな弾が敵を倒すと、1回だけもう一度破裂する。
     world_.resources.bulletManager_->SetKillBurstRepeats(survivor::LevelOf(partLevels_, PartId::ChainCollapse) > 0 ? 1 : 0);
@@ -520,6 +607,11 @@ Player::SurvivorPartEffects SurvivorRunController::MakePartEffects() const
     effects.residualHeat = config_.partTuning.residualHeatBonus * power(PartId::ResidualHeat);
     effects.ramShield = config_.partTuning.ramShieldBonus * power(PartId::RamShield);
     effects.shotDamageScale = 1.0f + config_.partTuning.moralePerKill * power(PartId::Morale) * static_cast<float>(moraleKills_);
+    // レリックの不動砲台：止まっている間の威力と、ダッシュの禁止。
+    if (relics_[static_cast<size_t>(survivor::RelicId::FixedTurret)]) {
+        effects.stillDamageBonus = config_.relics.turretDamage;
+        effects.noDash = true;
+    }
     return effects;
 }
 

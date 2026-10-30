@@ -1201,6 +1201,11 @@ bool PlayerWeapons::FireConfiguredClass(const PlayerClassConfig& config, BulletM
                 const float heatMax = (std::max)(1.0f, player_.heat_.GetMaxHeat());
                 shotScale *= 1.0f + effects.residualHeat * (1.0f - (std::clamp)(player_.heat_.GetHeat() / heatMax, 0.0f, 1.0f));
             }
+            // 試作の不動砲台：移動の入力が無い間は威力が上がる。
+            if (effects.stillDamageBonus > 0.0f && myEngine::Length(player_.inputDir_) < 0.1f) {
+                shotScale *= 1.0f + effects.stillDamageBonus;
+                ++player_.stillShots_;
+            }
             if (shotScale != 1.0f) {
                 mountParam.damage =
                     static_cast<uint32_t>((std::max)(1.0f, std::round(static_cast<float>(mountParam.damage) * shotScale)));

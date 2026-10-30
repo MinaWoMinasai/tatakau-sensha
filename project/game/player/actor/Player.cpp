@@ -348,7 +348,12 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     const bool shiftDash = shiftDashEnabled_ && input_->IsTrigger(input_->GetKey()[DIK_LSHIFT], input_->GetPreKey()[DIK_LSHIFT]);
     if (!runRoomAwaitInputRelease_ && (demoInputEnabled_ ? demoDash_ : rightClickDash || shiftDash)) {
         demoDash_ = false;
-        TryActivateSpecialAction();
+        // 試作の不動砲台はダッシュできない（押しても何もしない）。
+        if (partEffects_.noDash) {
+            ++dashBlocked_;
+        } else {
+            TryActivateSpecialAction();
+        }
     }
     if (saberCounterTimer_ > 0.0f) {
         saberCounterTimer_ = (std::max)(0.0f, saberCounterTimer_ - deltaTime);

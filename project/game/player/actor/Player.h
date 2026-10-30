@@ -676,6 +676,10 @@ public:
         float shotDamageScale = 1.0f;
         /// @brief 衝角シールド：シールドが満タンのときの、体当たりの威力の上がり幅（1.5 なら +150%）。
         float ramShield = 0.0f;
+        /// @brief 不動砲台：移動の入力が無い間の、主砲の威力の上がり幅（0.8 なら +80%）。
+        float stillDamageBonus = 0.0f;
+        /// @brief 不動砲台：ダッシュ（Shift・右クリック）を使えない。
+        bool noDash = false;
     };
     void SetSurvivorPartEffects(const SurvivorPartEffects& effects)
     {
@@ -684,6 +688,15 @@ public:
     bool HasSpikes() const
     {
         return partEffects_.spikes;
+    }
+    /// @brief 不動砲台で止められたダッシュの回数と、止まって撃った主砲の回数（自動確認用）。
+    uint32_t GetDashBlocked() const
+    {
+        return dashBlocked_;
+    }
+    uint32_t GetStillShots() const
+    {
+        return stillShots_;
     }
     /// @brief 会心が出た回数（自動確認用）。
     uint32_t GetCritShots() const
@@ -1137,6 +1150,8 @@ private:
     float loaderRamp_ = 0.0f;
     uint32_t critShots_ = 0;
     bool shiftDashEnabled_ = false;
+    uint32_t dashBlocked_ = 0;
+    uint32_t stillShots_ = 0;
     bool demoSpecialHold_ = false;
 
     // 無敵時間

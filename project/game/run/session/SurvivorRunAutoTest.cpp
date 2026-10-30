@@ -100,7 +100,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     }
     // 3秒ごとに1回ダッシュする（衝撃放電・推進器の確認）。
     const bool dash = static_cast<int>(autoTestTime_ / 3.0f) != static_cast<int>((autoTestTime_ - dt) / 3.0f);
-    player.SetDemoInput(true, {move.x, move.y}, aim, true, dash);
+    // 不動砲台を持っていれば、6秒のうち2秒は止まって撃つ（止まっている間の威力の確認）。
+    const bool standStill = relics_[static_cast<size_t>(survivor::RelicId::FixedTurret)] && std::fmod(autoTestTime_, 6.0f) < 2.0f;
+    player.SetDemoInput(true, standStill ? myEngine::Vector2{} : myEngine::Vector2{move.x, move.y}, aim, true, dash);
     autoMaxHeat_ = (std::max)(autoMaxHeat_, player.GetHeat().GetHeat());
 
     // 特性：2択が開いたら0.3秒（実時間）で画面を保存し、0.6秒で選ぶ（既定は冷却炉）。
@@ -112,6 +114,25 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
         if (autoTraitCaptured_ && autoTraitTimer_ > 0.6f) {
             ChooseTrait(autoTraitIndex_);
+        }
+        return;
+    }
+    // レリック：2択が開いたら0.3秒（実時間）で画面を保存し、0.6秒で1枚目を選ぶ。選ぶ前後の主砲の威力・連射・ダッシュを記録する。
+    if (relicChoiceOpen_) {
+        autoRelicTimer_ += dt;
+        if (!autoRelicCaptured_ && autoRelicTimer_ > 0.3f && world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture("relic_open");
+            autoRelicCaptured_ = true;
+        }
+        if (autoRelicTimer_ > 0.6f) {
+            const auto before = player.GetStats();
+            const survivor::RelicId id = relicOffers_.front();
+            ChooseRelic(0);
+            autoRelicTimer_ = 0.0f;
+            autoRelicLog_ << (autoRelicLog_.tellp() > 0 ? "," : "") << "{\"t\":" << std::lround(elapsed_) << ",\"relic\":\""
+                          << (id == survivor::RelicId::Count ? "premium" : survivor::RelicKey(id)) << "\",\"bulletDamage\":["
+                          << before.bulletDamage << "," << player.GetStats().bulletDamage << "],\"reloadSpeed\":[" << before.reloadSpeed
+                          << "," << player.GetStats().reloadSpeed << "]}";
         }
         return;
     }
@@ -419,7 +440,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << "\",\"railShots\":" << player.GetSpecialCombatStats().railShots << ",\"critShots\":" << player.GetCritShots()
             << ",\"spikeKills\":" << spikeKills_ << ",\"spikeProbe\":" << autoSpikeProbe_ << ",\"premiumChests\":" << premiumTotal_
             << ",\"dashExplosions\":" << player.GetDashExplosionCount() << ",\"maxStamina\":" << player.GetStats().maxStamina
-            << ",\"trait\":\"" << survivor::TraitKey(trait_) << "\",\"coolPerSecond\":" << player.GetHeat().GetConfig().coolPerSecond
+            << ",\"relics\":[" << autoRelicLog_.str() << "],\"dashBlocked\":" << player.GetDashBlocked()
+            << ",\"stillShots\":" << player.GetStillShots() << ",\"trait\":\"" << survivor::TraitKey(trait_) << "\",\"coolPerSecond\":" << player.GetHeat().GetConfig().coolPerSecond
             << ",\"coolPerSecondWhileFiring\":" << player.GetHeat().GetConfig().coolPerSecondWhileFiring
             << ",\"heatMax\":" << player.GetHeat().GetMaxHeat() << ",\"shieldMax\":" << player.GetShieldMax() << ",\"shieldCheck\":[" << autoShieldLog_.str() << "]"
             << ",\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_ << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_
@@ -429,7 +451,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"swarms\":" << swarmsSpawned_ << ",\"wavesSkipped\":" << wavesSkipped_ << ",\"heavySquares\":" << heavySpawned_
             << ",\"lungePentagons\":" << lungeSpawned_ << ",\"maxChasers\":" << autoMaxChasers_ << ",\"qSwapProbe\":" << autoQSwapProbe_ << ",\"purges\":" << purges_ << ",\"moraleKills\":" << moraleKills_
             << ",\"effects\":{\"shotDamageScale\":" << MakePartEffects().shotDamageScale << ",\"residualHeat\":" << MakePartEffects().residualHeat
-            << ",\"ramShield\":" << MakePartEffects().ramShield << ",\"bodyDamage\":" << player.GetStats().bodyDamage
+            << ",\"ramShield\":" << MakePartEffects().ramShield << ",\"stillDamageBonus\":" << MakePartEffects().stillDamageBonus
+            << ",\"bodyDamage\":" << player.GetStats().bodyDamage
             << ",\"colliderDamage\":" << player.GetDamage() << ",\"shield\":\"" << player.GetShield() << "/" << player.GetShieldMax() << "\"}"
             << ",\"fusions\":" << fusions_ << ",\"fusionAt\":" << fusionTime_ << ",\"fusionLoad\":[" << autoFusionLoad_[0] << ","
             << autoFusionLoad_[1] << "],\"burstTriggers\":" << autoBurstStats_[0] << ",\"burstRepeats\":" << autoBurstStats_[1]

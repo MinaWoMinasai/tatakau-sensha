@@ -66,11 +66,16 @@ void SurvivorRunController::Initialize()
 
     // 自機が倒した敵は、経験値を直接渡さずに欠片を落とす。コールバックは衝突処理の途中から呼ばれるので、欠片の列に足すだけにする。
     ConfigurePickups();
-    // 大五角は宝箱：倒すと、軽い部品の出ない3択を1つ貯める。
+    // 大五角は宝箱：倒すと、まだ持っていないレリックの2択を1つ貯める（D4）。全部持っていれば、軽い部品の出ない3択を1つ貯める。
     ExpEnemy::SetPlayerExpDropCallback([this](const ExpEnemy& enemy, uint32_t value) {
         pickups_.Drop(enemy.GetWorldPosition(), value, random_);
         expDropped_ += static_cast<int>(value);
         if (enemy.GetType() == ExpEnemyType::Pentagon && enemy.GetSizeScale() > 1.5f) {
+            const int owned = static_cast<int>(std::count(relics_.begin(), relics_.end(), true));
+            if (owned + pendingRelics_ < static_cast<int>(survivor::kRelicCount)) {
+                ++pendingRelics_;
+                return;
+            }
             ++pendingChoices_;
             ++pendingPremium_;
             ++premiumTotal_;
@@ -115,6 +120,11 @@ void SurvivorRunController::Initialize()
     qText_ = std::make_unique<myEngine::TextLabel>();
     qText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
     qText_->SetPosition({520.0f, 676.0f});
+    // 持っているレリック（Q の表示の上）。宝箱で選んだとき（更新の中）だけ書き換える。
+    style.color = {0.86f, 0.62f, 1.0f, 1.0f};
+    relicText_ = std::make_unique<myEngine::TextLabel>();
+    relicText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    relicText_->SetPosition({520.0f, 646.0f});
     // 最小の案内。文字は案内ごとに作り、遊んでいる間は書き換えない（描画中の SetText は落ちる原因になるため）。
     hintPanel_ = bar({190.0f, 548.0f}, {900.0f, 46.0f}, {0.01f, 0.03f, 0.05f, 0.80f});
     style.fontSize = 21;
@@ -210,6 +220,15 @@ void SurvivorRunController::Initialize()
         if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_TRAIT", traitName, 24) > 0 && std::wstring(traitName) == L"standard") {
             autoTraitIndex_ = static_cast<size_t>(survivor::TraitId::Standard);
         }
+        // MYENGINE_SURVIVOR_RELICS=fixedTurret,oneShot：指定したレリックを持った状態から始める（レリックごとの確認用）。
+        wchar_t relicNames[64]{};
+        if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_RELICS", relicNames, 64) > 0) {
+            const std::wstring names(relicNames);
+            relics_[static_cast<size_t>(survivor::RelicId::OneShot)] = names.find(L"oneShot") != std::wstring::npos;
+            relics_[static_cast<size_t>(survivor::RelicId::FixedTurret)] = names.find(L"fixedTurret") != std::wstring::npos;
+            relicText_->SetText("レリック：" + RelicNames());
+            ApplyParts();
+        }
         wchar_t formName[16]{};
         const DWORD formLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_FORM", formName, 16);
         if (formLength > 0 && std::wstring(formName) == L"twin") {
@@ -280,6 +299,8 @@ void SurvivorRunController::Update(float dt)
     SampleFps();
     if (traitChoiceOpen_) {
         UpdateTraitChoiceInput();
+    } else if (relicChoiceOpen_) {
+        UpdateRelicChoiceInput();
     } else if (formChoiceOpen_) {
         UpdateFormChoiceInput();
     } else if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
@@ -323,6 +344,10 @@ void SurvivorRunController::Update(float dt)
             SeparateEnemies();
             separationSeconds_ += std::chrono::duration<double>(std::chrono::steady_clock::now() - separationStart).count();
             ++separationCalls_;
+        }
+        // 宝箱のレリックは、ほかの選択を開いていないときに2択を出す（3択を開いていれば、閉じるまで待つ）。
+        if (pendingRelics_ > 0 && !relicChoiceOpen_ && !formChoiceOpen_ && !traitChoiceOpen_ && !choiceOpen_) {
+            OpenRelicChoice();
         }
         if (premiumGained_) {
             premiumGained_ = false;
@@ -540,6 +565,7 @@ void SurvivorRunController::DrawUi()
     }
     if (qText_ && survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count) {
         qText_->Draw();
+        relicText_->Draw();
     }
     // 予告の「！」：湧く群れの方向へ、画面の端（画面の中なら、その場所）に出す。
     size_t warning = 0;
@@ -562,7 +588,7 @@ void SurvivorRunController::DrawUi()
         return;
     }
     loadoutHud_.DrawLoadout();
-    const bool cardChoice = formChoiceOpen_ || traitChoiceOpen_;
+    const bool cardChoice = formChoiceOpen_ || traitChoiceOpen_ || relicChoiceOpen_;
     choiceHud_.Draw(choiceOpen_ || cardChoice, cardChoice ? 0 : pendingChoices_);
     // 案内（3択を開いている間も、暗幕の上に出す）。
     if (hintShowing_ >= 0 && hintPanel_) {

@@ -29,6 +29,20 @@ std::string SurvivorRunController::FormName() const
     return "基本砲";
 }
 
+std::string SurvivorRunController::DescribeRelic(survivor::RelicId id) const
+{
+    // 倍率は設定から作る（一発屋：威力 x3.5・連射 -70%、不動砲台：止まると威力 +80%）。
+    std::ostringstream text;
+    if (id == survivor::RelicId::OneShot) {
+        text << "主砲の威力 x" << std::fixed << std::setprecision(1) << config_.relics.oneShotDamage << "\n連射 -"
+             << std::lround((1.0f - config_.relics.oneShotFireRate) * 100.0f) << "%\n一発ずつ、よく狙って撃つ";
+    } else {
+        text << "止まっている間は\n主砲の威力 +" << std::lround(config_.relics.turretDamage * 100.0f)
+             << "%\nダッシュできない";
+    }
+    return text.str();
+}
+
 std::string SurvivorRunController::DescribeTrait(survivor::TraitId id) const
 {
     if (id != survivor::TraitId::CoolingFurnace) {
@@ -72,6 +86,7 @@ void SurvivorRunController::RefreshResult(int selection)
          << "レベル　　　　" << level_ << "\n"
          << "撃破　　　　　" << world_.combat.defeatedEnemies_ << "\n"
          << "形態　　　　　" << FormName() << "　　特性 " << survivor::TraitName(trait_) << "\n"
+         << "レリック　　　" << RelicNames() << "\n"
          << "脅威　　　　　Lv" << threatStage_ << "　　宿敵 "
          << (rivalDefeated_ ? "撃破（" + Clock(rivalDefeatedAt_) + "）" : rivalSpawned_ ? std::string("未撃破") : std::string("出る前")) << "\n"
          << "受けたダメージ　" << world_.combat.damageTaken_ << "　　オーバーヒート " << player.GetHeat().GetOverheatCount() << " 回\n"
@@ -123,7 +138,8 @@ void SurvivorRunController::WriteRunLog()
     std::ofstream output(directory + "/run_" + name + ".json");
     output << "{\"cleared\":" << (cleared_ ? "true" : "false") << ",\"seconds\":" << elapsed_ << ",\"level\":" << level_
            << ",\"kills\":" << world_.combat.defeatedEnemies_ << ",\"damageTaken\":" << world_.combat.damageTaken_
-           << ",\"form\":\"" << formKey_ << "\",\"trait\":\"" << survivor::TraitKey(trait_) << "\",\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_
+           << ",\"form\":\"" << formKey_ << "\",\"trait\":\"" << survivor::TraitKey(trait_) << "\",\"relics\":[" << relicRecord_.str()
+           << "],\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_
            << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_ << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"capacity\":" << Capacity()
            << ",\"load\":" << survivor::LoadOf(config_.parts, partLevels_) << ",\"removals\":[" << removalRecord_.str() << "],\"qUses\":" << qUses_
            << ",\"q\":[" << qRecord_.str() << "],\"purges\":" << purges_ << ",\"moraleKills\":" << moraleKills_ << ",\"levelTimes\":[";
