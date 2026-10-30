@@ -4,6 +4,7 @@
 #include "game/session/GameplaySystems.h"
 #include "game/player/TankRunModifiers.h"
 #include "game/render/settings/ArenaCameraProfile.h"
+#include "RuntimeProfiler.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -287,6 +288,7 @@ void SurvivorRunController::Initialize()
 
 void SurvivorRunController::Update(float dt)
 {
+    myEngine::RuntimeProfiler::CpuScope scope("Survivor Update");
     if (world_.combat.phase_ != Phase::kMain) {
         return;
     }
@@ -319,7 +321,11 @@ void SurvivorRunController::Update(float dt)
         if (heat.GetHeat() >= heat.GetMaxHeat() * 0.7f) {
             heatHighSeconds_ += gameDt;
         }
-        UpdateSpawns(gameDt);
+        {
+            myEngine::RuntimeProfiler::CpuScope spawnScope("Survivor Spawns");
+            UpdateSpawns(gameDt);
+        }
+        myEngine::RuntimeProfiler::CpuScope shardScope("Survivor Shards / Q / Separation");
         AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
                                       survivor::CollectorMagnetScale(config_.parts, partLevels_),
                                       survivor::HasChange(partLevels_, survivor::PartId::Collector)));
@@ -379,6 +385,7 @@ void SurvivorRunController::Update(float dt)
     hudRefresh_ -= dt;
     if (hudRefresh_ <= 0.0f) {
         hudRefresh_ = 0.1f;
+        myEngine::RuntimeProfiler::CpuScope hudScope("Survivor HUD");
         RefreshHud();
     }
     // 結果画面：出た最初の更新で遊んだ記録を書く。R キーで、その場からもう1回。
@@ -394,6 +401,7 @@ void SurvivorRunController::Update(float dt)
             return;
         }
     }
+    myEngine::RuntimeProfiler::CpuScope autoTestScope("Survivor AutoTest");
     if (autoTest_ == AutoTest::Sector) {
         UpdateSectorAutoTest(dt);
     } else if (autoTest_ == AutoTest::Perf) {

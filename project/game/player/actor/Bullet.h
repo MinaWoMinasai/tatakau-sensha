@@ -240,12 +240,10 @@ public:
         return GetBulletColor();
     }
 
-    /// @brief ワールド座標を設定し、描画オブジェクトへ反映する。移動前の記録は更新しない。
+    /// @brief ワールド座標を設定する。移動前の記録は更新しない。
     void SetWorldPosition(const myEngine::Vector3& pos)
     {
         worldTransform_.translate = pos;
-        object_->SetTransform(worldTransform_);
-        object_->Update();
     }
 
     /// @brief 速度を設定する。
@@ -349,8 +347,6 @@ public:
     void Die();
 
 private:
-    /// @brief 表示設定を現在の状態へ適用する。
-    void ApplyVisualSettings();
     /// @brief 軌跡を更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateTrail(float deltaTime);
@@ -370,8 +366,6 @@ private:
     bool armorReflected_ = false, burstChild_ = false;
     int burstRepeats_ = 0;
     float visualTrailScale_ = 1;
-
-    std::unique_ptr<myEngine::Object3d> object_;
 
     // ワールドトランスフォーム
     myEngine::Transform worldTransform_;

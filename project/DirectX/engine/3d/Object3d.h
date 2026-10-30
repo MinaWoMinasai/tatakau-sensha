@@ -406,6 +406,10 @@ public:
         materialData_->characterSpecularPower = specularPower;
     }
 
+    /// @brief 材質を Initialize の直後の既定値へ戻し、材質の上書きの印も消す。GPU の資源は作り直さない。
+    /// @note 使い回す Object3d に、前の持ち主の色・光の設定を残さないために使う。モデルは次の SetModel で決め直す。
+    void ResetMaterialToDefault();
+
 private:
     /// @brief ワールド行列から、シェーダーへ渡す行列の定数を更新する。
     void UpdateMatrixConstants(const Matrix4x4& worldMatrix);

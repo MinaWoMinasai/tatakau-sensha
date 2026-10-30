@@ -414,6 +414,14 @@ void Object3d::ApplyModelMaterialData()
     }
 }
 
+void Object3d::ResetMaterialToDefault()
+{
+    if (materialData_) {
+        *materialData_ = MakeDefaultMaterial();
+    }
+    ResetMaterialOverrideFlags();
+}
+
 void Object3d::ResetMaterialOverrideFlags()
 {
     userColorOverride_ = false;

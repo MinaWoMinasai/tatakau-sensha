@@ -13,6 +13,13 @@ class Enemy;
 /// @brief 経験値敵・移動戦闘敵・遠征資源・召喚個体を所有し、生成、更新、死亡個体の削除を管理する。
 class EnemyManager {
 public:
+    /// @brief 倒れた敵の描画用の Object3d を使い回す置き場を使い始める。
+    EnemyManager();
+    /// @brief 敵を先に片付けてから、置き場を使い終える。
+    ~EnemyManager();
+    EnemyManager(const EnemyManager&) = delete;
+    EnemyManager& operator=(const EnemyManager&) = delete;
+
     /// @brief ワールド座標の矩形出現領域と、生成間隔（秒）・現在の待ち時間・領域内の生存数上限を保持する。
     struct SpawnArea {
         std::string name;

@@ -43,6 +43,14 @@ public:
 
     /// @brief 種類を設定して作る。
     ExpEnemy() : Collider(kColliderKind) {}
+    /// @brief 描画用の Object3d を、使い回しの置き場へ返す（置き場が有効な間だけ）。
+    ~ExpEnemy() override;
+
+    /// @brief Object3d の使い回しの置き場を使い始める（EnemyManager が作られたとき）。
+    /// @note 敵が湧くたびに GPU の資源を作るのを避ける。置き場は、使う EnemyManager がすべて無くなると空にする。
+    static void AcquireObjectPool();
+    /// @brief 置き場を使い終える。最後の利用者なら、置き場の Object3d を解放する。
+    static void ReleaseObjectPool();
 
     /// @brief 接触ダメージと射撃・索敵の共通設定を保持する。間隔は秒、弾速は60FPS基準の1フレーム当たりの距離。
     struct BalanceConfig {

@@ -17,7 +17,33 @@ myEngine::Vector4 LerpColor(const myEngine::Vector4& a, const myEngine::Vector4&
     t = (std::clamp)(t, 0.0f, 1.0f);
     return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t};
 }
+
+// 倒れた敵の Object3d の置き場。湧くたびに定数バッファ（GPU の資源）を作ると、まとめて倒して湧き直す場面で重い。
+// フレームは同時に1つしか進まない（CPU は毎フレーム GPU の終わりを待つ）ので、次のフレームで使い回してよい。
+constexpr size_t kObjectPoolMax = 320;
+std::vector<std::unique_ptr<myEngine::Object3d>> gObjectPool;
+int gObjectPoolUsers = 0;
 } // namespace
+
+ExpEnemy::~ExpEnemy()
+{
+    if (object_ && gObjectPoolUsers > 0 && gObjectPool.size() < kObjectPoolMax) {
+        gObjectPool.push_back(std::move(object_));
+    }
+}
+
+void ExpEnemy::AcquireObjectPool()
+{
+    ++gObjectPoolUsers;
+}
+
+void ExpEnemy::ReleaseObjectPool()
+{
+    gObjectPoolUsers = (std::max)(0, gObjectPoolUsers - 1);
+    if (gObjectPoolUsers == 0) {
+        gObjectPool.clear();
+    }
+}
 
 ExpEnemy::BalanceConfig ExpEnemy::balanceConfig_{};
 ExpEnemy::EnemyInteractionConfig ExpEnemy::enemyInteractionConfig_{};
@@ -93,8 +119,18 @@ void ExpEnemy::Initialize(const myEngine::Vector3& position, Player* player, Exp
     isDead_ = false;
     isRunResource_ = false;
     runResourceClaimCallback_ = {};
-    object_ = std::make_unique<myEngine::Object3d>();
-    object_->Initialize();
+    // 描画用の Object3d は、置き場にあれば材質を既定に戻して使い回す（モデルと色は ApplyTypeParams で決め直す）。
+    if (object_ && gObjectPoolUsers > 0 && gObjectPool.size() < kObjectPoolMax) {
+        gObjectPool.push_back(std::move(object_));
+    }
+    if (!gObjectPool.empty()) {
+        object_ = std::move(gObjectPool.back());
+        gObjectPool.pop_back();
+        object_->ResetMaterialToDefault();
+    } else {
+        object_ = std::make_unique<myEngine::Object3d>();
+        object_->Initialize();
+    }
 
     worldTransform_ = myEngine::InitWorldTransform();
     worldTransform_.translate = position;
