@@ -86,6 +86,10 @@
     "thunderExtraTargets": 3, "thunderRadiusScale": 1.4, "rampageRadiusScale": 1.8, "rampageDamageScale": 2.0, "rampageShieldRefill": 0.5,
     "criticalRadius": 9.0, "criticalDamage": 20.0
   },
+  "damageNumbers": {
+    "comment": "敵に当てたときのダメージの数字（ネオン風）。同じ敵へ mergeSeconds 秒以内に続けて当てた分は1つにまとめて足す。同時に maxActive 個まで、lifeSeconds 秒で上へ動きながら消える。主砲1発の bigRatio 倍以上は金色で大きく出す。scale は文字の大きさの倍率。",
+    "enabled": true, "maxActive": 40, "lifeSeconds": 0.7, "scale": 1.0, "bigRatio": 2.5, "mergeSeconds": 0.15
+  },
   "parts": {
     "comment": "軽い部品（Lv1〜5）は1段ごとの上がり幅。0.12 なら +12%。装填機は1秒あたりの発射数、冷却器は冷える速さ（撃っている間も）を上げる。ほかの部品（Lv1〜3）は Lv2 から1段ごとに効果の強さへ足す量。weight は積載に使う重さ（Lv を上げても変わらない）。",
     "armor": { "perLevel": 0.12, "weight": 1 },

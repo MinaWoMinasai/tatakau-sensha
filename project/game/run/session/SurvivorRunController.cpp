@@ -192,6 +192,17 @@ void SurvivorRunController::Initialize()
     RefreshHud();
     QueueHint(Hint::Move);
 
+    // ダメージの数字。命中の通知は衝突処理の途中から来るので、控えるだけにして、更新で位置を決める。
+    damageNumbers_.Initialize();
+    ApplyDamageNumberConfig();
+    ExpEnemy::SetPlayerDamageCallback([this](const ExpEnemy& enemy, uint32_t amount) {
+        damageNumbers_.Spawn(enemy.GetCollisionId(), enemy.GetWorldPosition(), amount,
+                             world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
+    });
+    Enemy::SetDamageCallback([this](const myEngine::Vector3& position, uint32_t amount) {
+        damageNumbers_.Spawn(0, position, amount, world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
+    });
+
     wchar_t automatic[8]{};
     const DWORD length = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_AUTOTEST", automatic, 8);
     if (!world_.demo.titleDemo_ && length > 0) {
@@ -389,11 +400,18 @@ void SurvivorRunController::Update(float dt)
                 cleared_ = true;
                 CloseChoices();
                 pickups_.Clear();
+                damageNumbers_.Clear();
                 world_.resources.enemyManager_->ClearRunActors();
                 world_.resources.bulletManager_->ClearAll();
                 world_.combatFlow->EnterResultState(true);
             }
         }
+    }
+    {
+        myEngine::RuntimeProfiler::CpuScope numbersScope("Survivor Damage Numbers");
+        damageNumbers_.Update(dt, [this](const myEngine::Vector3& world) {
+            return world_.gameplayHud->WorldToScreen(world);
+        });
     }
     hudRefresh_ -= dt;
     if (hudRefresh_ <= 0.0f) {
@@ -420,6 +438,18 @@ void SurvivorRunController::Update(float dt)
     } else if (autoTest_ == AutoTest::Perf) {
         UpdatePerfAutoTest(dt);
     }
+}
+
+void SurvivorRunController::ApplyDamageNumberConfig()
+{
+    SurvivorDamageNumbers::Config numbers;
+    numbers.enabled = config_.damageNumbers.enabled;
+    numbers.maxActive = config_.damageNumbers.maxActive;
+    numbers.lifeSeconds = config_.damageNumbers.lifeSeconds;
+    numbers.scale = config_.damageNumbers.scale;
+    numbers.bigRatio = config_.damageNumbers.bigRatio;
+    numbers.mergeSeconds = config_.damageNumbers.mergeSeconds;
+    damageNumbers_.SetConfig(numbers);
 }
 
 void SurvivorRunController::ConfigurePickups()
@@ -466,6 +496,7 @@ void SurvivorRunController::UpdateTuningPanel()
     if (result.changed || result.reloadRequested) {
         // 部品の倍率・熱・シールド・欠片を、今の値で作り直す。形態の数値は次に選んだときから効く。
         ConfigurePickups();
+        ApplyDamageNumberConfig();
         ApplyParts();
         if (result.changed) {
             tuningStatus_ = "変更あり（未保存）";
@@ -576,6 +607,8 @@ void SurvivorRunController::DrawUi()
         return;
     }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+    // ダメージの数字は、HUD の文字より下に描く。
+    damageNumbers_.Draw();
     if (expTrack_ && expFill_) {
         expTrack_->Draw();
         expFill_->Draw();
@@ -586,6 +619,9 @@ void SurvivorRunController::DrawUi()
     }
     if (qText_ && survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count) {
         qText_->Draw();
+    }
+    // レリックは Q の部品が無くても出す。
+    if (relicText_) {
         relicText_->Draw();
     }
     // 予告の「！」：湧く群れの方向へ、画面の端（画面の中なら、その場所）に出す。

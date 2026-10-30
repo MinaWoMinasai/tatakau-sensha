@@ -5,6 +5,7 @@
 #include <Windows.h>
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <optional>
 #include "Object3d.h"
 #include "Sprite.h"
@@ -131,6 +132,7 @@ public:
 
     // 発射間隔
     static inline const int32_t kFireInterval = 60;
+    static inline std::function<void(const myEngine::Vector3&, uint32_t)> damageCallback_{};
 
     /// @brief 成立済みの接触を受け、通常敵へのダメージ、自機・ドローンによる押し返し、弾によるHP減算を行う。
     /// @note otherは有効な相手が必要。遭遇戦が無効または死亡済みなら何もしない。致死ダメージは直ちに死亡を確定する。
@@ -250,6 +252,11 @@ public:
     /// @brief 有効な遭遇戦で未死亡かつamountが0でなければ、HPを減らして被弾演出を開始する。
     /// @note 致死ダメージではHPを0にし、その通知中に死亡を確定する。
     void TakeDamage(uint32_t amount);
+    /// @brief HPが減ったときに、位置と量を受け取る共有コールバックを設定する（試作のダメージの数字）。空の関数で解除する。
+    static void SetDamageCallback(std::function<void(const myEngine::Vector3&, uint32_t)> callback)
+    {
+        damageCallback_ = std::move(callback);
+    }
     /// @brief 有効な遭遇戦で未死亡なら、追加のノックバック速度を加算して長さを0.34以下に制限する。
     /// @param power 正の有限値を使い、0.95を上限に速度へ変換する。
     /// @note 位置はUpdateで進める。ゼロに近いdirectionは無視し、現在の攻撃状態は中断しない。

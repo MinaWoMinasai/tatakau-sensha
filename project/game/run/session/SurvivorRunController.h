@@ -4,6 +4,7 @@
 #include "game/run/session/SurvivorPickups.h"
 #include "game/ui/session/SurvivorChoiceHud.h"
 #include "game/ui/session/SurvivorLoadoutHud.h"
+#include "game/ui/session/SurvivorDamageNumbers.h"
 #include <chrono>
 #include <optional>
 #include <random>
@@ -331,6 +332,10 @@ private:
     SurvivorChoiceHud choiceHud_;
     // 積載。積載を超える札を選ぶと、外す部品を選ぶ画面（removalOpen_）を開き、removalOffer_ 番目の札を待たせる。
     SurvivorLoadoutHud loadoutHud_;
+    // 敵に当てたときのダメージの数字。
+    SurvivorDamageNumbers damageNumbers_;
+    /// @brief 設定からダメージの数字の見た目を渡す（始めと、調整パネルで変えたとき）。
+    void ApplyDamageNumberConfig();
     bool removalOpen_ = false;
     size_t removalOffer_ = 0;
     int removals_ = 0;

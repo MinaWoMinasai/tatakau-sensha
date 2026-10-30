@@ -34,6 +34,8 @@ GameWorld::~GameWorld()
     ExpEnemy::SetEnemyKillCallback(nullptr);
     ExpEnemy::SetPlayerDefeatCallback(nullptr);
     ExpEnemy::SetPlayerExpDropCallback(nullptr);
+    ExpEnemy::SetPlayerDamageCallback(nullptr);
+    Enemy::SetDamageCallback(nullptr);
     ExpEnemy::SetShapeNeonRenderMode(0);
 }
 } // namespace gameplay

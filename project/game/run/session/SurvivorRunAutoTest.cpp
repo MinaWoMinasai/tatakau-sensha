@@ -459,7 +459,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"fusions\":" << fusions_ << ",\"fusionAt\":" << fusionTime_ << ",\"fusionLoad\":[" << autoFusionLoad_[0] << ","
             << autoFusionLoad_[1] << "],\"burstTriggers\":" << autoBurstStats_[0] << ",\"burstRepeats\":" << autoBurstStats_[1]
             << ",\"burstChildren\":" << autoBurstStats_[2] << ",\"repeatsWhileFused\":" << autoRepeatsWhileFused_
-            << ",\"fusedSeconds\":" << autoFusedSeconds_ << ",\"chainHits\":" << autoChainHits_ << ",\"criticalBlasts\":" << criticalBlasts_
+            << ",\"damageNumbers\":" << damageNumbers_.GetSpawnedCount() << ",\"fusedSeconds\":" << autoFusedSeconds_ << ",\"chainHits\":" << autoChainHits_ << ",\"criticalBlasts\":" << criticalBlasts_
             << ",\"partsAtEnd\":\"" << DescribeParts(99) << "\"" 
             << ",\"samples\":[" << autoTestLog_.str() << "]}\n";
         autoTest_ = AutoTest::None;

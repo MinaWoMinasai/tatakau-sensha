@@ -223,6 +223,13 @@ bool DrawPartsAndChoices(SpawnConfig& config)
         ImGui::PopID();
     }
     SyncFusionWeights(config.parts);
+    ImGui::SeparatorText("ダメージの数字");
+    changed |= ImGui::Checkbox("数字を出す", &config.damageNumbers.enabled);
+    changed |= ImGui::DragInt("同時に出す数", &config.damageNumbers.maxActive, 0.2f, 1, 80);
+    changed |= ImGui::DragFloat("出ている秒数", &config.damageNumbers.lifeSeconds, 0.01f, 0.1f, 3.0f, "%.2f");
+    changed |= ImGui::DragFloat("文字の大きさ", &config.damageNumbers.scale, 0.01f, 0.3f, 3.0f, "x%.2f");
+    changed |= ImGui::DragFloat("大きな数字（主砲の何倍から）", &config.damageNumbers.bigRatio, 0.05f, 1.0f, 20.0f, "x%.2f");
+    changed |= ImGui::DragFloat("まとめる秒数", &config.damageNumbers.mergeSeconds, 0.01f, 0.0f, 1.0f, "%.2f");
     ImGui::SeparatorText("合体");
     changed |= ImGui::DragInt("雷鳴：放電の届く数（足す）", &config.fusions.thunderExtraTargets, 0.1f, 0, 5);
     changed |= ImGui::DragFloat("雷鳴：届く距離の倍率", &config.fusions.thunderRadiusScale, 0.02f, 0.5f, 3.0f, "x%.2f");

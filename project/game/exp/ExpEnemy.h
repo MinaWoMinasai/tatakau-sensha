@@ -81,6 +81,9 @@ public:
     /// @brief 自機側の撃破で経験値を直接渡す代わりに、倒した敵と量を受け取る共有コールバックを設定する（試作の欠片）。
     /// @note 設定中は Player::AddExp を呼ばない。空の関数で解除すると、従来どおり直接渡す。
     static void SetPlayerExpDropCallback(std::function<void(const ExpEnemy&, uint32_t)> callback);
+    /// @brief 自機側の攻撃でHPが減ったときに、敵と量を受け取る共有コールバックを設定する（試作のダメージの数字）。資源には呼ばない。
+    /// @note 衝突処理の途中から呼ばれるので、受け取る側は控えるだけにする。空の関数で解除する。
+    static void SetPlayerDamageCallback(std::function<void(const ExpEnemy&, uint32_t)> callback);
     /// @brief 図形のネオン表示を切り替え、有効なら描画方式1、無効なら方式0にする。
     static void SetShapeNeonBillboardEnabled(bool enabled);
     /// @brief 図形のネオン描画方式を0〜3に制限して設定する。0以外では通常のモデル描画を省く。
@@ -524,6 +527,7 @@ private:
     static std::function<void(uint32_t)> enemyKillCallback_;
     static std::function<void(const myEngine::Vector3&)> playerDefeatCallback_;
     static std::function<void(const ExpEnemy&, uint32_t)> playerExpDropCallback_;
+    static std::function<void(const ExpEnemy&, uint32_t)> playerDamageCallback_;
     static bool shapeNeonBillboardEnabled_;
     static int shapeNeonRenderMode_;
 

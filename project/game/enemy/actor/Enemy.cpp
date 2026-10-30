@@ -869,6 +869,9 @@ void Enemy::TakeDamage(uint32_t amount)
     // INT_MAXを超える量も含め、縮小変換の前に符号なしのままダメージを比較する。
     hp_ = amount >= static_cast<uint32_t>(hp_) ? 0 : hp_ - static_cast<int>(amount);
     TriggerDamageFeedback();
+    if (damageCallback_) {
+        damageCallback_(GetWorldPosition(), amount);
+    }
     if (hp_ == 0) {
         Die();
     }

@@ -523,6 +523,7 @@
     <ClCompile Include="game\ui\session\GameplayHud.cpp" />
     <ClCompile Include="game\ui\session\SurvivorChoiceHud.cpp" />
     <ClCompile Include="game\ui\session\SurvivorLoadoutHud.cpp" />
+    <ClCompile Include="game\ui\session\SurvivorDamageNumbers.cpp" />
     <ClCompile Include="game\editor\session\GameplayEditor.cpp" />
     <ClCompile Include="game\demo\TitleDemoController.cpp" />
     <ClCompile Include="game\run\session\ArenaRunController.cpp" />
@@ -572,6 +573,7 @@
     <ClInclude Include="game\ui\session\GameplayHud.h" />
     <ClInclude Include="game\ui\session\SurvivorChoiceHud.h" />
     <ClInclude Include="game\ui\session\SurvivorLoadoutHud.h" />
+    <ClInclude Include="game\ui\session\SurvivorDamageNumbers.h" />
     <ClInclude Include="game\editor\session\GameplayEditor.h" />
     <ClInclude Include="game\demo\TitleDemoController.h" />
     <ClInclude Include="game\run\session\ArenaRunController.h" />

@@ -50,6 +50,7 @@ ExpEnemy::EnemyInteractionConfig ExpEnemy::enemyInteractionConfig_{};
 std::function<void(uint32_t)> ExpEnemy::enemyKillCallback_{};
 std::function<void(const myEngine::Vector3&)> ExpEnemy::playerDefeatCallback_{};
 std::function<void(const ExpEnemy&, uint32_t)> ExpEnemy::playerExpDropCallback_{};
+std::function<void(const ExpEnemy&, uint32_t)> ExpEnemy::playerDamageCallback_{};
 bool ExpEnemy::shapeNeonBillboardEnabled_ = false;
 int ExpEnemy::shapeNeonRenderMode_ = 0;
 
@@ -82,6 +83,11 @@ void ExpEnemy::SetPlayerDefeatCallback(std::function<void(const myEngine::Vector
 void ExpEnemy::SetPlayerExpDropCallback(std::function<void(const ExpEnemy&, uint32_t)> callback)
 {
     playerExpDropCallback_ = std::move(callback);
+}
+
+void ExpEnemy::SetPlayerDamageCallback(std::function<void(const ExpEnemy&, uint32_t)> callback)
+{
+    playerDamageCallback_ = std::move(callback);
 }
 
 void ExpEnemy::SetShapeNeonBillboardEnabled(bool enabled)
@@ -1317,6 +1323,9 @@ bool ExpEnemy::ApplyDamage(uint32_t amount, bool playerOwned, bool reportOrdinar
     }
     hp_ -= static_cast<int>((std::min)(amount, static_cast<uint32_t>((std::max)(0, hp_))));
     TriggerDamageFeedback();
+    if (playerOwned && !isRunResource_ && playerDamageCallback_) {
+        playerDamageCallback_(*this, amount);
+    }
     if (hp_ <= 0) {
         // 通知先からの再入や同じフレームの後続ダメージに備え、撃破通知より先に死亡を確定する。
         isDead_ = true;

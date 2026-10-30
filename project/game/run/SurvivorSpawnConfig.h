@@ -158,6 +158,16 @@ struct SpawnConfig {
         float criticalDamage = 20.0f;
     } fusions;
 
+    /// @brief 敵に当てたときのダメージの数字（SurvivorDamageNumbers::Config と同じ項目）。
+    struct DamageNumbers {
+        bool enabled = true;
+        int maxActive = 40;
+        float lifeSeconds = 0.7f;
+        float scale = 1.0f;
+        float bigRatio = 2.5f;
+        float mergeSeconds = 0.15f;
+    } damageNumbers;
+
     /// @brief 排熱砲（Q）。熱が minHeat 未満なら使えない。威力の倍率は 熱 × damagePerHeat × 効果の強さ（Lv）。使うと cooldown 秒待つ。
     struct HeatVent {
         float cooldown = 3.0f;
@@ -422,6 +432,18 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         config.traits.furnaceHeatMax = (std::max)(0.1f, config.traits.furnaceHeatMax);
         config.traits.furnaceCool = (std::max)(0.0f, config.traits.furnaceCool);
     }
+    if (data.contains("damageNumbers")) {
+        const auto& numbers = data.at("damageNumbers");
+        if (numbers.contains("enabled") && numbers.at("enabled").is_boolean()) {
+            config.damageNumbers.enabled = numbers.at("enabled").get<bool>();
+        }
+        number(numbers, "maxActive", config.damageNumbers.maxActive);
+        number(numbers, "lifeSeconds", config.damageNumbers.lifeSeconds);
+        number(numbers, "scale", config.damageNumbers.scale);
+        number(numbers, "bigRatio", config.damageNumbers.bigRatio);
+        number(numbers, "mergeSeconds", config.damageNumbers.mergeSeconds);
+        config.damageNumbers.maxActive = (std::clamp)(config.damageNumbers.maxActive, 1, 80);
+    }
     if (data.contains("fusions")) {
         const auto& fusions = data.at("fusions");
         number(fusions, "thunderExtraTargets", config.fusions.thunderExtraTargets);
@@ -597,6 +619,13 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     auto& traits = section("traits");
     traits["furnaceHeatMax"] = round(config.traits.furnaceHeatMax);
     traits["furnaceCool"] = round(config.traits.furnaceCool);
+    auto& numbers = section("damageNumbers");
+    numbers["enabled"] = config.damageNumbers.enabled;
+    numbers["maxActive"] = config.damageNumbers.maxActive;
+    numbers["lifeSeconds"] = round(config.damageNumbers.lifeSeconds);
+    numbers["scale"] = round(config.damageNumbers.scale);
+    numbers["bigRatio"] = round(config.damageNumbers.bigRatio);
+    numbers["mergeSeconds"] = round(config.damageNumbers.mergeSeconds);
     auto& fusions = section("fusions");
     fusions["thunderExtraTargets"] = config.fusions.thunderExtraTargets;
     fusions["thunderRadiusScale"] = round(config.fusions.thunderRadiusScale);
@@ -697,11 +726,11 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 26> kOrder{
+    static constexpr std::array<const char*, 27> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
         "heat",          "shield",    "forms",           "traits",        "relics",    "fusions",    "parts",       "heatVent",
-        "partTuning",    "bigPentagon"};
+        "partTuning",    "bigPentagon", "damageNumbers"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
         if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {
