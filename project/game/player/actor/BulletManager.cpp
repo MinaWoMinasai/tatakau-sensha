@@ -71,6 +71,7 @@ void BulletManager::FlushPendingSplits()
         shot->ConfigureGrowth(0, 0, 0);
         shot->SetArmorReflected(spec.reflection);
         shot->SetBurstChild(!spec.reflection);
+        shot->SetBurstRepeats(spec.burstRepeats);
         shot->SetCanClaimRunResource(!spec.reflection);
         if (spec.reflection) {
             shot->ConfigureSpecial(Bullet::SpecialKind::ArmorReflection, .42f, 2.0f);
@@ -293,26 +294,44 @@ bool BulletManager::DamageBuildTarget(Collider* target, uint32_t damage, const m
 
 void BulletManager::QueueKillBurst(const Bullet& bullet, const myEngine::Vector3& position)
 {
-    // 破裂子弾からは再発動しない。6発分をまとめて予約し、衝突中の管理配列を増やさない。
-    if (!bullet.GetShooterAbilities().killBurst || bullet.IsBurstChild() || pendingBuildShots_.size() > 42) {
+    // 破裂子弾は、再発動の残り回数を持つときだけもう一度破裂する（連鎖崩壊）。6発分をまとめて予約し、衝突中の管理配列を増やさない。
+    const bool repeat = bullet.IsBurstChild();
+    if ((repeat ? bullet.GetBurstRepeats() <= 0 : !bullet.GetShooterAbilities().killBurst) || pendingBuildShots_.size() > 42) {
         return;
     }
-    ++shooterStats_.burstTriggers;
-    const auto damage = tankshooter::Damage(bullet.GetDamage(), .35f, bullet.GetShooterAbilities().burstPower);
+    // 再発動の子弾は親の子弾と同じ威力。最初の破裂の子弾が、設定された回数だけ再発動できる。
+    uint32_t damage = bullet.GetDamage();
+    int repeats = bullet.GetBurstRepeats() - 1;
+    if (repeat) {
+        ++shooterStats_.burstRepeats;
+    } else {
+        ++shooterStats_.burstTriggers;
+        damage = tankshooter::Damage(bullet.GetDamage(), .35f, bullet.GetShooterAbilities().burstPower);
+        repeats = killBurstRepeats_;
+    }
+    // 再発動は向きを半分ずらし、最初の破裂と同じ線に重ならないようにする。
+    const float offset = repeat ? 3.14159265f / tankshooter::kBurstChildren : 0.0f;
     for (int i = 0; i < tankshooter::kBurstChildren; ++i) {
-        const float angle = static_cast<float>(i) * 6.2831853f / tankshooter::kBurstChildren;
+        const float angle = offset + static_cast<float>(i) * 6.2831853f / tankshooter::kBurstChildren;
         const myEngine::Vector3 direction{std::cos(angle), std::sin(angle), 0};
-        pendingBuildShots_.push_back({position + direction * .35f, direction * .30f, damage, false});
+        pendingBuildShots_.push_back({position + direction * .35f, direction * .30f, damage, false, repeats});
     }
     BuildEventAt(BuildEventKind::Burst, position, position);
 }
 
 void BulletManager::NotifyPlayerHit(Bullet& bullet, Collider& target, bool killed)
 {
-    if (bullet.GetOwner() != kPlayer || bullet.IsBurstChild() || bullet.GetSourceDroneIndex() >= 0) {
+    if (bullet.GetOwner() != kPlayer || bullet.GetSourceDroneIndex() >= 0) {
         return;
     }
     if (auto* ordinary = dynamic_cast<ExpEnemy*>(&target); ordinary && ordinary->IsRunResource()) {
+        return;
+    }
+    // 破裂・分裂の子弾は、連鎖崩壊の再発動だけを行う（残り回数が無ければ QueueKillBurst が何もしない）。
+    if (bullet.IsBurstChild()) {
+        if (killed) {
+            QueueKillBurst(bullet, target.GetWorldPosition());
+        }
         return;
     }
     const auto& ability = bullet.GetShooterAbilities();

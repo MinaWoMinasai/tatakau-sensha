@@ -70,10 +70,17 @@ void SurvivorChoiceHud::SetOffers(const std::vector<survivor::PartOffer>& offers
             title += "修理キット";
         } else {
             const auto& part = parts[static_cast<size_t>(offer.part)];
-            title += std::string(part.name) + "  Lv" + std::to_string(offer.nextLevel);
+            // 合体の札は、見出しに「合体」と出し、外れる元の2つを書く。
+            if (survivor::IsFusion(part)) {
+                title += std::string("合体  ") + part.name;
+                body += std::string("\n") + parts[static_cast<size_t>(part.fuseA)].name + "・" + parts[static_cast<size_t>(part.fuseB)].name +
+                        "を1つに";
+            } else {
+                title += std::string(part.name) + "  Lv" + std::to_string(offer.nextLevel);
+            }
             // 新しく積む札だけ、重さと積んだ後の積載を書く（Lv 上げは重さが変わらない）。
             if (offer.nextLevel == 1) {
-                const int after = load + part.weight;
+                const int after = load + part.weight - survivor::FusedAwayWeight(parts, levels, offer.part);
                 body += "\n重さ " + std::to_string(part.weight) + "　積載 " + std::to_string(after) + "/" + std::to_string(capacity);
                 if (survivor::ExceedsLoad(parts, levels, offer.part, capacity)) {
                     body += "　→ 外して積む";

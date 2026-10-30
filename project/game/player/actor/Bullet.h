@@ -130,11 +130,24 @@ public:
     }
 
     /// @brief 破裂・分裂の子弾を識別するフラグを設定する。子弾を生成する処理ではない。
-    /// @note trueの弾はBulletManager::NotifyPlayerHitの対象外となり、その通知による連鎖・マーキング／起爆・撃破時破裂を行わない。
+    /// @note trueの弾はBulletManager::NotifyPlayerHitでの連鎖・マーキング／起爆・撃破時破裂を行わない。
+    /// 例外として、再発動の残り回数（SetBurstRepeats）を持つ子弾は、敵を倒したときにもう一度破裂する。
     /// 壁反射や衝突時の分裂回数を変更するフラグではない。分裂の制限はConfigureGrowthなどが別に設定する。
     void SetBurstChild(bool value)
     {
         burstChild_ = value;
+    }
+
+    /// @brief 破裂子弾が敵を倒したときに、もう一度破裂できる残りの回数を返す（育つ戦車の試作の連鎖崩壊）。
+    int GetBurstRepeats() const
+    {
+        return burstRepeats_;
+    }
+
+    /// @brief 破裂子弾がもう一度破裂できる回数を設定する。0～2に制限する。
+    void SetBurstRepeats(int value)
+    {
+        burstRepeats_ = (std::clamp)(value, 0, 2);
     }
 
     /// @brief 弾の衝突半径と軌跡幅の倍率を設定する。各入力は0.5～2に制限する。
@@ -355,6 +368,7 @@ private:
     Player* sourcePlayer_ = nullptr;
     int sourceDroneIndex_ = -1;
     bool armorReflected_ = false, burstChild_ = false;
+    int burstRepeats_ = 0;
     float visualTrailScale_ = 1;
 
     std::unique_ptr<myEngine::Object3d> object_;

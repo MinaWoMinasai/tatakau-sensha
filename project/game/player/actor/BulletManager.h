@@ -36,7 +36,14 @@ public:
     /// @brief 射撃強化の命中・発動・追加弾の登録・帰還開始・反射予約の累積件数を保持する。
     struct ShooterStats {
         uint64_t chainHits = 0, detonations = 0, burstTriggers = 0, burstChildren = 0, returns = 0, reflections = 0;
+        uint64_t burstRepeats = 0; // 連鎖崩壊で破裂子弾がもう一度破裂した回数
     };
+
+    /// @brief 撃破時の破裂の子弾が、敵を倒したときにもう一度破裂できる回数を設定する（育つ戦車の試作の連鎖崩壊）。既定は0。
+    void SetKillBurstRepeats(int repeats)
+    {
+        killBurstRepeats_ = (std::clamp)(repeats, 0, 2);
+    }
 
     /// @brief ClearAll以降の射撃強化の集計への読み取り専用参照を返す。
     const ShooterStats& GetShooterStats() const
@@ -176,9 +183,11 @@ private:
         myEngine::Vector3 position{}, velocity{};
         uint32_t damage = 1;
         bool reflection = false;
+        int burstRepeats = 0;
     };
 
     std::vector<PendingShot> pendingBuildShots_;
+    int killBurstRepeats_ = 0;
     std::vector<BuildEvent> buildEvents_;
     tankshooter::MarkLedger marks_{};
     ShooterStats shooterStats_{};
@@ -196,7 +205,7 @@ private:
     /// @note nullptrや対応外の型、死亡済み・資源の経験値敵には適用しない。
     bool DamageBuildTarget(Collider* target, uint32_t damage, const myEngine::Vector3& source);
     /// @brief 撃破時の破裂能力が有効なら、破裂子弾を予約し発動を集計する。
-    /// @note 破裂子弾からの再発動、または予約列が42件を超える場合は予約しない。
+    /// @note 破裂子弾からは、再発動の残り回数（連鎖崩壊）を持つ弾だけが再発動する。予約列が42件を超える場合は予約しない。
     void QueueKillBurst(const Bullet& bullet, const myEngine::Vector3& position);
     /// @brief 演出イベントを保留列へ追加する。既に64件あれば追加しない。
     void BuildEventAt(BuildEventKind kind, const myEngine::Vector3& start, const myEngine::Vector3& end, float strength = 1);

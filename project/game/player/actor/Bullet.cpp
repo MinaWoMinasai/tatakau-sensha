@@ -31,6 +31,7 @@ void Bullet::Initialize(const myEngine::Vector3& position, const myEngine::Vecto
     sourcePlayer_ = nullptr;
     sourceDroneIndex_ = -1;
     armorReflected_ = burstChild_ = false;
+    burstRepeats_ = 0;
     visualTrailScale_ = 1;
     isReflectable_ = reflectable;
     bulletHp_ = (std::max)(0.1f, bulletHp);

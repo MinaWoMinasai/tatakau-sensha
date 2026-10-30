@@ -28,6 +28,7 @@ enum class PartId {
     RamShield,      // 衝角シールド
     Morale,         // 戦意
     EmergencyPurge, // 緊急放出（Q、使い切り）
+    ChainCollapse,  // 連鎖崩壊（合体：貫通＋撃破バースト）
     Count
 };
 
@@ -62,7 +63,16 @@ struct PartDefinition {
     float perLevel = 0.1f;
     const char* change = ""; // 軽い部品の3段で変わること
     bool qSkill = false;     // Q で使う部品か。Q の枠は1つなので、2つ目は入れ替えになる
+    // 合体の部品なら、元の2つ（両方を最大 Lv にすると3択に出る）。合体でなければ Count。
+    PartId fuseA = PartId::Count;
+    PartId fuseB = PartId::Count;
 };
+
+/// @brief 合体の部品か。
+inline bool IsFusion(const PartDefinition& part)
+{
+    return part.fuseA != PartId::Count;
+}
 
 /// @brief 部品の既定値（設計案 4章・5.3）。数値は旧 diep 風の能力値の上がり幅と、遠征のカードの強さを出発点にした。
 inline std::array<PartDefinition, kPartCount> DefaultParts()
@@ -88,7 +98,19 @@ inline std::array<PartDefinition, kPartCount> DefaultParts()
         {PartId::Morale, "morale", "戦意", "倒すたびに主砲の威力 +0.1%\n（区画の間ずっと）", PartCategory::Kill, 1, 3, false, 0.5f, ""},
         {PartId::EmergencyPurge, "emergencyPurge", "緊急放出", "Q：一番重い部品を壊し、\n重さに比例した大爆発（1回）", PartCategory::Kill, 0, 3, false, 0.5f, "",
          true},
+        {PartId::ChainCollapse, "chainCollapse", "連鎖崩壊", "小さな弾が敵を倒すと、\nもう一度6方向に弾", PartCategory::Kill, 2, 1,
+         false, 0.5f, "", false, PartId::Pierce, PartId::KillBurst},
     }};
+}
+
+/// @brief 合体の部品の重さを、元の2つの重さの合計から1を引いた値にそろえる（設定で元の重さを変えたときも追従する）。
+inline void SyncFusionWeights(std::array<PartDefinition, kPartCount>& parts)
+{
+    for (auto& part : parts) {
+        if (IsFusion(part)) {
+            part.weight = (std::max)(0, parts[static_cast<size_t>(part.fuseA)].weight + parts[static_cast<size_t>(part.fuseB)].weight - 1);
+        }
+    }
 }
 
 /// @brief 部品ごとの今の Lv（0は持っていない）。
@@ -131,6 +153,43 @@ inline PartId ReplacedQSkill(const std::array<PartDefinition, kPartCount>& parts
     return OwnedQSkill(parts, levels);
 }
 
+/// @brief 合体の札を積むと外れる、元の2つの重さの合計を返す。合体でなければ0。
+inline int FusedAwayWeight(const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels, PartId id)
+{
+    if (id == PartId::Count || !IsFusion(parts[static_cast<size_t>(id)])) {
+        return 0;
+    }
+    int weight = 0;
+    for (PartId from : {parts[static_cast<size_t>(id)].fuseA, parts[static_cast<size_t>(id)].fuseB}) {
+        if (levels[static_cast<size_t>(from)] > 0) {
+            weight += parts[static_cast<size_t>(from)].weight;
+        }
+    }
+    return weight;
+}
+
+/// @brief 合体の札を3択に出せるか（元の2つがどちらも最大 Lv で、合体の部品をまだ持っていない）。
+inline bool FusionReady(const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels, PartId id)
+{
+    const PartDefinition& part = parts[static_cast<size_t>(id)];
+    if (!IsFusion(part) || levels[static_cast<size_t>(id)] > 0) {
+        return false;
+    }
+    return levels[static_cast<size_t>(part.fuseA)] >= parts[static_cast<size_t>(part.fuseA)].maxLevel &&
+           levels[static_cast<size_t>(part.fuseB)] >= parts[static_cast<size_t>(part.fuseB)].maxLevel;
+}
+
+/// @brief この部品が、持っている合体の部品の元になっているか（合体した後は、元の部品を3択に出さない）。
+inline bool FusedInto(const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels, PartId id)
+{
+    for (size_t i = 0; i < kPartCount; ++i) {
+        if (levels[i] > 0 && IsFusion(parts[i]) && (parts[i].fuseA == id || parts[i].fuseB == id)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /// @brief 3択の札を積むと、積載を超えるか。持っている部品の Lv 上げと修理は超えない。Q の入れ替えは、外れる部品の重さを引いて見る。
 inline bool ExceedsLoad(const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels, PartId id, int capacity)
 {
@@ -142,6 +201,7 @@ inline bool ExceedsLoad(const std::array<PartDefinition, kPartCount>& parts, con
     if (replaced != PartId::Count) {
         load -= parts[static_cast<size_t>(replaced)].weight;
     }
+    load -= FusedAwayWeight(parts, levels, id);
     return load + parts[static_cast<size_t>(id)].weight > capacity;
 }
 
@@ -190,6 +250,17 @@ inline void ApplyPartCards(const std::array<PartDefinition, kPartCount>& parts, 
     apply(PartId::ChainLightning, modifiers.chainLightning, tankrun::CardId::ChainLightning);
     apply(PartId::KillBurst, modifiers.killBurst, tankrun::CardId::KillBurst);
     apply(PartId::DashBurst, modifiers.dashBurst, tankrun::CardId::DashBurst);
+    // 合体の部品は、元の2つを最大 Lv で持っているのと同じ効果を出す（再発動は BulletManager へ別に渡す）。
+    if (LevelOf(levels, PartId::ChainCollapse) > 0) {
+        auto fused = [&](PartId id, bool& flag, tankrun::CardId card) {
+            PartLevels max{};
+            max[static_cast<size_t>(id)] = parts[static_cast<size_t>(id)].maxLevel;
+            flag = true;
+            modifiers.effectPower[tankrun::CardIndex(card)] = EffectPower(parts, max, id);
+        };
+        fused(PartId::Pierce, modifiers.pierce, tankrun::CardId::Pierce);
+        fused(PartId::KillBurst, modifiers.killBurst, tankrun::CardId::KillBurst);
+    }
 }
 
 /// @brief 回収器による、欠片を引き寄せる範囲の倍率を返す。
@@ -225,6 +296,9 @@ inline std::string DescribeOffer(const std::array<PartDefinition, kPartCount>& p
     }
     std::snprintf(text, sizeof(text), "%s", part.stat);
     std::string result = text;
+    if (IsFusion(part)) {
+        return result;
+    }
     if (offer.nextLevel > 1) {
         std::snprintf(text, sizeof(text), "\n強さ x%.1f", 1.0f + part.perLevel * static_cast<float>(offer.nextLevel - 1));
         result += text;
@@ -236,11 +310,17 @@ inline std::string DescribeOffer(const std::array<PartDefinition, kPartCount>& p
 /// @param premium 真なら軽い部品を出さない（大五角の宝箱から得た、質の高い選択）。
 /// @note 引ける部品が3つに足りないときは、残りを修理の札で埋める。
 /// @param banned 真の部品は出さない（緊急放出で壊した部品）。nullptr なら全部出せる。
+/// @note 合体の札は、元の2つが最大 Lv のときだけ、fusionBias 倍出やすくして混ぜる。合体した後は、元の2つを出さない。
 inline std::vector<PartOffer> DrawOffers(const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels, float lightBias,
-                                         std::mt19937& random, bool premium = false, const std::array<bool, kPartCount>* banned = nullptr)
+                                         std::mt19937& random, bool premium = false, const std::array<bool, kPartCount>* banned = nullptr,
+                                         float fusionBias = 3.0f)
 {
     std::vector<size_t> pool;
     for (size_t i = 0; i < kPartCount; ++i) {
+        const PartId id = static_cast<PartId>(i);
+        if (IsFusion(parts[i]) ? !FusionReady(parts, levels, id) : FusedInto(parts, levels, id)) {
+            continue;
+        }
         if (levels[i] < parts[i].maxLevel && !(premium && parts[i].light) && !(banned && (*banned)[i])) {
             pool.push_back(i);
         }
@@ -253,7 +333,9 @@ inline std::vector<PartOffer> DrawOffers(const std::array<PartDefinition, kPartC
         }
         std::vector<float> weights;
         for (size_t index : pool) {
-            weights.push_back(slot == 0 && parts[index].light ? (std::max)(1.0f, lightBias) : 1.0f);
+            weights.push_back(IsFusion(parts[index])                ? (std::max)(1.0f, fusionBias)
+                              : slot == 0 && parts[index].light ? (std::max)(1.0f, lightBias)
+                                                                : 1.0f);
         }
         std::discrete_distribution<size_t> pick(weights.begin(), weights.end());
         const size_t chosen = pick(random);

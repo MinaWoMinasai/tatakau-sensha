@@ -316,6 +316,9 @@ private:
     int removals_ = 0;
     int maxLoad_ = 0;
     std::ostringstream removalRecord_;
+    // 合体した回数と、最後に合体した区画の秒（-1 は合体していない）。
+    int fusions_ = 0;
+    float fusionTime_ = -1.0f;
     // 戦意：積んでいる間に倒した数と、自機に渡し済みの数。
     int moraleKills_ = 0;
     int moraleApplied_ = 0;
@@ -405,6 +408,14 @@ private:
     int autoSpikeProbe_ = 0;
     bool autoRingCaptured_ = false;
     bool autoRemovalCaptured_ = false;
+    // 合体の札の画面を保存したか・合体の後の画面を保存する時刻・合体の前と後の積載。
+    bool autoFusionCaptured_ = false;
+    float autoFusionShotAt_ = -1.0f;
+    std::array<int, 2> autoFusionLoad_{-1, -1};
+    // 撃破バーストの発動・再発動・子弾の数（区画を出る前の値）と、連鎖崩壊を積んでいた秒・その間の再発動の数。
+    std::array<uint64_t, 3> autoBurstStats_{};
+    float autoFusedSeconds_ = 0.0f;
+    uint64_t autoRepeatsWhileFused_ = 0;
     // Q の画面を保存する時刻。-1 はまだ使っていない、0 は保存済み。
     float autoQCaptureAt_ = -1.0f;
     std::string autoQCaptureName_;

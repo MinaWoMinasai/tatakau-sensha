@@ -143,9 +143,19 @@ void SurvivorRunController::ChooseOffer(size_t index)
             qCooldown_ = 0.0f;
         }
         const size_t part = static_cast<size_t>(offer.part);
+        const bool fusion = survivor::IsFusion(config_.parts[part]);
+        if (fusion) {
+            // 合体：元の2つを外して1つにする。外した部品の欠片は落とさない（重さが1軽くなるのが得）。
+            partLevels_[static_cast<size_t>(config_.parts[part].fuseA)] = 0;
+            partLevels_[static_cast<size_t>(config_.parts[part].fuseB)] = 0;
+            ++fusions_;
+            fusionTime_ = elapsed_;
+        }
         partLevels_[part] = (std::min)(partLevels_[part] + 1, config_.parts[part].maxLevel);
         ApplyParts();
-        world_.combatFlow->SetEventCallout(std::string(config_.parts[part].name) + " Lv" + std::to_string(partLevels_[part]), 0.7f);
+        world_.combatFlow->SetEventCallout(fusion ? std::string("合体　") + config_.parts[part].name
+                                                  : std::string(config_.parts[part].name) + " Lv" + std::to_string(partLevels_[part]),
+                                           fusion ? 1.4f : 0.7f);
     }
     --pendingChoices_;
     ++choicesTaken_;
@@ -418,6 +428,8 @@ void SurvivorRunController::ApplyParts()
     modifiers.partScales = survivor::MakePartScales(config_.parts, partLevels_);
     survivor::ApplyPartCards(config_.parts, partLevels_, modifiers);
     player.SetRunModifiers(modifiers);
+    // 連鎖崩壊：撃破バーストの小さな弾が敵を倒すと、1回だけもう一度破裂する。
+    world_.resources.bulletManager_->SetKillBurstRepeats(survivor::LevelOf(partLevels_, PartId::ChainCollapse) > 0 ? 1 : 0);
 
     // 熱とシールドの部品。冷却器は冷える速さ（撃っている間も）、3段で上限+30。シールド容量は上限、3段で回復までの時間が半分。
     PlayerHeat::Config heat = config_.heat;

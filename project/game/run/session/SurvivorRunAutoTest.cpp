@@ -2,6 +2,7 @@
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
 #include "game/render/settings/ArenaCameraProfile.h"
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <filesystem>
@@ -220,8 +221,23 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             }
             return;
         }
+        // 合体の札が出たら、0.3秒で画面を保存してから、ほかの札より先に選ぶ。
+        const auto fusion = std::find_if(offers_.begin(), offers_.end(), [&](const survivor::PartOffer& item) {
+            return item.part != survivor::PartId::Count && survivor::IsFusion(config_.parts[static_cast<size_t>(item.part)]);
+        });
+        if (fusion != offers_.end() && !autoFusionCaptured_) {
+            if (autoChoiceTimer_ > 0.3f && world_.run.tankRunCapturePath_.empty()) {
+                RequestCapture("fusion_offer");
+                autoFusionCaptured_ = true;
+            }
+            return;
+        }
         if (autoChoiceTimer_ > 0.6f && !offers_.empty()) {
-            const size_t index = autoPick_++ % offers_.size();
+            const size_t index = fusion != offers_.end() ? static_cast<size_t>(fusion - offers_.begin()) : autoPick_++ % offers_.size();
+            if (fusion != offers_.end()) {
+                autoFusionLoad_[0] = survivor::LoadOf(config_.parts, partLevels_);
+                autoFusionShotAt_ = autoTestTime_ + 4.0f;
+            }
             const survivor::PartOffer offer = offers_[index];
             const int maxHpBefore = player.GetMaxHp();
             ChooseOffer(index);
@@ -239,6 +255,23 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             OpenChoices();
             autoChoiceTimer_ = 0.0f;
         }
+    }
+
+    // 弾の集計は区画を出るときに消えるので、毎フレーム控える。再発動は、連鎖崩壊を積んでいる間の回数も分けて控える。
+    {
+        const auto& stats = world_.resources.bulletManager_->GetShooterStats();
+        autoBurstStats_ = {(std::max)(autoBurstStats_[0], stats.burstTriggers), (std::max)(autoBurstStats_[1], stats.burstRepeats),
+                           (std::max)(autoBurstStats_[2], stats.burstChildren)};
+        if (survivor::LevelOf(partLevels_, survivor::PartId::ChainCollapse) > 0) {
+            autoFusedSeconds_ += dt;
+            autoRepeatsWhileFused_ = (std::max)(autoRepeatsWhileFused_, stats.burstRepeats);
+        }
+    }
+    // 合体の4秒後（再発動が起きている頃）の画面を保存する。
+    if (autoFusionShotAt_ > 0.0f && autoTestTime_ >= autoFusionShotAt_ && world_.run.tankRunCapturePath_.empty()) {
+        RequestCapture("fusion_after");
+        autoFusionShotAt_ = -1.0f;
+        autoFusionLoad_[1] = survivor::LoadOf(config_.parts, partLevels_);
     }
 
     // 案内：それぞれの案内が出て0.8秒の画面を保存する。
@@ -317,6 +350,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                      << std::setprecision(1) << fps << std::defaultfloat << ",\"hp\":" << player.GetHp() << ",\"level\":" << level_
                      << ",\"collected\":" << expCollected_ << ",\"dropped\":" << expDropped_ << ",\"shards\":" << pickups_.GetCount()
                      << ",\"shots\":" << player.GetPrimaryAttackCount() - autoSampleShots_ << ",\"heat\":" << player.GetHeat().GetHeat()
+                     << ",\"burst\":" << autoBurstStats_[0] << ",\"repeat\":" << autoBurstStats_[1]
                      << ",\"overheats\":" << player.GetHeat().GetOverheatCount() << ",\"threat\":" << threatStage_
                      << ",\"rivalHp\":" << (IsRivalActive() ? world_.resources.enemy_->GetHp() : -1) << "}";
         autoSampleShots_ = player.GetPrimaryAttackCount();
@@ -383,6 +417,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"effects\":{\"shotDamageScale\":" << MakePartEffects().shotDamageScale << ",\"residualHeat\":" << MakePartEffects().residualHeat
             << ",\"ramShield\":" << MakePartEffects().ramShield << ",\"bodyDamage\":" << player.GetStats().bodyDamage
             << ",\"colliderDamage\":" << player.GetDamage() << ",\"shield\":\"" << player.GetShield() << "/" << player.GetShieldMax() << "\"}"
+            << ",\"fusions\":" << fusions_ << ",\"fusionAt\":" << fusionTime_ << ",\"fusionLoad\":[" << autoFusionLoad_[0] << ","
+            << autoFusionLoad_[1] << "],\"burstTriggers\":" << autoBurstStats_[0] << ",\"burstRepeats\":" << autoBurstStats_[1]
+            << ",\"burstChildren\":" << autoBurstStats_[2] << ",\"repeatsWhileFused\":" << autoRepeatsWhileFused_
+            << ",\"fusedSeconds\":" << autoFusedSeconds_
             << ",\"samples\":[" << autoTestLog_.str() << "]}\n";
         autoTest_ = AutoTest::None;
         PostQuitMessage(0);

@@ -418,6 +418,7 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
                 part.weight = (std::clamp)(part.weight, 0, 9);
             }
         }
+        survivor::SyncFusionWeights(config.parts);
     }
     if (data.contains("heat")) {
         const auto& heat = data.at("heat");
