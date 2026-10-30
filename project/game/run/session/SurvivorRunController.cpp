@@ -205,6 +205,11 @@ void SurvivorRunController::Initialize()
         world_.resources.player_->SetDebugNoDamage(true);
         std::filesystem::create_directories(kAutoTestDirectory);
         sampleStart_ = std::chrono::steady_clock::now();
+        // MYENGINE_SURVIVOR_TRAIT=standard：特性の2択で標準を選ぶ（既定は冷却炉）。
+        wchar_t traitName[24]{};
+        if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_TRAIT", traitName, 24) > 0 && std::wstring(traitName) == L"standard") {
+            autoTraitIndex_ = static_cast<size_t>(survivor::TraitId::Standard);
+        }
         wchar_t formName[16]{};
         const DWORD formLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_FORM", formName, 16);
         if (formLength > 0 && std::wstring(formName) == L"twin") {
@@ -255,6 +260,10 @@ void SurvivorRunController::Initialize()
             ApplyParts();
         }
     }
+    // 区画の始めに特性の2択を出す（D3）。タイトルの見本と、四隅・fps の自動確認では出さない（標準のまま）。
+    if (!world_.demo.titleDemo_ && autoTest_ != AutoTest::Tour && autoTest_ != AutoTest::Perf) {
+        OpenTraitChoice();
+    }
 }
 
 void SurvivorRunController::Update(float dt)
@@ -269,7 +278,9 @@ void SurvivorRunController::Update(float dt)
     UpdateTuningPanel();
     UpdateCinematic(dt);
     SampleFps();
-    if (formChoiceOpen_) {
+    if (traitChoiceOpen_) {
+        UpdateTraitChoiceInput();
+    } else if (formChoiceOpen_) {
         UpdateFormChoiceInput();
     } else if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
         UpdateChoiceInput();
@@ -551,7 +562,8 @@ void SurvivorRunController::DrawUi()
         return;
     }
     loadoutHud_.DrawLoadout();
-    choiceHud_.Draw(choiceOpen_ || formChoiceOpen_, formChoiceOpen_ ? 0 : pendingChoices_);
+    const bool cardChoice = formChoiceOpen_ || traitChoiceOpen_;
+    choiceHud_.Draw(choiceOpen_ || cardChoice, cardChoice ? 0 : pendingChoices_);
     // 案内（3択を開いている間も、暗幕の上に出す）。
     if (hintShowing_ >= 0 && hintPanel_) {
         const float fade = (std::clamp)((std::min)(hintTimer_, kHintSeconds - hintTimer_) / 0.3f, 0.0f, 1.0f);
@@ -577,6 +589,10 @@ void SurvivorRunController::QueueHint(Hint hint)
 
 void SurvivorRunController::UpdateHints(float dt)
 {
+    // 特性を選んでいる間は、案内を始めない（最初の移動の案内を、選んだ後に出す）。
+    if (traitChoiceOpen_) {
+        return;
+    }
     if (hintShowing_ >= 0) {
         hintTimer_ += dt;
         if (hintTimer_ < kHintSeconds) {

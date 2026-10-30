@@ -79,7 +79,7 @@ void SurvivorRunController::UpdateChoiceInput()
 
 void SurvivorRunController::OpenChoices()
 {
-    if (pendingChoices_ <= 0 || choiceOpen_ || formChoiceOpen_) {
+    if (pendingChoices_ <= 0 || choiceOpen_ || formChoiceOpen_ || traitChoiceOpen_) {
         return;
     }
     choiceOpen_ = true;
@@ -353,9 +353,51 @@ std::string SurvivorRunController::DescribeQ() const
     return text.str();
 }
 
+void SurvivorRunController::OpenTraitChoice()
+{
+    traitChoiceOpen_ = true;
+    std::vector<std::pair<std::string, std::string>> cards;
+    for (size_t i = 0; i < survivor::kTraitCount; ++i) {
+        cards.emplace_back(std::to_string(i + 1) + "  " + survivor::TraitName(static_cast<survivor::TraitId>(i)),
+                           DescribeTrait(static_cast<survivor::TraitId>(i)));
+    }
+    choiceHud_.SetCards("特性を選ぶ（この区画のあいだ続く）", "1・2 キーかクリックで選ぶ　/　選ぶまで止まる", cards);
+}
+
+void SurvivorRunController::UpdateTraitChoiceInput()
+{
+    auto& input = *world_.resources.input_;
+    for (size_t i = 0; i < survivor::kTraitCount; ++i) {
+        if (input.IsKeyTriggered(static_cast<uint8_t>(DIK_1 + i))) {
+            ChooseTrait(i);
+            return;
+        }
+    }
+    const myEngine::Vector2 mouse = input.GetMousePosition();
+    choiceHud_.Update(mouse);
+    if (input.IsTrigger(input.GetMouseState().rgbButtons[0], input.GetPreMouseState().rgbButtons[0])) {
+        const int hit = choiceHud_.HitTest(mouse);
+        if (hit >= 0) {
+            ChooseTrait(static_cast<size_t>(hit));
+        }
+    }
+}
+
+void SurvivorRunController::ChooseTrait(size_t index)
+{
+    if (!traitChoiceOpen_ || index >= survivor::kTraitCount) {
+        return;
+    }
+    trait_ = static_cast<survivor::TraitId>(index);
+    traitChoiceOpen_ = false;
+    ApplyParts();
+    choiceHud_.SetPending(pendingChoices_, false);
+    world_.combatFlow->SetEventCallout(std::string("特性：") + survivor::TraitName(trait_), 1.0f);
+}
+
 void SurvivorRunController::OpenFormChoice()
 {
-    if (formChoiceOpen_ || formChosen_) {
+    if (formChoiceOpen_ || formChosen_ || traitChoiceOpen_) {
         return;
     }
     if (choiceOpen_) {
@@ -438,6 +480,12 @@ void SurvivorRunController::ApplyParts()
     heat.coolPerSecondWhileFiring *= cool;
     if (survivor::HasChange(partLevels_, PartId::Cooler)) {
         heat.maxHeat += 30.0f;
+    }
+    // 特性の冷却炉：熱の上限を増やし、冷える速さを落とす（冷却器の効果の後に掛ける）。
+    if (trait_ == survivor::TraitId::CoolingFurnace) {
+        heat.maxHeat *= config_.traits.furnaceHeatMax;
+        heat.coolPerSecond *= config_.traits.furnaceCool;
+        heat.coolPerSecondWhileFiring *= config_.traits.furnaceCool;
     }
     player.SetHeatConfig(heat);
     Player::ShieldConfig shield{};

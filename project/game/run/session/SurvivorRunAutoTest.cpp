@@ -103,6 +103,18 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     player.SetDemoInput(true, {move.x, move.y}, aim, true, dash);
     autoMaxHeat_ = (std::max)(autoMaxHeat_, player.GetHeat().GetHeat());
 
+    // 特性：2択が開いたら0.3秒（実時間）で画面を保存し、0.6秒で選ぶ（既定は冷却炉）。
+    if (traitChoiceOpen_) {
+        autoTraitTimer_ += dt;
+        if (!autoTraitCaptured_ && autoTraitTimer_ > 0.3f && world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture("trait_open");
+            autoTraitCaptured_ = true;
+        }
+        if (autoTraitCaptured_ && autoTraitTimer_ > 0.6f) {
+            ChooseTrait(autoTraitIndex_);
+        }
+        return;
+    }
     // 形態：2択が開いたら0.3秒（実時間）で画面を保存し、0.6秒で選ぶ。選んで2秒後に、変わった自機の画面を保存する。
     if (formChoiceOpen_) {
         autoFormTimer_ += dt;
@@ -407,6 +419,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << "\",\"railShots\":" << player.GetSpecialCombatStats().railShots << ",\"critShots\":" << player.GetCritShots()
             << ",\"spikeKills\":" << spikeKills_ << ",\"spikeProbe\":" << autoSpikeProbe_ << ",\"premiumChests\":" << premiumTotal_
             << ",\"dashExplosions\":" << player.GetDashExplosionCount() << ",\"maxStamina\":" << player.GetStats().maxStamina
+            << ",\"trait\":\"" << survivor::TraitKey(trait_) << "\",\"coolPerSecond\":" << player.GetHeat().GetConfig().coolPerSecond
+            << ",\"coolPerSecondWhileFiring\":" << player.GetHeat().GetConfig().coolPerSecondWhileFiring
             << ",\"heatMax\":" << player.GetHeat().GetMaxHeat() << ",\"shieldMax\":" << player.GetShieldMax() << ",\"shieldCheck\":[" << autoShieldLog_.str() << "]"
             << ",\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_ << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_
             << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"removals\":" << removals_ << ",\"maxLoad\":" << maxLoad_

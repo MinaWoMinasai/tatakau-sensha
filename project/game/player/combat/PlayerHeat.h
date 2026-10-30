@@ -34,6 +34,11 @@ public:
         heat_ = (std::min)(heat_, config_.maxHeat);
     }
 
+    const Config& GetConfig() const
+    {
+        return config_;
+    }
+
     void Reset()
     {
         heat_ = 0.0f;

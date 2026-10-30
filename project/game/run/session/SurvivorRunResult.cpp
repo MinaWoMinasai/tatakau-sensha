@@ -2,6 +2,7 @@
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -26,6 +27,20 @@ std::string SurvivorRunController::FormName() const
         }
     }
     return "基本砲";
+}
+
+std::string SurvivorRunController::DescribeTrait(survivor::TraitId id) const
+{
+    if (id != survivor::TraitId::CoolingFurnace) {
+        return "変化なし\nいつもどおりの熱と冷え方";
+    }
+    // 倍率は設定から作る（熱の上限 x2、冷える速さ -30% など）。
+    const int heat = static_cast<int>(std::lround(config_.traits.furnaceHeatMax * 100.0f));
+    const int cool = static_cast<int>(std::lround((1.0f - config_.traits.furnaceCool) * 100.0f));
+    std::ostringstream text;
+    text << "熱の上限 x" << heat / 100 << (heat % 100 ? "." + std::to_string(heat % 100 / 10) : std::string()) << "\n冷える速さ "
+         << (cool >= 0 ? "-" : "+") << std::abs(cool) << "%\n長く撃ち続けられるが、\n一度熱くなると冷めにくい";
+    return text.str();
 }
 
 std::string SurvivorRunController::DescribeParts(size_t perLine) const
@@ -56,7 +71,7 @@ void SurvivorRunController::RefreshResult(int selection)
     text << (cleared_ ?"区画の時間　　" : "生き延びた時間　") << Clock(elapsed_) << "\n"
          << "レベル　　　　" << level_ << "\n"
          << "撃破　　　　　" << world_.combat.defeatedEnemies_ << "\n"
-         << "形態　　　　　" << FormName() << "\n"
+         << "形態　　　　　" << FormName() << "　　特性 " << survivor::TraitName(trait_) << "\n"
          << "脅威　　　　　Lv" << threatStage_ << "　　宿敵 "
          << (rivalDefeated_ ? "撃破（" + Clock(rivalDefeatedAt_) + "）" : rivalSpawned_ ? std::string("未撃破") : std::string("出る前")) << "\n"
          << "受けたダメージ　" << world_.combat.damageTaken_ << "　　オーバーヒート " << player.GetHeat().GetOverheatCount() << " 回\n"
@@ -108,7 +123,7 @@ void SurvivorRunController::WriteRunLog()
     std::ofstream output(directory + "/run_" + name + ".json");
     output << "{\"cleared\":" << (cleared_ ? "true" : "false") << ",\"seconds\":" << elapsed_ << ",\"level\":" << level_
            << ",\"kills\":" << world_.combat.defeatedEnemies_ << ",\"damageTaken\":" << world_.combat.damageTaken_
-           << ",\"form\":\"" << formKey_ << "\",\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_
+           << ",\"form\":\"" << formKey_ << "\",\"trait\":\"" << survivor::TraitKey(trait_) << "\",\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_
            << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_ << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"capacity\":" << Capacity()
            << ",\"load\":" << survivor::LoadOf(config_.parts, partLevels_) << ",\"removals\":[" << removalRecord_.str() << "],\"qUses\":" << qUses_
            << ",\"q\":[" << qRecord_.str() << "],\"purges\":" << purges_ << ",\"moraleKills\":" << moraleKills_ << ",\"levelTimes\":[";

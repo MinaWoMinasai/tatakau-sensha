@@ -55,14 +55,14 @@ public:
     /// @brief 形態の2択を開いているか。開いている間はゲームを止める（ArenaRunController::IsTankRunMenuOpen が真を返す）。
     bool IsFormChoiceOpen() const
     {
-        return formChoiceOpen_;
+        return formChoiceOpen_ || traitChoiceOpen_;
     }
 
     /// @brief ゲームを止めているか。形態を選ぶ間・調整パネルを「止める」にして開いている間・宿敵の登場の間は真。
     /// @note 止めている間も、スロー演出ではないので画面の色は残す（GameplayQueries・CombatFramePipeline）。
     bool IsPaused() const
     {
-        return formChoiceOpen_ || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro;
+        return formChoiceOpen_ || traitChoiceOpen_ || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro;
     }
 
     /// @brief 演出のカメラ。active なら、CombatFramePipeline が追従カメラの代わりに使う。
@@ -151,6 +151,10 @@ private:
     void UpdateFormChoiceInput();
     /// @brief index 番目の形態に変える。
     void ChooseForm(size_t index);
+    /// @brief 区画の始めに、特性の2択を出す（選ぶまで止める）。
+    void OpenTraitChoice();
+    void UpdateTraitChoiceInput();
+    void ChooseTrait(size_t index);
     /// @brief 今のレベルでの積載量を返す。
     int Capacity() const;
     /// @brief offerIndex 番目の札を積むために、外す部品を選ぶ画面を開く（3択は開いたまま）。
@@ -183,6 +187,8 @@ private:
     std::string DescribeParts(size_t perLine) const;
     /// @brief 形態の名前を返す。まだ選んでいなければ基本砲。
     std::string FormName() const;
+    /// @brief 特性の札の説明文（設定の倍率から作る）。
+    std::string DescribeTrait(survivor::TraitId id) const;
     /// @brief 実時間で5秒ごとに fps を記録する（遊んだ記録に入れる）。
     void SampleFps();
     /// @brief 結果画面に入ったときに1回、遊んだ記録を generated/tank_survivor/runs/ に書く（開発用の構成だけ）。
@@ -332,6 +338,9 @@ private:
     std::ostringstream qRecord_;
     std::unique_ptr<myEngine::TextLabel> qText_;
     bool formChoiceOpen_ = false;
+    // 特性。区画の始めに2択を開き、選ぶまで止める。
+    bool traitChoiceOpen_ = false;
+    survivor::TraitId trait_ = survivor::TraitId::Standard;
     bool formChosen_ = false;
     std::string formKey_ = "basic";
     int level_ = 1;
@@ -412,6 +421,10 @@ private:
     bool autoFusionCaptured_ = false;
     float autoFusionShotAt_ = -1.0f;
     std::array<int, 2> autoFusionLoad_{-1, -1};
+    // 特性の2択を開いていた秒と、選ぶ札（MYENGINE_SURVIVOR_TRAIT=standard なら標準、ほかは冷却炉）。
+    float autoTraitTimer_ = 0.0f;
+    size_t autoTraitIndex_ = static_cast<size_t>(survivor::TraitId::CoolingFurnace);
+    bool autoTraitCaptured_ = false;
     // 撃破バーストの発動・再発動・子弾の数（区画を出る前の値）と、連鎖崩壊を積んでいた秒・その間の再発動の数。
     std::array<uint64_t, 3> autoBurstStats_{};
     float autoFusedSeconds_ = 0.0f;

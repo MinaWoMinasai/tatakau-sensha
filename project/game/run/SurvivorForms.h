@@ -13,6 +13,26 @@ enum class FormId {
 };
 inline constexpr size_t kFormCount = static_cast<size_t>(FormId::Count);
 
+/// @brief 育つ戦車の試作の、区画の始めに選ぶ特性（D3）。数値は survivor_proto.json の traits。
+enum class TraitId {
+    Standard,       // 標準：変化なし
+    CoolingFurnace, // 冷却炉：熱の上限が増え、冷える速さが落ちる
+    Count
+};
+inline constexpr size_t kTraitCount = static_cast<size_t>(TraitId::Count);
+
+/// @brief 特性の設定での名前（遊んだ記録にも使う）。
+inline const char* TraitKey(TraitId id)
+{
+    return id == TraitId::CoolingFurnace ? "coolingFurnace" : "standard";
+}
+
+/// @brief 特性の画面に出す名前。
+inline const char* TraitName(TraitId id)
+{
+    return id == TraitId::CoolingFurnace ? "冷却炉" : "標準";
+}
+
 /// @brief 形態の数値。倍率は元の機体設定（連装は Twin、長砲身は Basic）に対して掛けるのではなく、そのまま使う。
 struct FormDefinition {
     const char* key = "";

@@ -131,6 +131,12 @@ struct SpawnConfig {
         int refundPerLevel = 60;
     } load;
 
+    /// @brief 特性（区画の始めに選ぶ）。冷却炉は熱の上限を furnaceHeatMax 倍、冷える速さを furnaceCool 倍にする。
+    struct Traits {
+        float furnaceHeatMax = 2.0f;
+        float furnaceCool = 0.7f;
+    } traits;
+
     /// @brief 排熱砲（Q）。熱が minHeat 未満なら使えない。威力の倍率は 熱 × damagePerHeat × 効果の強さ（Lv）。使うと cooldown 秒待つ。
     struct HeatVent {
         float cooldown = 3.0f;
@@ -384,6 +390,13 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(tuning, "purgeRadiusPerWeight", t.purgeRadiusPerWeight);
         number(tuning, "purgeDamagePerWeight", t.purgeDamagePerWeight);
     }
+    if (data.contains("traits")) {
+        const auto& traits = data.at("traits");
+        number(traits, "furnaceHeatMax", config.traits.furnaceHeatMax);
+        number(traits, "furnaceCool", config.traits.furnaceCool);
+        config.traits.furnaceHeatMax = (std::max)(0.1f, config.traits.furnaceHeatMax);
+        config.traits.furnaceCool = (std::max)(0.0f, config.traits.furnaceCool);
+    }
     if (data.contains("heatVent")) {
         const auto& vent = data.at("heatVent");
         number(vent, "cooldown", config.heatVent.cooldown);
@@ -532,6 +545,9 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     tuning["purgeRadiusBase"] = round(config.partTuning.purgeRadiusBase);
     tuning["purgeRadiusPerWeight"] = round(config.partTuning.purgeRadiusPerWeight);
     tuning["purgeDamagePerWeight"] = round(config.partTuning.purgeDamagePerWeight);
+    auto& traits = section("traits");
+    traits["furnaceHeatMax"] = round(config.traits.furnaceHeatMax);
+    traits["furnaceCool"] = round(config.traits.furnaceCool);
     auto& vent = section("heatVent");
     vent["cooldown"] = round(config.heatVent.cooldown);
     vent["minHeat"] = round(config.heatVent.minHeat);
@@ -618,10 +634,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 23> kOrder{
-        "schemaVersion", "comment",     "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",     "triangleSwarm", "tanks",
-        "threat",        "telegraph",   "heavySquare",     "lungePentagon", "rival",     "experience", "load",          "choices",
-        "heat",          "shield",      "forms",           "parts",         "heatVent",  "partTuning", "bigPentagon"};
+    static constexpr std::array<const char*, 24> kOrder{
+        "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
+        "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
+        "heat",          "shield",    "forms",           "traits",        "parts",     "heatVent", "partTuning",    "bigPentagon"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
         if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {
