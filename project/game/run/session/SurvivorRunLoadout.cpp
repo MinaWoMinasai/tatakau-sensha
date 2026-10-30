@@ -550,8 +550,10 @@ void SurvivorRunController::ApplyParts()
     TankRunModifiers modifiers{};
     modifiers.enabled = true;
     modifiers.survivor = true;
-    modifiers.partScales = survivor::MakePartScales(config_.parts, partLevels_);
-    survivor::ApplyPartCards(config_.parts, partLevels_, modifiers);
+    // 効果は、合体の部品の元の2つを最大 Lv として作る（積載と表示は partLevels_ のまま）。
+    const survivor::PartLevels effective = survivor::EffectiveLevels(config_.parts, partLevels_);
+    modifiers.partScales = survivor::MakePartScales(config_.parts, effective);
+    survivor::ApplyPartCards(config_.parts, effective, modifiers);
     // レリックの一発屋：威力を上げ、1秒の発射数を落とす（間隔は割る）。
     if (relics_[static_cast<size_t>(survivor::RelicId::OneShot)]) {
         modifiers.partScales.bulletDamage *= config_.relics.oneShotDamage;
@@ -560,6 +562,10 @@ void SurvivorRunController::ApplyParts()
     player.SetRunModifiers(modifiers);
     // 連鎖崩壊：撃破バーストの小さな弾が敵を倒すと、1回だけもう一度破裂する。
     world_.resources.bulletManager_->SetKillBurstRepeats(survivor::LevelOf(partLevels_, PartId::ChainCollapse) > 0 ? 1 : 0);
+    // 雷鳴：放電の届く数と距離を伸ばす。
+    const bool thunder = survivor::LevelOf(partLevels_, PartId::Thunderclap) > 0;
+    world_.resources.bulletManager_->SetChainBoost(thunder ? config_.fusions.thunderExtraTargets : 0,
+                                                   thunder ? config_.fusions.thunderRadiusScale : 1.0f);
 
     // 熱とシールドの部品。冷却器は冷える速さ（撃っている間も）、3段で上限+30。シールド容量は上限、3段で回復までの時間が半分。
     PlayerHeat::Config heat = config_.heat;
@@ -596,8 +602,9 @@ Player::SurvivorPartEffects SurvivorRunController::MakePartEffects() const
 {
     using survivor::PartId;
     // 軽い部品の3段の変化・重弾頭の熱・余熱・戦意・衝角シールド。
+    const survivor::PartLevels levels = survivor::EffectiveLevels(config_.parts, partLevels_);
     const auto power = [&](PartId id) {
-        return survivor::EffectPower(config_.parts, partLevels_, id);
+        return survivor::EffectPower(config_.parts, levels, id);
     };
     Player::SurvivorPartEffects effects{};
     effects.extraHeatPerShot = 2.0f * power(PartId::HeavyWarhead);
@@ -608,6 +615,12 @@ Player::SurvivorPartEffects SurvivorRunController::MakePartEffects() const
     effects.residualHeat = config_.partTuning.residualHeatBonus * power(PartId::ResidualHeat);
     effects.ramShield = config_.partTuning.ramShieldBonus * power(PartId::RamShield);
     effects.shotDamageScale = 1.0f + config_.partTuning.moralePerKill * power(PartId::Morale) * static_cast<float>(moraleKills_);
+    // 合体の爆走：ダッシュの衝撃波を大きく強くし、シールドを回復する。
+    if (survivor::LevelOf(partLevels_, PartId::Rampage) > 0) {
+        effects.dashBlastRadiusScale = config_.fusions.rampageRadiusScale;
+        effects.dashBlastDamageScale = config_.fusions.rampageDamageScale;
+        effects.dashShieldRefill = config_.fusions.rampageShieldRefill;
+    }
     // レリックの不動砲台：止まっている間の威力と、ダッシュの禁止。
     if (relics_[static_cast<size_t>(survivor::RelicId::FixedTurret)]) {
         effects.stillDamageBonus = config_.relics.turretDamage;

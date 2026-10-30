@@ -426,10 +426,15 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
             {
                 MineDropEvent explosion{};
                 explosion.position = GetWorldPosition();
-                explosion.radius = synergy.explosionRadius;
+                // 試作の爆走は、衝撃波を大きく強くし、シールドを回復する（既定は倍率1・回復0で変わらない）。
+                explosion.radius = synergy.explosionRadius * partEffects_.dashBlastRadiusScale;
                 explosion.fuseTime = 0.06f;
                 explosion.lifeTime = 0.12f;
-                explosion.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * synergy.explosionDamageScale)));
+                explosion.damage = static_cast<uint32_t>(
+                    (std::max)(1.0f, std::round(stats_.bulletDamage * synergy.explosionDamageScale * partEffects_.dashBlastDamageScale)));
+                if (partEffects_.dashShieldRefill > 0.0f && shieldConfig_.enabled) {
+                    shield_ = (std::min)(GetShieldMax(), shield_ + GetShieldMax() * partEffects_.dashShieldRefill);
+                }
                 explosion.color = {1.8f, 0.65f, 0.14f, 1.0f};
                 pendingMineDrops_.push_back(explosion);
                 ++runDashExplosionsEmitted_;

@@ -29,6 +29,9 @@ enum class PartId {
     Morale,         // 戦意
     EmergencyPurge, // 緊急放出（Q、使い切り）
     ChainCollapse,  // 連鎖崩壊（合体：貫通＋撃破バースト）
+    Thunderclap,    // 雷鳴（合体：連鎖放電＋戦意）
+    Rampage,        // 爆走（合体：衝撃放電＋衝角シールド）
+    CriticalPoint,  // 臨界点（合体：重弾頭＋余熱）
     Count
 };
 
@@ -100,6 +103,12 @@ inline std::array<PartDefinition, kPartCount> DefaultParts()
          true},
         {PartId::ChainCollapse, "chainCollapse", "連鎖崩壊", "小さな弾が敵を倒すと、\nもう一度6方向に弾", PartCategory::Kill, 2, 1,
          false, 0.5f, "", false, PartId::Pierce, PartId::KillBurst},
+        {PartId::Thunderclap, "thunderclap", "雷鳴", "放電が5体まで届き、\n届く距離 +40%", PartCategory::Bullet, 2, 1, false, 0.5f, "", false,
+         PartId::ChainLightning, PartId::Morale},
+        {PartId::Rampage, "rampage", "爆走", "ダッシュの衝撃波が大きく強く、\nシールドを半分回復", PartCategory::Dash, 2, 1, false, 0.5f, "", false,
+         PartId::DashBurst, PartId::RamShield},
+        {PartId::CriticalPoint, "criticalPoint", "臨界点", "オーバーヒートした瞬間に、\n周りへ大爆発", PartCategory::Heat, 1, 1, false, 0.5f, "",
+         false, PartId::HeavyWarhead, PartId::ResidualHeat},
     }};
 }
 
@@ -115,6 +124,20 @@ inline void SyncFusionWeights(std::array<PartDefinition, kPartCount>& parts)
 
 /// @brief 部品ごとの今の Lv（0は持っていない）。
 using PartLevels = std::array<int, kPartCount>;
+
+/// @brief 効果を作るときの Lv。持っている合体の部品の、元の2つを最大 Lv として扱う（積載や表示には使わない）。
+inline PartLevels EffectiveLevels(const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels)
+{
+    PartLevels effective = levels;
+    for (size_t i = 0; i < kPartCount; ++i) {
+        if (levels[i] > 0 && IsFusion(parts[i])) {
+            for (PartId from : {parts[i].fuseA, parts[i].fuseB}) {
+                effective[static_cast<size_t>(from)] = parts[static_cast<size_t>(from)].maxLevel;
+            }
+        }
+    }
+    return effective;
+}
 
 inline int LevelOf(const PartLevels& levels, PartId id)
 {
@@ -239,6 +262,7 @@ inline TankPartScales MakePartScales(const std::array<PartDefinition, kPartCount
 }
 
 /// @brief 既存のカードの効果を使う部品を、自機の強化へ反映する。強さは effectPower に入れる。
+/// @note 合体の部品の元の2つも効かせるには、levels に EffectiveLevels を渡す。
 inline void ApplyPartCards(const std::array<PartDefinition, kPartCount>& parts, const PartLevels& levels, TankRunModifiers& modifiers)
 {
     auto apply = [&](PartId id, bool& flag, tankrun::CardId card) {
@@ -250,17 +274,6 @@ inline void ApplyPartCards(const std::array<PartDefinition, kPartCount>& parts, 
     apply(PartId::ChainLightning, modifiers.chainLightning, tankrun::CardId::ChainLightning);
     apply(PartId::KillBurst, modifiers.killBurst, tankrun::CardId::KillBurst);
     apply(PartId::DashBurst, modifiers.dashBurst, tankrun::CardId::DashBurst);
-    // 合体の部品は、元の2つを最大 Lv で持っているのと同じ効果を出す（再発動は BulletManager へ別に渡す）。
-    if (LevelOf(levels, PartId::ChainCollapse) > 0) {
-        auto fused = [&](PartId id, bool& flag, tankrun::CardId card) {
-            PartLevels max{};
-            max[static_cast<size_t>(id)] = parts[static_cast<size_t>(id)].maxLevel;
-            flag = true;
-            modifiers.effectPower[tankrun::CardIndex(card)] = EffectPower(parts, max, id);
-        };
-        fused(PartId::Pierce, modifiers.pierce, tankrun::CardId::Pierce);
-        fused(PartId::KillBurst, modifiers.killBurst, tankrun::CardId::KillBurst);
-    }
 }
 
 /// @brief 回収器による、欠片を引き寄せる範囲の倍率を返す。

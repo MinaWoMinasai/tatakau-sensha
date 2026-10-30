@@ -341,10 +341,12 @@ void BulletManager::NotifyPlayerHit(Bullet& bullet, Collider& target, bool kille
     // 1回の連鎖内で同じ衝突IDを選び直さない。各段で生存対象を取り直し、前段の撃破を反映する。
     if (ability.chain) {
         myEngine::Vector3 from = target.GetWorldPosition();
-        std::array<uint64_t, 3> visited{target.GetCollisionId(), 0, 0};
-        for (int hop = 0; hop < tankshooter::kChainTargets; ++hop) {
+        // 届く数と距離は、雷鳴（SetChainBoost）で伸びる。
+        std::array<uint64_t, 1 + tankshooter::kChainTargets + 5> visited{target.GetCollisionId()};
+        const int hops = tankshooter::kChainTargets + chainExtraTargets_;
+        for (int hop = 0; hop < hops; ++hop) {
             Collider* nearest = nullptr;
-            float distance = tankshooter::kChainRadius;
+            float distance = tankshooter::kChainRadius * chainRadiusScale_;
             for (auto* candidate : LiveCombatTargets()) {
                 if (std::find(visited.begin(), visited.end(), candidate->GetCollisionId()) != visited.end()) {
                     continue;

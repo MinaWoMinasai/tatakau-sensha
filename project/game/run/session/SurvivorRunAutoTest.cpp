@@ -184,7 +184,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         for (int level : partLevels_) {
             owned += level > 0 ? 1 : 0;
         }
-        qReady = elapsed_ >= 20.0f && owned >= 3;
+        // 部品を指定して始めた確認（START_PARTS）では、確かめたい部品を壊さないよう使わない。
+        qReady = elapsed_ >= 20.0f && owned >= 3 && !autoKeepParts_;
     }
     if (!choiceOpen_ && qCooldown_ <= 0.0f && qReady && UseQ()) {
         if (qSkill == survivor::PartId::HeatVent && autoQCaptureAt_ < 0.0f) {
@@ -293,6 +294,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     // 弾の集計は区画を出るときに消えるので、毎フレーム控える。再発動は、連鎖崩壊を積んでいる間の回数も分けて控える。
     {
         const auto& stats = world_.resources.bulletManager_->GetShooterStats();
+        autoChainHits_ = (std::max)(autoChainHits_, stats.chainHits);
         autoBurstStats_ = {(std::max)(autoBurstStats_[0], stats.burstTriggers), (std::max)(autoBurstStats_[1], stats.burstRepeats),
                            (std::max)(autoBurstStats_[2], stats.burstChildren)};
         if (survivor::LevelOf(partLevels_, survivor::PartId::ChainCollapse) > 0) {
@@ -457,7 +459,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"fusions\":" << fusions_ << ",\"fusionAt\":" << fusionTime_ << ",\"fusionLoad\":[" << autoFusionLoad_[0] << ","
             << autoFusionLoad_[1] << "],\"burstTriggers\":" << autoBurstStats_[0] << ",\"burstRepeats\":" << autoBurstStats_[1]
             << ",\"burstChildren\":" << autoBurstStats_[2] << ",\"repeatsWhileFused\":" << autoRepeatsWhileFused_
-            << ",\"fusedSeconds\":" << autoFusedSeconds_
+            << ",\"fusedSeconds\":" << autoFusedSeconds_ << ",\"chainHits\":" << autoChainHits_ << ",\"criticalBlasts\":" << criticalBlasts_
+            << ",\"partsAtEnd\":\"" << DescribeParts(99) << "\"" 
             << ",\"samples\":[" << autoTestLog_.str() << "]}\n";
         autoTest_ = AutoTest::None;
         PostQuitMessage(0);

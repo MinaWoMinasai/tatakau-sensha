@@ -680,6 +680,10 @@ public:
         float stillDamageBonus = 0.0f;
         /// @brief 不動砲台：ダッシュ（Shift・右クリック）を使えない。
         bool noDash = false;
+        /// @brief 爆走：ダッシュの衝撃波の半径と威力の倍率、ダッシュのたびに回復するシールドの割合（上限に対する）。
+        float dashBlastRadiusScale = 1.0f;
+        float dashBlastDamageScale = 1.0f;
+        float dashShieldRefill = 0.0f;
     };
     void SetSurvivorPartEffects(const SurvivorPartEffects& effects)
     {

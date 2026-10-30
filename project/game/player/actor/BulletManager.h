@@ -45,6 +45,13 @@ public:
         killBurstRepeats_ = (std::clamp)(repeats, 0, 2);
     }
 
+    /// @brief 連鎖放電の届く数と距離を伸ばす（育つ戦車の試作の雷鳴）。extraTargets は0～5、radiusScale は0.5～3に制限する。既定は0と1。
+    void SetChainBoost(int extraTargets, float radiusScale)
+    {
+        chainExtraTargets_ = (std::clamp)(extraTargets, 0, 5);
+        chainRadiusScale_ = (std::clamp)(radiusScale, 0.5f, 3.0f);
+    }
+
     /// @brief ClearAll以降の射撃強化の集計への読み取り専用参照を返す。
     const ShooterStats& GetShooterStats() const
     {
@@ -188,6 +195,8 @@ private:
 
     std::vector<PendingShot> pendingBuildShots_;
     int killBurstRepeats_ = 0;
+    int chainExtraTargets_ = 0;
+    float chainRadiusScale_ = 1.0f;
     std::vector<BuildEvent> buildEvents_;
     tankshooter::MarkLedger marks_{};
     ShooterStats shooterStats_{};

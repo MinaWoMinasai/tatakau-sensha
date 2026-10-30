@@ -223,6 +223,14 @@ bool DrawPartsAndChoices(SpawnConfig& config)
         ImGui::PopID();
     }
     SyncFusionWeights(config.parts);
+    ImGui::SeparatorText("合体");
+    changed |= ImGui::DragInt("雷鳴：放電の届く数（足す）", &config.fusions.thunderExtraTargets, 0.1f, 0, 5);
+    changed |= ImGui::DragFloat("雷鳴：届く距離の倍率", &config.fusions.thunderRadiusScale, 0.02f, 0.5f, 3.0f, "x%.2f");
+    changed |= ImGui::DragFloat("爆走：衝撃波の半径の倍率", &config.fusions.rampageRadiusScale, 0.02f, 0.5f, 5.0f, "x%.2f");
+    changed |= ImGui::DragFloat("爆走：衝撃波の威力の倍率", &config.fusions.rampageDamageScale, 0.05f, 0.1f, 10.0f, "x%.2f");
+    changed |= ImGui::DragFloat("爆走：ダッシュで回復するシールド", &config.fusions.rampageShieldRefill, 0.01f, 0.0f, 1.0f, "%.2f");
+    changed |= ImGui::DragFloat("臨界点：爆発の半径", &config.fusions.criticalRadius, 0.1f, 1.0f, 30.0f, "%.1f");
+    changed |= ImGui::DragFloat("臨界点：爆発の威力（主砲の倍）", &config.fusions.criticalDamage, 0.5f, 0.0f, 200.0f, "x%.1f");
     ImGui::SeparatorText("特性（冷却炉）");
     changed |= ImGui::DragFloat("熱の上限の倍率", &config.traits.furnaceHeatMax, 0.05f, 0.1f, 5.0f, "x%.2f");
     changed |= ImGui::DragFloat("冷える速さの倍率", &config.traits.furnaceCool, 0.01f, 0.0f, 3.0f, "x%.2f");

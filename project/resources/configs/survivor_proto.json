@@ -81,6 +81,11 @@
     "comment": "レリック。大五角の宝箱を倒すと、まだ持っていないレリックの2択が出る（1つしか残っていなければ、もう1枚は質の高い選択）。重さ0で積載を使わない。一発屋：主砲の威力 oneShotDamage 倍、1秒の発射数 oneShotFireRate 倍。不動砲台：移動の入力が無い間は主砲の威力 +turretDamage、ダッシュできない。",
     "oneShotDamage": 3.5, "oneShotFireRate": 0.3, "turretDamage": 0.8
   },
+  "fusions": {
+    "comment": "合体の部品の強さ（元の2つを最大 Lv にすると3択に出る。元の2つの効果も残る）。雷鳴（連鎖放電＋戦意）：放電の届く数 +thunderExtraTargets・届く距離 ×thunderRadiusScale。爆走（衝撃放電＋衝角シールド）：ダッシュの衝撃波の半径 ×rampageRadiusScale・威力 ×rampageDamageScale、ダッシュのたびにシールドを上限の rampageShieldRefill 回復。臨界点（重弾頭＋余熱）：オーバーヒートした瞬間に、半径 criticalRadius・威力 主砲1発 × criticalDamage の爆発。",
+    "thunderExtraTargets": 3, "thunderRadiusScale": 1.4, "rampageRadiusScale": 1.8, "rampageDamageScale": 2.0, "rampageShieldRefill": 0.5,
+    "criticalRadius": 9.0, "criticalDamage": 20.0
+  },
   "parts": {
     "comment": "軽い部品（Lv1〜5）は1段ごとの上がり幅。0.12 なら +12%。装填機は1秒あたりの発射数、冷却器は冷える速さ（撃っている間も）を上げる。ほかの部品（Lv1〜3）は Lv2 から1段ごとに効果の強さへ足す量。weight は積載に使う重さ（Lv を上げても変わらない）。",
     "armor": { "perLevel": 0.12, "weight": 1 },

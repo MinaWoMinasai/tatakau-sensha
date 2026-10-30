@@ -145,6 +145,19 @@ struct SpawnConfig {
         float turretDamage = 0.8f;
     } relics;
 
+    /// @brief 合体の部品の強さ。雷鳴は放電の届く数 +thunderExtraTargets・届く距離 ×thunderRadiusScale。
+    /// 爆走はダッシュの衝撃波の半径 ×rampageRadiusScale・威力 ×rampageDamageScale、ダッシュのたびにシールドを上限の rampageShieldRefill 回復。
+    /// 臨界点はオーバーヒートした瞬間に、半径 criticalRadius・威力 主砲1発 × criticalDamage の爆発。
+    struct Fusions {
+        int thunderExtraTargets = 3;
+        float thunderRadiusScale = 1.4f;
+        float rampageRadiusScale = 1.8f;
+        float rampageDamageScale = 2.0f;
+        float rampageShieldRefill = 0.5f;
+        float criticalRadius = 9.0f;
+        float criticalDamage = 20.0f;
+    } fusions;
+
     /// @brief 排熱砲（Q）。熱が minHeat 未満なら使えない。威力の倍率は 熱 × damagePerHeat × 効果の強さ（Lv）。使うと cooldown 秒待つ。
     struct HeatVent {
         float cooldown = 3.0f;
@@ -409,6 +422,17 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         config.traits.furnaceHeatMax = (std::max)(0.1f, config.traits.furnaceHeatMax);
         config.traits.furnaceCool = (std::max)(0.0f, config.traits.furnaceCool);
     }
+    if (data.contains("fusions")) {
+        const auto& fusions = data.at("fusions");
+        number(fusions, "thunderExtraTargets", config.fusions.thunderExtraTargets);
+        number(fusions, "thunderRadiusScale", config.fusions.thunderRadiusScale);
+        number(fusions, "rampageRadiusScale", config.fusions.rampageRadiusScale);
+        number(fusions, "rampageDamageScale", config.fusions.rampageDamageScale);
+        number(fusions, "rampageShieldRefill", config.fusions.rampageShieldRefill);
+        number(fusions, "criticalRadius", config.fusions.criticalRadius);
+        number(fusions, "criticalDamage", config.fusions.criticalDamage);
+        config.fusions.thunderExtraTargets = (std::clamp)(config.fusions.thunderExtraTargets, 0, 5);
+    }
     if (data.contains("relics")) {
         const auto& relics = data.at("relics");
         number(relics, "oneShotDamage", config.relics.oneShotDamage);
@@ -573,6 +597,14 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     auto& traits = section("traits");
     traits["furnaceHeatMax"] = round(config.traits.furnaceHeatMax);
     traits["furnaceCool"] = round(config.traits.furnaceCool);
+    auto& fusions = section("fusions");
+    fusions["thunderExtraTargets"] = config.fusions.thunderExtraTargets;
+    fusions["thunderRadiusScale"] = round(config.fusions.thunderRadiusScale);
+    fusions["rampageRadiusScale"] = round(config.fusions.rampageRadiusScale);
+    fusions["rampageDamageScale"] = round(config.fusions.rampageDamageScale);
+    fusions["rampageShieldRefill"] = round(config.fusions.rampageShieldRefill);
+    fusions["criticalRadius"] = round(config.fusions.criticalRadius);
+    fusions["criticalDamage"] = round(config.fusions.criticalDamage);
     auto& relics = section("relics");
     relics["oneShotDamage"] = round(config.relics.oneShotDamage);
     relics["oneShotFireRate"] = round(config.relics.oneShotFireRate);
@@ -665,11 +697,11 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 25> kOrder{
+    static constexpr std::array<const char*, 26> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "traits",        "relics",    "parts",      "heatVent",    "partTuning",
-        "bigPentagon"};
+        "heat",          "shield",    "forms",           "traits",        "relics",    "fusions",    "parts",       "heatVent",
+        "partTuning",    "bigPentagon"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
         if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {

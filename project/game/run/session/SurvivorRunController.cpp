@@ -264,6 +264,7 @@ void SurvivorRunController::Initialize()
         wchar_t startParts[256]{};
         const DWORD startLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_START_PARTS", startParts, 256);
         if (startLength > 0 && startLength < 256) {
+            autoKeepParts_ = true;
             std::wstringstream list(startParts);
             std::wstring item;
             while (std::getline(list, item, L',')) {
@@ -340,6 +341,15 @@ void SurvivorRunController::Update(float dt)
             UpdateQ(gameDt);
         }
         RefreshMorale(dt);
+        // 合体の臨界点：オーバーヒートした瞬間に、周りへ大爆発。
+        const int overheats = heat.GetOverheatCount();
+        if (overheats > lastOverheats_ && survivor::LevelOf(partLevels_, survivor::PartId::CriticalPoint) > 0) {
+            world_.resources.player_->TriggerSurvivorBlast(config_.fusions.criticalRadius, config_.fusions.criticalDamage);
+            world_.presentation.cameraShakeDuration_ = 0.35f;
+            world_.combatFlow->SetEventCallout("臨界点", 0.6f);
+            ++criticalBlasts_;
+        }
+        lastOverheats_ = overheats;
         // 案内のきっかけ：選択が貯まった・熱が7割を超えた。
         if (pendingChoices_ > 0) {
             QueueHint(Hint::Choice);
@@ -472,7 +482,7 @@ void SurvivorRunController::OnEnemyDefeated(const myEngine::Vector3& position)
 {
     world_.combat.screenEffectDirector_.TriggerEnemyDefeat(world_.gameplayQueries->WorldToScreenUv(position), 1.0f);
     // 戦意：積んでいる間に倒した数を数える（倍率への反映は RefreshMorale がまとめて行う）。
-    if (survivor::LevelOf(partLevels_, survivor::PartId::Morale) > 0) {
+    if (survivor::LevelOf(survivor::EffectiveLevels(config_.parts, partLevels_), survivor::PartId::Morale) > 0) {
         ++moraleKills_;
     }
 }

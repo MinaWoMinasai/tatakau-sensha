@@ -346,6 +346,9 @@ private:
     // 緊急放出で壊した部品（その区画の間、3択に出さない）。
     std::array<bool, survivor::kPartCount> destroyedParts_{};
     int purges_ = 0;
+    // 臨界点：前のフレームまでのオーバーヒートの回数と、爆発した回数。
+    int lastOverheats_ = 0;
+    int criticalBlasts_ = 0;
     // Q の枠（1つ）。待ち時間は区画の時間で減る。
     float qCooldown_ = 0.0f;
     int qUses_ = 0;
@@ -454,10 +457,14 @@ private:
     std::array<uint64_t, 3> autoBurstStats_{};
     float autoFusedSeconds_ = 0.0f;
     uint64_t autoRepeatsWhileFused_ = 0;
+    // 連鎖放電が当たった数（区画を出る前の値）。
+    uint64_t autoChainHits_ = 0;
     // Q の画面を保存する時刻。-1 はまだ使っていない、0 は保存済み。
     float autoQCaptureAt_ = -1.0f;
     std::string autoQCaptureName_;
     bool autoPurgeCaptured_ = false;
+    // 部品を指定して始めたか（START_PARTS）。真なら、自動確認のボットは緊急放出を使わない。
+    bool autoKeepParts_ = false;
     // Q の入れ替えの確認：0 未実施、2 入れ替わった、3 入れ替わらなかった、-1 行わない。
     int autoQSwapProbe_ = 0;
     bool autoSwarmWarningCaptured_ = false;
