@@ -91,7 +91,8 @@ void SurvivorRunController::DrawNextOffers()
 {
     // 宝箱の選択が貯まっていれば、先にそれを出す。
     offersPremium_ = pendingPremium_ > 0;
-    offers_ = survivor::DrawOffers(config_.parts, partLevels_, config_.choiceLightBias, random_, offersPremium_, &destroyedParts_);
+    offers_ = survivor::DrawOffers(config_.parts, partLevels_, config_.choiceLightBias, random_, offersPremium_, &destroyedParts_,
+                                   config_.choiceFusionBias);
     choiceHud_.SetOffers(offers_, config_.parts, offersPremium_, partLevels_, Capacity());
     choiceHud_.SetPending(pendingChoices_, true);
 }

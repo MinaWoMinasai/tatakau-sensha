@@ -183,6 +183,7 @@ bool DrawPartsAndChoices(SpawnConfig& config)
     }
     changed |= ImGui::SliderFloat("3択を開いている間の時間", &config.choiceSlowTimeScale, 0.05f, 1.0f, "×%.2f");
     changed |= ImGui::DragFloat("1枚目に軽い部品が出やすい倍率", &config.choiceLightBias, 0.05f, 0.0f, 10.0f, "%.2f");
+    changed |= ImGui::DragFloat("合体の札が出やすい倍率", &config.choiceFusionBias, 0.05f, 0.0f, 20.0f, "%.2f");
     changed |= ImGui::Checkbox("レベルが上がったらすぐ開く", &config.choiceAutoOpen);
     ImGui::SeparatorText("排熱砲（Q）");
     changed |= ImGui::DragFloat("待ち時間（秒）", &config.heatVent.cooldown, 0.05f, 0.0f, 30.0f, "%.2f");
@@ -207,11 +208,27 @@ bool DrawPartsAndChoices(SpawnConfig& config)
         changed |= ImGui::DragFloat("##perLevel", &part.perLevel, 0.005f, 0.0f, 3.0f, "%.3f");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(70.0f);
-        changed |= ImGui::DragInt("##weight", &part.weight, 0.05f, 0, 9, "重さ %d");
-        ImGui::SameLine();
-        ImGui::Text("%s%s", part.name, part.light ? "（軽）" : "");
+        // 合体の部品の重さは、元の2つから決まる（下の SyncFusionWeights）ので、ここでは変えない。
+        if (IsFusion(part)) {
+            ImGui::Text("重さ %d", part.weight);
+            ImGui::SameLine();
+            ImGui::Text("%s（合体：%s＋%s）", part.name, config.parts[static_cast<size_t>(part.fuseA)].name,
+                        config.parts[static_cast<size_t>(part.fuseB)].name);
+        } else {
+            changed |= ImGui::DragInt("##weight", &part.weight, 0.05f, 0, 9, "重さ %d");
+            ImGui::SameLine();
+            ImGui::Text("%s%s", part.name, part.light ? "（軽）" : "");
+        }
         ImGui::PopID();
     }
+    SyncFusionWeights(config.parts);
+    ImGui::SeparatorText("特性（冷却炉）");
+    changed |= ImGui::DragFloat("熱の上限の倍率", &config.traits.furnaceHeatMax, 0.05f, 0.1f, 5.0f, "x%.2f");
+    changed |= ImGui::DragFloat("冷える速さの倍率", &config.traits.furnaceCool, 0.01f, 0.0f, 3.0f, "x%.2f");
+    ImGui::SeparatorText("レリック（宝箱）");
+    changed |= ImGui::DragFloat("一発屋：主砲の威力", &config.relics.oneShotDamage, 0.05f, 0.1f, 20.0f, "x%.2f");
+    changed |= ImGui::DragFloat("一発屋：1秒の発射数", &config.relics.oneShotFireRate, 0.01f, 0.05f, 2.0f, "x%.2f");
+    changed |= ImGui::DragFloat("不動砲台：止まっている間の威力", &config.relics.turretDamage, 0.02f, 0.0f, 10.0f, "+%.2f");
     ImGui::SeparatorText("形態（次に選んだときから効く）");
     for (auto& form : config.forms) {
         ImGui::PushID(form.key);

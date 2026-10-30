@@ -173,6 +173,8 @@ struct SpawnConfig {
     float choiceSlowTimeScale = 0.25f;
     bool choiceAutoOpen = false;
     float choiceLightBias = 2.0f;
+    /// @brief 合体の札（元の2つが最大 Lv のとき）がほかの札より出やすい倍率。
+    float choiceFusionBias = 3.0f;
 
     // 熱とシールド。試作では基本で持つ。
     PlayerHeat::Config heat{true, 100.0f, 3.0f, 0.5f, 40.0f, 0.0f, 2.0f};
@@ -433,6 +435,7 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         const auto& choices = data.at("choices");
         number(choices, "slowTimeScale", config.choiceSlowTimeScale);
         number(choices, "lightBias", config.choiceLightBias);
+        number(choices, "fusionBias", config.choiceFusionBias);
         if (choices.contains("autoOpen") && choices.at("autoOpen").is_boolean()) {
             config.choiceAutoOpen = choices.at("autoOpen").get<bool>();
         }
@@ -581,6 +584,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     choices["slowTimeScale"] = round(config.choiceSlowTimeScale);
     choices["autoOpen"] = config.choiceAutoOpen;
     choices["lightBias"] = round(config.choiceLightBias);
+    choices["fusionBias"] = round(config.choiceFusionBias);
     auto& heat = section("heat");
     heat["max"] = round(config.heat.maxHeat);
     heat["perShot"] = round(config.heat.heatPerShot);

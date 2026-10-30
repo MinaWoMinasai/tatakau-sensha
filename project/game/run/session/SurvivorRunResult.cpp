@@ -142,7 +142,8 @@ void SurvivorRunController::WriteRunLog()
            << "],\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_
            << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_ << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"capacity\":" << Capacity()
            << ",\"load\":" << survivor::LoadOf(config_.parts, partLevels_) << ",\"removals\":[" << removalRecord_.str() << "],\"qUses\":" << qUses_
-           << ",\"q\":[" << qRecord_.str() << "],\"purges\":" << purges_ << ",\"moraleKills\":" << moraleKills_ << ",\"levelTimes\":[";
+           << ",\"q\":[" << qRecord_.str() << "],\"purges\":" << purges_ << ",\"moraleKills\":" << moraleKills_ << ",\"maxLoad\":" << maxLoad_
+           << ",\"fusions\":" << fusions_ << ",\"fusionAt\":" << fusionTime_ << ",\"relicsOwned\":\"" << RelicNames() << "\",\"levelTimes\":[";
     for (size_t i = 0; i < levelTimes_.size(); ++i) {
         output << (i ? "," : "") << std::lround(levelTimes_[i]);
     }
