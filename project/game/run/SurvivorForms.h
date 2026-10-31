@@ -77,6 +77,12 @@ struct FormDefinition {
     PartId keyPart = PartId::Count;
     /// @brief 長砲身の系統（1本の長い砲身・五角の車体・右クリックのため撃ち）か。
     bool longLine = false;
+    /// @brief 砲門を扇形に開く角度（度）。0 なら元の機体の向きのまま。3門なら -角度・0・+角度。
+    float fanAngle = 0.0f;
+    /// @brief 弾のばらつき（度）。負なら元の機体のまま。
+    float spreadDeg = -1.0f;
+    /// @brief 撃ち続けるほど連射が速くなる（装填機の3段と同じ加速を、形態が最初から持つ）。
+    bool fireRamp = false;
     float reloadScale = 1.0f;
     float damageScale = 1.0f;
     float speedScale = 1.0f;
@@ -130,6 +136,7 @@ inline std::array<FormDefinition, kFormCount> DefaultForms()
     triple.reloadScale = 1.0f;
     triple.damageScale = 0.62f;
     triple.heatScale = 1.15f;
+    triple.fanAngle = 16.0f;
     auto& machineGun = form(FormId::MachineGun);
     machineGun = twin;
     machineGun.key = "machineGun";
@@ -141,6 +148,8 @@ inline std::array<FormDefinition, kFormCount> DefaultForms()
     machineGun.reloadScale = 0.55f;
     machineGun.damageScale = 0.45f;
     machineGun.heatScale = 0.7f;
+    machineGun.spreadDeg = 12.0f;
+    machineGun.fireRamp = true;
     auto& thunder = form(FormId::Thunder);
     thunder = twin;
     thunder.key = "thunder";
@@ -212,6 +221,17 @@ inline PlayerClassConfig BuildFormConfig(const PlayerClassConfig& source, const 
         config.bodyShape = PlayerBodyShape::Pentagon;
     } else {
         config.bodyShape = PlayerBodyShape::Box;
+    }
+    if (form.spreadDeg >= 0.0f) {
+        config.randomSpread = form.spreadDeg > 0.0f;
+        config.spreadAngleDeg = form.spreadDeg;
+    }
+    // 扇形：砲門を中央からの順で -角度・0・+角度 に向ける（横に並んだ砲門の位置はそのまま）。
+    if (form.fanAngle > 0.0f && config.barrels.size() >= 2) {
+        const float step = 2.0f * form.fanAngle / static_cast<float>(config.barrels.size() - 1);
+        for (size_t i = 0; i < config.barrels.size(); ++i) {
+            config.barrels[i].angleDeg = -form.fanAngle + step * static_cast<float>(i);
+        }
     }
     for (auto& barrel : config.barrels) {
         barrel.scale.x *= form.barrelLength;

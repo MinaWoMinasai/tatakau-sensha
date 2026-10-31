@@ -560,6 +560,8 @@ void SurvivorRunController::EvolveTo(survivor::FormId id)
     }
     formKey_ = form.key;
     formId_ = id;
+    // 形態が持つ加速（機関砲）を、部品の効果と一緒に渡し直す。
+    world_.resources.player_->SetSurvivorPartEffects(MakePartEffects());
     formStage_ = form.stage;
     formPath_ += std::string(" → ") + form.name;
     formOffers_.clear();
@@ -634,7 +636,9 @@ Player::SurvivorPartEffects SurvivorRunController::MakePartEffects() const
     Player::SurvivorPartEffects effects{};
     effects.extraHeatPerShot = 2.0f * power(PartId::HeavyWarhead);
     effects.critChance = survivor::HasChange(partLevels_, PartId::Warhead) ? 0.15f : 0.0f;
-    effects.loaderRamp = survivor::HasChange(partLevels_, PartId::Loader);
+    // 機関砲は、装填機の3段と同じ加速を最初から持つ。
+    effects.loaderRamp = survivor::HasChange(partLevels_, PartId::Loader) ||
+                         (formId_ != survivor::FormId::Count && config_.forms[static_cast<size_t>(formId_)].fireRamp);
     effects.spikes = survivor::HasChange(partLevels_, PartId::Ram);
     effects.invincibleScale = survivor::HasChange(partLevels_, PartId::Armor) ? 1.8f : 1.0f;
     effects.residualHeat = config_.partTuning.residualHeatBonus * power(PartId::ResidualHeat);

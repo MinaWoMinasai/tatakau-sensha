@@ -454,7 +454,13 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"expCollected\":" << expCollected_ << ",\"expDropped\":" << expDropped_ << ",\"maxHeat\":" << autoMaxHeat_
             << ",\"overheats\":" << player.GetHeat().GetOverheatCount() << ",\"form\":\"" << formKey_
             << "\",\"formChosenAt\":" << autoFormChosenAt_ << ",\"formPath\":\"" << formPath_ << "\",\"evolvedAt\":" << autoEvolvedAt_
-            << ",\"evolveOffers\":" << autoEvolveOffers_ << ",\"formClass\":\""
+            << ",\"evolveOffers\":" << autoEvolveOffers_ << ",\"formBarrels\":"
+            << (player.GetActiveClassConfig() ? player.GetActiveClassConfig()->barrels.size() : 0) << ",\"formSpread\":"
+            << (player.GetActiveClassConfig() ? player.GetActiveClassConfig()->spreadAngleDeg : 0.0f) << ",\"formFan\":"
+            << (player.GetActiveClassConfig() && !player.GetActiveClassConfig()->barrels.empty()
+                    ? player.GetActiveClassConfig()->barrels.front().angleDeg
+                    : 0.0f)
+            << ",\"loaderRamp\":" << (MakePartEffects().loaderRamp ? "true" : "false") << ",\"formClass\":\""
             << (player.GetActiveClassConfig() ? player.GetActiveClassConfig()->id : std::string("none"))
             << "\",\"railShots\":" << player.GetSpecialCombatStats().railShots << ",\"critShots\":" << player.GetCritShots()
             << ",\"spikeKills\":" << spikeKills_ << ",\"spikeProbe\":" << autoSpikeProbe_ << ",\"premiumChests\":" << premiumTotal_

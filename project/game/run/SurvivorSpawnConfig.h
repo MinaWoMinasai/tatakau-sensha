@@ -541,6 +541,8 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(item, "speedScale", form.speedScale);
             number(item, "heatScale", form.heatScale);
             number(item, "barrelLength", form.barrelLength);
+            number(item, "fanAngle", form.fanAngle);
+            number(item, "spreadDeg", form.spreadDeg);
             number(item, "railPower", form.railPower);
             number(item, "railHeatBase", form.railHeatBase);
             number(item, "railHeatPerCharge", form.railHeatPerCharge);
@@ -677,6 +679,12 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         item["speedScale"] = round(form.speedScale);
         item["heatScale"] = round(form.heatScale);
         item["barrelLength"] = round(form.barrelLength);
+        if (form.fanAngle > 0.0f) {
+            item["fanAngle"] = round(form.fanAngle);
+        }
+        if (form.spreadDeg >= 0.0f) {
+            item["spreadDeg"] = round(form.spreadDeg);
+        }
         if (form.railCharge) {
             item["railPower"] = round(form.railPower);
             item["railHeatBase"] = round(form.railHeatBase);
