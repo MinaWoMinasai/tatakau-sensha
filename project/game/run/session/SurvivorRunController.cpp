@@ -37,6 +37,15 @@ void SurvivorRunController::Initialize()
     if (!survivor::LoadSpawnConfig(kConfigPath, config_, error)) {
         OutputDebugStringA(("[Survivor] " + error + "\n").c_str());
     }
+    // MYENGINE_SURVIVOR_WEAPONS=0：武器の枠を使わず、これまでの育つ戦車の試作（3択・レベル・形態の進化）で遊ぶ。
+    wchar_t weaponsSwitch[4]{};
+    if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_WEAPONS", weaponsSwitch, 4) > 0) {
+        config_.weaponsEnabled = weaponsSwitch[0] != L'0';
+    }
+    // 武器の枠を使う遊び方では、ステージ1の宿敵は出さず、exitOpenSeconds 耐えたら出口を開く（計画書 p3 の G3）。
+    if (config_.weaponsEnabled) {
+        config_.rival.enabled = false;
+    }
     tankcontent::Catalog content = tankcontent::DefaultCatalog();
     if (tankcontent::LoadCatalog(kContentPath, content, error)) {
         world_.resources.enemyManager_->SetExpeditionContent(content);
@@ -71,7 +80,7 @@ void SurvivorRunController::Initialize()
     ExpEnemy::SetPlayerExpDropCallback([this](const ExpEnemy& enemy, uint32_t value) {
         pickups_.Drop(enemy.GetWorldPosition(), value, random_);
         expDropped_ += static_cast<int>(value);
-        if (enemy.GetType() == ExpEnemyType::Pentagon && enemy.GetSizeScale() > 1.5f) {
+        if (!WeaponMode() && enemy.GetType() == ExpEnemyType::Pentagon && enemy.GetSizeScale() > 1.5f) {
             const int owned = static_cast<int>(std::count(relics_.begin(), relics_.end(), true));
             if (owned + pendingRelics_ < static_cast<int>(survivor::kRelicCount)) {
                 ++pendingRelics_;
@@ -131,12 +140,20 @@ void SurvivorRunController::Initialize()
     evolveText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
     evolveText_->SetPosition({520.0f, 616.0f});
     RefreshEvolveText();
+    // 武器の枠（右下）。
+    style.fontSize = 22;
+    style.color = {0.86f, 0.97f, 1.0f, 1.0f};
+    style.outlineThickness = 2;
+    weaponText_ = std::make_unique<myEngine::TextLabel>();
+    weaponText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    weaponText_->SetPosition({900.0f, 580.0f});
+    style.outlineThickness = 0;
     // 最小の案内。文字は案内ごとに作り、遊んでいる間は書き換えない（描画中の SetText は落ちる原因になるため）。
     hintPanel_ = bar({190.0f, 548.0f}, {900.0f, 46.0f}, {0.01f, 0.03f, 0.05f, 0.80f});
     style.fontSize = 21;
     style.color = {0.92f, 0.98f, 1.0f, 1.0f};
     // 選択の案内は、3択の間に止めるかスローにするか（choices.pause）で文を変える。2番目と3番目のどちらかを使う。
-    static constexpr std::array<const char*, static_cast<size_t>(Hint::Count) + 1> kHintTexts{
+    static constexpr std::array<const char*, static_cast<size_t>(Hint::Count) + 2> kHintTexts{
         "WASD で移動　／　マウスで狙い、左クリックで撃つ　／　Shift でダッシュ",
         "レベルが上がると部品を選べる。Tab で開く（開いている間はスロー）。貯めておいてもよい",
         "レベルが上がると部品を選べる。Tab で開く（開いている間は止まる）。貯めておいてもよい",
@@ -145,10 +162,11 @@ void SurvivorRunController::Initialize()
         "画面の端の「！」の方向から、三角の群れが来る",
         "赤い破線の円：まわりを三角に囲まれる。早めに円の外へ抜ける",
         "Q で Q の部品を使う（状態は画面の下に出る）",
-        "宿敵を倒すと出口が開く"};
+        "宿敵を倒すと出口が開く",
+        "WASD 移動　／　左クリックで撃つ　／　1〜3 で武器を変える　／　Shift ダッシュ"};
     for (size_t i = 0; i < hintTexts_.size(); ++i) {
         hintTexts_[i] = std::make_unique<myEngine::TextLabel>();
-        const size_t text = i == 0 ? 0 : i == 1 ? (config_.choicePause ? 2 : 1) : i + 1;
+        const size_t text = i == 0 ? (WeaponMode() ? kHintTexts.size() - 1 : 0) : i == 1 ? (config_.choicePause ? 2 : 1) : i + 1;
         hintTexts_[i]->Initialize(myEngine::SpriteCommon::GetInstance(), kHintTexts[text], style);
         hintTexts_[i]->SetAnchorPoint({0.5f, 0.5f});
         hintTexts_[i]->SetPosition({640.0f, 571.0f});
@@ -310,6 +328,16 @@ void SurvivorRunController::Initialize()
             ApplyParts();
         }
     }
+    // 武器の枠を使う遊び方：武器3つを持って始め、1つ目の枠の武器を構える。形態の選択と特性の2択は出さない。
+    if (WeaponMode()) {
+        formStage_ = 2;
+        for (size_t i = 0; i < weaponSlots_.size(); ++i) {
+            weaponSlots_[i] = survivor::FindWeapon(config_.weapons, config_.startWeapons[i]);
+        }
+        activeSlot_ = 0;
+        EquipWeapon(0);
+        return;
+    }
     // 区画の始めに特性の2択を出す（D3）。タイトルの見本と、四隅・fps の自動確認では出さない（標準のまま）。
     if (!world_.demo.titleDemo_ && autoTest_ != AutoTest::Tour && autoTest_ != AutoTest::Perf) {
         OpenTraitChoice();
@@ -336,7 +364,11 @@ void SurvivorRunController::Update(float dt)
     } else if (formChoiceOpen_) {
         UpdateFormChoiceInput();
     } else if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
-        UpdateChoiceInput();
+        if (WeaponMode()) {
+            UpdateWeaponInput();
+        } else {
+            UpdateChoiceInput();
+        }
     } else if (choiceOpen_) {
         CloseChoices();
     }
@@ -607,7 +639,10 @@ void SurvivorRunController::RefreshHud()
     }
     const AliveCounts alive = CountAlive();
     std::ostringstream text;
-    text << "Lv " << level_ << "   区画  " << Clock(elapsed_) << "   脅威 Lv" << threatStage_;
+    if (!WeaponMode()) {
+        text << "Lv " << level_ << "   ";
+    }
+    text << "区画  " << Clock(elapsed_) << "   脅威 Lv" << threatStage_;
     if (IsRivalActive()) {
         const auto& rival = *world_.resources.enemy_;
         text << "   宿敵 " << (std::max)(0, rival.GetHp() * 100 / (std::max)(1, rival.GetMaxHp())) << "%";
@@ -647,7 +682,7 @@ void SurvivorRunController::DrawUi()
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     // ダメージの数字は、HUD の文字より下に描く。
     damageNumbers_.Draw();
-    if (expTrack_ && expFill_) {
+    if (expTrack_ && expFill_ && !WeaponMode()) {
         expTrack_->Draw();
         expFill_->Draw();
     }
@@ -685,7 +720,14 @@ void SurvivorRunController::DrawUi()
         loadoutHud_.DrawRemoval();
         return;
     }
-    loadoutHud_.DrawLoadout();
+    // 武器の枠を使う遊び方では、積載と3択の代わりに武器の枠を出す。
+    if (WeaponMode()) {
+        if (weaponText_) {
+            weaponText_->Draw();
+        }
+    } else {
+        loadoutHud_.DrawLoadout();
+    }
     const bool cardChoice = formChoiceOpen_ || traitChoiceOpen_ || relicChoiceOpen_;
     choiceHud_.Draw(choiceOpen_ || cardChoice, cardChoice ? 0 : pendingChoices_);
     // 案内（3択を開いている間も、暗幕の上に出す）。

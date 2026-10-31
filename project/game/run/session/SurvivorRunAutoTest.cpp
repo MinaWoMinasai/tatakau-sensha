@@ -105,6 +105,33 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     player.SetDemoInput(true, standStill ? myEngine::Vector2{} : myEngine::Vector2{move.x, move.y}, aim, true, dash);
     autoMaxHeat_ = (std::max)(autoMaxHeat_, player.GetHeat().GetHeat());
 
+    // 武器の枠：15秒ごとに次の枠へ切り替え、枠ごとに使った秒・撃った回数を足す。構えて0.5秒後に砲門の数・威力と発射間隔の倍率を控え、
+    // 1.5秒後にその武器の画面を保存する（枠ごとに最初の1回）。
+    if (WeaponMode()) {
+        const size_t slot = static_cast<size_t>(autoTestTime_ / 15.0f) % weaponSlots_.size();
+        if (slot != activeSlot_ && weaponSlots_[slot] >= 0) {
+            EquipWeapon(slot);
+        }
+        AutoWeaponStat& stat = autoWeaponStats_[activeSlot_];
+        if (stat.seconds < 0.5f && stat.seconds + dt >= 0.5f) {
+            const PlayerClassConfig* active = player.GetActiveClassConfig();
+            stat.barrels = active ? active->barrels.size() : 0;
+            stat.damageScale = active ? active->bulletDamageScale : 0.0f;
+            stat.reloadScale = active ? active->reloadScale : 0.0f;
+            stat.captureAt = autoTestTime_ + 1.0f;
+        }
+        stat.seconds += dt;
+        const uint32_t attacks = player.GetPrimaryAttackCount();
+        const uint32_t rails = static_cast<uint32_t>(player.GetSpecialCombatStats().railShots);
+        stat.attacks += attacks >= autoWeaponAttacks_ ? attacks - autoWeaponAttacks_ : 0;
+        stat.railShots += rails >= autoWeaponRailShots_ ? rails - autoWeaponRailShots_ : 0;
+        autoWeaponAttacks_ = attacks;
+        autoWeaponRailShots_ = rails;
+        if (!stat.captured && stat.captureAt > 0.0f && autoTestTime_ >= stat.captureAt && world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture("weapon_" + formKey_);
+            stat.captured = true;
+        }
+    }
     // 特性：2択が開いたら0.3秒（実時間）で画面を保存し、0.6秒で選ぶ（既定は冷却炉）。
     if (traitChoiceOpen_) {
         autoTraitTimer_ += dt;
@@ -441,7 +468,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             loaded.heat.coolPerSecondWhileFiring == config_.heat.coolPerSecondWhileFiring &&
                             loaded.shapeTargetAlive == config_.shapeTargetAlive && loaded.choiceSlowTimeScale == config_.choiceSlowTimeScale &&
                             loaded.parts[0].perLevel == config_.parts[0].perLevel && loaded.forms[1].damageScale == config_.forms[1].damageScale &&
-                            loaded.tankTypes == config_.tankTypes;
+                            loaded.tankTypes == config_.tankTypes && loaded.weaponsEnabled == config_.weaponsEnabled &&
+                            loaded.weapons.size() == config_.weapons.size() && loaded.weapons[1].damageScale == config_.weapons[1].damageScale &&
+                            loaded.weapons[2].ammo == config_.weapons[2].ammo && loaded.startWeapons == config_.startWeapons;
             }
         }
         std::ofstream(std::string(kAutoTestDirectory) + "/autotest.json")
@@ -492,7 +521,20 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << autoFusionLoad_[1] << "],\"burstTriggers\":" << autoBurstStats_[0] << ",\"burstRepeats\":" << autoBurstStats_[1]
             << ",\"burstChildren\":" << autoBurstStats_[2] << ",\"repeatsWhileFused\":" << autoRepeatsWhileFused_
             << ",\"damageNumbers\":" << damageNumbers_.GetSpawnedCount() << ",\"fusedSeconds\":" << autoFusedSeconds_ << ",\"chainHits\":" << autoChainHits_ << ",\"criticalBlasts\":" << criticalBlasts_
-            << ",\"partsAtEnd\":\"" << DescribeParts(99) << "\"" 
+            << ",\"partsAtEnd\":\"" << DescribeParts(99) << "\""
+            << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false") << ",\"weaponSwaps\":" << weaponSwaps_ << ",\"weapons\":[" <<
+            [&] {
+                std::ostringstream weapons;
+                for (size_t i = 0; i < weaponSlots_.size(); ++i) {
+                    const AutoWeaponStat& stat = autoWeaponStats_[i];
+                    weapons << (i ? "," : "") << "{\"key\":\""
+                            << (weaponSlots_[i] >= 0 ? config_.weapons[static_cast<size_t>(weaponSlots_[i])].key : std::string())
+                            << "\",\"seconds\":" << stat.seconds << ",\"attacks\":" << stat.attacks << ",\"barrels\":" << stat.barrels
+                            << ",\"damageScale\":" << stat.damageScale << ",\"reloadScale\":" << stat.reloadScale
+                            << ",\"railShots\":" << stat.railShots << ",\"captured\":" << (stat.captured ? "true" : "false") << "}";
+                }
+                return weapons.str();
+            }() << "]"
             << ",\"samples\":[" << autoTestLog_.str() << "]}\n";
         autoTest_ = AutoTest::None;
         PostQuitMessage(0);

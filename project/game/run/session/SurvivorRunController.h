@@ -389,6 +389,28 @@ private:
     std::string formKey_ = "basic";
     /// @brief 形態を変える（選択の画面を閉じ、段を1つ進める）。
     void EvolveTo(survivor::FormId id);
+    /// @brief 形態の数値を自機に入れる（砲塔・倍率・ため撃ち・弾の色）。id は固有の能力を借りる形態（基本砲は Count）。
+    void ApplyFormToPlayer(const survivor::FormDefinition& form, survivor::FormId id);
+
+    // 武器（カスタマイズシューティング、計画書 p3 の W0）。config_.weaponsEnabled のときだけ使う。
+    /// @brief 武器の枠を使う遊び方か。真なら3択・レベル・形態の選択・特性・レリックを止める。
+    bool WeaponMode() const
+    {
+        return config_.weaponsEnabled;
+    }
+    /// @brief slot 番目の枠の武器に切り替える（今は即座。切り替え時間は W1）。
+    void EquipWeapon(size_t slot);
+    /// @brief 1〜3キーで武器の枠を切り替える。押した瞬間で判定する。
+    void UpdateWeaponInput();
+    /// @brief 右下の武器の枠の表示を作り直す。更新の中（EquipWeapon）だけで書き換える。
+    void RefreshWeaponText();
+    /// @brief 持っている武器の名前を「・」でつなぐ。
+    std::string WeaponNames() const;
+    // 枠ごとの武器（config_.weapons の番号、-1 は空き）と、使っている枠・切り替えた回数。
+    std::array<int, survivor::kWeaponSlots> weaponSlots_{-1, -1, -1};
+    size_t activeSlot_ = 0;
+    int weaponSwaps_ = 0;
+    std::unique_ptr<myEngine::TextLabel> weaponText_;
     int level_ = 1;
     int exp_ = 0;
     int pendingChoices_ = 0;
@@ -518,6 +540,20 @@ private:
     };
     std::array<PerfPhase, 2> perfPhases_{};
     float perfNextSample_ = 1.0f;
+    // 武器の確認：枠ごとに使った秒・撃った回数・砲門の数・威力・連射と、画面を保存したか。
+    struct AutoWeaponStat {
+        float seconds = 0.0f;
+        uint32_t attacks = 0;
+        size_t barrels = 0;
+        float damageScale = 0.0f;
+        float reloadScale = 0.0f;
+        uint32_t railShots = 0;
+        bool captured = false;
+        float captureAt = -1.0f;
+    };
+    std::array<AutoWeaponStat, survivor::kWeaponSlots> autoWeaponStats_{};
+    uint32_t autoWeaponAttacks_ = 0;
+    uint32_t autoWeaponRailShots_ = 0;
     bool perfCrowded_ = false;
     std::ostringstream perfLog_;
 };

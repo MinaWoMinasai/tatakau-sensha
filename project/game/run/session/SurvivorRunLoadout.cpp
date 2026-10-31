@@ -17,6 +17,10 @@ void SurvivorRunController::AddExperience(int amount)
         return;
     }
     expCollected_ += amount;
+    // 武器の枠を使う遊び方では、レベルを上げない（欠片は W3 でお金にする）。
+    if (WeaponMode()) {
+        return;
+    }
     if (level_ >= config_.maxLevel) {
         return;
     }
@@ -125,6 +129,10 @@ void SurvivorRunController::RefreshEvolveText()
 {
     // 次の形態の節目と、今の形態の鍵付きの進化の鍵の進み具合。進化しきったら出さない。
     if (!evolveText_) {
+        return;
+    }
+    if (WeaponMode()) {
+        evolveText_->SetText(" ");
         return;
     }
     if (formStage_ == 0) {
@@ -593,23 +601,8 @@ void SurvivorRunController::EvolveTo(survivor::FormId id)
     if (id == survivor::FormId::Count) {
         return;
     }
-    auto& player = *world_.resources.player_;
     const auto& form = config_.forms[static_cast<size_t>(id)];
-    const PlayerClassConfig* source = player.FindCatalogClassConfig(form.sourceClass);
-    if (!source) {
-        source = player.GetActiveClassConfig();
-    }
-    if (source) {
-        Player::SurvivorFormTuning tuning{};
-        tuning.heatScale = form.heatScale;
-        tuning.railPower = form.railPower;
-        tuning.railHeatBase = form.railHeatBase;
-        tuning.railHeatPerCharge = form.railHeatPerCharge;
-        tuning.railWidthScale = form.railWidth;
-        tuning.railExtraPierce = form.railPierce;
-        tuning.bulletColor = form.color;
-        player.ApplySurvivorForm(survivor::BuildFormConfig(*source, form, id), tuning);
-    }
+    ApplyFormToPlayer(form, id);
     formKey_ = form.key;
     formId_ = id;
     // 形態の固有の能力（機関砲の加速・狙撃の印・反射砲の跳ね返り）を、部品の効果と一緒に渡し直す。
@@ -629,6 +622,87 @@ void SurvivorRunController::EvolveTo(survivor::FormId id)
     }
     choiceHud_.SetPending(pendingChoices_, false);
     world_.combatFlow->SetEventCallout(std::string(form.stage >= 2 ? "進化：" : "形態：") + form.name, 1.0f);
+}
+
+void SurvivorRunController::ApplyFormToPlayer(const survivor::FormDefinition& form, survivor::FormId id)
+{
+    auto& player = *world_.resources.player_;
+    const PlayerClassConfig* source = player.FindCatalogClassConfig(form.sourceClass);
+    if (!source) {
+        source = player.GetActiveClassConfig();
+    }
+    if (!source) {
+        return;
+    }
+    Player::SurvivorFormTuning tuning{};
+    tuning.heatScale = form.heatScale;
+    tuning.railPower = form.railPower;
+    tuning.railHeatBase = form.railHeatBase;
+    tuning.railHeatPerCharge = form.railHeatPerCharge;
+    tuning.railWidthScale = form.railWidth;
+    tuning.railExtraPierce = form.railPierce;
+    tuning.bulletColor = form.color;
+    player.ApplySurvivorForm(survivor::BuildFormConfig(*source, form, id), tuning);
+}
+
+void SurvivorRunController::EquipWeapon(size_t slot)
+{
+    if (slot >= weaponSlots_.size() || weaponSlots_[slot] < 0) {
+        return;
+    }
+    const auto& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[slot])];
+    ApplyFormToPlayer(survivor::WeaponForm(config_.forms, weapon), weapon.form);
+    // 固有の能力（機関砲の加速・狙撃の印など）は、ApplyParts が formId_ の形態から渡す。
+    formId_ = weapon.form;
+    formKey_ = weapon.key;
+    if (slot != activeSlot_) {
+        ++weaponSwaps_;
+    }
+    activeSlot_ = slot;
+    ApplyParts();
+    RefreshWeaponText();
+}
+
+void SurvivorRunController::UpdateWeaponInput()
+{
+    auto& input = *world_.resources.input_;
+    for (size_t i = 0; i < weaponSlots_.size(); ++i) {
+        if (i != activeSlot_ && weaponSlots_[i] >= 0 && input.IsKeyTriggered(static_cast<uint8_t>(DIK_1 + i))) {
+            EquipWeapon(i);
+            world_.combatFlow->SetEventCallout(config_.weapons[static_cast<size_t>(weaponSlots_[i])].name, 0.5f);
+            return;
+        }
+    }
+}
+
+void SurvivorRunController::RefreshWeaponText()
+{
+    if (!weaponText_) {
+        return;
+    }
+    // 右下に、枠の番号・武器の名前・弾の種類を並べる。使っている枠に印を付ける（W1 で回せる輪にする）。
+    std::ostringstream text;
+    for (size_t i = 0; i < weaponSlots_.size(); ++i) {
+        text << (i ? "\n" : "") << (i == activeSlot_ ? "▶ " : "　 ") << (i + 1) << "  ";
+        if (weaponSlots_[i] < 0) {
+            text << "（空き）";
+            continue;
+        }
+        const auto& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[i])];
+        text << weapon.name << "　" << survivor::AmmoName(weapon.ammo);
+    }
+    weaponText_->SetText(text.str());
+}
+
+std::string SurvivorRunController::WeaponNames() const
+{
+    std::string names;
+    for (int index : weaponSlots_) {
+        if (index >= 0) {
+            names += (names.empty() ? "" : "・") + config_.weapons[static_cast<size_t>(index)].name;
+        }
+    }
+    return names.empty() ? std::string("なし") : names;
 }
 
 void SurvivorRunController::ApplyParts()

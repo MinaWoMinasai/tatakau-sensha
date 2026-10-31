@@ -73,9 +73,10 @@ void SurvivorRunController::RefreshResult(int selection)
     std::ostringstream text;
     // 見出し（区画クリア・撃破された）は、上の帯の文字（CombatFlow）が出す。
     text << (cleared_ ?"区画の時間　　" : "生き延びた時間　") << Clock(elapsed_) << "\n"
-         << "レベル　　　　" << level_ << "\n"
+         << (WeaponMode() ? std::string() : "レベル　　　　" + std::to_string(level_) + "\n")
          << "撃破　　　　　" << world_.combat.defeatedEnemies_ << "\n"
-         << "形態　　　　　" << formPath_ << "　　特性 " << survivor::TraitName(trait_) << "\n"
+         << (WeaponMode() ? "武器　　　　　" + WeaponNames() + "\n"
+                          : "形態　　　　　" + formPath_ + "　　特性 " + survivor::TraitName(trait_) + "\n")
          << "レリック　　　" << RelicNames() << "\n"
          << "脅威　　　　　Lv" << threatStage_ << "　　宿敵 "
          << (rivalDefeated_ ? "撃破（" + Clock(rivalDefeatedAt_) + "）" : rivalSpawned_ ? std::string("未撃破") : std::string("出る前")) << "\n"
@@ -139,7 +140,8 @@ void SurvivorRunController::WriteRunLog()
            << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_ << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"capacity\":" << Capacity()
            << ",\"load\":" << survivor::LoadOf(config_.parts, partLevels_) << ",\"removals\":[" << removalRecord_.str() << "],\"qUses\":" << qUses_
            << ",\"q\":[" << qRecord_.str() << "],\"purges\":" << purges_ << ",\"moraleKills\":" << moraleKills_ << ",\"maxLoad\":" << maxLoad_
-           << ",\"fusions\":" << fusions_ << ",\"fusionAt\":" << fusionTime_ << ",\"criticalBlasts\":" << criticalBlasts_ << ",\"relicsOwned\":\"" << RelicNames() << "\",\"levelTimes\":[";
+           << ",\"fusions\":" << fusions_ << ",\"fusionAt\":" << fusionTime_ << ",\"criticalBlasts\":" << criticalBlasts_ << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false")
+           << ",\"weapons\":\"" << WeaponNames() << "\",\"weaponSwaps\":" << weaponSwaps_ << ",\"relicsOwned\":\"" << RelicNames() << "\",\"levelTimes\":[";
     for (size_t i = 0; i < levelTimes_.size(); ++i) {
         output << (i ? "," : "") << std::lround(levelTimes_[i]);
     }

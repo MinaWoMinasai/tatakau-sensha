@@ -7,6 +7,7 @@
 #include "game/player/combat/PlayerHeat.h"
 #include "game/run/SurvivorForms.h"
 #include "game/run/SurvivorParts.h"
+#include "game/run/SurvivorWeapons.h"
 #include <string>
 #include <utility>
 #include <vector>
@@ -212,6 +213,12 @@ struct SpawnConfig {
     /// @brief 進化（第2段）の Lv。今の形態の子の2択（鍵があれば3枚目）を出す。
     int stage2Level = 12;
     std::array<FormDefinition, kFormCount> forms = DefaultForms();
+
+    // 武器（カスタマイズシューティング、計画書 p3）。weaponsEnabled なら、3択・レベル・形態の選択・特性・レリックを止め、
+    // 武器3つ（startWeapons）を持って始める。false なら、これまでの育つ戦車の試作のまま。
+    bool weaponsEnabled = true;
+    std::vector<WeaponDefinition> weapons = DefaultWeapons();
+    std::array<std::string, kWeaponSlots> startWeapons{"cannon", "machineGun", "beam"};
 
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
     int ExpToNextLevel(int level) const
@@ -557,6 +564,67 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             form.reloadScale = (std::max)(0.05f, form.reloadScale);
         }
     }
+    if (data.contains("weapons") && data.at("weapons").is_object()) {
+        const auto& weapons = data.at("weapons");
+        if (weapons.contains("enabled") && weapons.at("enabled").is_boolean()) {
+            config.weaponsEnabled = weapons.at("enabled").get<bool>();
+        }
+        if (weapons.contains("start") && weapons.at("start").is_array()) {
+            for (size_t i = 0; i < kWeaponSlots && i < weapons.at("start").size(); ++i) {
+                if (weapons.at("start")[i].is_string()) {
+                    config.startWeapons[i] = weapons.at("start")[i].get<std::string>();
+                }
+            }
+        }
+        // 既定の武器は値を上書きし、知らない名前で name のあるものは新しい武器として足す。
+        for (const auto& item : weapons.items()) {
+            if (!item.value().is_object()) {
+                continue;
+            }
+            int index = FindWeapon(config.weapons, item.key());
+            if (index < 0) {
+                if (!item.value().contains("name")) {
+                    continue;
+                }
+                WeaponDefinition added{};
+                added.key = item.key();
+                config.weapons.push_back(added);
+                index = static_cast<int>(config.weapons.size()) - 1;
+            }
+            auto& weapon = config.weapons[static_cast<size_t>(index)];
+            const auto& value = item.value();
+            auto text = [&](const char* key, std::string& out) {
+                if (value.contains(key) && value.at(key).is_string()) {
+                    out = value.at(key).get<std::string>();
+                }
+            };
+            text("name", weapon.name);
+            std::string form, ammo, rarity;
+            text("form", form);
+            text("ammo", ammo);
+            text("rarity", rarity);
+            if (!form.empty()) {
+                weapon.form = FindForm(config.forms, form);
+            }
+            if (!ammo.empty()) {
+                weapon.ammo = FindAmmo(ammo);
+            }
+            if (!rarity.empty()) {
+                weapon.rarity = FindRarity(rarity);
+            }
+            number(value, "magazine", weapon.magazine);
+            number(value, "swapSeconds", weapon.swapSeconds);
+            number(value, "chipSlots", weapon.chipSlots);
+            number(value, "damageScale", weapon.damageScale);
+            number(value, "reloadScale", weapon.reloadScale);
+            number(value, "speedScale", weapon.speedScale);
+            number(value, "heatScale", weapon.heatScale);
+            weapon.magazine = (std::max)(0, weapon.magazine);
+            weapon.swapSeconds = (std::max)(0.0f, weapon.swapSeconds);
+            weapon.chipSlots = (std::clamp)(weapon.chipSlots, 0, 6);
+            weapon.reloadScale = (std::max)(0.05f, weapon.reloadScale);
+        }
+    }
     return true;
 }
 
@@ -713,6 +781,26 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
             item["railHeatPerCharge"] = round(form.railHeatPerCharge);
         }
     }
+    auto& weapons = section("weapons");
+    weapons["enabled"] = config.weaponsEnabled;
+    weapons["start"] = nlohmann::json::array();
+    for (const auto& key : config.startWeapons) {
+        weapons["start"].push_back(key);
+    }
+    for (const auto& weapon : config.weapons) {
+        auto& item = weapons[weapon.key];
+        item["name"] = weapon.name;
+        item["form"] = weapon.form == FormId::Count ? "basic" : config.forms[static_cast<size_t>(weapon.form)].key;
+        item["ammo"] = AmmoKey(weapon.ammo);
+        item["rarity"] = RarityKey(weapon.rarity);
+        item["magazine"] = weapon.magazine;
+        item["swapSeconds"] = round(weapon.swapSeconds);
+        item["chipSlots"] = weapon.chipSlots;
+        item["damageScale"] = round(weapon.damageScale);
+        item["reloadScale"] = round(weapon.reloadScale);
+        item["speedScale"] = round(weapon.speedScale);
+        item["heatScale"] = round(weapon.heatScale);
+    }
     auto& parts = section("parts");
     for (const auto& part : config.parts) {
         parts[part.key]["perLevel"] = round(part.perLevel);
@@ -761,10 +849,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 27> kOrder{
+    static constexpr std::array<const char*, 28> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "traits",        "relics",    "fusions",    "parts",       "heatVent",
+        "heat",          "shield",    "forms",           "weapons",       "traits",        "relics",    "fusions",    "parts",       "heatVent",
         "partTuning",    "bigPentagon", "damageNumbers"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
