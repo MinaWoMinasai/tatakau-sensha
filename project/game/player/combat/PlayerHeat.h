@@ -39,6 +39,40 @@ public:
         return config_;
     }
 
+    /// @brief 熱とオーバーヒートの残りの控え（育つ戦車の試作で、武器ごとに熱を持つため）。
+    struct Snapshot {
+        float heat = 0.0f;
+        float overheatTimer = 0.0f;
+    };
+    Snapshot Save() const
+    {
+        return {heat_, overheatTimer_};
+    }
+    /// @brief 控えた熱に戻す（撃ってからの時間は、冷え始めた後として扱う）。
+    void Restore(const Snapshot& snapshot)
+    {
+        heat_ = (std::min)(snapshot.heat, config_.maxHeat);
+        overheatTimer_ = snapshot.overheatTimer;
+        sinceShot_ = config_.coolDelay;
+    }
+    /// @brief しまってある武器の熱を dt 秒ぶん冷ます（撃っていないときの速さ）。オーバーヒートは明けるまで待ち、明けたら0。
+    static Snapshot Cool(Snapshot snapshot, const Config& config, float dt)
+    {
+        if (!config.enabled || dt <= 0.0f) {
+            return snapshot;
+        }
+        if (snapshot.overheatTimer > 0.0f) {
+            snapshot.overheatTimer -= dt;
+            if (snapshot.overheatTimer <= 0.0f) {
+                snapshot.overheatTimer = 0.0f;
+                snapshot.heat = 0.0f;
+            }
+            return snapshot;
+        }
+        snapshot.heat = (std::max)(0.0f, snapshot.heat - config.coolPerSecond * dt);
+        return snapshot;
+    }
+
     void Reset()
     {
         heat_ = 0.0f;

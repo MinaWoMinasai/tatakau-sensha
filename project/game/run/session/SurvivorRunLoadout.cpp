@@ -650,9 +650,11 @@ void SurvivorRunController::EquipWeapon(size_t slot)
     if (slot >= weaponSlots_.size() || weaponSlots_[slot] < 0) {
         return;
     }
-    // 今の武器で撃って減った弾を控えてから替える。
+    // 今の武器で撃って減った弾と、今の熱を控えてから替える。
+    auto& player = *world_.resources.player_;
     if (weaponEquipped_) {
         SyncAmmoFromPlayer();
+        weaponHeat_[activeSlot_] = player.GetHeat().Save();
     }
     const auto& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[slot])];
     ApplyFormToPlayer(survivor::WeaponForm(config_.forms, weapon), weapon.form);
@@ -666,6 +668,7 @@ void SurvivorRunController::EquipWeapon(size_t slot)
     weaponEquipped_ = true;
     ApplyParts();
     LoadAmmoToPlayer();
+    player.RestoreHeat(weaponHeat_[slot]);
 }
 
 void SurvivorRunController::UpdateWeaponInput()
@@ -749,6 +752,12 @@ bool SurvivorRunController::StartReload()
 void SurvivorRunController::UpdateWeaponTimers(float dt)
 {
     auto& player = *world_.resources.player_;
+    // しまってある武器の熱は、撃っていないときの速さで冷える。
+    for (size_t i = 0; i < weaponHeat_.size(); ++i) {
+        if (i != activeSlot_) {
+            weaponHeat_[i] = PlayerHeat::Cool(weaponHeat_[i], player.GetHeat().GetConfig(), dt);
+        }
+    }
     if (swapTarget_ >= 0) {
         swapTimer_ += dt;
         const float ratio = swapTimer_ / swapDuration_;
@@ -875,6 +884,14 @@ void SurvivorRunController::ApplyParts()
         chainRadius *= config_.forms[static_cast<size_t>(formId_)].chainRadiusScale;
     }
     world_.resources.bulletManager_->SetChainBoost(chainExtra, chainRadius);
+    // 武器の枠を使う遊び方：榴弾砲は、当たった場所で爆発する。
+    const survivor::WeaponDefinition* weapon = WeaponMode() ? ActiveWeapon() : nullptr;
+    if (weapon && weapon->blastRadius > 0.0f) {
+        world_.resources.bulletManager_->SetImpactBlast(weapon->blastRadius, weapon->blastCenter, weapon->blastSplash,
+                                                        weapon->color.w > 0.0f ? weapon->color : myEngine::Vector4{1.9f, 0.7f, 0.2f, 1.0f});
+    } else {
+        world_.resources.bulletManager_->SetImpactBlast(0.0f, 0.0f, 0.0f, {});
+    }
     RefreshEvolveText();
 
     // 熱とシールドの部品。冷却器は冷える速さ（撃っている間も）、3段で上限+30。シールド容量は上限、3段で回復までの時間が半分。

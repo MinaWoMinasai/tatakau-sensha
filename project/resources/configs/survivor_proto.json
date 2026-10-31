@@ -75,16 +75,19 @@
                     "railPower": 1.0, "railHeatBase": 10, "railHeatPerCharge": 25 }
   },
   "weapons": {
-    "comment": "カスタマイズシューティング（計画書 p3）の武器。enabled が true なら、3択・レベル・形態の選択・特性・レリックを止め、start の武器3つを持って始める（1〜3キーで切り替え）。false ならこれまでの育つ戦車の試作。form は砲塔と固有の能力を借りる形態（basic は基本砲）。倍率は基本砲に対する値で、形態の倍率の代わりに使う。ammo は light・heavy・energy、rarity は common〜legendary。magazine は弾倉の弾の数（0 は弾倉なし＝予備から直接撃つ）、swapSeconds は切り替え（ホイールか1〜3キー、その間は撃てない）、reloadSeconds は R のリロード、railAmmoCost は右クリックのため撃ち1発で使う弾。reserve は区画の始めの予備の弾。熱を武器ごとに持つのは W2 から。",
+    "comment": "カスタマイズシューティング（計画書 p3）の武器。enabled が true なら、3択・レベル・形態の選択・特性・レリックを止め、start の武器3つを持って始める（1〜3キーで切り替え）。false ならこれまでの育つ戦車の試作。form は砲塔と固有の能力を借りる形態（basic は基本砲）。倍率は基本砲に対する値で、形態の倍率の代わりに使う。ammo は light・heavy・energy、rarity は common〜legendary。magazine は弾倉の弾の数（0 は弾倉なし＝予備から直接撃つ）、swapSeconds は切り替え（ホイールか1〜3キー、その間は撃てない）、reloadSeconds は R のリロード、railAmmoCost は右クリックのため撃ち1発で使う弾。reserve は区画の始めの予備の弾。熱は武器ごと（heatScale は1発の熱の倍率、しまってある武器は冷えていく）。blastRadius があると当たった場所で爆発し、当たった敵に blastCenter、まわりに blastSplash の倍率で当てる。",
     "enabled": true,
-    "start": ["cannon", "machineGun", "beam"],
+    "start": ["cannon", "grenade", "beam"],
     "reserve": { "light": 600, "heavy": 40, "energy": 300 },
     "cannon": { "name": "単発の砲", "form": "basic", "ammo": "light", "rarity": "common", "magazine": 12, "swapSeconds": 0.4, "reloadSeconds": 1.4, "chipSlots": 0,
-                "damageScale": 1.0, "reloadScale": 1.0, "speedScale": 1.0, "heatScale": 1.0 },
+                "damageScale": 1.0, "reloadScale": 1.0, "speedScale": 1.0, "heatScale": 0.6 },
     "machineGun": { "name": "機関砲", "form": "machineGun", "ammo": "light", "rarity": "common", "magazine": 40, "swapSeconds": 0.6, "reloadSeconds": 2.0, "chipSlots": 0,
-                    "damageScale": 0.45, "reloadScale": 0.55, "speedScale": 1.0, "heatScale": 0.7 },
+                    "damageScale": 0.45, "reloadScale": 0.55, "speedScale": 1.0, "heatScale": 0.35 },
     "beam": { "name": "光線砲", "form": "beam", "ammo": "energy", "rarity": "common", "magazine": 0, "swapSeconds": 0.8, "railAmmoCost": 8, "chipSlots": 0,
-              "damageScale": 1.9, "reloadScale": 1.35, "speedScale": 1.8, "heatScale": 1.2 }
+              "damageScale": 1.9, "reloadScale": 1.35, "speedScale": 1.8, "heatScale": 2.2 },
+    "grenade": { "name": "榴弾砲", "form": "basic", "ammo": "heavy", "rarity": "common", "magazine": 4, "swapSeconds": 0.8, "reloadSeconds": 2.2, "chipSlots": 0,
+                 "damageScale": 0.8, "reloadScale": 2.2, "speedScale": 0.7, "heatScale": 1.0, "blastRadius": 3.2, "blastCenter": 1.0, "blastSplash": 0.8,
+                 "heavyBarrel": true }
   },
   "traits": {
     "comment": "特性。区画の始めに止めて、標準と冷却炉の2択を出す。冷却炉は熱の上限を furnaceHeatMax 倍、冷える速さ（撃っていない間と撃っている間の両方）を furnaceCool 倍にする。",

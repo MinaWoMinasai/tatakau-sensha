@@ -103,6 +103,8 @@ struct FormDefinition {
     float heatScale = 1.0f;
     /// @brief 砲身の長さの倍率。
     float barrelLength = 1.0f;
+    /// @brief 太い砲身にする（榴弾砲）。
+    bool heavyBarrel = false;
     /// @brief 右クリックのため撃ちを持つか。持つなら威力の強さと熱を使う。
     bool railCharge = false;
     float railPower = 1.0f;
@@ -259,6 +261,10 @@ inline PlayerClassConfig BuildFormConfig(const PlayerClassConfig& source, const 
         }
     }
     for (auto& barrel : config.barrels) {
+        if (form.heavyBarrel) {
+            barrel.barrelShape = BarrelShape::Heavy;
+            barrel.scale.y *= 1.35f;
+        }
         barrel.scale.x *= form.barrelLength;
         barrel.muzzleForward *= form.barrelLength;
         if (form.longLine) {

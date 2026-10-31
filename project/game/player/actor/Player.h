@@ -740,6 +740,11 @@ public:
         return runDashExplosionsEmitted_;
     }
     /// @brief 熱の設定だけを替える（今の熱は保つ）。冷却器で冷える速さや上限が変わるときに使う。
+    /// @brief 熱を控えた値に戻す（育つ戦車の試作で、武器を切り替えたとき）。
+    void RestoreHeat(const PlayerHeat::Snapshot& snapshot)
+    {
+        heat_.Restore(snapshot);
+    }
     void SetHeatConfig(const PlayerHeat::Config& config)
     {
         heat_.Reconfigure(config);

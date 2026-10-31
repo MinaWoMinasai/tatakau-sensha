@@ -80,7 +80,7 @@ inline myEngine::Vector4 RarityColor(Rarity rarity)
 }
 
 /// @brief 武器の数値。砲塔の並びと固有の能力（ばらつき・加速・ため撃ちなど）は form の形態から借り、威力・連射・弾速・熱はここの値で上書きする。
-/// @note 熱を武器ごとに持つのは W2、chipSlots はチップ（W3 以降）で使う。今はデータとして持つだけ。
+/// @note 熱は武器ごとに持つ（しまってある武器は冷えていく）。chipSlots はチップ（W3 以降）で使う。今はデータとして持つだけ。
 struct WeaponDefinition {
     std::string key;
     std::string name;
@@ -101,16 +101,26 @@ struct WeaponDefinition {
     /// @brief 発射間隔の倍率（大きいほど遅い）。
     float reloadScale = 1.0f;
     float speedScale = 1.0f;
+    /// @brief 主砲1発の熱の倍率（熱の上がり方）。
     float heatScale = 1.0f;
+    /// @brief 当たった場所で爆発する半径（0 なら爆発しない）と、当たった敵・まわりの敵への威力の倍率（弾の威力に対する）。
+    float blastRadius = 0.0f;
+    float blastCenter = 0.0f;
+    float blastSplash = 0.0f;
+    /// @brief 太い砲身にする。
+    bool heavyBarrel = false;
+    /// @brief 弾と軌跡の色（A が0なら形態の色のまま）。
+    myEngine::Vector4 color{0, 0, 0, 0};
 };
 
 /// @brief 武器の既定値。survivor_proto.json の weapons で上書き・追加する（計画書 p3 の2章の案。数値は仮）。
 inline std::vector<WeaponDefinition> DefaultWeapons()
 {
-    std::vector<WeaponDefinition> weapons(3);
+    std::vector<WeaponDefinition> weapons(4);
     auto& cannon = weapons[0];
     cannon.key = "cannon";
     cannon.name = "単発の砲";
+    cannon.heatScale = 0.6f;
     auto& machineGun = weapons[1];
     machineGun.key = "machineGun";
     machineGun.name = "機関砲";
@@ -120,7 +130,7 @@ inline std::vector<WeaponDefinition> DefaultWeapons()
     machineGun.reloadSeconds = 2.0f;
     machineGun.damageScale = 0.45f;
     machineGun.reloadScale = 0.55f;
-    machineGun.heatScale = 0.7f;
+    machineGun.heatScale = 0.35f;
     auto& beam = weapons[2];
     beam.key = "beam";
     beam.name = "光線砲";
@@ -132,7 +142,24 @@ inline std::vector<WeaponDefinition> DefaultWeapons()
     beam.damageScale = 1.9f;
     beam.reloadScale = 1.35f;
     beam.speedScale = 1.8f;
-    beam.heatScale = 1.2f;
+    beam.heatScale = 2.2f;
+    // 範囲の軸：当たると爆発する。範囲が強い分、1発の威力と連射は控えめ。
+    auto& grenade = weapons[3];
+    grenade.key = "grenade";
+    grenade.name = "榴弾砲";
+    grenade.ammo = AmmoType::Heavy;
+    grenade.magazine = 4;
+    grenade.swapSeconds = 0.8f;
+    grenade.reloadSeconds = 2.2f;
+    grenade.damageScale = 0.8f;
+    grenade.reloadScale = 2.2f;
+    grenade.speedScale = 0.7f;
+    grenade.heatScale = 1.0f;
+    grenade.blastRadius = 3.2f;
+    grenade.blastCenter = 1.0f;
+    grenade.blastSplash = 0.8f;
+    grenade.heavyBarrel = true;
+    grenade.color = {1.9f, 0.7f, 0.2f, 1.0f};
     return weapons;
 }
 
@@ -162,6 +189,10 @@ inline FormDefinition WeaponForm(const std::array<FormDefinition, kFormCount>& f
     form.reloadScale = weapon.reloadScale;
     form.speedScale = weapon.speedScale;
     form.heatScale = weapon.heatScale;
+    form.heavyBarrel = form.heavyBarrel || weapon.heavyBarrel;
+    if (weapon.color.w > 0.0f) {
+        form.color = weapon.color;
+    }
     return form;
 }
 } // namespace survivor

@@ -218,7 +218,7 @@ struct SpawnConfig {
     // 武器3つ（startWeapons）を持って始める。false なら、これまでの育つ戦車の試作のまま。
     bool weaponsEnabled = true;
     std::vector<WeaponDefinition> weapons = DefaultWeapons();
-    std::array<std::string, kWeaponSlots> startWeapons{"cannon", "machineGun", "beam"};
+    std::array<std::string, kWeaponSlots> startWeapons{"cannon", "grenade", "beam"};
     /// @brief 区画の始めに持っている予備の弾（ライト・ヘビー・エネルギー）。拾う弾は W3 で足す。
     std::array<int, kAmmoTypeCount> startReserve{600, 40, 300};
 
@@ -629,6 +629,12 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(value, "reloadScale", weapon.reloadScale);
             number(value, "speedScale", weapon.speedScale);
             number(value, "heatScale", weapon.heatScale);
+            number(value, "blastRadius", weapon.blastRadius);
+            number(value, "blastCenter", weapon.blastCenter);
+            number(value, "blastSplash", weapon.blastSplash);
+            if (value.contains("heavyBarrel") && value.at("heavyBarrel").is_boolean()) {
+                weapon.heavyBarrel = value.at("heavyBarrel").get<bool>();
+            }
             weapon.magazine = (std::max)(0, weapon.magazine);
             weapon.swapSeconds = (std::max)(0.0f, weapon.swapSeconds);
             weapon.reloadSeconds = (std::max)(0.0f, weapon.reloadSeconds);
@@ -817,6 +823,14 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         item["reloadScale"] = round(weapon.reloadScale);
         item["speedScale"] = round(weapon.speedScale);
         item["heatScale"] = round(weapon.heatScale);
+        if (weapon.blastRadius > 0.0f) {
+            item["blastRadius"] = round(weapon.blastRadius);
+            item["blastCenter"] = round(weapon.blastCenter);
+            item["blastSplash"] = round(weapon.blastSplash);
+        }
+        if (weapon.heavyBarrel) {
+            item["heavyBarrel"] = true;
+        }
     }
     auto& parts = section("parts");
     for (const auto& part : config.parts) {

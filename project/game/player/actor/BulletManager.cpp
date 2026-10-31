@@ -339,6 +339,23 @@ void BulletManager::NotifyPlayerHit(Bullet& bullet, Collider& target, bool kille
     if (killed) {
         QueueKillBurst(bullet, target.GetWorldPosition());
     }
+    // 試作の榴弾砲：当たった場所で爆発し、まわりの敵にも当てる。
+    if (impactBlastRadius_ > 0.0f) {
+        const auto center = target.GetWorldPosition();
+        ++shooterStats_.impactBlasts;
+        BuildEventAt(BuildEventKind::Detonation, center, center, impactBlastRadius_);
+        myEngine::ParticleManager::GetInstance()->EmitNeonDeathEffect(center, impactBlastColor_, {1.6f, 1.1f, 0.4f, 0.0f}, 1.1f);
+        for (auto* candidate : LiveCombatTargets()) {
+            if (myEngine::Length(candidate->GetWorldPosition() - center) > impactBlastRadius_ + candidate->GetRadius() ||
+                !HasClearLink(center, candidate->GetWorldPosition())) {
+                continue;
+            }
+            const float scale = candidate == &target ? impactBlastCenter_ : impactBlastSplash_;
+            if (scale > 0.0f && DamageBuildTarget(candidate, tankshooter::Damage(bullet.GetDamage(), scale), center)) {
+                QueueKillBurst(bullet, candidate->GetWorldPosition());
+            }
+        }
+    }
     // 1回の連鎖内で同じ衝突IDを選び直さない。各段で生存対象を取り直し、前段の撃破を反映する。
     if (ability.chain) {
         myEngine::Vector3 from = target.GetWorldPosition();

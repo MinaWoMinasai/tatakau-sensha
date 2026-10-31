@@ -37,6 +37,7 @@ public:
     struct ShooterStats {
         uint64_t chainHits = 0, detonations = 0, burstTriggers = 0, burstChildren = 0, returns = 0, reflections = 0;
         uint64_t burstRepeats = 0; // 連鎖崩壊で破裂子弾がもう一度破裂した回数
+        uint64_t impactBlasts = 0; // 試作の榴弾砲で、当たった場所が爆発した回数
     };
 
     /// @brief 撃破時の破裂の子弾が、敵を倒したときにもう一度破裂できる回数を設定する（育つ戦車の試作の連鎖崩壊）。既定は0。
@@ -54,6 +55,16 @@ public:
 
     /// @brief 印の起爆に要る命中の回数を設定する（育つ戦車の試作の狙撃）。1～8に制限する。既定は4と6。
     /// @param onKill 真なら、倒した命中でもその場で起爆する（既定は倒した命中では起爆しない）。
+    /// @brief 主砲の弾が敵に当たると、その場で爆発する（育つ戦車の試作の榴弾砲）。radius が0なら無効（既定）。
+    /// @param centerScale 当たった敵に足す威力の倍率（弾の威力に対する）。splashScale はまわりの敵への倍率。
+    void SetImpactBlast(float radius, float centerScale, float splashScale, const myEngine::Vector4& color)
+    {
+        impactBlastRadius_ = (std::max)(0.0f, radius);
+        impactBlastCenter_ = centerScale;
+        impactBlastSplash_ = splashScale;
+        impactBlastColor_ = color;
+    }
+
     void SetMarkThreshold(int normal, int boss, bool onKill = false)
     {
         markNeeded_ = (std::clamp)(normal, 1, 8);
@@ -208,6 +219,10 @@ private:
     int markNeeded_ = 4;
     int markNeededBoss_ = 6;
     bool markOnKill_ = false;
+    float impactBlastRadius_ = 0.0f;
+    float impactBlastCenter_ = 0.0f;
+    float impactBlastSplash_ = 0.0f;
+    myEngine::Vector4 impactBlastColor_{1.9f, 0.7f, 0.2f, 1.0f};
     float chainRadiusScale_ = 1.0f;
     std::vector<BuildEvent> buildEvents_;
     tankshooter::MarkLedger marks_{};

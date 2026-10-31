@@ -29,6 +29,10 @@ void SurvivorWeaponHud::Initialize()
         ringDots_[i]->SetPosition({kRingCenter.x + std::cos(angle) * kRingRadius, kRingCenter.y - std::sin(angle) * kRingRadius});
         ringDots_[i]->Update();
     }
+    for (auto& bar : heatBars_) {
+        bar = sprite("resources/white512x512.png", {1.0f, 0.55f, 0.2f, 0.9f});
+        bar->SetAnchorPoint({0.0f, 0.5f});
+    }
     // 構えている枠の後ろの光る板。
     marker_ = sprite("resources/white512x512.png", {0.35f, 1.0f, 0.85f, 0.22f});
     marker_->SetAnchorPoint({0.5f, 0.5f});
@@ -147,6 +151,13 @@ void SurvivorWeaponHud::Update(float dt, const State& state)
         const float angle = (angle_ + static_cast<float>(i) * 120.0f) * kDegToRad;
         nameLabels_[i]->SetPosition({kRingCenter.x + std::cos(angle) * kRingRadius, kRingCenter.y - std::sin(angle) * kRingRadius});
         nameLabels_[i]->SetAlpha(i == state.active ? 1.0f : 0.45f);
+        // 熱の棒：名前の下に、熱の割合の長さで。オーバーヒート中は赤。
+        const myEngine::Vector2 at{kRingCenter.x + std::cos(angle) * kRingRadius, kRingCenter.y - std::sin(angle) * kRingRadius};
+        const float heat = (std::clamp)(state.heat[i], 0.0f, 1.0f);
+        heatBars_[i]->SetPosition({at.x - 30.0f, at.y + 16.0f});
+        heatBars_[i]->SetSize({60.0f * heat, 3.0f});
+        heatBars_[i]->SetColor(state.overheated[i] ? myEngine::Vector4{1.0f, 0.25f, 0.2f, 1.0f} : myEngine::Vector4{1.0f, 0.62f, 0.25f, 0.9f});
+        heatBars_[i]->Update();
     }
 
     // 弾の数：弾倉 / 予備。エネルギー弾は予備だけを大きく出す。弾倉が空なら赤くする。
@@ -191,6 +202,9 @@ void SurvivorWeaponHud::Draw()
     for (size_t i = 0; i < kSlots; ++i) {
         if (nameLabels_[i]) {
             nameLabels_[i]->Draw();
+            if (!slots_[i].empty && state_.heat[i] > 0.01f) {
+                heatBars_[i]->Draw();
+            }
         }
     }
     if (state_.active < kSlots && ammoLabels_[state_.active] && !slots_[state_.active].empty) {

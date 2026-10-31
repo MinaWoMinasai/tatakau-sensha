@@ -327,6 +327,20 @@ void SurvivorRunController::Initialize()
     // 武器の枠を使う遊び方：武器3つを持って始め、1つ目の枠の武器を構える。形態の選択と特性の2択は出さない。
     if (WeaponMode()) {
         formStage_ = 2;
+        // MYENGINE_SURVIVOR_START_WEAPONS=machineGun,grenade,cannon：自動確認で、枠に入れる武器を替える。
+        wchar_t startWeapons[96]{};
+        const DWORD startWeaponsLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_START_WEAPONS", startWeapons, 96);
+        if (autoTest_ != AutoTest::None && startWeaponsLength > 0 && startWeaponsLength < 96) {
+            std::wstringstream list(startWeapons);
+            std::wstring item;
+            for (size_t i = 0; i < config_.startWeapons.size() && std::getline(list, item, L','); ++i) {
+                std::string key;
+                for (wchar_t c : item) {
+                    key.push_back(static_cast<char>(c));
+                }
+                config_.startWeapons[i] = key;
+            }
+        }
         for (size_t i = 0; i < weaponSlots_.size(); ++i) {
             weaponSlots_[i] = survivor::FindWeapon(config_.weapons, config_.startWeapons[i]);
         }
@@ -474,6 +488,12 @@ void SurvivorRunController::Update(float dt)
             }
             state.reloadRatio = reloadTimer_ >= 0.0f ? 1.0f - reloadTimer_ / reloadDuration_ : -1.0f;
             state.swapRatio = swapTarget_ >= 0 ? swapTimer_ / swapDuration_ : -1.0f;
+            const PlayerHeat& heat = world_.resources.player_->GetHeat();
+            for (size_t i = 0; i < weaponSlots_.size(); ++i) {
+                const PlayerHeat::Snapshot snapshot = i == activeSlot_ ? heat.Save() : weaponHeat_[i];
+                state.heat[i] = snapshot.overheatTimer > 0.0f ? 1.0f : snapshot.heat / (std::max)(1.0f, heat.GetMaxHeat());
+                state.overheated[i] = snapshot.overheatTimer > 0.0f;
+            }
             weaponHud_.Update(dt, state);
         }
         damageNumbers_.Update(dt, [this](const myEngine::Vector3& world) {

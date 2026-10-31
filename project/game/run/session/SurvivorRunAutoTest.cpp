@@ -109,6 +109,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     // 1.5秒後にその武器の画面を保存する（枠ごとに最初の1回）。
     if (WeaponMode()) {
         // 15秒ごとに、ホイールを1刻み回したのと同じ切り替えで次の枠へ。切り替えの途中の画面を1回保存する。
+        // このフレームの射撃は、ボットが切り替えやリロードを始める前に済んでいるので、撃てない間かは始める前の状態で見る。
+        const bool lockedBefore = swapTarget_ >= 0 || reloadTimer_ >= 0.0f;
         const size_t slot = static_cast<size_t>(autoTestTime_ / 15.0f) % weaponSlots_.size();
         if (slot != activeSlot_ && swapTarget_ < 0 && weaponSlots_[slot] >= 0) {
             HandleWeaponWheel(1);
@@ -140,8 +142,15 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         stat.railShots += rails >= autoWeaponRailShots_ ? rails - autoWeaponRailShots_ : 0;
         autoWeaponAttacks_ = attacks;
         autoWeaponRailShots_ = rails;
+        // 武器ごとのオーバーヒートと、榴弾砲の爆発の回数（区画を出る前の値から差を取る）。
+        const int overheats = player.GetHeat().GetOverheatCount();
+        const uint64_t blasts = world_.resources.bulletManager_->GetShooterStats().impactBlasts;
+        stat.overheats += overheats >= autoWeaponOverheats_ ? overheats - autoWeaponOverheats_ : 0;
+        stat.blasts += blasts >= autoWeaponBlasts_ ? blasts - autoWeaponBlasts_ : 0;
+        autoWeaponOverheats_ = overheats;
+        autoWeaponBlasts_ = blasts;
         // 撃てないはずの間（切り替え・リロード）に撃っていないか。
-        if (swapTarget_ >= 0 || reloadTimer_ >= 0.0f) {
+        if (lockedBefore) {
             autoLockedAttacks_ += shot;
             autoLockedSeconds_ += dt;
         }
@@ -572,7 +581,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             << (weaponSlots_[i] >= 0 ? config_.weapons[static_cast<size_t>(weaponSlots_[i])].key : std::string())
                             << "\",\"seconds\":" << stat.seconds << ",\"attacks\":" << stat.attacks << ",\"barrels\":" << stat.barrels
                             << ",\"damageScale\":" << stat.damageScale << ",\"reloadScale\":" << stat.reloadScale
-                            << ",\"railShots\":" << stat.railShots << ",\"captured\":" << (stat.captured ? "true" : "false") << "}";
+                            << ",\"railShots\":" << stat.railShots << ",\"overheats\":" << stat.overheats << ",\"blasts\":" << stat.blasts << ",\"captured\":" << (stat.captured ? "true" : "false") << "}";
                 }
                 return weapons.str();
             }() << "]"

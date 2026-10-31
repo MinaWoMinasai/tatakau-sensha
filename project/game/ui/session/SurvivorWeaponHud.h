@@ -30,6 +30,9 @@ public:
         int reserve = 0;
         float reloadRatio = -1.0f;
         float swapRatio = -1.0f;
+        /// @brief 枠ごとの熱の割合（0〜1）と、オーバーヒートしているか。
+        std::array<float, kSlots> heat{};
+        std::array<bool, kSlots> overheated{};
     };
 
     /// @brief 輪の板・数字の画像・決まった文字を作る。
@@ -50,6 +53,8 @@ private:
     float angle_ = 180.0f;
     bool angleReady_ = false;
     std::unique_ptr<myEngine::Sprite> marker_;
+    // 枠ごとの熱の棒（名前の下）。
+    std::array<std::unique_ptr<myEngine::Sprite>, kSlots> heatBars_;
     // 輪の形を示す小さな点。
     std::array<std::unique_ptr<myEngine::Sprite>, 30> ringDots_;
     std::unique_ptr<myEngine::Sprite> progressTrack_;

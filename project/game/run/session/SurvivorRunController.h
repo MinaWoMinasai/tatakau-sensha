@@ -434,6 +434,8 @@ private:
     // 枠ごとの弾倉の中身と、弾の種類ごとの予備。
     std::array<int, survivor::kWeaponSlots> magazines_{};
     std::array<int, survivor::kAmmoTypeCount> reserves_{};
+    // 枠ごとの熱（構えている枠は自機の熱。しまってある枠は撃っていないときの速さで冷えていく）。
+    std::array<PlayerHeat::Snapshot, survivor::kWeaponSlots> weaponHeat_{};
     // 切り替え：行き先の枠（-1 は切り替えていない）・経った秒・かかる秒・半分で武器を入れたか。
     int swapTarget_ = -1;
     float swapTimer_ = 0.0f;
@@ -581,6 +583,8 @@ private:
         float damageScale = 0.0f;
         float reloadScale = 0.0f;
         uint32_t railShots = 0;
+        int overheats = 0;
+        uint64_t blasts = 0;
         bool captured = false;
         float captureAt = -1.0f;
     };
@@ -598,6 +602,8 @@ private:
     bool autoReloadCaptured_ = false;
     uint32_t autoWeaponAttacks_ = 0;
     uint32_t autoWeaponRailShots_ = 0;
+    int autoWeaponOverheats_ = 0;
+    uint64_t autoWeaponBlasts_ = 0;
     bool perfCrowded_ = false;
     std::ostringstream perfLog_;
 };
