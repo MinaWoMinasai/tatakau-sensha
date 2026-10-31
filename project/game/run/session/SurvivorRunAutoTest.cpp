@@ -108,9 +108,20 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     // 武器の枠：15秒ごとに次の枠へ切り替え、枠ごとに使った秒・撃った回数を足す。構えて0.5秒後に砲門の数・威力と発射間隔の倍率を控え、
     // 1.5秒後にその武器の画面を保存する（枠ごとに最初の1回）。
     if (WeaponMode()) {
+        // 15秒ごとに、ホイールを1刻み回したのと同じ切り替えで次の枠へ。切り替えの途中の画面を1回保存する。
         const size_t slot = static_cast<size_t>(autoTestTime_ / 15.0f) % weaponSlots_.size();
-        if (slot != activeSlot_ && weaponSlots_[slot] >= 0) {
-            EquipWeapon(slot);
+        if (slot != activeSlot_ && swapTarget_ < 0 && weaponSlots_[slot] >= 0) {
+            HandleWeaponWheel(1);
+            autoSwapStartedAt_ = autoTestTime_;
+        }
+        if (swapTarget_ >= 0 && !autoSwapCaptured_ && swapTimer_ >= swapDuration_ * 0.3f && world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture("weapon_swap");
+            autoSwapCaptured_ = true;
+        }
+        // 切り替えが終わって撃てるようになった時刻から、実際にかかった秒を測る。
+        if (autoSwapStartedAt_ >= 0.0f && swapTarget_ < 0) {
+            autoSwapMeasured_[activeSlot_] = autoTestTime_ - autoSwapStartedAt_;
+            autoSwapStartedAt_ = -1.0f;
         }
         AutoWeaponStat& stat = autoWeaponStats_[activeSlot_];
         if (stat.seconds < 0.5f && stat.seconds + dt >= 0.5f) {
@@ -123,10 +134,37 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         stat.seconds += dt;
         const uint32_t attacks = player.GetPrimaryAttackCount();
         const uint32_t rails = static_cast<uint32_t>(player.GetSpecialCombatStats().railShots);
+        const uint32_t shot = (attacks >= autoWeaponAttacks_ ? attacks - autoWeaponAttacks_ : 0) +
+                              (rails >= autoWeaponRailShots_ ? rails - autoWeaponRailShots_ : 0);
         stat.attacks += attacks >= autoWeaponAttacks_ ? attacks - autoWeaponAttacks_ : 0;
         stat.railShots += rails >= autoWeaponRailShots_ ? rails - autoWeaponRailShots_ : 0;
         autoWeaponAttacks_ = attacks;
         autoWeaponRailShots_ = rails;
+        // 撃てないはずの間（切り替え・リロード）に撃っていないか。
+        if (swapTarget_ >= 0 || reloadTimer_ >= 0.0f) {
+            autoLockedAttacks_ += shot;
+            autoLockedSeconds_ += dt;
+        }
+        // 弾倉が空になったら、0.5秒は撃ち続けて（撃てないことを確かめ）から R でリロードする。
+        const survivor::WeaponDefinition* weapon = ActiveWeapon();
+        if (weapon && weapon->magazine > 0 && swapTarget_ < 0 && reloadTimer_ < 0.0f && player.GetSurvivorRounds() == 0) {
+            // 空になった最初のフレームの1発は、空にした1発なので数えない。
+            if (autoEmptyTimer_ > 0.0f) {
+                autoEmptyAttacks_ += shot;
+            }
+            autoEmptyTimer_ += dt;
+            autoEmptySeconds_ += dt;
+            if (autoEmptyTimer_ >= 0.5f && StartReload()) {
+                autoEmptyTimer_ = 0.0f;
+            }
+        } else {
+            autoEmptyTimer_ = 0.0f;
+        }
+        if (reloadTimer_ >= 0.0f && !autoReloadCaptured_ && reloadTimer_ <= reloadDuration_ * 0.5f &&
+            world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture("weapon_reload");
+            autoReloadCaptured_ = true;
+        }
         if (!stat.captured && stat.captureAt > 0.0f && autoTestTime_ >= stat.captureAt && world_.run.tankRunCapturePath_.empty()) {
             RequestCapture("weapon_" + formKey_);
             stat.captured = true;
@@ -522,7 +560,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"burstChildren\":" << autoBurstStats_[2] << ",\"repeatsWhileFused\":" << autoRepeatsWhileFused_
             << ",\"damageNumbers\":" << damageNumbers_.GetSpawnedCount() << ",\"fusedSeconds\":" << autoFusedSeconds_ << ",\"chainHits\":" << autoChainHits_ << ",\"criticalBlasts\":" << criticalBlasts_
             << ",\"partsAtEnd\":\"" << DescribeParts(99) << "\""
-            << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false") << ",\"weaponSwaps\":" << weaponSwaps_ << ",\"weapons\":[" <<
+            << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false") << ",\"weaponSwaps\":" << weaponSwaps_ << ",\"reloads\":" << reloads_ << ",\"lockedAttacks\":" << autoLockedAttacks_
+            << ",\"lockedSeconds\":" << autoLockedSeconds_ << ",\"emptyAttacks\":" << autoEmptyAttacks_ << ",\"emptySeconds\":" << autoEmptySeconds_
+            << ",\"reserves\":[" << reserves_[0] << "," << reserves_[1] << "," << reserves_[2] << "],\"swapMeasured\":[" << autoSwapMeasured_[0] << ","
+            << autoSwapMeasured_[1] << "," << autoSwapMeasured_[2] << "]" << ",\"weapons\":[" <<
             [&] {
                 std::ostringstream weapons;
                 for (size_t i = 0; i < weaponSlots_.size(); ++i) {

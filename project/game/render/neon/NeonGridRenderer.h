@@ -1,4 +1,6 @@
 #pragma once
+#include <algorithm>
+#include <cmath>
 #include <string>
 #include <wrl.h>
 #include <d3d12.h>
@@ -29,9 +31,40 @@ public:
         geometry_.SetLineStyle(softEdgeRatio, coreIntensity);
     }
 
+    /// @brief 線のディゾルブ（育つ戦車の試作の、自機の武器の切り替え）。ボスのネオンディソルブを線に置き換えたもの。
+    /// @note 有効な間に積んだ線・輪郭の線・多角形は、pieceLength ほどの欠片に分ける。欠片の中点を走査の方向（direction）に
+    /// origin から ±extent の範囲で 0〜1 にし、ノイズを混ぜた値が progress より小さい欠片は消し、progress + edgeWidth までの欠片は
+    /// edgeColor で光らせる。progress が 0 なら何も変えず、1 + edgeWidth で全部消える。
+    struct LineDissolve {
+        Vector3 origin{};
+        Vector3 direction{0.70710678f, -0.70710678f, 0.0f};
+        float extent = 1.0f;
+        float progress = 0.0f;
+        float noise = 0.35f;
+        float edgeWidth = 0.12f;
+        float pieceLength = 0.15f;
+        Vector4 edgeColor{1.9f, 0.35f, 1.3f, 1.0f};
+    };
+    /// @brief ここから EndLineDissolve までに積む線へ、ディゾルブを掛ける。
+    void BeginLineDissolve(const LineDissolve& dissolve)
+    {
+        dissolve_ = dissolve;
+        dissolveActive_ = true;
+    }
+    void EndLineDissolve()
+    {
+        dissolveActive_ = false;
+    }
+
     /// @brief 線を描画待ちに積む。
     void QueueLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color)
     {
+        if (dissolveActive_) {
+            ForEachDissolvedPiece(a, b, [&](const Vector3& p0, const Vector3& p1, bool edge) {
+                geometry_.QueueLine(p0, p1, edge ? lineWidth * 1.3f : lineWidth, edge ? EdgeColor(color) : color);
+            });
+            return;
+        }
         geometry_.QueueLine(a, b, lineWidth, color);
     }
 
@@ -47,6 +80,10 @@ public:
     void QueueContourLine(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color, const Vector3& cameraForward,
                           const NeonContourStyle& style = {})
     {
+        if (dissolveActive_) {
+            QueueDissolvedContour(a, b, lineWidth, color, cameraForward, style);
+            return;
+        }
         geometry_.QueueContourLine(a, b, lineWidth, color, cameraForward, style);
     }
 
@@ -54,6 +91,12 @@ public:
     void QueueContourPolygon(const Vector3* points, uint32_t pointCount, float lineWidth, const Vector4& color,
                              const Vector3& cameraForward, const NeonContourStyle& style = {})
     {
+        if (dissolveActive_) {
+            for (uint32_t i = 0; i < pointCount; ++i) {
+                QueueDissolvedContour(points[i], points[(i + 1) % pointCount], lineWidth, color, cameraForward, style);
+            }
+            return;
+        }
         geometry_.QueueContourPolygon(points, pointCount, lineWidth, color, cameraForward, style);
     }
 
@@ -185,6 +228,52 @@ public:
     }
 
 private:
+    /// @brief a から b の線を欠片に分け、残る欠片ごとに emit(始点, 終点, 境目か) を呼ぶ。
+    template <class Emit>
+    void ForEachDissolvedPiece(const Vector3& a, const Vector3& b, Emit&& emit) const
+    {
+        const Vector3 delta{b.x - a.x, b.y - a.y, b.z - a.z};
+        const float length = std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
+        const float pieceLength = (std::max)(0.01f, dissolve_.pieceLength);
+        const int pieces = (std::clamp)(static_cast<int>(std::ceil(length / pieceLength)), 1, 24);
+        const float extent = (std::max)(0.001f, dissolve_.extent);
+        for (int i = 0; i < pieces; ++i) {
+            const float t0 = static_cast<float>(i) / static_cast<float>(pieces);
+            const float t1 = static_cast<float>(i + 1) / static_cast<float>(pieces);
+            const Vector3 p0{a.x + delta.x * t0, a.y + delta.y * t0, a.z + delta.z * t0};
+            const Vector3 p1{a.x + delta.x * t1, a.y + delta.y * t1, a.z + delta.z * t1};
+            const float rx = (p0.x + p1.x) * 0.5f - dissolve_.origin.x;
+            const float ry = (p0.y + p1.y) * 0.5f - dissolve_.origin.y;
+            const float scan = (std::clamp)(((rx * dissolve_.direction.x + ry * dissolve_.direction.y) / extent + 1.0f) * 0.5f, 0.0f, 1.0f);
+            // 欠片のマスごとのノイズ（自機の中心からの位置で決めるので、切り替えの間は同じ欠片が同じ値になる）。
+            uint32_t hash = static_cast<uint32_t>(static_cast<int>(std::floor(rx / pieceLength))) * 73856093u ^
+                            static_cast<uint32_t>(static_cast<int>(std::floor(ry / pieceLength))) * 19349663u;
+            hash = (hash ^ (hash >> 13)) * 0x5bd1e995u;
+            hash ^= hash >> 15;
+            const float noise = static_cast<float>(hash & 0xffffu) / 65535.0f;
+            const float value = scan * (1.0f - dissolve_.noise) + noise * dissolve_.noise;
+            if (value < dissolve_.progress) {
+                continue;
+            }
+            emit(p0, p1, dissolve_.progress > 0.001f && value < dissolve_.progress + dissolve_.edgeWidth);
+        }
+    }
+    /// @brief 輪郭の線をディゾルブで欠片にして積む。
+    void QueueDissolvedContour(const Vector3& a, const Vector3& b, float lineWidth, const Vector4& color, const Vector3& cameraForward,
+                               const NeonContourStyle& style)
+    {
+        ForEachDissolvedPiece(a, b, [&](const Vector3& p0, const Vector3& p1, bool edge) {
+            geometry_.QueueContourLine(p0, p1, edge ? lineWidth * 1.3f : lineWidth, edge ? EdgeColor(color) : color, cameraForward, style);
+        });
+    }
+    /// @brief 境目の欠片の色（元の線の透明度を残す）。
+    Vector4 EdgeColor(const Vector4& color) const
+    {
+        return {dissolve_.edgeColor.x, dissolve_.edgeColor.y, dissolve_.edgeColor.z, dissolve_.edgeColor.w * color.w};
+    }
+
+    LineDissolve dissolve_{};
+    bool dissolveActive_ = false;
     // HDRの暗いアクター塗りには、キャプチャ用深度の有無どちらでもSceneフォーマットが必要。
     std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, 2> hdrFillPipelines_;
     DirectXCommon* dxCommon_ = nullptr;

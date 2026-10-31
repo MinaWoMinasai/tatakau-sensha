@@ -219,6 +219,8 @@ struct SpawnConfig {
     bool weaponsEnabled = true;
     std::vector<WeaponDefinition> weapons = DefaultWeapons();
     std::array<std::string, kWeaponSlots> startWeapons{"cannon", "machineGun", "beam"};
+    /// @brief 区画の始めに持っている予備の弾（ライト・ヘビー・エネルギー）。拾う弾は W3 で足す。
+    std::array<int, kAmmoTypeCount> startReserve{600, 40, 300};
 
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
     int ExpToNextLevel(int level) const
@@ -576,9 +578,15 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
                 }
             }
         }
+        if (weapons.contains("reserve") && weapons.at("reserve").is_object()) {
+            for (size_t i = 0; i < kAmmoTypeCount; ++i) {
+                number(weapons.at("reserve"), AmmoKey(static_cast<AmmoType>(i)), config.startReserve[i]);
+                config.startReserve[i] = (std::max)(0, config.startReserve[i]);
+            }
+        }
         // 既定の武器は値を上書きし、知らない名前で name のあるものは新しい武器として足す。
         for (const auto& item : weapons.items()) {
-            if (!item.value().is_object()) {
+            if (!item.value().is_object() || item.key() == "reserve") {
                 continue;
             }
             int index = FindWeapon(config.weapons, item.key());
@@ -614,6 +622,8 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             }
             number(value, "magazine", weapon.magazine);
             number(value, "swapSeconds", weapon.swapSeconds);
+            number(value, "reloadSeconds", weapon.reloadSeconds);
+            number(value, "railAmmoCost", weapon.railAmmoCost);
             number(value, "chipSlots", weapon.chipSlots);
             number(value, "damageScale", weapon.damageScale);
             number(value, "reloadScale", weapon.reloadScale);
@@ -621,6 +631,8 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(value, "heatScale", weapon.heatScale);
             weapon.magazine = (std::max)(0, weapon.magazine);
             weapon.swapSeconds = (std::max)(0.0f, weapon.swapSeconds);
+            weapon.reloadSeconds = (std::max)(0.0f, weapon.reloadSeconds);
+            weapon.railAmmoCost = (std::max)(1, weapon.railAmmoCost);
             weapon.chipSlots = (std::clamp)(weapon.chipSlots, 0, 6);
             weapon.reloadScale = (std::max)(0.05f, weapon.reloadScale);
         }
@@ -787,6 +799,9 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     for (const auto& key : config.startWeapons) {
         weapons["start"].push_back(key);
     }
+    for (size_t i = 0; i < kAmmoTypeCount; ++i) {
+        weapons["reserve"][AmmoKey(static_cast<AmmoType>(i))] = config.startReserve[i];
+    }
     for (const auto& weapon : config.weapons) {
         auto& item = weapons[weapon.key];
         item["name"] = weapon.name;
@@ -795,6 +810,8 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         item["rarity"] = RarityKey(weapon.rarity);
         item["magazine"] = weapon.magazine;
         item["swapSeconds"] = round(weapon.swapSeconds);
+        item["reloadSeconds"] = round(weapon.reloadSeconds);
+        item["railAmmoCost"] = weapon.railAmmoCost;
         item["chipSlots"] = weapon.chipSlots;
         item["damageScale"] = round(weapon.damageScale);
         item["reloadScale"] = round(weapon.reloadScale);

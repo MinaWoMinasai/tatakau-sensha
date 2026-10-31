@@ -25,6 +25,7 @@ enum class Rarity {
 
 /// @brief 持ち物の武器の枠の数。
 inline constexpr size_t kWeaponSlots = 3;
+inline constexpr size_t kAmmoTypeCount = static_cast<size_t>(AmmoType::Count);
 
 /// @brief 弾の種類の設定での名前。
 inline const char* AmmoKey(AmmoType type)
@@ -79,7 +80,7 @@ inline myEngine::Vector4 RarityColor(Rarity rarity)
 }
 
 /// @brief 武器の数値。砲塔の並びと固有の能力（ばらつき・加速・ため撃ちなど）は form の形態から借り、威力・連射・弾速・熱はここの値で上書きする。
-/// @note magazine・swapSeconds は W1、熱を武器ごとに持つのは W2、chipSlots はチップ（W3 以降）で使う。今はデータとして持つだけ。
+/// @note 熱を武器ごとに持つのは W2、chipSlots はチップ（W3 以降）で使う。今はデータとして持つだけ。
 struct WeaponDefinition {
     std::string key;
     std::string name;
@@ -90,6 +91,10 @@ struct WeaponDefinition {
     int magazine = 12;
     /// @brief この武器に切り替えるのにかかる秒（その間は撃てず、ほかの武器にも変えられない）。
     float swapSeconds = 0.4f;
+    /// @brief R のリロードにかかる秒（その間は撃てない）。弾倉なしの武器では使わない。
+    float reloadSeconds = 1.4f;
+    /// @brief 右クリックのため撃ち1発で使う弾の数（ため撃ちを持つ形態だけ）。
+    int railAmmoCost = 1;
     int chipSlots = 0;
     Rarity rarity = Rarity::Common;
     float damageScale = 1.0f;
@@ -112,6 +117,7 @@ inline std::vector<WeaponDefinition> DefaultWeapons()
     machineGun.form = FormId::MachineGun;
     machineGun.magazine = 40;
     machineGun.swapSeconds = 0.6f;
+    machineGun.reloadSeconds = 2.0f;
     machineGun.damageScale = 0.45f;
     machineGun.reloadScale = 0.55f;
     machineGun.heatScale = 0.7f;
@@ -122,6 +128,7 @@ inline std::vector<WeaponDefinition> DefaultWeapons()
     beam.ammo = AmmoType::Energy;
     beam.magazine = 0;
     beam.swapSeconds = 0.8f;
+    beam.railAmmoCost = 8;
     beam.damageScale = 1.9f;
     beam.reloadScale = 1.35f;
     beam.speedScale = 1.8f;

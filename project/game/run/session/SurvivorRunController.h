@@ -5,6 +5,7 @@
 #include "game/ui/session/SurvivorChoiceHud.h"
 #include "game/ui/session/SurvivorLoadoutHud.h"
 #include "game/ui/session/SurvivorDamageNumbers.h"
+#include "game/ui/session/SurvivorWeaponHud.h"
 #include <chrono>
 #include <optional>
 #include <random>
@@ -254,6 +255,7 @@ private:
         Ring,      // 包囲の輪の予告
         QSkill,    // Q の部品を積んだ
         Rival,     // 宿敵が現れた
+        Reload,    // 弾倉が初めて空になった（武器の枠を使う遊び方）
         Count
     };
     /// @brief 1つの案内を出す秒数（実時間）。
@@ -398,19 +400,50 @@ private:
     {
         return config_.weaponsEnabled;
     }
-    /// @brief slot 番目の枠の武器に切り替える（今は即座。切り替え時間は W1）。
+    /// @brief slot 番目の枠の武器を自機に入れる（すぐに替わる。切り替えの演出と待ちは StartSwap）。今の武器の弾は控えてから替える。
     void EquipWeapon(size_t slot);
-    /// @brief 1〜3キーで武器の枠を切り替える。押した瞬間で判定する。
+    /// @brief ホイール・1〜3キー・R を見る。押した瞬間（ホイールは回した量）で判定する。
     void UpdateWeaponInput();
-    /// @brief 右下の武器の枠の表示を作り直す。更新の中（EquipWeapon）だけで書き換える。
-    void RefreshWeaponText();
+    /// @brief ホイールを notches 刻み回したときの切り替え（正で次の枠、負で前の枠。空きは飛ばす）。
+    void HandleWeaponWheel(int notches);
+    /// @brief slot 番目の枠への切り替えを始める。切り替え中・同じ枠・空きなら何もしない。リロード中なら、リロードはやめる。
+    void StartSwap(size_t slot);
+    /// @brief リロードを始める。弾倉が満タン・予備が無い・弾倉の無い武器・切り替え中なら何もしない。始めたら真。
+    bool StartReload();
+    /// @brief 切り替えとリロードの時間を進め、撃てない間を自機に渡し、ディゾルブの進みを決める。dt は区画の時間。
+    void UpdateWeaponTimers(float dt);
+    /// @brief 自機が撃って減らした弾を、今の枠の弾倉（弾倉の無い武器は予備）へ戻す。
+    void SyncAmmoFromPlayer();
+    /// @brief 今の枠の弾倉（弾倉の無い武器は予備）を、撃てる残りとして自機に渡す。
+    void LoadAmmoToPlayer();
+    /// @brief 右下の武器の輪に枠の武器を渡す（武器が変わったときだけ）。
+    void RefreshWeaponSlots();
     /// @brief 持っている武器の名前を「・」でつなぐ。
     std::string WeaponNames() const;
+    const survivor::WeaponDefinition* ActiveWeapon() const
+    {
+        return activeSlot_ < weaponSlots_.size() && weaponSlots_[activeSlot_] >= 0
+                   ? &config_.weapons[static_cast<size_t>(weaponSlots_[activeSlot_])]
+                   : nullptr;
+    }
     // 枠ごとの武器（config_.weapons の番号、-1 は空き）と、使っている枠・切り替えた回数。
     std::array<int, survivor::kWeaponSlots> weaponSlots_{-1, -1, -1};
     size_t activeSlot_ = 0;
+    bool weaponEquipped_ = false;
     int weaponSwaps_ = 0;
-    std::unique_ptr<myEngine::TextLabel> weaponText_;
+    // 枠ごとの弾倉の中身と、弾の種類ごとの予備。
+    std::array<int, survivor::kWeaponSlots> magazines_{};
+    std::array<int, survivor::kAmmoTypeCount> reserves_{};
+    // 切り替え：行き先の枠（-1 は切り替えていない）・経った秒・かかる秒・半分で武器を入れたか。
+    int swapTarget_ = -1;
+    float swapTimer_ = 0.0f;
+    float swapDuration_ = 0.0f;
+    bool swapEquipped_ = false;
+    // リロード：残りの秒（負ならしていない）・かかる秒・回数。
+    float reloadTimer_ = -1.0f;
+    float reloadDuration_ = 0.0f;
+    int reloads_ = 0;
+    SurvivorWeaponHud weaponHud_;
     int level_ = 1;
     int exp_ = 0;
     int pendingChoices_ = 0;
@@ -552,6 +585,17 @@ private:
         float captureAt = -1.0f;
     };
     std::array<AutoWeaponStat, survivor::kWeaponSlots> autoWeaponStats_{};
+    // 撃てないはずの間（切り替え・リロード・弾倉が空）に撃った回数と、その長さ。弾倉が空のまま待った秒（0.5秒でリロードする）。
+    uint32_t autoLockedAttacks_ = 0;
+    float autoLockedSeconds_ = 0.0f;
+    uint32_t autoEmptyAttacks_ = 0;
+    float autoEmptySeconds_ = 0.0f;
+    float autoEmptyTimer_ = 0.0f;
+    // 切り替えを始めてから撃てるようになるまでの実際の秒（枠ごとに最後の値）と、画面を保存したか。
+    std::array<float, survivor::kWeaponSlots> autoSwapMeasured_{};
+    float autoSwapStartedAt_ = -1.0f;
+    bool autoSwapCaptured_ = false;
+    bool autoReloadCaptured_ = false;
     uint32_t autoWeaponAttacks_ = 0;
     uint32_t autoWeaponRailShots_ = 0;
     bool perfCrowded_ = false;

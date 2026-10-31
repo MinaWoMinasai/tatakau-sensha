@@ -650,48 +650,182 @@ void SurvivorRunController::EquipWeapon(size_t slot)
     if (slot >= weaponSlots_.size() || weaponSlots_[slot] < 0) {
         return;
     }
+    // 今の武器で撃って減った弾を控えてから替える。
+    if (weaponEquipped_) {
+        SyncAmmoFromPlayer();
+    }
     const auto& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[slot])];
     ApplyFormToPlayer(survivor::WeaponForm(config_.forms, weapon), weapon.form);
     // 固有の能力（機関砲の加速・狙撃の印など）は、ApplyParts が formId_ の形態から渡す。
     formId_ = weapon.form;
     formKey_ = weapon.key;
-    if (slot != activeSlot_) {
+    if (weaponEquipped_ && slot != activeSlot_) {
         ++weaponSwaps_;
     }
     activeSlot_ = slot;
+    weaponEquipped_ = true;
     ApplyParts();
-    RefreshWeaponText();
+    LoadAmmoToPlayer();
 }
 
 void SurvivorRunController::UpdateWeaponInput()
 {
     auto& input = *world_.resources.input_;
+    // ホイール：1刻みは120。上へ回すと前の枠、下へ回すと次の枠。
+    const LONG wheel = input.GetMouseState().lZ;
+    if (wheel != 0) {
+        HandleWeaponWheel(wheel > 0 ? -1 : 1);
+        return;
+    }
     for (size_t i = 0; i < weaponSlots_.size(); ++i) {
-        if (i != activeSlot_ && weaponSlots_[i] >= 0 && input.IsKeyTriggered(static_cast<uint8_t>(DIK_1 + i))) {
-            EquipWeapon(i);
-            world_.combatFlow->SetEventCallout(config_.weapons[static_cast<size_t>(weaponSlots_[i])].name, 0.5f);
+        if (input.IsKeyTriggered(static_cast<uint8_t>(DIK_1 + i))) {
+            StartSwap(i);
             return;
         }
     }
+    if (input.IsKeyTriggered(DIK_R)) {
+        StartReload();
+    }
 }
 
-void SurvivorRunController::RefreshWeaponText()
+void SurvivorRunController::HandleWeaponWheel(int notches)
 {
-    if (!weaponText_) {
+    if (notches == 0) {
         return;
     }
-    // 右下に、枠の番号・武器の名前・弾の種類を並べる。使っている枠に印を付ける（W1 で回せる輪にする）。
-    std::ostringstream text;
-    for (size_t i = 0; i < weaponSlots_.size(); ++i) {
-        text << (i ? "\n" : "") << (i == activeSlot_ ? "▶ " : "　 ") << (i + 1) << "  ";
+    const int count = static_cast<int>(weaponSlots_.size());
+    const int step = notches > 0 ? 1 : -1;
+    int slot = static_cast<int>(activeSlot_);
+    for (int i = 0; i < count; ++i) {
+        slot = (slot + step + count) % count;
+        if (weaponSlots_[static_cast<size_t>(slot)] >= 0) {
+            break;
+        }
+    }
+    StartSwap(static_cast<size_t>(slot));
+}
+
+void SurvivorRunController::StartSwap(size_t slot)
+{
+    if (swapTarget_ >= 0 || slot == activeSlot_ || slot >= weaponSlots_.size() || weaponSlots_[slot] < 0) {
+        return;
+    }
+    reloadTimer_ = -1.0f;
+    swapTarget_ = static_cast<int>(slot);
+    swapTimer_ = 0.0f;
+    swapDuration_ = (std::max)(0.05f, config_.weapons[static_cast<size_t>(weaponSlots_[slot])].swapSeconds);
+    swapEquipped_ = false;
+    // ディゾルブの境目の光：コモンは紫がかった桃色（ネオンボスと同じ）、それより上はレア度の色。
+    const auto& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[slot])];
+    if (weapon.rarity == survivor::Rarity::Common) {
+        world_.presentation.playerSwapDissolveColor_ = {1.9f, 0.35f, 1.3f, 1.0f};
+    } else {
+        const myEngine::Vector4 color = survivor::RarityColor(weapon.rarity);
+        world_.presentation.playerSwapDissolveColor_ = {color.x * 1.9f, color.y * 1.9f, color.z * 1.9f, 1.0f};
+    }
+    world_.resources.player_->SetSurvivorFireLocked(true);
+}
+
+bool SurvivorRunController::StartReload()
+{
+    const survivor::WeaponDefinition* weapon = ActiveWeapon();
+    if (!weapon || swapTarget_ >= 0 || reloadTimer_ >= 0.0f || weapon->magazine <= 0) {
+        return false;
+    }
+    SyncAmmoFromPlayer();
+    if (magazines_[activeSlot_] >= weapon->magazine) {
+        return false;
+    }
+    if (reserves_[static_cast<size_t>(weapon->ammo)] <= 0) {
+        world_.combatFlow->SetEventCallout("予備の弾がない", 0.6f);
+        return false;
+    }
+    reloadDuration_ = (std::max)(0.05f, weapon->reloadSeconds);
+    reloadTimer_ = reloadDuration_;
+    world_.resources.player_->SetSurvivorFireLocked(true);
+    return true;
+}
+
+void SurvivorRunController::UpdateWeaponTimers(float dt)
+{
+    auto& player = *world_.resources.player_;
+    if (swapTarget_ >= 0) {
+        swapTimer_ += dt;
+        const float ratio = swapTimer_ / swapDuration_;
+        // 半分で武器を入れ替える。前半は今の武器が消えていき、後半は新しい武器が現れる。
+        if (ratio >= 0.5f && !swapEquipped_) {
+            EquipWeapon(static_cast<size_t>(swapTarget_));
+            swapEquipped_ = true;
+        }
+        if (ratio >= 1.0f) {
+            swapTarget_ = -1;
+            world_.presentation.playerSwapDissolve_ = 0.0f;
+        } else {
+            const float fade = ratio < 0.5f ? ratio * 2.0f : (1.0f - ratio) * 2.0f;
+            world_.presentation.playerSwapDissolve_ = fade * 1.12f;
+        }
+    }
+    if (reloadTimer_ >= 0.0f) {
+        reloadTimer_ -= dt;
+        if (reloadTimer_ < 0.0f) {
+            // 弾倉の足りない分を、予備から込める。
+            SyncAmmoFromPlayer();
+            if (const survivor::WeaponDefinition* weapon = ActiveWeapon()) {
+                int& reserve = reserves_[static_cast<size_t>(weapon->ammo)];
+                const int take = (std::min)(weapon->magazine - magazines_[activeSlot_], reserve);
+                magazines_[activeSlot_] += (std::max)(0, take);
+                reserve -= (std::max)(0, take);
+                ++reloads_;
+            }
+            LoadAmmoToPlayer();
+        }
+    }
+    player.SetSurvivorFireLocked(swapTarget_ >= 0 || reloadTimer_ >= 0.0f);
+    // 弾倉が初めて空になったら、R の案内を出す。
+    const survivor::WeaponDefinition* weapon = ActiveWeapon();
+    if (weapon && weapon->magazine > 0 && player.GetSurvivorRounds() == 0) {
+        QueueHint(Hint::Reload);
+    }
+}
+
+void SurvivorRunController::SyncAmmoFromPlayer()
+{
+    const survivor::WeaponDefinition* weapon = ActiveWeapon();
+    const int rounds = world_.resources.player_->GetSurvivorRounds();
+    if (!weapon || rounds < 0) {
+        return;
+    }
+    if (weapon->magazine > 0) {
+        magazines_[activeSlot_] = rounds;
+    } else {
+        reserves_[static_cast<size_t>(weapon->ammo)] = rounds;
+    }
+}
+
+void SurvivorRunController::LoadAmmoToPlayer()
+{
+    const survivor::WeaponDefinition* weapon = ActiveWeapon();
+    if (!weapon) {
+        return;
+    }
+    const int rounds = weapon->magazine > 0 ? magazines_[activeSlot_] : reserves_[static_cast<size_t>(weapon->ammo)];
+    world_.resources.player_->SetSurvivorAmmo(rounds, weapon->railAmmoCost);
+}
+
+void SurvivorRunController::RefreshWeaponSlots()
+{
+    std::array<SurvivorWeaponHud::Slot, SurvivorWeaponHud::kSlots> slots{};
+    for (size_t i = 0; i < slots.size() && i < weaponSlots_.size(); ++i) {
         if (weaponSlots_[i] < 0) {
-            text << "（空き）";
             continue;
         }
         const auto& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[i])];
-        text << weapon.name << "　" << survivor::AmmoName(weapon.ammo);
+        slots[i].empty = false;
+        slots[i].name = weapon.name;
+        slots[i].ammo = survivor::AmmoName(weapon.ammo);
+        slots[i].color = survivor::RarityColor(weapon.rarity);
     }
-    weaponText_->SetText(text.str());
+    weaponHud_.SetSlots(slots);
 }
 
 std::string SurvivorRunController::WeaponNames() const

@@ -61,10 +61,14 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
         const bool held = player_.demoInputEnabled_ ? player_.demoSpecialHold_
                                                     : player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[1]);
         const float charge = player_.railCharge_.Step(held && !player_.ui_->upgradeHudMouseCaptured_, deltaTime,
-                                                      player_.heat_.CanFire() && bulletManager != nullptr);
+                                                      player_.heat_.CanFire() && bulletManager != nullptr &&
+                                                          player_.SurvivorAmmoReady(player_.survivorRailCost_));
         if (charge >= 0.0f) {
             const auto& tuning = player_.formTuning_;
             FireRailShot(bulletManager, charge, tuning.railPower);
+            if (player_.survivorRounds_ >= 0) {
+                player_.survivorRounds_ -= player_.survivorRailCost_;
+            }
             player_.heat_.AddHeat(tuning.railHeatBase +
                                   tuning.railHeatPerCharge * (std::min)(charge, tankspecial::kRailMaxChargeSeconds));
             return;
@@ -172,7 +176,14 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
             if (!player_.heat_.CanFire()) {
                 return;
             }
+            // 試作の武器：切り替え・リロードの間と、弾が無いときは撃てない。
+            if (!player_.SurvivorAmmoReady(1)) {
+                return;
+            }
             if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
+                if (player_.survivorRounds_ > 0) {
+                    --player_.survivorRounds_;
+                }
                 player_.heat_.AddShot(player_.formTuning_.heatScale);
                 player_.heat_.AddHeat(player_.partEffects_.extraHeatPerShot);
                 // 遠征のドローン生成では射撃を記録しない。Player::Updateでドローン射撃による弾数増加を記録する。

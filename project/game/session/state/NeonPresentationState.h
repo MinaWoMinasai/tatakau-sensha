@@ -246,6 +246,10 @@ struct NeonPresentationState {
 
     myEngine::Vector4 playerGridColor_ = {0.50f, 1.0f, 0.35f, 1.0f};
 
+    /// @brief 自機の武器の切り替えのディゾルブの進み（0 で無し、大きいほど消えている）と、境目の光の色（育つ戦車の試作）。
+    float playerSwapDissolve_ = 0.0f;
+    myEngine::Vector4 playerSwapDissolveColor_ = {1.9f, 0.35f, 1.3f, 1.0f};
+
     myEngine::Vector4 enemyGridColor_ = {1.0f, 0.18f, 0.24f, 1.0f};
 
     myEngine::Vector4 expEnemyGridColor_ = {1.0f, 0.32f, 0.58f, 1.0f};

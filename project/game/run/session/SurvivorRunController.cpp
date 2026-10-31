@@ -140,14 +140,9 @@ void SurvivorRunController::Initialize()
     evolveText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
     evolveText_->SetPosition({520.0f, 616.0f});
     RefreshEvolveText();
-    // 武器の枠（右下）。
-    style.fontSize = 22;
-    style.color = {0.86f, 0.97f, 1.0f, 1.0f};
-    style.outlineThickness = 2;
-    weaponText_ = std::make_unique<myEngine::TextLabel>();
-    weaponText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
-    weaponText_->SetPosition({900.0f, 580.0f});
-    style.outlineThickness = 0;
+    // 武器の輪と弾の数（右下）。
+    weaponHud_.Initialize();
+    world_.presentation.playerSwapDissolve_ = 0.0f;
     // 最小の案内。文字は案内ごとに作り、遊んでいる間は書き換えない（描画中の SetText は落ちる原因になるため）。
     hintPanel_ = bar({190.0f, 548.0f}, {900.0f, 46.0f}, {0.01f, 0.03f, 0.05f, 0.80f});
     style.fontSize = 21;
@@ -163,7 +158,8 @@ void SurvivorRunController::Initialize()
         "赤い破線の円：まわりを三角に囲まれる。早めに円の外へ抜ける",
         "Q で Q の部品を使う（状態は画面の下に出る）",
         "宿敵を倒すと出口が開く",
-        "WASD 移動　／　左クリックで撃つ　／　1〜3 で武器を変える　／　Shift ダッシュ"};
+        "弾倉が空になった。R でリロード（予備の弾から込める。その間は撃てない）",
+        "WASD 移動　／　左クリックで撃つ　／　ホイールか 1〜3 で武器を変える　／　R リロード"};
     for (size_t i = 0; i < hintTexts_.size(); ++i) {
         hintTexts_[i] = std::make_unique<myEngine::TextLabel>();
         const size_t text = i == 0 ? (WeaponMode() ? kHintTexts.size() - 1 : 0) : i == 1 ? (config_.choicePause ? 2 : 1) : i + 1;
@@ -334,8 +330,14 @@ void SurvivorRunController::Initialize()
         for (size_t i = 0; i < weaponSlots_.size(); ++i) {
             weaponSlots_[i] = survivor::FindWeapon(config_.weapons, config_.startWeapons[i]);
         }
+        // 弾倉は満タン、予備は設定の数から始める。
+        reserves_ = config_.startReserve;
+        for (size_t i = 0; i < weaponSlots_.size(); ++i) {
+            magazines_[i] = weaponSlots_[i] >= 0 ? config_.weapons[static_cast<size_t>(weaponSlots_[i])].magazine : 0;
+        }
         activeSlot_ = 0;
         EquipWeapon(0);
+        RefreshWeaponSlots();
         return;
     }
     // 区画の始めに特性の2択を出す（D3）。タイトルの見本と、四隅・fps の自動確認では出さない（標準のまま）。
@@ -379,6 +381,9 @@ void SurvivorRunController::Update(float dt)
     const float gameDt = IsPaused() ? 0.0f : dt * GetTimeScale();
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
         elapsed_ += gameDt;
+        if (WeaponMode()) {
+            UpdateWeaponTimers(gameDt);
+        }
         const PlayerHeat& heat = world_.resources.player_->GetHeat();
         if (heat.GetHeat() >= heat.GetMaxHeat() * 0.7f) {
             heatHighSeconds_ += gameDt;
@@ -445,6 +450,7 @@ void SurvivorRunController::Update(float dt)
             if (myEngine::Length(myEngine::Vector3{offset.x, offset.y, 0.0f}) <= config_.exitRadius) {
                 // 更新の初めなので、衝突処理の途中ではない。敵と弾を片付けてから結果画面へ移る。
                 cleared_ = true;
+                world_.presentation.playerSwapDissolve_ = 0.0f;
                 CloseChoices();
                 pickups_.Clear();
                 damageNumbers_.Clear();
@@ -456,6 +462,20 @@ void SurvivorRunController::Update(float dt)
     }
     {
         myEngine::RuntimeProfiler::CpuScope numbersScope("Survivor Damage Numbers");
+        if (WeaponMode()) {
+            // 弾の数は自機が撃って減らすので、毎フレーム控えてから表示する。
+            SyncAmmoFromPlayer();
+            SurvivorWeaponHud::State state{};
+            state.active = swapTarget_ >= 0 && !swapEquipped_ ? static_cast<size_t>(swapTarget_) : activeSlot_;
+            if (const survivor::WeaponDefinition* weapon = ActiveWeapon()) {
+                state.magazineMax = weapon->magazine;
+                state.magazine = weapon->magazine > 0 ? magazines_[activeSlot_] : 0;
+                state.reserve = reserves_[static_cast<size_t>(weapon->ammo)];
+            }
+            state.reloadRatio = reloadTimer_ >= 0.0f ? 1.0f - reloadTimer_ / reloadDuration_ : -1.0f;
+            state.swapRatio = swapTarget_ >= 0 ? swapTimer_ / swapDuration_ : -1.0f;
+            weaponHud_.Update(dt, state);
+        }
         damageNumbers_.Update(dt, [this](const myEngine::Vector3& world) {
             return world_.gameplayHud->WorldToScreen(world);
         });
@@ -722,9 +742,7 @@ void SurvivorRunController::DrawUi()
     }
     // 武器の枠を使う遊び方では、積載と3択の代わりに武器の枠を出す。
     if (WeaponMode()) {
-        if (weaponText_) {
-            weaponText_->Draw();
-        }
+        weaponHud_.Draw();
     } else {
         loadoutHud_.DrawLoadout();
     }

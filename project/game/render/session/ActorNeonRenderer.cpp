@@ -264,10 +264,24 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
         if (world_.resources.player_->IsDashing()) {
             color.w *= world_.presentation.playerDashCurrentAlpha_;
         }
+        // 武器の切り替えの間は、本体と砲の輪郭をディゾルブで消して（現して）いく。
+        const float swapDissolve = world_.presentation.playerSwapDissolve_;
+        if (swapDissolve > 0.0f) {
+            const float radius = world_.presentation.playerNeonBillboardRadius_;
+            myEngine::NeonGridRenderer::LineDissolve dissolve{};
+            dissolve.origin = world_.resources.player_->GetWorldPosition();
+            dissolve.direction = myEngine::Normalize(cameraRight - cameraUp);
+            dissolve.extent = radius * 1.7f;
+            dissolve.progress = swapDissolve;
+            dissolve.pieceLength = radius * 0.16f;
+            dissolve.edgeColor = world_.presentation.playerSwapDissolveColor_;
+            world_.resources.neonGridRenderer_->BeginLineDissolve(dissolve);
+        }
         queueTankBillboard(world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f},
                            world_.resources.player_->GetDirection(), world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse),
                            world_.presentation.actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true,
                            world_.presentation.playerNeonEmission_);
+        world_.resources.neonGridRenderer_->EndLineDissolve();
         if (world_.resources.player_->HasSpikes()) {
             // 衝角の3段：車体のまわりに8本のトゲ。砲と重ならないよう、向きから半分ずらして車体と一緒に回す。
             const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};

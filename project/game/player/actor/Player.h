@@ -655,6 +655,28 @@ public:
     }
     /// @brief 右クリックをため撃ちに使う形態か。
     bool HasRailChargeForm() const;
+    /// @brief 育つ戦車の試作の武器の弾（計画書 p3 の W1）。rounds は撃てる残り（負なら数えない＝既定）、
+    /// railCost はため撃ち1発で使う数。主砲1回で1つ、ため撃ち1回で railCost 減る。
+    void SetSurvivorAmmo(int rounds, int railCost)
+    {
+        survivorRounds_ = rounds;
+        survivorRailCost_ = (std::max)(1, railCost);
+    }
+    /// @brief 撃てる残りを返す（数えていなければ負）。
+    int GetSurvivorRounds() const
+    {
+        return survivorRounds_;
+    }
+    /// @brief 武器の切り替えやリロードの間、主砲もため撃ちも撃てなくする（ためている分も捨てる）。
+    void SetSurvivorFireLocked(bool locked)
+    {
+        survivorFireLocked_ = locked;
+    }
+    /// @brief 今 cost 発ぶん撃てるか（止められておらず、弾が足りる）。
+    bool SurvivorAmmoReady(int cost) const
+    {
+        return !survivorFireLocked_ && (survivorRounds_ < 0 || survivorRounds_ >= cost);
+    }
     /// @brief 排熱砲（育つ戦車の試作の Q）：今の熱を全部0にし、熱に比例した威力の太い貫通弾を、向いている方へ1発撃つ。
     /// @param damagePerHeat 熱1あたりの威力の倍率（主砲1発の威力に対する）。熱100・0.12なら12倍。
     /// @return 放った熱。弾を撃てなかったら（弾の管理が無いなど）0 で、熱も減らさない。
@@ -1155,6 +1177,10 @@ private:
     float shieldRegenWait_ = 0.0f;
     float shieldAbsorbed_ = 0.0f;
     SurvivorFormTuning formTuning_{};
+    // 試作の武器の弾（負なら数えない）と、切り替え・リロードで撃てない間か。
+    int survivorRounds_ = -1;
+    int survivorRailCost_ = 1;
+    bool survivorFireLocked_ = false;
     SurvivorPartEffects partEffects_{};
     float loaderRamp_ = 0.0f;
     uint32_t critShots_ = 0;
