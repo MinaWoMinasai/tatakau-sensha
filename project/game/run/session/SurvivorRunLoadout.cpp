@@ -560,8 +560,8 @@ void SurvivorRunController::EvolveTo(survivor::FormId id)
     }
     formKey_ = form.key;
     formId_ = id;
-    // 形態が持つ加速（機関砲）を、部品の効果と一緒に渡し直す。
-    world_.resources.player_->SetSurvivorPartEffects(MakePartEffects());
+    // 形態の固有の能力（機関砲の加速・狙撃の印・反射砲の跳ね返り）を、部品の効果と一緒に渡し直す。
+    ApplyParts();
     formStage_ = form.stage;
     formPath_ += std::string(" → ") + form.name;
     formOffers_.clear();
@@ -581,6 +581,14 @@ void SurvivorRunController::ApplyParts()
     const survivor::PartLevels effective = survivor::EffectiveLevels(config_.parts, partLevels_);
     modifiers.partScales = survivor::MakePartScales(config_.parts, effective);
     survivor::ApplyPartCards(config_.parts, effective, modifiers);
+    // 形態の固有の能力：狙撃の印の爆破、反射砲の跳ね返り。
+    if (formId_ != survivor::FormId::Count) {
+        const auto& form = config_.forms[static_cast<size_t>(formId_)];
+        modifiers.markDetonation = form.markDetonation;
+        modifiers.survivorWallBounces = form.wallBounces;
+        world_.resources.bulletManager_->SetMarkThreshold(form.markDetonation ? form.markHits : 4, form.markDetonation ? form.markHits + 1 : 6,
+                                                          form.markDetonation);
+    }
     // レリックの一発屋：威力を上げ、1秒の発射数を落とす（間隔は割る）。
     if (relics_[static_cast<size_t>(survivor::RelicId::OneShot)]) {
         modifiers.partScales.bulletDamage *= config_.relics.oneShotDamage;

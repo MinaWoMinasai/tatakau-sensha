@@ -83,6 +83,11 @@ struct FormDefinition {
     float spreadDeg = -1.0f;
     /// @brief 撃ち続けるほど連射が速くなる（装填機の3段と同じ加速を、形態が最初から持つ）。
     bool fireRamp = false;
+    /// @brief 主砲で倒した敵と、markHits 回（宿敵は markHits+1 回）当てた敵を、周りごと爆破する（BulletManager の印）。
+    bool markDetonation = false;
+    int markHits = 2;
+    /// @brief 主砲の弾が壁で跳ね返る回数。
+    int wallBounces = 0;
     float reloadScale = 1.0f;
     float damageScale = 1.0f;
     float speedScale = 1.0f;
@@ -165,7 +170,7 @@ inline std::array<FormDefinition, kFormCount> DefaultForms()
     sniper = longBarrel;
     sniper.key = "sniper";
     sniper.name = "狙撃";
-    sniper.summary = "重く速い一撃。当てた敵に印を付ける";
+    sniper.summary = "重い一撃。倒した敵と、2回当てた敵は\n周りごと爆発";
     sniper.stage = 2;
     sniper.parent = FormId::LongBarrel;
     sniper.reloadScale = 1.6f;
@@ -173,17 +178,19 @@ inline std::array<FormDefinition, kFormCount> DefaultForms()
     sniper.speedScale = 2.0f;
     sniper.heatScale = 1.3f;
     sniper.barrelLength = 2.0f;
+    sniper.markDetonation = true;
     auto& ricochet = form(FormId::Ricochet);
     ricochet = longBarrel;
     ricochet.key = "ricochet";
     ricochet.name = "反射砲";
-    ricochet.summary = "弾が壁で跳ね返る";
+    ricochet.summary = "弾が壁で2回跳ね返る";
     ricochet.stage = 2;
     ricochet.parent = FormId::LongBarrel;
     ricochet.reloadScale = 1.2f;
     ricochet.damageScale = 1.6f;
     ricochet.speedScale = 1.4f;
     ricochet.barrelLength = 1.6f;
+    ricochet.wallBounces = 2;
     auto& beam = form(FormId::Beam);
     beam = longBarrel;
     beam.key = "beam";

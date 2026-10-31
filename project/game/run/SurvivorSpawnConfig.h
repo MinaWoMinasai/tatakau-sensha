@@ -543,6 +543,10 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(item, "barrelLength", form.barrelLength);
             number(item, "fanAngle", form.fanAngle);
             number(item, "spreadDeg", form.spreadDeg);
+            number(item, "wallBounces", form.wallBounces);
+            number(item, "markHits", form.markHits);
+            form.markHits = (std::clamp)(form.markHits, 1, 8);
+            form.wallBounces = (std::clamp)(form.wallBounces, 0, 8);
             number(item, "railPower", form.railPower);
             number(item, "railHeatBase", form.railHeatBase);
             number(item, "railHeatPerCharge", form.railHeatPerCharge);
@@ -684,6 +688,12 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         }
         if (form.spreadDeg >= 0.0f) {
             item["spreadDeg"] = round(form.spreadDeg);
+        }
+        if (form.wallBounces > 0) {
+            item["wallBounces"] = form.wallBounces;
+        }
+        if (form.markDetonation) {
+            item["markHits"] = form.markHits;
         }
         if (form.railCharge) {
             item["railPower"] = round(form.railPower);

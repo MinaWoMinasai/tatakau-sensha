@@ -472,6 +472,9 @@ private:
     uint64_t autoRepeatsWhileFused_ = 0;
     // 連鎖放電が当たった数（区画を出る前の値）。
     uint64_t autoChainHits_ = 0;
+    // 印の爆破と、壁で跳ね返った回数（区画を出る前の値）。
+    uint64_t autoDetonations_ = 0;
+    uint64_t autoWallBounces_ = 0;
     // Q の画面を保存する時刻。-1 はまだ使っていない、0 は保存済み。
     float autoQCaptureAt_ = -1.0f;
     std::string autoQCaptureName_;

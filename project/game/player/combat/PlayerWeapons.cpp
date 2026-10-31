@@ -438,6 +438,11 @@ void PlayerWeapons::ApplyRunProjectileRules(AttackParam& param, bool applyFan) c
         param.impactSplitDamageScale = 0.55f;
     } else if (player_.runModifiers_.survivor) {
         param.actorPierceCount = tuning.actorPierceCount;
+        // 反射砲：壁で跳ね返る弾にする（跳ね返りには反射の印も要る）。
+        if (player_.runModifiers_.survivorWallBounces > 0) {
+            param.maxWallBounces = player_.runModifiers_.survivorWallBounces;
+            param.reflect = true;
+        }
     }
 }
 

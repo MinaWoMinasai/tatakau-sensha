@@ -52,6 +52,15 @@ public:
         chainRadiusScale_ = (std::clamp)(radiusScale, 0.5f, 3.0f);
     }
 
+    /// @brief 印の起爆に要る命中の回数を設定する（育つ戦車の試作の狙撃）。1～8に制限する。既定は4と6。
+    /// @param onKill 真なら、倒した命中でもその場で起爆する（既定は倒した命中では起爆しない）。
+    void SetMarkThreshold(int normal, int boss, bool onKill = false)
+    {
+        markNeeded_ = (std::clamp)(normal, 1, 8);
+        markNeededBoss_ = (std::clamp)(boss, 1, 8);
+        markOnKill_ = onKill;
+    }
+
     /// @brief ClearAll以降の射撃強化の集計への読み取り専用参照を返す。
     const ShooterStats& GetShooterStats() const
     {
@@ -196,6 +205,9 @@ private:
     std::vector<PendingShot> pendingBuildShots_;
     int killBurstRepeats_ = 0;
     int chainExtraTargets_ = 0;
+    int markNeeded_ = 4;
+    int markNeededBoss_ = 6;
+    bool markOnKill_ = false;
     float chainRadiusScale_ = 1.0f;
     std::vector<BuildEvent> buildEvents_;
     tankshooter::MarkLedger marks_{};

@@ -29,6 +29,8 @@ struct TankRunModifiers {
     bool expedition = false;
     /// @brief 育つ戦車の試作。遠征の射撃スタイル向けの効果（貫通・連鎖放電・撃破バースト）を、部品で使えるようにする。
     bool survivor = false;
+    /// @brief 育つ戦車の試作で、主砲の弾が壁で跳ね返る回数（反射砲）。0 なら跳ね返らない。
+    int survivorWallBounces = 0;
     bool ricochet = false;
     bool heavy = false;
     bool rapid = false;

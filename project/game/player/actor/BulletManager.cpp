@@ -371,8 +371,9 @@ void BulletManager::NotifyPlayerHit(Bullet& bullet, Collider& target, bool kille
             from = to;
         }
     }
-    // 起爆は命中の蓄積が条件を満たしたときだけ。中心・周囲・ボスの倍率を分け、撃破時の破裂も予約する。
-    if (ability.mark && !killed && marks_.Hit(target.GetCollisionId(), dynamic_cast<Enemy*>(&target) != nullptr)) {
+    // 起爆は命中の蓄積が条件を満たしたときだけ（試作の狙撃は、倒したときにも起爆する）。中心・周囲・ボスの倍率を分け、撃破時の破裂も予約する。
+    if (ability.mark && (killed ? markOnKill_
+                                : marks_.Hit(target.GetCollisionId(), dynamic_cast<Enemy*>(&target) != nullptr, markNeeded_, markNeededBoss_))) {
         const auto center = target.GetWorldPosition();
         ++shooterStats_.detonations;
         BuildEventAt(BuildEventKind::Detonation, center, center, 2.8f);
