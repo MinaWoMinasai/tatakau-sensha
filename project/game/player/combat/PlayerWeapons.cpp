@@ -531,7 +531,8 @@ void PlayerWeapons::FireRailShot(BulletManager* bullets, float charge, float pow
     param.reflect = config && config->reflect;
     param.penetrate = true;
     ApplyRunProjectileRules(param);
-    param.actorPierceCount = (std::max)(3, param.actorPierceCount);
+    // 試作の光線砲は、ため撃ちが太く、多くの敵を貫く（既定は倍率1・足す数0で変わらない）。
+    param.actorPierceCount = (std::max)(3, param.actorPierceCount) + player_.formTuning_.railExtraPierce;
     param.bulletHp = (std::max)(2.0f + charge * 3.0f, param.bulletHp);
     const size_t barrelCount = config && !config->barrels.empty() ? (std::min)(config->barrels.size(), size_t{8}) : 1;
     const bool alternate = config && config->alternateBarrels && barrelCount > 1;
@@ -559,7 +560,7 @@ void PlayerWeapons::FireRailShot(BulletManager* bullets, float charge, float pow
                            static_cast<uint32_t>((std::max)(1.0f, std::round(static_cast<float>(param.damage) * damageScale))), kPlayer,
                            param.reflect, param.bulletHp, param.bulletPenetration);
         bullet->ConfigureGrowth(param.maxWallBounces, param.actorPierceCount, 0);
-        bullet->ConfigureSpecial(Bullet::SpecialKind::Rail, .35f + .30f * charge, 1.6f);
+        bullet->ConfigureSpecial(Bullet::SpecialKind::Rail, (.35f + .30f * charge) * player_.formTuning_.railWidthScale, 1.6f);
         bullet->ConfigureShooterAbilities(param.shooterChain, param.shooterMark, param.shooterBoomerang, param.shooterKillBurst,
                                           param.shooterChainPower, param.shooterMarkPower, param.shooterBoomerangPower,
                                           param.shooterKillBurstPower);

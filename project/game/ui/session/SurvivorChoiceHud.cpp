@@ -54,7 +54,7 @@ void SurvivorChoiceHud::Initialize()
 
 void SurvivorChoiceHud::SetOffers(const std::vector<survivor::PartOffer>& offers,
                                   const std::array<survivor::PartDefinition, survivor::kPartCount>& parts, bool premium,
-                                  const survivor::PartLevels& levels, int capacity)
+                                  const survivor::PartLevels& levels, int capacity, const std::vector<std::string>* notes)
 {
     offerCount_ = (std::min)(offers.size(), cards_.size());
     customCards_ = false;
@@ -91,6 +91,10 @@ void SurvivorChoiceHud::SetOffers(const std::vector<survivor::PartOffer>& offers
                     body += std::string("\nQ を入れ替え（") + parts[static_cast<size_t>(replaced)].name + " を外す）";
                 }
             }
+        }
+        // 進化の鍵などの一言は、本文の最後に足す。
+        if (notes && i < notes->size() && !(*notes)[i].empty()) {
+            body += "\n" + (*notes)[i];
         }
         titles_[i]->SetText(title);
         bodies_[i]->SetText(body);

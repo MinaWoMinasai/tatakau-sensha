@@ -88,6 +88,12 @@ struct FormDefinition {
     int markHits = 2;
     /// @brief 主砲の弾が壁で跳ね返る回数。
     int wallBounces = 0;
+    /// @brief 連鎖放電の届く数に足す数と、届く距離の倍率（雷砲。合体の雷鳴とは足し合わせる）。
+    int chainExtraTargets = 0;
+    float chainRadiusScale = 1.0f;
+    /// @brief ため撃ちの弾の太さの倍率と、貫く数に足す数（光線砲）。
+    float railWidth = 1.0f;
+    int railPierce = 0;
     float reloadScale = 1.0f;
     float damageScale = 1.0f;
     float speedScale = 1.0f;
@@ -159,11 +165,13 @@ inline std::array<FormDefinition, kFormCount> DefaultForms()
     thunder = twin;
     thunder.key = "thunder";
     thunder.name = "雷砲";
-    thunder.summary = "当てた敵から放電が広がる";
+    thunder.summary = "放電が6体まで、1.5倍の距離に届く";
     thunder.stage = 2;
     thunder.parent = FormId::Twin;
     thunder.keyPart = PartId::ChainLightning;
     thunder.damageScale = 0.75f;
+    thunder.chainExtraTargets = 4;
+    thunder.chainRadiusScale = 1.5f;
 
     // 第2段：長砲身の系統。
     auto& sniper = form(FormId::Sniper);
@@ -195,7 +203,7 @@ inline std::array<FormDefinition, kFormCount> DefaultForms()
     beam = longBarrel;
     beam.key = "beam";
     beam.name = "光線砲";
-    beam.summary = "ため撃ちが太い貫通の光線になる";
+    beam.summary = "ため撃ちが太い光線になり、多くの敵を貫く";
     beam.stage = 2;
     beam.parent = FormId::LongBarrel;
     beam.keyPart = PartId::Pierce;
@@ -203,6 +211,8 @@ inline std::array<FormDefinition, kFormCount> DefaultForms()
     beam.speedScale = 1.8f;
     beam.barrelLength = 1.9f;
     beam.railPower = 1.6f;
+    beam.railWidth = 2.2f;
+    beam.railPierce = 5;
     return forms;
 }
 

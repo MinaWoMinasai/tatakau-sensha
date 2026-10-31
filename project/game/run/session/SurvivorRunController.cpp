@@ -126,6 +126,11 @@ void SurvivorRunController::Initialize()
     relicText_ = std::make_unique<myEngine::TextLabel>();
     relicText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
     relicText_->SetPosition({520.0f, 646.0f});
+    style.color = {0.60f, 0.92f, 1.0f, 1.0f};
+    evolveText_ = std::make_unique<myEngine::TextLabel>();
+    evolveText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    evolveText_->SetPosition({520.0f, 616.0f});
+    RefreshEvolveText();
     // 最小の案内。文字は案内ごとに作り、遊んでいる間は書き換えない（描画中の SetText は落ちる原因になるため）。
     hintPanel_ = bar({190.0f, 548.0f}, {900.0f, 46.0f}, {0.01f, 0.03f, 0.05f, 0.80f});
     style.fontSize = 21;
@@ -629,6 +634,9 @@ void SurvivorRunController::DrawUi()
     // レリックは Q の部品が無くても出す。
     if (relicText_) {
         relicText_->Draw();
+    }
+    if (evolveText_) {
+        evolveText_->Draw();
     }
     // 予告の「！」：湧く群れの方向へ、画面の端（画面の中なら、その場所）に出す。
     size_t warning = 0;

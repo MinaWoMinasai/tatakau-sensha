@@ -313,6 +313,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         autoChainHits_ = (std::max)(autoChainHits_, stats.chainHits);
         autoDetonations_ = (std::max)(autoDetonations_, stats.detonations);
         autoWallBounces_ = (std::max)(autoWallBounces_, world_.resources.bulletManager_->GetGrowthStats().wallBounces);
+        autoPierces_ = (std::max)(autoPierces_, world_.resources.bulletManager_->GetGrowthStats().actorPierces);
         autoBurstStats_ = {(std::max)(autoBurstStats_[0], stats.burstTriggers), (std::max)(autoBurstStats_[1], stats.burstRepeats),
                            (std::max)(autoBurstStats_[2], stats.burstChildren)};
         if (survivor::LevelOf(partLevels_, survivor::PartId::ChainCollapse) > 0) {
@@ -463,7 +464,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                     ? player.GetActiveClassConfig()->barrels.front().angleDeg
                     : 0.0f)
             << ",\"loaderRamp\":" << (MakePartEffects().loaderRamp ? "true" : "false") << ",\"detonations\":" << autoDetonations_
-            << ",\"wallBounces\":" << autoWallBounces_ << ",\"formClass\":\""
+            << ",\"wallBounces\":" << autoWallBounces_ << ",\"pierces\":" << autoPierces_ << ",\"formClass\":\""
             << (player.GetActiveClassConfig() ? player.GetActiveClassConfig()->id : std::string("none"))
             << "\",\"railShots\":" << player.GetSpecialCombatStats().railShots << ",\"critShots\":" << player.GetCritShots()
             << ",\"spikeKills\":" << spikeKills_ << ",\"spikeProbe\":" << autoSpikeProbe_ << ",\"premiumChests\":" << premiumTotal_

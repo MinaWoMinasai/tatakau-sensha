@@ -20,7 +20,7 @@ public:
     /// @param levels 今の部品の Lv。新しく積む札に、重さと積載（今→積んだ後／上限）を書く。
     /// @param capacity 今の積載量。超える札には「何かを外して積む」と書く。
     void SetOffers(const std::vector<survivor::PartOffer>& offers, const std::array<survivor::PartDefinition, survivor::kPartCount>& parts,
-                   bool premium, const survivor::PartLevels& levels, int capacity);
+                   bool premium, const survivor::PartLevels& levels, int capacity, const std::vector<std::string>* notes = nullptr);
     /// @brief 部品以外の選択（形態など）の札を出す。見出しと下の案内も差し替え、次の SetOffers まで SetPending は案内を変えない。
     void SetCards(const std::string& heading, const std::string& footer, const std::vector<std::pair<std::string, std::string>>& cards);
     /// @brief 貯まった選択の数の表示を更新する。

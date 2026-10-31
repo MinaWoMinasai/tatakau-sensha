@@ -94,8 +94,57 @@ void SurvivorRunController::DrawNextOffers()
     offersPremium_ = pendingPremium_ > 0;
     offers_ = survivor::DrawOffers(config_.parts, partLevels_, config_.choiceLightBias, random_, offersPremium_, &destroyedParts_,
                                    config_.choiceFusionBias);
-    choiceHud_.SetOffers(offers_, config_.parts, offersPremium_, partLevels_, Capacity());
+    const std::vector<std::string> notes = OfferNotes();
+    choiceHud_.SetOffers(offers_, config_.parts, offersPremium_, partLevels_, Capacity(), &notes);
     choiceHud_.SetPending(pendingChoices_, true);
+}
+
+std::vector<std::string> SurvivorRunController::OfferNotes() const
+{
+    // 札の部品が、まだ進める鍵付きの進化の鍵なら「進化の鍵：○○」と書く（基本砲の間は、どちらの系統の鍵も書く）。
+    const survivor::PartLevels levels = survivor::EffectiveLevels(config_.parts, partLevels_);
+    std::vector<std::string> notes(offers_.size());
+    if (formStage_ >= 2) {
+        return notes;
+    }
+    for (size_t i = 0; i < offers_.size(); ++i) {
+        const survivor::PartId part = offers_[i].part;
+        if (part == survivor::PartId::Count || levels[static_cast<size_t>(part)] >= config_.parts[static_cast<size_t>(part)].maxLevel) {
+            continue;
+        }
+        for (const auto& form : config_.forms) {
+            if (form.keyPart == part && (formStage_ == 0 || form.parent == formId_)) {
+                notes[i] = std::string("進化の鍵：") + form.name + "（Lv3）";
+            }
+        }
+    }
+    return notes;
+}
+
+void SurvivorRunController::RefreshEvolveText()
+{
+    // 次の形態の節目と、今の形態の鍵付きの進化の鍵の進み具合。進化しきったら出さない。
+    if (!evolveText_) {
+        return;
+    }
+    if (formStage_ == 0) {
+        evolveText_->SetText("Lv" + std::to_string(config_.formLevel) + "：形態を選ぶ");
+        return;
+    }
+    if (formStage_ >= 2) {
+        evolveText_->SetText(" ");
+        return;
+    }
+    std::string text = "Lv" + std::to_string(config_.stage2Level) + "：進化";
+    const survivor::PartLevels levels = survivor::EffectiveLevels(config_.parts, partLevels_);
+    for (const auto& form : config_.forms) {
+        if (form.parent == formId_ && form.keyPart != survivor::PartId::Count) {
+            const auto& key = config_.parts[static_cast<size_t>(form.keyPart)];
+            text += std::string("　鍵［") + key.name + " " + std::to_string(levels[static_cast<size_t>(form.keyPart)]) + "/" +
+                    std::to_string(key.maxLevel) + " → " + form.name + "］";
+        }
+    }
+    evolveText_->SetText(text);
 }
 
 void SurvivorRunController::CloseChoices()
@@ -556,6 +605,8 @@ void SurvivorRunController::EvolveTo(survivor::FormId id)
         tuning.railPower = form.railPower;
         tuning.railHeatBase = form.railHeatBase;
         tuning.railHeatPerCharge = form.railHeatPerCharge;
+        tuning.railWidthScale = form.railWidth;
+        tuning.railExtraPierce = form.railPierce;
         player.ApplySurvivorForm(survivor::BuildFormConfig(*source, form, id), tuning);
     }
     formKey_ = form.key;
@@ -566,6 +617,7 @@ void SurvivorRunController::EvolveTo(survivor::FormId id)
     formPath_ += std::string(" → ") + form.name;
     formOffers_.clear();
     formChoiceOpen_ = false;
+    RefreshEvolveText();
     choiceHud_.SetPending(pendingChoices_, false);
     world_.combatFlow->SetEventCallout(std::string(form.stage >= 2 ? "進化：" : "形態：") + form.name, 1.0f);
 }
@@ -597,10 +649,16 @@ void SurvivorRunController::ApplyParts()
     player.SetRunModifiers(modifiers);
     // 連鎖崩壊：撃破バーストの小さな弾が敵を倒すと、1回だけもう一度破裂する。
     world_.resources.bulletManager_->SetKillBurstRepeats(survivor::LevelOf(partLevels_, PartId::ChainCollapse) > 0 ? 1 : 0);
-    // 雷鳴：放電の届く数と距離を伸ばす。
+    // 雷鳴（合体）と雷砲（形態）：放電の届く数と距離を伸ばす。両方あれば足し合わせる（届く数は SetChainBoost が5まで）。
     const bool thunder = survivor::LevelOf(partLevels_, PartId::Thunderclap) > 0;
-    world_.resources.bulletManager_->SetChainBoost(thunder ? config_.fusions.thunderExtraTargets : 0,
-                                                   thunder ? config_.fusions.thunderRadiusScale : 1.0f);
+    int chainExtra = thunder ? config_.fusions.thunderExtraTargets : 0;
+    float chainRadius = thunder ? config_.fusions.thunderRadiusScale : 1.0f;
+    if (formId_ != survivor::FormId::Count) {
+        chainExtra += config_.forms[static_cast<size_t>(formId_)].chainExtraTargets;
+        chainRadius *= config_.forms[static_cast<size_t>(formId_)].chainRadiusScale;
+    }
+    world_.resources.bulletManager_->SetChainBoost(chainExtra, chainRadius);
+    RefreshEvolveText();
 
     // 熱とシールドの部品。冷却器は冷える速さ（撃っている間も）、3段で上限+30。シールド容量は上限、3段で回復までの時間が半分。
     PlayerHeat::Config heat = config_.heat;

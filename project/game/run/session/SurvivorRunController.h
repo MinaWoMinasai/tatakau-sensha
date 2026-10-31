@@ -368,6 +368,11 @@ private:
     std::array<bool, survivor::kRelicCount> relics_{};
     std::ostringstream relicRecord_;
     std::unique_ptr<myEngine::TextLabel> relicText_;
+    // 次の形態の節目と、鍵付きの進化の鍵の進み具合（画面の下）。更新の中（RefreshEvolveText）だけで書き換える。
+    std::unique_ptr<myEngine::TextLabel> evolveText_;
+    void RefreshEvolveText();
+    /// @brief 3択の札に足す一言（進化の鍵）。札ごとに1つ、無ければ空。
+    std::vector<std::string> OfferNotes() const;
     // 形態の段（0：基本砲、1：Lv5 の形態、2：進化した形態）と、今の形態（基本砲は Count）・開いている選択の候補・たどった道。
     int formStage_ = 0;
     survivor::FormId formId_ = survivor::FormId::Count;
@@ -475,6 +480,7 @@ private:
     // 印の爆破と、壁で跳ね返った回数（区画を出る前の値）。
     uint64_t autoDetonations_ = 0;
     uint64_t autoWallBounces_ = 0;
+    uint64_t autoPierces_ = 0;
     // Q の画面を保存する時刻。-1 はまだ使っていない、0 は保存済み。
     float autoQCaptureAt_ = -1.0f;
     std::string autoQCaptureName_;

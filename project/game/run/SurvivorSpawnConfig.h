@@ -545,6 +545,10 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(item, "spreadDeg", form.spreadDeg);
             number(item, "wallBounces", form.wallBounces);
             number(item, "markHits", form.markHits);
+            number(item, "chainExtraTargets", form.chainExtraTargets);
+            number(item, "chainRadiusScale", form.chainRadiusScale);
+            number(item, "railWidth", form.railWidth);
+            number(item, "railPierce", form.railPierce);
             form.markHits = (std::clamp)(form.markHits, 1, 8);
             form.wallBounces = (std::clamp)(form.wallBounces, 0, 8);
             number(item, "railPower", form.railPower);
@@ -694,6 +698,14 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         }
         if (form.markDetonation) {
             item["markHits"] = form.markHits;
+        }
+        if (form.chainExtraTargets > 0) {
+            item["chainExtraTargets"] = form.chainExtraTargets;
+            item["chainRadiusScale"] = round(form.chainRadiusScale);
+        }
+        if (form.railPierce > 0 || form.railWidth != 1.0f) {
+            item["railWidth"] = round(form.railWidth);
+            item["railPierce"] = form.railPierce;
         }
         if (form.railCharge) {
             item["railPower"] = round(form.railPower);
