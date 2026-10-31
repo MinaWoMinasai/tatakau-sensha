@@ -24,6 +24,8 @@ struct AttackParam {
     float shooterChainPower = 1, shooterMarkPower = 1, shooterBoomerangPower = 1, shooterKillBurstPower = 1;
     // 自機弾の衝突半径と軌跡幅の倍率。Bullet::ConfigureVisualScaleでそれぞれ0.5～2に制限する。
     float bulletVisualScale = 1, bulletTrailScale = 1;
+    // 弾と軌跡の色の上書き（RGBA）。A が0なら上書きしない（育つ戦車の試作の形態ごとの色）。
+    float bulletColor[4] = {0, 0, 0, 0};
     // 正規化した発射方向へ掛ける、60FPS相当の基準1フレーム当たりの移動量。0は静止弾、負値は逆向きになる。
     // AttackControllerは非有限値を拒否するが、負値は制限しない。
     float bulletSpeed = 0.0f;

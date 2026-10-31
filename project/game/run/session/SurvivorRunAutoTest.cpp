@@ -166,6 +166,11 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
         return;
     }
+    // 進化の演出の途中（光が広がった頃）の画面を保存する（段ごとに1回）。
+    if (cineMode_ == CineMode::Evolve && cineTime_ >= 0.8f && autoEvolveCineStage_ < formStage_ && world_.run.tankRunCapturePath_.empty()) {
+        RequestCapture(formStage_ >= 2 ? "evolve_cine" : "form_cine");
+        autoEvolveCineStage_ = formStage_;
+    }
     if (autoFormCaptureAt_ > 0.0f && autoTestTime_ >= autoFormCaptureAt_ && world_.run.tankRunCapturePath_.empty()) {
         RequestCapture("form_" + formKey_);
         autoFormCaptureAt_ = -1.0f;

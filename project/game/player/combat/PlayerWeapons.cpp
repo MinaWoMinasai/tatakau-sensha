@@ -443,6 +443,12 @@ void PlayerWeapons::ApplyRunProjectileRules(AttackParam& param, bool applyFan) c
             param.maxWallBounces = player_.runModifiers_.survivorWallBounces;
             param.reflect = true;
         }
+        // 形態ごとの弾の色。
+        const auto& color = player_.formTuning_.bulletColor;
+        param.bulletColor[0] = color.x;
+        param.bulletColor[1] = color.y;
+        param.bulletColor[2] = color.z;
+        param.bulletColor[3] = color.w;
     }
 }
 
@@ -561,6 +567,7 @@ void PlayerWeapons::FireRailShot(BulletManager* bullets, float charge, float pow
                            param.reflect, param.bulletHp, param.bulletPenetration);
         bullet->ConfigureGrowth(param.maxWallBounces, param.actorPierceCount, 0);
         bullet->ConfigureSpecial(Bullet::SpecialKind::Rail, (.35f + .30f * charge) * player_.formTuning_.railWidthScale, 1.6f);
+        bullet->SetColorOverride(player_.formTuning_.bulletColor);
         bullet->ConfigureShooterAbilities(param.shooterChain, param.shooterMark, param.shooterBoomerang, param.shooterKillBurst,
                                           param.shooterChainPower, param.shooterMarkPower, param.shooterBoomerangPower,
                                           param.shooterKillBurstPower);

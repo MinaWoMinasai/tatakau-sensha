@@ -151,6 +151,12 @@ public:
     }
 
     /// @brief 弾の衝突半径と軌跡幅の倍率を設定する。各入力は0.5～2に制限する。
+    /// @brief 弾と軌跡の色を上書きする（A が0なら上書きしない）。軌跡を付ける（BulletManager::Add）前に呼ぶ。
+    void SetColorOverride(const myEngine::Vector4& color)
+    {
+        colorOverride_ = color;
+    }
+
     void ConfigureVisualScale(float size, float trail)
     {
         radius_ = .5f * (std::clamp)(size, .5f, 2.0f);
@@ -365,6 +371,7 @@ private:
     int sourceDroneIndex_ = -1;
     bool armorReflected_ = false, burstChild_ = false;
     int burstRepeats_ = 0;
+    myEngine::Vector4 colorOverride_{0, 0, 0, 0};
     float visualTrailScale_ = 1;
 
     // ワールドトランスフォーム

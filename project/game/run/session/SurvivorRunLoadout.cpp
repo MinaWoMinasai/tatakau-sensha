@@ -607,6 +607,7 @@ void SurvivorRunController::EvolveTo(survivor::FormId id)
         tuning.railHeatPerCharge = form.railHeatPerCharge;
         tuning.railWidthScale = form.railWidth;
         tuning.railExtraPierce = form.railPierce;
+        tuning.bulletColor = form.color;
         player.ApplySurvivorForm(survivor::BuildFormConfig(*source, form, id), tuning);
     }
     formKey_ = form.key;
@@ -618,6 +619,13 @@ void SurvivorRunController::EvolveTo(survivor::FormId id)
     formOffers_.clear();
     formChoiceOpen_ = false;
     RefreshEvolveText();
+    // 進化の演出（止めて寄る・光の輪・題字）。四隅の自動確認は演出を進めないので出さない。
+    if (autoTest_ != AutoTest::Tour) {
+        cineReturnMode_ = cineMode_;
+        cineMode_ = CineMode::Evolve;
+        cineTime_ = 0.0f;
+        cineEvolveBurst_ = false;
+    }
     choiceHud_.SetPending(pendingChoices_, false);
     world_.combatFlow->SetEventCallout(std::string(form.stage >= 2 ? "進化：" : "形態：") + form.name, 1.0f);
 }

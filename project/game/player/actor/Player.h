@@ -638,6 +638,8 @@ public:
         /// @brief ため撃ちの弾の太さの倍率と、貫く数に足す数（光線砲）。
         float railWidthScale = 1.0f;
         int railExtraPierce = 0;
+        /// @brief 主砲とため撃ちの弾と軌跡の色（A が0なら変えない）。
+        myEngine::Vector4 bulletColor{0, 0, 0, 0};
     };
     /// @brief 育つ戦車の試作で、形態の装備に替える。HP・経験値・部品はそのまま。
     void ApplySurvivorForm(const PlayerClassConfig& config, const SurvivorFormTuning& tuning);

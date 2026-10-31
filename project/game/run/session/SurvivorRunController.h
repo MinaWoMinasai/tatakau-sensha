@@ -64,7 +64,7 @@ public:
     /// @note 止めている間も、スロー演出ではないので画面の色は残す（GameplayQueries・CombatFramePipeline）。
     bool IsPaused() const
     {
-        return IsFormChoiceOpen() || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro;
+        return IsFormChoiceOpen() || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro || cineMode_ == CineMode::Evolve;
     }
 
     /// @brief 部品の3択を開いていて、その間はゲームを止める設定か（遊んだ感想から、読む時間を取るため既定で止める）。
@@ -268,14 +268,20 @@ private:
     std::vector<Hint> hintQueue_;
     int hintShowing_ = -1;
     float hintTimer_ = 0.0f;
-    // 宿敵と自機の撃破の演出。RivalIntro はゲームを止め、RivalDefeat はスローにする。
+    // 宿敵と自機の撃破と、形態の進化の演出。RivalIntro と Evolve はゲームを止め、RivalDefeat はスローにする。
     enum class CineMode {
         None,
         RivalIntro,
         RivalFight,
         RivalDefeat,
-        PlayerDown
+        PlayerDown,
+        Evolve
     };
+    // 進化の演出の後に戻る演出（宿敵との戦闘中なら RivalFight）と、光を出したか。
+    CineMode cineReturnMode_ = CineMode::None;
+    bool cineEvolveBurst_ = false;
+    // 進化の題字（形態ごと。描画の途中で SetText しないよう、始めに全部作る）。
+    std::array<std::unique_ptr<myEngine::TextLabel>, survivor::kFormCount> cineTitleForms_;
     CineMode cineMode_ = CineMode::None;
     float cineTime_ = 0.0f;
     myEngine::Vector3 cineAnchor_{};  // 撃破の演出で見る点（倒れた位置）
@@ -451,6 +457,7 @@ private:
     // 進化（第2段）で選ぶ形態の名前（MYENGINE_SURVIVOR_FORM2）。空か候補に無ければ1枚目。
     std::string autoForm2Key_;
     float autoEvolvedAt_ = -1.0f;
+    int autoEvolveCineStage_ = 0;
     int autoEvolveOffers_ = 0;
     float autoFormChosenAt_ = -1.0f;
     float autoFormCaptureAt_ = -1.0f;

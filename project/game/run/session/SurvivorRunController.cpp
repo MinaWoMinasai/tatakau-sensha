@@ -168,6 +168,10 @@ void SurvivorRunController::Initialize()
     };
     cineTitleIntro_ = title("宿敵　出現");
     cineTitleDefeat_ = title("宿敵　撃破");
+    for (size_t i = 0; i < survivor::kFormCount; ++i) {
+        const auto& form = config_.forms[i];
+        cineTitleForms_[i] = title((std::string(form.stage >= 2 ? "進化　" : "形態　") + form.name).c_str());
+    }
     // 群れの予告の「！」。
     style.fontSize = 64;
     style.color = {1.0f, 0.25f, 0.25f, 1.0f};
@@ -553,6 +557,29 @@ void SurvivorRunController::QueueWorldVisuals()
             world_.resources.neonGridRenderer_->QueueLine(center + myEngine::Vector3{std::cos(a) * radius, std::sin(a) * radius, -0.3f},
                                                           center + myEngine::Vector3{std::cos(b) * radius, std::sin(b) * radius, -0.3f},
                                                           0.16f, color);
+        }
+    }
+    // 進化の演出：自機から広がる2重の光の輪（形態の色）。
+    if (cineMode_ == CineMode::Evolve && formId_ != survivor::FormId::Count) {
+        myEngine::Vector4 color = config_.forms[static_cast<size_t>(formId_)].color;
+        if (color.w <= 0.0f) {
+            color = {0.5f, 1.4f, 1.8f, 1.0f};
+        }
+        const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition();
+        for (int ring = 0; ring < 2; ++ring) {
+            const float t = cineTime_ - 0.35f - 0.18f * static_cast<float>(ring);
+            if (t < 0.0f) {
+                continue;
+            }
+            const float radius = 0.8f + t * 10.0f;
+            const myEngine::Vector4 fade{color.x, color.y, color.z, (std::max)(0.0f, 1.0f - t / 1.2f)};
+            constexpr int kSides = 48;
+            for (int n = 0; n < kSides; ++n) {
+                const float a = 6.2831853f * static_cast<float>(n) / kSides, b = 6.2831853f * static_cast<float>(n + 1) / kSides;
+                world_.resources.neonGridRenderer_->QueueLine(center + myEngine::Vector3{std::cos(a) * radius, std::sin(a) * radius, -0.3f},
+                                                              center + myEngine::Vector3{std::cos(b) * radius, std::sin(b) * radius, -0.3f},
+                                                              0.2f, fade);
+            }
         }
     }
     if (!exitOpen_) {

@@ -76,6 +76,7 @@ void AttackController::FireInternal(const myEngine::Vector3& origin, const myEng
                                               param.shooterKillBurstPower);
             bullet->ConfigureDroneSource(param.sourceDroneIndex, param.sourcePlayer);
             bullet->ConfigureVisualScale(param.bulletVisualScale, param.bulletTrailScale);
+            bullet->SetColorOverride({param.bulletColor[0], param.bulletColor[1], param.bulletColor[2], param.bulletColor[3]});
         }
         // 所有権を渡す。遠征弾の上限でAddが拒否すると弾は破棄され、登録の成否はここへ返らない。
         bulletManager_->Add(std::move(bullet));

@@ -94,6 +94,8 @@ struct FormDefinition {
     /// @brief ため撃ちの弾の太さの倍率と、貫く数に足す数（光線砲）。
     float railWidth = 1.0f;
     int railPierce = 0;
+    /// @brief 弾と軌跡の色（A が0なら変えない）。進化の演出の光にも使う。
+    myEngine::Vector4 color{0, 0, 0, 0};
     float reloadScale = 1.0f;
     float damageScale = 1.0f;
     float speedScale = 1.0f;
@@ -148,6 +150,7 @@ inline std::array<FormDefinition, kFormCount> DefaultForms()
     triple.damageScale = 0.62f;
     triple.heatScale = 1.15f;
     triple.fanAngle = 16.0f;
+    triple.color = {0.35f, 1.35f, 1.7f, 1.0f};
     auto& machineGun = form(FormId::MachineGun);
     machineGun = twin;
     machineGun.key = "machineGun";
@@ -161,6 +164,7 @@ inline std::array<FormDefinition, kFormCount> DefaultForms()
     machineGun.heatScale = 0.7f;
     machineGun.spreadDeg = 12.0f;
     machineGun.fireRamp = true;
+    machineGun.color = {1.6f, 1.3f, 0.25f, 1.0f};
     auto& thunder = form(FormId::Thunder);
     thunder = twin;
     thunder.key = "thunder";
@@ -172,6 +176,7 @@ inline std::array<FormDefinition, kFormCount> DefaultForms()
     thunder.damageScale = 0.75f;
     thunder.chainExtraTargets = 4;
     thunder.chainRadiusScale = 1.5f;
+    thunder.color = {0.75f, 0.95f, 1.9f, 1.0f};
 
     // 第2段：長砲身の系統。
     auto& sniper = form(FormId::Sniper);
@@ -187,6 +192,7 @@ inline std::array<FormDefinition, kFormCount> DefaultForms()
     sniper.heatScale = 1.3f;
     sniper.barrelLength = 2.0f;
     sniper.markDetonation = true;
+    sniper.color = {1.8f, 0.30f, 0.35f, 1.0f};
     auto& ricochet = form(FormId::Ricochet);
     ricochet = longBarrel;
     ricochet.key = "ricochet";
@@ -199,6 +205,7 @@ inline std::array<FormDefinition, kFormCount> DefaultForms()
     ricochet.speedScale = 1.4f;
     ricochet.barrelLength = 1.6f;
     ricochet.wallBounces = 2;
+    ricochet.color = {0.40f, 1.65f, 0.60f, 1.0f};
     auto& beam = form(FormId::Beam);
     beam = longBarrel;
     beam.key = "beam";
@@ -213,6 +220,7 @@ inline std::array<FormDefinition, kFormCount> DefaultForms()
     beam.railPower = 1.6f;
     beam.railWidth = 2.2f;
     beam.railPierce = 5;
+    beam.color = {1.6f, 1.6f, 1.8f, 1.0f};
     return forms;
 }
 

@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-// 育つ戦車の試作の演出：宿敵の登場（止めて寄る）・戦闘中の傾いたカメラ・宿敵の撃破（スローで寄る）・自機の撃破（寄る）。
+// 育つ戦車の試作の演出：宿敵の登場（止めて寄る）・戦闘中の傾いたカメラ・宿敵の撃破（スローで寄る）・自機の撃破（寄る）・形態の進化（止めて寄る）。
 
 namespace gameplay {
 
@@ -15,6 +15,9 @@ namespace {
 // 登場は止めて見せる秒数、撃破はスローの間の秒数（どちらも実時間）。
 constexpr float kIntroSeconds = 2.6f;
 constexpr float kDefeatSeconds = 2.4f;
+// 進化は止めて見せる秒数と、光が出る時刻（実時間）。
+constexpr float kEvolveSeconds = 1.7f;
+constexpr float kEvolveBurstSecond = 0.35f;
 // 撃破の演出で、追加の爆発を起こす時刻。
 constexpr std::array<float, 3> kDefeatBurstSeconds{0.35f, 0.8f, 1.3f};
 } // namespace
@@ -89,6 +92,24 @@ void SurvivorRunController::UpdateCinematic(float dt)
         distance = 0.5f;
         tilt = 22.0f;
         letterbox = 1.0f;
+        break;
+    case CineMode::Evolve:
+        // 自機へ寄って止め、少し後に光の輪と画面の波を出す。終わったら元の演出（宿敵との戦闘中ならそれ）へ戻る。
+        focus = player.GetWorldPosition();
+        distance = 0.5f;
+        tilt = 22.0f;
+        letterbox = 1.0f;
+        if (!cineEvolveBurst_ && cineTime_ >= kEvolveBurstSecond) {
+            cineEvolveBurst_ = true;
+            world_.combatEffects->TriggerDeathPostPulse(player.GetWorldPosition(), 1.5f);
+            world_.presentation.cameraShakeDuration_ = 0.35f;
+            world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
+            world_.presentation.cameraShakePower_ = 0.4f;
+        }
+        if (cineTime_ >= kEvolveSeconds) {
+            cineMode_ = cineReturnMode_ == CineMode::RivalFight && IsRivalActive() ? CineMode::RivalFight : CineMode::None;
+            cineTime_ = 0.0f;
+        }
         break;
     case CineMode::None:
         break;
@@ -183,7 +204,9 @@ void SurvivorRunController::DrawCinematic()
     // 題字は文字を変えずに2つ持つ。描画の途中で SetText すると文字の画像を作り直し、GPU が使用中の画像を解放して落ちるため。
     myEngine::TextLabel* title = cineMode_ == CineMode::RivalIntro    ? cineTitleIntro_.get()
                                  : cineMode_ == CineMode::RivalDefeat ? cineTitleDefeat_.get()
-                                                                      : nullptr;
+                                 : cineMode_ == CineMode::Evolve && formId_ != survivor::FormId::Count
+                                     ? cineTitleForms_[static_cast<size_t>(formId_)].get()
+                                     : nullptr;
     if (title) {
         title->SetAlpha(cineLetterbox_);
         title->Draw();

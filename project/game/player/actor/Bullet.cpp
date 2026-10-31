@@ -29,6 +29,7 @@ void Bullet::Initialize(const myEngine::Vector3& position, const myEngine::Vecto
     sourceDroneIndex_ = -1;
     armorReflected_ = burstChild_ = false;
     burstRepeats_ = 0;
+    colorOverride_ = {0, 0, 0, 0};
     visualTrailScale_ = 1;
     isReflectable_ = reflectable;
     bulletHp_ = (std::max)(0.1f, bulletHp);
@@ -347,6 +348,9 @@ myEngine::Vector4 Bullet::GetBulletColor() const
     // 特殊状態の色を優先し、該当しなければ所有者・反射可否と借用設定から選ぶ。
     if (armorReflected_) {
         return {1.5f, .18f, 1.0f, 1};
+    }
+    if (colorOverride_.w > 0.0f) {
+        return colorOverride_;
     }
     if (shooter_.boomerang && returnFlight_.returning) {
         return {.55f, 1.6f, .85f, 1};
