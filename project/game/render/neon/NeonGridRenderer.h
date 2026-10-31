@@ -31,29 +31,19 @@ public:
         geometry_.SetLineStyle(softEdgeRatio, coreIntensity);
     }
 
-    /// @brief 線のディゾルブ（育つ戦車の試作の、自機の武器の切り替え）。ボスのネオンディソルブを線に置き換えたもの。
-    /// @note 有効な間に積んだ線・輪郭の線・多角形は、pieceLength ほどの欠片に分ける。欠片の中点を走査の方向（direction）に
-    /// origin から ±extent の範囲で 0〜1 にし、ノイズを混ぜた値が progress より小さい欠片は消し、progress + edgeWidth までの欠片は
-    /// edgeColor で光らせる。progress が 0 なら何も変えず、1 + edgeWidth で全部消える。
-    struct LineDissolve {
-        Vector3 origin{};
-        Vector3 direction{0.70710678f, -0.70710678f, 0.0f};
-        float extent = 1.0f;
-        float progress = 0.0f;
-        float noise = 0.35f;
-        float edgeWidth = 0.12f;
-        float pieceLength = 0.15f;
-        Vector4 edgeColor{1.9f, 0.35f, 1.3f, 1.0f};
-    };
-    /// @brief ここから EndLineDissolve までに積む線へ、ディゾルブを掛ける。
+    /// @brief 線と塗りのディゾルブ（中身は NeonLineDissolve を参照）。
+    using LineDissolve = NeonLineDissolve;
+    /// @brief ここから EndLineDissolve までに積む線と陰影つきの塗りへ、ディゾルブを掛ける。
     void BeginLineDissolve(const LineDissolve& dissolve)
     {
         dissolve_ = dissolve;
         dissolveActive_ = true;
+        geometry_.SetFillDissolve(&dissolve_);
     }
     void EndLineDissolve()
     {
         dissolveActive_ = false;
+        geometry_.SetFillDissolve(nullptr);
     }
 
     /// @brief 線を描画待ちに積む。
@@ -236,22 +226,12 @@ private:
         const float length = std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
         const float pieceLength = (std::max)(0.01f, dissolve_.pieceLength);
         const int pieces = (std::clamp)(static_cast<int>(std::ceil(length / pieceLength)), 1, 24);
-        const float extent = (std::max)(0.001f, dissolve_.extent);
         for (int i = 0; i < pieces; ++i) {
             const float t0 = static_cast<float>(i) / static_cast<float>(pieces);
             const float t1 = static_cast<float>(i + 1) / static_cast<float>(pieces);
             const Vector3 p0{a.x + delta.x * t0, a.y + delta.y * t0, a.z + delta.z * t0};
             const Vector3 p1{a.x + delta.x * t1, a.y + delta.y * t1, a.z + delta.z * t1};
-            const float rx = (p0.x + p1.x) * 0.5f - dissolve_.origin.x;
-            const float ry = (p0.y + p1.y) * 0.5f - dissolve_.origin.y;
-            const float scan = (std::clamp)(((rx * dissolve_.direction.x + ry * dissolve_.direction.y) / extent + 1.0f) * 0.5f, 0.0f, 1.0f);
-            // 欠片のマスごとのノイズ（自機の中心からの位置で決めるので、切り替えの間は同じ欠片が同じ値になる）。
-            uint32_t hash = static_cast<uint32_t>(static_cast<int>(std::floor(rx / pieceLength))) * 73856093u ^
-                            static_cast<uint32_t>(static_cast<int>(std::floor(ry / pieceLength))) * 19349663u;
-            hash = (hash ^ (hash >> 13)) * 0x5bd1e995u;
-            hash ^= hash >> 15;
-            const float noise = static_cast<float>(hash & 0xffffu) / 65535.0f;
-            const float value = scan * (1.0f - dissolve_.noise) + noise * dissolve_.noise;
+            const float value = NeonDissolveValue(dissolve_, {(p0.x + p1.x) * 0.5f, (p0.y + p1.y) * 0.5f, 0.0f});
             if (value < dissolve_.progress) {
                 continue;
             }

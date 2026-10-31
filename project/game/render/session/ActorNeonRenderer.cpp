@@ -265,18 +265,7 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             color.w *= world_.presentation.playerDashCurrentAlpha_;
         }
         // 武器の切り替えの間は、本体と砲の輪郭をディゾルブで消して（現して）いく。
-        const float swapDissolve = world_.presentation.playerSwapDissolve_;
-        if (swapDissolve > 0.0f) {
-            const float radius = world_.presentation.playerNeonBillboardRadius_;
-            myEngine::NeonGridRenderer::LineDissolve dissolve{};
-            dissolve.origin = world_.resources.player_->GetWorldPosition();
-            dissolve.direction = myEngine::Normalize(cameraRight - cameraUp);
-            dissolve.extent = radius * 1.7f;
-            dissolve.progress = swapDissolve;
-            dissolve.pieceLength = radius * 0.16f;
-            dissolve.edgeColor = world_.presentation.playerSwapDissolveColor_;
-            world_.resources.neonGridRenderer_->BeginLineDissolve(dissolve);
-        }
+        BeginPlayerSwapDissolve(cameraRight, cameraUp);
         queueTankBillboard(world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f},
                            world_.resources.player_->GetDirection(), world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse),
                            world_.presentation.actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true,
@@ -416,6 +405,23 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
     }
 }
 
+void ActorNeonRenderer::BeginPlayerSwapDissolve(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp)
+{
+    const float swapDissolve = world_.presentation.playerSwapDissolve_;
+    if (swapDissolve <= 0.0f || !world_.resources.player_) {
+        return;
+    }
+    const float radius = world_.presentation.playerNeonBillboardRadius_;
+    myEngine::NeonGridRenderer::LineDissolve dissolve{};
+    dissolve.origin = world_.resources.player_->GetWorldPosition();
+    dissolve.direction = myEngine::Normalize(cameraRight - cameraUp);
+    dissolve.extent = radius * 1.7f;
+    dissolve.progress = swapDissolve;
+    dissolve.pieceLength = radius * 0.16f;
+    dissolve.edgeColor = world_.presentation.playerSwapDissolveColor_;
+    world_.resources.neonGridRenderer_->BeginLineDissolve(dissolve);
+}
+
 void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet bodies)
 {
     const bool drawRound = bodies != BodySet::Enemies;
@@ -535,6 +541,8 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
     if (drawRound && world_.presentation.playerNeonRenderMode_ == 1 && world_.resources.player_ && !world_.resources.player_->IsDead()) {
         const float feedback = world_.resources.player_->GetDamageFeedbackRatio();
         const float pulse = std::sin(feedback * 3.14159265f) * 0.10f;
+        // 中の機体（砲のブロックと本体の塗り）も、輪郭と同じディゾルブで消して（現して）いく。
+        BeginPlayerSwapDissolve(cameraRight, cameraUp);
         queueBarrelBlocks(world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.345f},
                           world_.resources.player_->GetDirection(), world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse),
                           world_.resources.player_->GetNeonBarrelLayouts(), world_.presentation.playerGridColor_);
@@ -542,6 +550,7 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
                       world_.resources.player_->GetDirection(),
                       world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse) * 0.96f * roundBodyScale,
                       world_.resources.player_->GetNeonBodyLayout(), world_.presentation.actorNeonBodyFillColor_);
+        world_.resources.neonGridRenderer_->EndLineDissolve();
     }
     if (drawRound && !world_.bossPresentation->UseNeonBossVisual() && world_.presentation.bossNeonRenderMode_ == 1 &&
         world_.resources.enemy_ && (world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead())) {

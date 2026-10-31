@@ -581,6 +581,8 @@ private:
         uint32_t attacks = 0;
         size_t barrels = 0;
         float damageScale = 0.0f;
+        // 1発のダメージの数字（倍率を掛けて丸めたもの）。
+        uint32_t shotDamage = 0;
         float reloadScale = 0.0f;
         uint32_t railShots = 0;
         int overheats = 0;
@@ -589,12 +591,14 @@ private:
         float captureAt = -1.0f;
     };
     std::array<AutoWeaponStat, survivor::kWeaponSlots> autoWeaponStats_{};
-    // 撃てないはずの間（切り替え・リロード・弾倉が空）に撃った回数と、その長さ。弾倉が空のまま待った秒（0.5秒でリロードする）。
+    // 撃てないはずの間（切り替え・リロード・弾倉が空）に撃った回数と、その長さ。弾倉が空のまま続いた秒（予備がある間だけ数える。自動でリロードするので、ほぼ0）。
     uint32_t autoLockedAttacks_ = 0;
     float autoLockedSeconds_ = 0.0f;
     uint32_t autoEmptyAttacks_ = 0;
     float autoEmptySeconds_ = 0.0f;
     float autoEmptyTimer_ = 0.0f;
+    // 前のフレームの終わりに撃てない間だったか（このフレームの射撃はその状態で行われる）。
+    bool autoWasLocked_ = false;
     // 切り替えを始めてから撃てるようになるまでの実際の秒（枠ごとに最後の値）と、画面を保存したか。
     std::array<float, survivor::kWeaponSlots> autoSwapMeasured_{};
     float autoSwapStartedAt_ = -1.0f;

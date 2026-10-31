@@ -789,12 +789,15 @@ void SurvivorRunController::UpdateWeaponTimers(float dt)
             LoadAmmoToPlayer();
         }
     }
-    player.SetSurvivorFireLocked(swapTarget_ >= 0 || reloadTimer_ >= 0.0f);
-    // 弾倉が初めて空になったら、R の案内を出す。
+    // 弾倉が空になったら、予備がある限り自動でリロードする（初めてのときは案内も出す）。
     const survivor::WeaponDefinition* weapon = ActiveWeapon();
     if (weapon && weapon->magazine > 0 && player.GetSurvivorRounds() == 0) {
         QueueHint(Hint::Reload);
+        if (swapTarget_ < 0 && reloadTimer_ < 0.0f && reserves_[static_cast<size_t>(weapon->ammo)] > 0) {
+            StartReload();
+        }
     }
+    player.SetSurvivorFireLocked(swapTarget_ >= 0 || reloadTimer_ >= 0.0f);
 }
 
 void SurvivorRunController::SyncAmmoFromPlayer()

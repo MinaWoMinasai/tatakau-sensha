@@ -22,6 +22,9 @@ public:
     void DrawActorNeonBodyFillPass(bool restoreOutlines = true, BodySet bodies = BodySet::All);
 
 private:
+    /// @brief 武器の切り替えの間なら、自機の線と塗りへディゾルブを掛け始める（EndLineDissolve で外す）。
+    void BeginPlayerSwapDissolve(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp);
+
     GameWorld& world_;
 };
 } // namespace gameplay

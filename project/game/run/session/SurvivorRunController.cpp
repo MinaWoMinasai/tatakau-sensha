@@ -158,7 +158,7 @@ void SurvivorRunController::Initialize()
         "赤い破線の円：まわりを三角に囲まれる。早めに円の外へ抜ける",
         "Q で Q の部品を使う（状態は画面の下に出る）",
         "宿敵を倒すと出口が開く",
-        "弾倉が空になった。R でリロード（予備の弾から込める。その間は撃てない）",
+        "弾倉が空になると自動でリロード（予備の弾から込める。その間は撃てない）。R で早めにも入れ直せる",
         "WASD 移動　／　左クリックで撃つ　／　ホイールか 1〜3 で武器を変える　／　R リロード"};
     for (size_t i = 0; i < hintTexts_.size(); ++i) {
         hintTexts_[i] = std::make_unique<myEngine::TextLabel>();
@@ -481,10 +481,12 @@ void SurvivorRunController::Update(float dt)
             SyncAmmoFromPlayer();
             SurvivorWeaponHud::State state{};
             state.active = swapTarget_ >= 0 && !swapEquipped_ ? static_cast<size_t>(swapTarget_) : activeSlot_;
-            if (const survivor::WeaponDefinition* weapon = ActiveWeapon()) {
-                state.magazineMax = weapon->magazine;
-                state.magazine = weapon->magazine > 0 ? magazines_[activeSlot_] : 0;
-                state.reserve = reserves_[static_cast<size_t>(weapon->ammo)];
+            // 切り替えの前半は、もう替える先の武器の弾の数を出す（弾の種類の名前と合わせる）。
+            if (weaponSlots_[state.active] >= 0) {
+                const survivor::WeaponDefinition& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[state.active])];
+                state.magazineMax = weapon.magazine;
+                state.magazine = weapon.magazine > 0 ? magazines_[state.active] : 0;
+                state.reserve = reserves_[static_cast<size_t>(weapon.ammo)];
             }
             state.reloadRatio = reloadTimer_ >= 0.0f ? 1.0f - reloadTimer_ / reloadDuration_ : -1.0f;
             state.swapRatio = swapTarget_ >= 0 ? swapTimer_ / swapDuration_ : -1.0f;

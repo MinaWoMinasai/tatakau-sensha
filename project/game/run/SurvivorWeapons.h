@@ -90,7 +90,7 @@ struct WeaponDefinition {
     /// @brief 弾倉の弾の数（エネルギー弾は0＝弾倉なし）。
     int magazine = 12;
     /// @brief この武器に切り替えるのにかかる秒（その間は撃てず、ほかの武器にも変えられない）。
-    float swapSeconds = 0.4f;
+    float swapSeconds = 0.8f;
     /// @brief R のリロードにかかる秒（その間は撃てない）。弾倉なしの武器では使わない。
     float reloadSeconds = 1.4f;
     /// @brief 右クリックのため撃ち1発で使う弾の数（ため撃ちを持つ形態だけ）。
@@ -103,6 +103,8 @@ struct WeaponDefinition {
     float speedScale = 1.0f;
     /// @brief 主砲1発の熱の倍率（熱の上がり方）。
     float heatScale = 1.0f;
+    /// @brief 撃つ向きのばらつき（度。0 ならまっすぐ、負なら形態のまま）。
+    float spreadDeg = -1.0f;
     /// @brief 当たった場所で爆発する半径（0 なら爆発しない）と、当たった敵・まわりの敵への威力の倍率（弾の威力に対する）。
     float blastRadius = 0.0f;
     float blastCenter = 0.0f;
@@ -120,13 +122,19 @@ inline std::vector<WeaponDefinition> DefaultWeapons()
     auto& cannon = weapons[0];
     cannon.key = "cannon";
     cannon.name = "単発の砲";
+    // 単発の軸：1発が重く、速く、よく撃てる（区切りA の感想で強くした）。
+    cannon.magazine = 30;
+    cannon.damageScale = 1.4f;
+    cannon.reloadScale = 0.5f;
+    cannon.speedScale = 2.0f;
     cannon.heatScale = 0.6f;
+    cannon.spreadDeg = 3.0f;
     auto& machineGun = weapons[1];
     machineGun.key = "machineGun";
     machineGun.name = "機関砲";
     machineGun.form = FormId::MachineGun;
     machineGun.magazine = 40;
-    machineGun.swapSeconds = 0.6f;
+    machineGun.swapSeconds = 1.0f;
     machineGun.reloadSeconds = 2.0f;
     machineGun.damageScale = 0.45f;
     machineGun.reloadScale = 0.55f;
@@ -137,7 +145,7 @@ inline std::vector<WeaponDefinition> DefaultWeapons()
     beam.form = FormId::Beam;
     beam.ammo = AmmoType::Energy;
     beam.magazine = 0;
-    beam.swapSeconds = 0.8f;
+    beam.swapSeconds = 1.6f;
     beam.railAmmoCost = 8;
     beam.damageScale = 1.9f;
     beam.reloadScale = 1.35f;
@@ -149,7 +157,7 @@ inline std::vector<WeaponDefinition> DefaultWeapons()
     grenade.name = "榴弾砲";
     grenade.ammo = AmmoType::Heavy;
     grenade.magazine = 4;
-    grenade.swapSeconds = 0.8f;
+    grenade.swapSeconds = 1.4f;
     grenade.reloadSeconds = 2.2f;
     grenade.damageScale = 0.8f;
     grenade.reloadScale = 2.2f;
@@ -189,6 +197,9 @@ inline FormDefinition WeaponForm(const std::array<FormDefinition, kFormCount>& f
     form.reloadScale = weapon.reloadScale;
     form.speedScale = weapon.speedScale;
     form.heatScale = weapon.heatScale;
+    if (weapon.spreadDeg >= 0.0f) {
+        form.spreadDeg = weapon.spreadDeg;
+    }
     form.heavyBarrel = form.heavyBarrel || weapon.heavyBarrel;
     if (weapon.color.w > 0.0f) {
         form.color = weapon.color;

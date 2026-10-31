@@ -629,6 +629,7 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(value, "reloadScale", weapon.reloadScale);
             number(value, "speedScale", weapon.speedScale);
             number(value, "heatScale", weapon.heatScale);
+            number(value, "spreadDeg", weapon.spreadDeg);
             number(value, "blastRadius", weapon.blastRadius);
             number(value, "blastCenter", weapon.blastCenter);
             number(value, "blastSplash", weapon.blastSplash);
@@ -823,6 +824,9 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         item["reloadScale"] = round(weapon.reloadScale);
         item["speedScale"] = round(weapon.speedScale);
         item["heatScale"] = round(weapon.heatScale);
+        if (weapon.spreadDeg >= 0.0f) {
+            item["spreadDeg"] = round(weapon.spreadDeg);
+        }
         if (weapon.blastRadius > 0.0f) {
             item["blastRadius"] = round(weapon.blastRadius);
             item["blastCenter"] = round(weapon.blastCenter);

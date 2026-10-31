@@ -83,7 +83,7 @@ void SurvivorWeaponHud::Initialize()
     };
     reloadingLabel_ = label("リロード中", 20.0f, {1.0f, 0.86f, 0.36f, 1.0f});
     swappingLabel_ = label("切り替え中", 20.0f, {0.95f, 0.55f, 1.0f, 1.0f});
-    emptyLabel_ = label("弾倉が空：R でリロード", 20.0f, {1.0f, 0.38f, 0.32f, 1.0f});
+    emptyLabel_ = label("弾倉が空", 20.0f, {1.0f, 0.38f, 0.32f, 1.0f});
     noReserveLabel_ = label("予備の弾がない", 20.0f, {1.0f, 0.38f, 0.32f, 1.0f});
 }
 

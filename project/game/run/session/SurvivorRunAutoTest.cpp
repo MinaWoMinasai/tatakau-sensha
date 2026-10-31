@@ -109,8 +109,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     // 1.5秒後にその武器の画面を保存する（枠ごとに最初の1回）。
     if (WeaponMode()) {
         // 15秒ごとに、ホイールを1刻み回したのと同じ切り替えで次の枠へ。切り替えの途中の画面を1回保存する。
-        // このフレームの射撃は、ボットが切り替えやリロードを始める前に済んでいるので、撃てない間かは始める前の状態で見る。
-        const bool lockedBefore = swapTarget_ >= 0 || reloadTimer_ >= 0.0f;
+        // このフレームの射撃は、切り替えや（自動の）リロードが始まる前に済んでいるので、撃てない間かは前のフレームの終わりの状態で見る。
+        const bool lockedBefore = autoWasLocked_;
         const size_t slot = static_cast<size_t>(autoTestTime_ / 15.0f) % weaponSlots_.size();
         if (slot != activeSlot_ && swapTarget_ < 0 && weaponSlots_[slot] >= 0) {
             HandleWeaponWheel(1);
@@ -130,6 +130,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             const PlayerClassConfig* active = player.GetActiveClassConfig();
             stat.barrels = active ? active->barrels.size() : 0;
             stat.damageScale = active ? active->bulletDamageScale : 0.0f;
+            stat.shotDamage = static_cast<uint32_t>((std::max)(1.0f, std::round(player.GetStats().bulletDamage * stat.damageScale)));
             stat.reloadScale = active ? active->reloadScale : 0.0f;
             stat.captureAt = autoTestTime_ + 1.0f;
         }
@@ -154,21 +155,20 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             autoLockedAttacks_ += shot;
             autoLockedSeconds_ += dt;
         }
-        // 弾倉が空になったら、0.5秒は撃ち続けて（撃てないことを確かめ）から R でリロードする。
+        // 弾倉が空のまま（リロードも切り替えもしていない）の間を数える。予備がある限り自動でリロードが始まるので、ほぼ0になるはず。
         const survivor::WeaponDefinition* weapon = ActiveWeapon();
-        if (weapon && weapon->magazine > 0 && swapTarget_ < 0 && reloadTimer_ < 0.0f && player.GetSurvivorRounds() == 0) {
+        if (weapon && weapon->magazine > 0 && swapTarget_ < 0 && reloadTimer_ < 0.0f && player.GetSurvivorRounds() == 0 &&
+            reserves_[static_cast<size_t>(weapon->ammo)] > 0) {
             // 空になった最初のフレームの1発は、空にした1発なので数えない。
             if (autoEmptyTimer_ > 0.0f) {
                 autoEmptyAttacks_ += shot;
             }
             autoEmptyTimer_ += dt;
             autoEmptySeconds_ += dt;
-            if (autoEmptyTimer_ >= 0.5f && StartReload()) {
-                autoEmptyTimer_ = 0.0f;
-            }
         } else {
             autoEmptyTimer_ = 0.0f;
         }
+        autoWasLocked_ = swapTarget_ >= 0 || reloadTimer_ >= 0.0f;
         if (reloadTimer_ >= 0.0f && !autoReloadCaptured_ && reloadTimer_ <= reloadDuration_ * 0.5f &&
             world_.run.tankRunCapturePath_.empty()) {
             RequestCapture("weapon_reload");
@@ -580,7 +580,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                     weapons << (i ? "," : "") << "{\"key\":\""
                             << (weaponSlots_[i] >= 0 ? config_.weapons[static_cast<size_t>(weaponSlots_[i])].key : std::string())
                             << "\",\"seconds\":" << stat.seconds << ",\"attacks\":" << stat.attacks << ",\"barrels\":" << stat.barrels
-                            << ",\"damageScale\":" << stat.damageScale << ",\"reloadScale\":" << stat.reloadScale
+                            << ",\"damageScale\":" << stat.damageScale << ",\"shotDamage\":" << stat.shotDamage << ",\"reloadScale\":" << stat.reloadScale
                             << ",\"railShots\":" << stat.railShots << ",\"overheats\":" << stat.overheats << ",\"blasts\":" << stat.blasts << ",\"captured\":" << (stat.captured ? "true" : "false") << "}";
                 }
                 return weapons.str();
