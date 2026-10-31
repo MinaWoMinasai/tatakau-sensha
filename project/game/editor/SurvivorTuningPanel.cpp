@@ -246,13 +246,39 @@ bool DrawPartsAndChoices(SpawnConfig& config)
     changed |= ImGui::DragFloat("一発屋：主砲の威力", &config.relics.oneShotDamage, 0.05f, 0.1f, 20.0f, "x%.2f");
     changed |= ImGui::DragFloat("一発屋：1秒の発射数", &config.relics.oneShotFireRate, 0.01f, 0.05f, 2.0f, "x%.2f");
     changed |= ImGui::DragFloat("不動砲台：止まっている間の威力", &config.relics.turretDamage, 0.02f, 0.0f, 10.0f, "+%.2f");
-    ImGui::SeparatorText("形態（次に選んだときから効く）");
+    ImGui::SeparatorText("形態（倍率・扇・ばらつき・太さは次に選んだときから、印・跳ね返り・放電はすぐ効く）");
     for (auto& form : config.forms) {
         ImGui::PushID(form.key);
-        ImGui::TextUnformatted(form.name);
+        if (form.stage >= 2) {
+            ImGui::Text("%s（%s から%s）", form.name, config.forms[static_cast<size_t>(form.parent)].name,
+                        form.keyPart != PartId::Count ? "・鍵付き" : "");
+        } else {
+            ImGui::TextUnformatted(form.name);
+        }
         changed |= ImGui::DragFloat("連射の倍率", &form.reloadScale, 0.01f, 0.05f, 5.0f, "%.2f");
         changed |= ImGui::DragFloat("威力の倍率", &form.damageScale, 0.01f, 0.05f, 10.0f, "%.2f");
         changed |= ImGui::DragFloat("熱の倍率", &form.heatScale, 0.01f, 0.0f, 5.0f, "%.2f");
+        // 第2段の固有の能力。持っている形態だけ出す。
+        if (form.fanAngle > 0.0f) {
+            changed |= ImGui::DragFloat("扇の角度", &form.fanAngle, 0.2f, 1.0f, 60.0f, "%.1f°");
+        }
+        if (form.spreadDeg >= 0.0f) {
+            changed |= ImGui::DragFloat("弾のばらつき", &form.spreadDeg, 0.2f, 0.0f, 45.0f, "%.1f°");
+        }
+        if (form.markDetonation) {
+            changed |= ImGui::DragInt("爆破までの命中", &form.markHits, 0.05f, 1, 8);
+        }
+        if (form.wallBounces > 0) {
+            changed |= ImGui::DragInt("壁で跳ね返る回数", &form.wallBounces, 0.05f, 1, 8);
+        }
+        if (form.chainExtraTargets > 0) {
+            changed |= ImGui::DragInt("放電の届く数（足す）", &form.chainExtraTargets, 0.05f, 1, 5);
+            changed |= ImGui::DragFloat("放電の距離の倍率", &form.chainRadiusScale, 0.02f, 0.5f, 3.0f, "x%.2f");
+        }
+        if (form.railPierce > 0) {
+            changed |= ImGui::DragFloat("ため撃ちの太さ", &form.railWidth, 0.02f, 0.5f, 5.0f, "x%.2f");
+            changed |= ImGui::DragInt("ため撃ちの貫通（足す）", &form.railPierce, 0.05f, 0, 8);
+        }
         ImGui::PopID();
     }
     return changed;

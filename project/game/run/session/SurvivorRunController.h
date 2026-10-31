@@ -384,6 +384,8 @@ private:
     survivor::FormId formId_ = survivor::FormId::Count;
     std::vector<survivor::FormId> formOffers_;
     std::string formPath_ = "基本砲";
+    // 形態を選んだ区画の秒（第1段・第2段の順）。
+    std::vector<float> formTimes_;
     std::string formKey_ = "basic";
     /// @brief 形態を変える（選択の画面を閉じ、段を1つ進める）。
     void EvolveTo(survivor::FormId id);

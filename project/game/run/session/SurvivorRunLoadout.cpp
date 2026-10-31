@@ -616,6 +616,7 @@ void SurvivorRunController::EvolveTo(survivor::FormId id)
     ApplyParts();
     formStage_ = form.stage;
     formPath_ += std::string(" → ") + form.name;
+    formTimes_.push_back(elapsed_);
     formOffers_.clear();
     formChoiceOpen_ = false;
     RefreshEvolveText();

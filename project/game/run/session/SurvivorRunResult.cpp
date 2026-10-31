@@ -128,7 +128,13 @@ void SurvivorRunController::WriteRunLog()
     std::ofstream output(directory + "/run_" + name + ".json");
     output << "{\"cleared\":" << (cleared_ ? "true" : "false") << ",\"seconds\":" << elapsed_ << ",\"level\":" << level_
            << ",\"kills\":" << world_.combat.defeatedEnemies_ << ",\"damageTaken\":" << world_.combat.damageTaken_
-           << ",\"form\":\"" << formKey_ << "\",\"formPath\":\"" << formPath_ << "\",\"trait\":\"" << survivor::TraitKey(trait_) << "\",\"relics\":[" << relicRecord_.str()
+           << ",\"form\":\"" << formKey_ << "\",\"formPath\":\"" << formPath_ << "\",\"formTimes\":[" << [&] {
+                  std::ostringstream times;
+                  for (size_t i = 0; i < formTimes_.size(); ++i) {
+                      times << (i ? "," : "") << std::lround(formTimes_[i]);
+                  }
+                  return times.str();
+              }() << "],\"trait\":\"" << survivor::TraitKey(trait_) << "\",\"relics\":[" << relicRecord_.str()
            << "],\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_
            << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_ << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"capacity\":" << Capacity()
            << ",\"load\":" << survivor::LoadOf(config_.parts, partLevels_) << ",\"removals\":[" << removalRecord_.str() << "],\"qUses\":" << qUses_
