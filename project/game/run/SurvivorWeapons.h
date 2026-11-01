@@ -93,7 +93,10 @@ struct WeaponDefinition {
     float swapSeconds = 0.8f;
     /// @brief R のリロードにかかる秒（その間は撃てない）。弾倉なしの武器では使わない。
     float reloadSeconds = 1.4f;
-    /// @brief 右クリックのため撃ち1発で使う弾の数（ため撃ちを持つ形態だけ）。
+    /// @brief 右クリックのため撃ちを使う（形態が持っていても、false なら右クリックはダッシュ）。
+    /// @note 区切りA の感想で、光線砲のため撃ち（範囲攻撃）が強すぎたので、既定では全部の武器で切ってある。右クリックは後でダッシュか盾に割り当てる。
+    bool railCharge = false;
+    /// @brief 右クリックのため撃ち1発で使う弾の数（railCharge のときだけ）。
     int railAmmoCost = 1;
     int chipSlots = 0;
     Rarity rarity = Rarity::Common;
@@ -201,6 +204,7 @@ inline FormDefinition WeaponForm(const std::array<FormDefinition, kFormCount>& f
         form.spreadDeg = weapon.spreadDeg;
     }
     form.heavyBarrel = form.heavyBarrel || weapon.heavyBarrel;
+    form.railCharge = form.railCharge && weapon.railCharge;
     if (weapon.color.w > 0.0f) {
         form.color = weapon.color;
     }

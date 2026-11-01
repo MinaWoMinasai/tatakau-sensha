@@ -636,6 +636,9 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             if (value.contains("heavyBarrel") && value.at("heavyBarrel").is_boolean()) {
                 weapon.heavyBarrel = value.at("heavyBarrel").get<bool>();
             }
+            if (value.contains("railCharge") && value.at("railCharge").is_boolean()) {
+                weapon.railCharge = value.at("railCharge").get<bool>();
+            }
             weapon.magazine = (std::max)(0, weapon.magazine);
             weapon.swapSeconds = (std::max)(0.0f, weapon.swapSeconds);
             weapon.reloadSeconds = (std::max)(0.0f, weapon.reloadSeconds);
@@ -834,6 +837,9 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         }
         if (weapon.heavyBarrel) {
             item["heavyBarrel"] = true;
+        }
+        if (weapon.railCharge) {
+            item["railCharge"] = true;
         }
     }
     auto& parts = section("parts");

@@ -75,7 +75,7 @@
                     "railPower": 1.0, "railHeatBase": 10, "railHeatPerCharge": 25 }
   },
   "weapons": {
-    "comment": "カスタマイズシューティング（計画書 p3）の武器。enabled が true なら、3択・レベル・形態の選択・特性・レリックを止め、start の武器3つを持って始める（1〜3キーで切り替え）。false ならこれまでの育つ戦車の試作。form は砲塔と固有の能力を借りる形態（basic は基本砲）。倍率は基本砲に対する値で、形態の倍率の代わりに使う。ammo は light・heavy・energy、rarity は common〜legendary。magazine は弾倉の弾の数（0 は弾倉なし＝予備から直接撃つ）、swapSeconds は切り替え（ホイールか1〜3キー、その間は撃てない）、spreadDeg は撃つ向きのばらつき（度）、reloadSeconds はリロード（弾倉が空になると自動で始まる。R で早めにも入れ直せる）、railAmmoCost は右クリックのため撃ち1発で使う弾。reserve は区画の始めの予備の弾。熱は武器ごと（heatScale は1発の熱の倍率、しまってある武器は冷えていく）。blastRadius があると当たった場所で爆発し、当たった敵に blastCenter、まわりに blastSplash の倍率で当てる。",
+    "comment": "カスタマイズシューティング（計画書 p3）の武器。enabled が true なら、3択・レベル・形態の選択・特性・レリックを止め、start の武器3つを持って始める（1〜3キーで切り替え）。false ならこれまでの育つ戦車の試作。form は砲塔と固有の能力を借りる形態（basic は基本砲）。倍率は基本砲に対する値で、形態の倍率の代わりに使う。ammo は light・heavy・energy、rarity は common〜legendary。magazine は弾倉の弾の数（0 は弾倉なし＝予備から直接撃つ）、swapSeconds は切り替え（ホイールか1〜3キー、その間は撃てない）、spreadDeg は撃つ向きのばらつき（度）、reloadSeconds はリロード（弾倉が空になると自動で始まる。R で早めにも入れ直せる）、railCharge が true なら形態の右クリックのため撃ちを使い（既定は false で、右クリックは Shift と同じダッシュ）、railAmmoCost はため撃ち1発で使う弾。reserve は区画の始めの予備の弾。熱は武器ごと（heatScale は1発の熱の倍率、しまってある武器は冷えていく）。blastRadius があると当たった場所で爆発し、当たった敵に blastCenter、まわりに blastSplash の倍率で当てる。",
     "enabled": true,
     "start": ["cannon", "grenade", "beam"],
     "reserve": { "light": 600, "heavy": 40, "energy": 300 },
