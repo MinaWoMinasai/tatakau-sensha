@@ -357,9 +357,8 @@ void SurvivorRunController::Initialize()
                 config_.startWeapons[i] = key;
             }
         }
-        for (size_t i = 0; i < weaponSlots_.size(); ++i) {
-            weaponSlots_[i] = survivor::FindWeapon(config_.weapons, config_.startWeapons[i]);
-        }
+        // 拠点の持ち物を読み（無ければ新しく作り）、装備している武器3つを枠に入れる（W5）。
+        LoadBase();
         // MYENGINE_SURVIVOR_LOOT_BOOST=20：自動確認で、チップ・武器・ボスの素材の落ちる確率を何倍かにする（全種類が落ちるかを短い時間で見る）。
         wchar_t lootBoost[16]{};
         const DWORD lootBoostLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOT_BOOST", lootBoost, 16);
@@ -370,14 +369,11 @@ void SurvivorRunController::Initialize()
             config_.loot.bossMaterialChance = (std::min)(1.0f, config_.loot.bossMaterialChance * boost);
             lootField_.SetConfig(config_.loot);
         }
-        // 弾倉は満タン、予備は設定の数から始める。
-        reserves_ = config_.startReserve;
-        for (size_t i = 0; i < weaponSlots_.size(); ++i) {
-            magazines_[i] = weaponSlots_[i] >= 0 ? config_.weapons[static_cast<size_t>(weaponSlots_[i])].magazine : 0;
+        StartLoadout();
+        // 出撃の前に、拠点の画面で持っていく武器を選ぶ。タイトルの見本と、四隅・fps の自動確認では出さない。
+        if (!world_.demo.titleDemo_ && autoTest_ != AutoTest::Tour && autoTest_ != AutoTest::Perf) {
+            OpenBaseScreen();
         }
-        activeSlot_ = 0;
-        EquipWeapon(0);
-        RefreshWeaponSlots();
         // 出口の案内は、袋の一行の下へずらす。
         if (exitText_) {
             exitText_->SetPosition({24.0f, 80.0f});
@@ -411,8 +407,10 @@ void SurvivorRunController::Update(float dt)
         UpdateFormChoiceInput();
     } else if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
         if (WeaponMode()) {
-            // E で持ち物の画面を開け閉めする。開いている間は、武器の操作を受け付けない。
-            if (world_.resources.input_->IsKeyTriggered(DIK_E)) {
+            // 出撃前の拠点の画面。E で持ち物の画面を開け閉めする。開いている間は、武器の操作を受け付けない。
+            if (baseScreenOpen_) {
+                UpdateBaseScreenInput();
+            } else if (world_.resources.input_->IsKeyTriggered(DIK_E)) {
                 inventoryOpen_ ? CloseInventory() : OpenInventory();
             } else if (!inventoryOpen_) {
                 UpdateWeaponInput();
@@ -555,6 +553,7 @@ void SurvivorRunController::Update(float dt)
     if (IsResultVisible()) {
         if (!runLogWritten_) {
             runLogWritten_ = true;
+            CommitRunToBase();
             WriteRunLog();
             RefreshResult(world_.combat.resultSelection_);
         }
@@ -768,8 +767,8 @@ void SurvivorRunController::DrawUi()
         return;
     }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
-    // 持ち物の画面を開いている間は、ほかの HUD を描かずに持ち物の画面だけを出す（暗幕から透けて読みにくくならないように）。
-    if (inventoryOpen_) {
+    // 持ち物の画面と拠点の画面を開いている間は、ほかの HUD を描かずにその画面だけを出す（暗幕から透けて読みにくくならないように）。
+    if (inventoryOpen_ || baseScreenOpen_) {
         inventoryHud_.Draw();
         DrawCinematic();
         return;

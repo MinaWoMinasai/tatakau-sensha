@@ -200,8 +200,8 @@ SurvivorInventoryHud::View SurvivorRunController::BuildInventoryView() const
         const survivor::WeaponDefinition& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[i])];
         card.empty = false;
         card.active = i == activeSlot_;
-        card.color = survivor::RarityColor(weapon.rarity);
-        card.title = std::to_string(i + 1) + "　" + weapon.name + "　" + survivor::RarityName(weapon.rarity) + (card.active ? "　（構えている）" : "");
+        card.color = survivor::RarityColor(slotRarity_[i]);
+        card.title = std::to_string(i + 1) + "　" + weapon.name + "　" + survivor::RarityName(slotRarity_[i]) + (card.active ? "　（構えている）" : "");
         const int reserve = reserves_[static_cast<size_t>(weapon.ammo)];
         const int damage = static_cast<int>((std::max)(1.0f, std::round(player.GetStats().bulletDamage * weapon.damageScale)));
         std::ostringstream detail;

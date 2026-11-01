@@ -726,11 +726,11 @@ void SurvivorRunController::StartSwap(size_t slot)
     swapDuration_ = (std::max)(0.05f, config_.weapons[static_cast<size_t>(weaponSlots_[slot])].swapSeconds);
     swapEquipped_ = false;
     // ディゾルブの境目の光：コモンは紫がかった桃色（ネオンボスと同じ）、それより上はレア度の色。
-    const auto& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[slot])];
-    if (weapon.rarity == survivor::Rarity::Common) {
+    const survivor::Rarity rarity = slotRarity_[slot];
+    if (rarity == survivor::Rarity::Common) {
         world_.presentation.playerSwapDissolveColor_ = {1.9f, 0.35f, 1.3f, 1.0f};
     } else {
-        const myEngine::Vector4 color = survivor::RarityColor(weapon.rarity);
+        const myEngine::Vector4 color = survivor::RarityColor(rarity);
         world_.presentation.playerSwapDissolveColor_ = {color.x * 1.9f, color.y * 1.9f, color.z * 1.9f, 1.0f};
     }
     world_.resources.player_->SetSurvivorFireLocked(true);
@@ -842,7 +842,7 @@ void SurvivorRunController::RefreshWeaponSlots()
         slots[i].empty = false;
         slots[i].name = weapon.name;
         slots[i].ammo = survivor::AmmoName(weapon.ammo);
-        slots[i].color = survivor::RarityColor(weapon.rarity);
+        slots[i].color = survivor::RarityColor(slotRarity_[i]);
     }
     weaponHud_.SetSlots(slots);
 }

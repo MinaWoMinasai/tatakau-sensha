@@ -8,6 +8,7 @@
 
 namespace gameplay {
 /// @brief 育つ戦車の試作の、E で開く持ち物の画面（計画書 p3 の W4）。左に装備（武器3・シールド1・補助1）、右に出撃中の袋。
+/// 出撃前の拠点の画面（W5）も同じ並びで使う（右の欄を拠点の武器の一覧にし、選んでいる行に印を付ける）。
 /// @note 戦闘中は見るだけ（付け替えは休憩部屋の W6）。開いている間は区画を止める（止めるのは SurvivorRunController）。
 /// 文字は開いたときに1回だけ作る（更新の段階で Show を呼ぶ）。描くだけの段階では作り直さない。
 class SurvivorInventoryHud {
@@ -30,6 +31,12 @@ public:
         myEngine::Vector4 color{1.0f, 1.0f, 1.0f, 1.0f};
     };
     struct View {
+        /// @brief 見出し・操作の案内・右の欄の見出し。
+        std::string title = "持ち物";
+        std::string help = "E で閉じる　／　開いている間は止まる　／　付け替え・整理・売るのは休憩部屋で";
+        std::string bagTitle = "出撃中の袋（倒れると全部失う）";
+        /// @brief 右の欄で選んでいる行（-1 なら印を出さない）。
+        int cursorLine = -1;
         std::array<Card, kWeaponCards> weapons{};
         Card shield{};
         Card support{};
@@ -48,6 +55,8 @@ private:
 
     std::unique_ptr<myEngine::Sprite> backdrop_;
     std::unique_ptr<myEngine::Sprite> bagPanel_;
+    std::unique_ptr<myEngine::Sprite> cursor_;
+    int cursorLine_ = -1;
     // 装備の欄の板（武器3・シールド・補助）と、構えている武器の左の帯。
     std::array<std::unique_ptr<myEngine::Sprite>, kWeaponCards + 2> cardPanels_;
     std::array<std::unique_ptr<myEngine::Sprite>, kWeaponCards + 2> cardStripes_;

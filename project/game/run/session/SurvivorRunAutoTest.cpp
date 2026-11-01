@@ -54,6 +54,22 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     // 部屋の中央の周りを回りながら近い敵を撃ち続け、近くの欠片は拾いに行く。4:00 を過ぎたら出口へ向かう
     // （レベルの曲線を4分で確かめるため、出口が開いてもすぐには入らない）。自機は無敵。
     auto& player = *world_.resources.player_;
+    // 拠点の画面：画面を保存し、4つ目の武器を3つ目の枠へ入れてから元に戻し（入れ替えの確認）、出撃する。区画の時間は進めない。
+    if (baseScreenOpen_) {
+        if (autoBaseState_ == 0 && world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture("base");
+            autoBaseState_ = 1;
+        } else if (autoBaseState_ == 1 && world_.run.tankRunCapturePath_.empty()) {
+            const std::array<int, survivor::kWeaponSlots> before = base_.equipped;
+            EquipFromBase(3, 2);
+            const bool swapped = base_.equipped[2] == 3;
+            EquipFromBase(before[2], 2);
+            autoBaseEquipOk_ = swapped && base_.equipped == before;
+            StartSortie();
+            autoBaseState_ = 2;
+        }
+        return;
+    }
     autoTestTime_ += dt;
     const myEngine::Vector3 position = player.GetWorldPosition();
     myEngine::Vector3 aim = position + myEngine::Vector3{6.0f, 0.0f, 0.0f};
@@ -549,8 +565,20 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             loaded.weapons[2].ammo == config_.weapons[2].ammo && loaded.startWeapons == config_.startWeapons;
             }
         }
+        // 拠点：結果画面で持ち帰ってセーブした物を読み直し、同じになるかを見る。
+        CommitRunToBase();
+        bool baseRoundTrip = false;
+        {
+            survivor::BaseInventory loaded;
+            std::string error;
+            baseRoundTrip = survivor::LoadBaseInventory(BasePath(), config_.parts, loaded, error) && loaded == base_;
+        }
         std::ofstream(std::string(kAutoTestDirectory) + "/autotest.json")
-            << "{\"configRoundTrip\":" << (roundTrip ? "true" : "false") << ",\"completed\":" << (cleared_ ? "true" : "false") << ",\"cleared\":" << (cleared_ ? "true" : "false")
+            << "{\"configRoundTrip\":" << (roundTrip ? "true" : "false") << ",\"baseRoundTrip\":" << (baseRoundTrip ? "true" : "false")
+            << ",\"baseEquipOk\":" << (autoBaseEquipOk_ ? "true" : "false") << ",\"baseBroughtHome\":" << (baseBroughtHome_ ? "true" : "false")
+            << ",\"base\":{\"money\":" << base_.money << ",\"materials\":[" << base_.materials[0] << "," << base_.materials[1] << ","
+            << base_.materials[2] << "," << base_.materials[3] << "],\"chips\":" << base_.chips.size() << ",\"weapons\":" << base_.weapons.size()
+            << ",\"sorties\":" << base_.sorties << ",\"clears\":" << base_.clears << "}" << ",\"completed\":" << (cleared_ ? "true" : "false") << ",\"cleared\":" << (cleared_ ? "true" : "false")
             << ",\"sectorSeconds\":" << elapsed_ << ",\"exitOpen\":" << (exitOpen_ ? "true" : "false") << ",\"exit\":[" << exitPosition_.x
             << "," << exitPosition_.y << "],\"maxAliveAfterTwoMinutes\":" << maxAliveAfterTwoMinutes_
             << ",\"resultState\":" << static_cast<int>(world_.combat.combatFlow_.GetState()) << ",\"level\":" << level_

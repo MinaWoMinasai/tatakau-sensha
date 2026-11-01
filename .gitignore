@@ -37,6 +37,8 @@ project/vcpkg_installed/
 project/.deps/
 project/.codex-tmp/
 project/.codex_tmp/
+# 育つ戦車の試作の拠点のセーブ（遊んだ人ごとの持ち物。exe の横の save/ に書く）。
+project/save/
 
 # Ignore Dumps and logs
 Dumps/

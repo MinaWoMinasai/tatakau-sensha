@@ -1,5 +1,6 @@
 #pragma once
 #include "game/session/GameWorld.h"
+#include "game/run/SurvivorSave.h"
 #include "game/run/SurvivorSpawnConfig.h"
 #include "game/run/session/SurvivorLootField.h"
 #include "game/run/session/SurvivorPickups.h"
@@ -67,7 +68,7 @@ public:
     /// @note 止めている間も、スロー演出ではないので画面の色は残す（GameplayQueries・CombatFramePipeline）。
     bool IsPaused() const
     {
-        return IsFormChoiceOpen() || inventoryOpen_ || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro ||
+        return IsFormChoiceOpen() || inventoryOpen_ || baseScreenOpen_ || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro ||
                cineMode_ == CineMode::Evolve;
     }
 
@@ -485,6 +486,37 @@ private:
     SurvivorInventoryHud inventoryHud_;
     bool inventoryOpen_ = false;
     int inventoryOpens_ = 0;
+
+    // 拠点（W5・G5）。SurvivorRunBase.cpp。持ち帰った物は save/ に1つの自動セーブとして残る。
+    /// @brief セーブの場所。自動確認では generated の中の別のファイルを使い、遊んでいる人のセーブに触らない。
+    std::string BasePath() const;
+    /// @brief 拠点を読む。無ければ（自動確認とタイトルの見本では常に）新しく作る。
+    void LoadBase();
+    /// @brief 拠点を書く（タイトルの見本では書かない）。
+    void SaveBase();
+    /// @brief 拠点で装備している武器を枠に入れ、弾倉を満タン・予備を設定の数にして、最初の武器を構える。
+    void StartLoadout();
+    /// @brief 出撃前の拠点の画面を開く。閉じる（出撃する）までは区画を止める。
+    void OpenBaseScreen();
+    /// @brief 拠点の weaponIndex 番目の武器を slot 番目の枠へ入れる（ほかの枠に入っていれば入れ替える）。
+    void EquipFromBase(int weaponIndex, size_t slot);
+    /// @brief ↑↓ で拠点の武器を選び、1〜3 で枠へ入れ、Enter で出撃する。
+    void UpdateBaseScreenInput();
+    /// @brief 出撃する：枠を入れ直し、出撃の回数を足してセーブする。
+    void StartSortie();
+    /// @brief 拠点の画面の中身を作り直して画面に渡す。
+    void RefreshBaseScreen();
+    /// @brief 結果画面が出たときに1回だけ：クリアなら袋の中身を拠点へ足し、セーブする（倒れたら袋は失う）。
+    void CommitRunToBase();
+    survivor::BaseInventory base_;
+    bool baseScreenOpen_ = false;
+    int baseCursor_ = 0;
+    int baseScroll_ = 0;
+    bool baseCommitted_ = false;
+    bool baseBroughtHome_ = false;
+    std::string baseError_;
+    // 枠の武器のレア度（拠点の武器のもの）。
+    std::array<survivor::Rarity, survivor::kWeaponSlots> slotRarity_{};
     int level_ = 1;
     int exp_ = 0;
     int pendingChoices_ = 0;
@@ -649,6 +681,9 @@ private:
     float autoInventoryTimer_ = 0.0f;
     float autoInventoryElapsed_ = 0.0f;
     bool autoInventoryFrozen_ = false;
+    // 拠点の画面の確認：0 まだ・1 画面を頼んだ・2 出撃した。枠の入れ替えと戻しが合っていたか。
+    int autoBaseState_ = 0;
+    bool autoBaseEquipOk_ = false;
     uint32_t autoWeaponAttacks_ = 0;
     uint32_t autoWeaponRailShots_ = 0;
     int autoWeaponOverheats_ = 0;

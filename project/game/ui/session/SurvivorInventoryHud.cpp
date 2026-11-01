@@ -58,6 +58,7 @@ void SurvivorInventoryHud::Initialize()
     };
     backdrop_ = panel({0.0f, 0.0f}, {1280.0f, 720.0f}, {0.0f, 0.005f, 0.012f, 0.95f});
     bagPanel_ = panel({kBagLeft, kTop}, {kBagWidth, 562.0f}, {0.02f, 0.04f, 0.07f, 0.92f});
+    cursor_ = panel({kBagLeft + 8.0f, kTop}, {kBagWidth - 16.0f, kBagLineStep}, {0.35f, 1.0f, 0.85f, 0.22f});
     for (size_t i = 0; i < cardPanels_.size(); ++i) {
         const float height = i < kWeaponCards ? kWeaponCardHeight : kSmallCardHeight;
         cardPanels_[i] = panel({kCardLeft, CardTop(i)}, {kCardWidth, height}, {0.02f, 0.04f, 0.07f, 0.92f});
@@ -98,6 +99,14 @@ void SurvivorInventoryHud::Show(const View& view)
                 card.empty ? myEngine::Vector4{0.5f, 0.56f, 0.64f, 1.0f} : card.color, 22.0f, true);
         SetLine(*cardDetails_[i], card.empty ? std::string() : card.detail, {0.80f, 0.88f, 0.96f, 1.0f}, 17.0f, false);
     }
+    SetLine(*title_, view.title, {0.82f, 0.97f, 1.0f, 1.0f}, 34.0f, true);
+    SetLine(*help_, view.help, {0.62f, 0.74f, 0.86f, 1.0f}, 18.0f, false);
+    SetLine(*bagHeader_, view.bagTitle, {1.0f, 0.86f, 0.36f, 1.0f}, 20.0f, true);
+    cursorLine_ = view.cursorLine;
+    if (cursorLine_ >= 0) {
+        cursor_->SetPosition({kBagLeft + 8.0f, kTop + 44.0f + static_cast<float>(cursorLine_) * kBagLineStep});
+        cursor_->Update();
+    }
     bagLineCount_ = (std::min)(view.bag.size(), bagLines_.size());
     for (size_t i = 0; i < bagLineCount_; ++i) {
         SetLine(*bagLines_[i], view.bag[i].text, view.bag[i].color, 17.0f, false);
@@ -108,6 +117,9 @@ void SurvivorInventoryHud::Draw()
 {
     backdrop_->Draw();
     bagPanel_->Draw();
+    if (cursorLine_ >= 0 && static_cast<size_t>(cursorLine_) < bagLineCount_) {
+        cursor_->Draw();
+    }
     title_->Draw();
     help_->Draw();
     equipHeader_->Draw();

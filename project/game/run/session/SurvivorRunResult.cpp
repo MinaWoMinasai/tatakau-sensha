@@ -78,7 +78,7 @@ void SurvivorRunController::RefreshResult(int selection)
          << (WeaponMode() ? "武器　　　　　" + WeaponNames() + "\n"
                           : "形態　　　　　" + formPath_ + "　　特性 " + survivor::TraitName(trait_) + "\n")
          // 出撃中に拾った物は、倒れると全部失う（G4。拠点へ持ち帰るのは W5・W8）。
-         << (WeaponMode() ? "拾った物　　　" + DescribeBag() + (cleared_ ? std::string() : std::string("（倒れたので失う）")) + "\n"
+         << (WeaponMode() ? "拾った物　　　" + DescribeBag() + (cleared_ ? std::string("（拠点へ持ち帰った）") : std::string("（倒れたので失う）")) + "\n"
                           : std::string())
          << "レリック　　　" << RelicNames() << "\n"
          << "脅威　　　　　Lv" << threatStage_ << "　　宿敵 "
