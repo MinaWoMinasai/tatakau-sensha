@@ -363,6 +363,7 @@
     <ClInclude Include="game\run\SurvivorForms.h" />
     <ClInclude Include="game\run\SurvivorParts.h" />
     <ClInclude Include="game\run\SurvivorWeapons.h" />
+    <ClInclude Include="game\run\SurvivorLoot.h" />
     <ClInclude Include="game\editor\ExpeditionRoomEditor.h" />
     <ClInclude Include="game\editor\ExpeditionMapEditor.h" />
     <ClInclude Include="game\editor\ExpeditionContentEditor.h" />
@@ -570,6 +571,12 @@
     <ClCompile Include="game\run\session\SurvivorPickups.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorLootField.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunLoot.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\render\settings\RunVisualSettings.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -701,6 +708,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\run\session\SurvivorPickups.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\SurvivorLootField.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\render\settings\RunVisualSettings.h">

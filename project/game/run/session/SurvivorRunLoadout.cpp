@@ -17,8 +17,12 @@ void SurvivorRunController::AddExperience(int amount)
         return;
     }
     expCollected_ += amount;
-    // 武器の枠を使う遊び方では、レベルを上げない（欠片は W3 でお金にする）。
+    // 武器の枠を使う遊び方では、レベルを上げず、欠片はお金になる（W3）。
     if (WeaponMode()) {
+        moneyRemainder_ += static_cast<float>(amount) * config_.loot.moneyPerExp;
+        const int money = static_cast<int>(moneyRemainder_);
+        bag_.money += money;
+        moneyRemainder_ -= static_cast<float>(money);
         return;
     }
     if (level_ >= config_.maxLevel) {
@@ -688,6 +692,9 @@ void SurvivorRunController::UpdateWeaponInput()
     }
     if (input.IsKeyTriggered(DIK_R)) {
         StartReload();
+    }
+    if (input.IsKeyTriggered(DIK_F)) {
+        PickUpLoot();
     }
 }
 

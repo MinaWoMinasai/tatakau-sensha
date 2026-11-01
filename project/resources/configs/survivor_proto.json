@@ -89,6 +89,16 @@
                  "damageScale": 0.8, "reloadScale": 2.2, "speedScale": 0.7, "heatScale": 1.0, "blastRadius": 3.2, "blastCenter": 1.0, "blastSplash": 0.8,
                  "heavyBarrel": true }
   },
+  "loot": {
+    "comment": "敵が落とす物（計画書 p3 の W3）。欠片はお金になり（経験値 × moneyPerExp）、自動で拾う。弾（ammoChance の確率で ammoAmount ずつ、予備は reserveMax まで）は近づくと寄ってきて触れると拾う。素材（倒した形の素材を materialChance、敵戦車はボスの素材を bossMaterialChance）・チップ（今の部品、chipChance）・武器（weaponChance）は F で出撃中の袋へ（pickupRadius 以内を全部）。確率は敵1体ごとで、大きな敵（敵戦車・大五角・重い四角）は bigScale 倍。チップと武器のレア度は rarityWeights の重みで選ぶ。弾と素材は lifetime 秒で消える。",
+    "moneyPerExp": 0.1, "materialChance": 0.15, "bossMaterialChance": 0.3,
+    "ammoChance": { "light": 0.1, "heavy": 0.05, "energy": 0.04 },
+    "ammoAmount": { "light": 30, "heavy": 4, "energy": 15 },
+    "reserveMax": { "light": 900, "heavy": 60, "energy": 450 },
+    "chipChance": 0.01, "weaponChance": 0.004, "bigScale": 5.0,
+    "rarityWeights": { "common": 60, "uncommon": 25, "rare": 10, "epic": 4, "legendary": 1 },
+    "pickupRadius": 2.6, "ammoMagnetRadius": 3.0, "lifetime": 45
+  },
   "traits": {
     "comment": "特性。区画の始めに止めて、標準と冷却炉の2択を出す。冷却炉は熱の上限を furnaceHeatMax 倍、冷える速さ（撃っていない間と撃っている間の両方）を furnaceCool 倍にする。",
     "furnaceHeatMax": 2, "furnaceCool": 0.7

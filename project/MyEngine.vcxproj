@@ -385,6 +385,7 @@
     <ClInclude Include="game\run\SurvivorForms.h" />
     <ClInclude Include="game\run\SurvivorParts.h" />
     <ClInclude Include="game\run\SurvivorWeapons.h" />
+    <ClInclude Include="game\run\SurvivorLoot.h" />
     <ClInclude Include="game\editor\ExpeditionRoomEditor.h" />
     <ClInclude Include="game\editor\ExpeditionMapEditor.h" />
     <ClInclude Include="game\editor\SurvivorTuningPanel.h" />
@@ -536,6 +537,8 @@
     <ClCompile Include="game\run\session\SurvivorRunResult.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunSpawns.cpp" />
     <ClCompile Include="game\run\session\SurvivorPickups.cpp" />
+    <ClCompile Include="game\run\session\SurvivorLootField.cpp" />
+    <ClCompile Include="game\run\session\SurvivorRunLoot.cpp" />
     <ClCompile Include="game\render\settings\RunVisualSettings.cpp" />
     <ClCompile Include="game\run\session\ExpeditionController.cpp" />
     <ClCompile Include="game\run\session\ExpeditionMapController.cpp" />
@@ -583,6 +586,7 @@
     <ClInclude Include="game\run\session\SurvivorRunController.h" />
     <ClInclude Include="game\run\session\SurvivorRunShared.h" />
     <ClInclude Include="game\run\session\SurvivorPickups.h" />
+    <ClInclude Include="game\run\session\SurvivorLootField.h" />
     <ClInclude Include="game\render\settings\RunVisualSettings.h" />
     <ClInclude Include="game\run\session\ExpeditionController.h" />
     <ClInclude Include="game\run\session\ExpeditionMapController.h" />

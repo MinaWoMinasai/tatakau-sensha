@@ -77,6 +77,9 @@ void SurvivorRunController::RefreshResult(int selection)
          << "撃破　　　　　" << world_.combat.defeatedEnemies_ << "\n"
          << (WeaponMode() ? "武器　　　　　" + WeaponNames() + "\n"
                           : "形態　　　　　" + formPath_ + "　　特性 " + survivor::TraitName(trait_) + "\n")
+         // 出撃中に拾った物は、倒れると全部失う（G4。拠点へ持ち帰るのは W5・W8）。
+         << (WeaponMode() ? "拾った物　　　" + DescribeBag() + (cleared_ ? std::string() : std::string("（倒れたので失う）")) + "\n"
+                          : std::string())
          << "レリック　　　" << RelicNames() << "\n"
          << "脅威　　　　　Lv" << threatStage_ << "　　宿敵 "
          << (rivalDefeated_ ? "撃破（" + Clock(rivalDefeatedAt_) + "）" : rivalSpawned_ ? std::string("未撃破") : std::string("出る前")) << "\n"
@@ -141,7 +144,9 @@ void SurvivorRunController::WriteRunLog()
            << ",\"load\":" << survivor::LoadOf(config_.parts, partLevels_) << ",\"removals\":[" << removalRecord_.str() << "],\"qUses\":" << qUses_
            << ",\"q\":[" << qRecord_.str() << "],\"purges\":" << purges_ << ",\"moraleKills\":" << moraleKills_ << ",\"maxLoad\":" << maxLoad_
            << ",\"fusions\":" << fusions_ << ",\"fusionAt\":" << fusionTime_ << ",\"criticalBlasts\":" << criticalBlasts_ << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false")
-           << ",\"weapons\":\"" << WeaponNames() << "\",\"weaponSwaps\":" << weaponSwaps_ << ",\"reloads\":" << reloads_ << ",\"relicsOwned\":\"" << RelicNames() << "\",\"levelTimes\":[";
+           << ",\"weapons\":\"" << WeaponNames() << "\",\"weaponSwaps\":" << weaponSwaps_ << ",\"reloads\":" << reloads_ << ",\"money\":" << bag_.money << ",\"materials\":["
+           << bag_.materials[0] << "," << bag_.materials[1] << "," << bag_.materials[2] << "," << bag_.materials[3] << "],\"chips\":" << bag_.chips.size()
+           << ",\"bagWeapons\":" << bag_.weapons.size() << ",\"relicsOwned\":\"" << RelicNames() << "\",\"levelTimes\":[";
     for (size_t i = 0; i < levelTimes_.size(); ++i) {
         output << (i ? "," : "") << std::lround(levelTimes_[i]);
     }

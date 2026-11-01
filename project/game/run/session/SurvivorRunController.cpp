@@ -80,6 +80,9 @@ void SurvivorRunController::Initialize()
     ExpEnemy::SetPlayerExpDropCallback([this](const ExpEnemy& enemy, uint32_t value) {
         pickups_.Drop(enemy.GetWorldPosition(), value, random_);
         expDropped_ += static_cast<int>(value);
+        if (WeaponMode()) {
+            DropLoot(enemy);
+        }
         if (!WeaponMode() && enemy.GetType() == ExpEnemyType::Pentagon && enemy.GetSizeScale() > 1.5f) {
             const int owned = static_cast<int>(std::count(relics_.begin(), relics_.end(), true));
             if (owned + pendingRelics_ < static_cast<int>(survivor::kRelicCount)) {
@@ -135,6 +138,18 @@ void SurvivorRunController::Initialize()
     relicText_ = std::make_unique<myEngine::TextLabel>();
     relicText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
     relicText_->SetPosition({520.0f, 646.0f});
+    // 出撃中の袋（左上の2行目）と、近くに拾える物があるときの案内（画面の下の中ほど）。武器の枠を使う遊び方だけで出す。
+    style.fontSize = 20;
+    style.color = {0.80f, 0.90f, 1.0f, 1.0f};
+    lootText_ = std::make_unique<myEngine::TextLabel>();
+    lootText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    lootText_->SetPosition({24.0f, 48.0f});
+    style.fontSize = 24;
+    style.color = {1.0f, 0.92f, 0.55f, 1.0f};
+    lootPrompt_ = std::make_unique<myEngine::TextLabel>();
+    lootPrompt_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    lootPrompt_->SetPosition({470.0f, 600.0f});
+    style.fontSize = 24;
     style.color = {0.60f, 0.92f, 1.0f, 1.0f};
     evolveText_ = std::make_unique<myEngine::TextLabel>();
     evolveText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
@@ -344,6 +359,16 @@ void SurvivorRunController::Initialize()
         for (size_t i = 0; i < weaponSlots_.size(); ++i) {
             weaponSlots_[i] = survivor::FindWeapon(config_.weapons, config_.startWeapons[i]);
         }
+        // MYENGINE_SURVIVOR_LOOT_BOOST=20：自動確認で、チップ・武器・ボスの素材の落ちる確率を何倍かにする（全種類が落ちるかを短い時間で見る）。
+        wchar_t lootBoost[16]{};
+        const DWORD lootBoostLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOT_BOOST", lootBoost, 16);
+        if (autoTest_ != AutoTest::None && lootBoostLength > 0 && lootBoostLength < 16) {
+            const float boost = (std::max)(1.0f, static_cast<float>(_wtof(lootBoost)));
+            config_.loot.chipChance *= boost;
+            config_.loot.weaponChance *= boost;
+            config_.loot.bossMaterialChance = (std::min)(1.0f, config_.loot.bossMaterialChance * boost);
+            lootField_.SetConfig(config_.loot);
+        }
         // 弾倉は満タン、予備は設定の数から始める。
         reserves_ = config_.startReserve;
         for (size_t i = 0; i < weaponSlots_.size(); ++i) {
@@ -352,6 +377,10 @@ void SurvivorRunController::Initialize()
         activeSlot_ = 0;
         EquipWeapon(0);
         RefreshWeaponSlots();
+        // 出口の案内は、袋の一行の下へずらす。
+        if (exitText_) {
+            exitText_->SetPosition({24.0f, 80.0f});
+        }
         return;
     }
     // 区画の始めに特性の2択を出す（D3）。タイトルの見本と、四隅・fps の自動確認では出さない（標準のまま）。
@@ -410,6 +439,9 @@ void SurvivorRunController::Update(float dt)
         AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
                                       survivor::CollectorMagnetScale(config_.parts, partLevels_),
                                       survivor::HasChange(partLevels_, survivor::PartId::Collector)));
+        if (WeaponMode()) {
+            UpdateLoot(gameDt);
+        }
         if (gameDt > 0.0f && survivor::HasChange(partLevels_, survivor::PartId::Ram)) {
             UpdateSpikes();
         }
@@ -467,6 +499,7 @@ void SurvivorRunController::Update(float dt)
                 world_.presentation.playerSwapDissolve_ = 0.0f;
                 CloseChoices();
                 pickups_.Clear();
+                lootField_.Clear();
                 damageNumbers_.Clear();
                 world_.resources.enemyManager_->ClearRunActors();
                 world_.resources.bulletManager_->ClearAll();
@@ -549,6 +582,7 @@ void SurvivorRunController::ConfigurePickups()
     pickupConfig.valuePerShard = config_.valuePerShard;
     pickupConfig.maxShards = static_cast<size_t>((std::max)(1, config_.maxShards));
     pickups_.SetConfig(pickupConfig);
+    lootField_.SetConfig(config_.loot);
 }
 
 void SurvivorRunController::UpdateTuningPanel()
@@ -618,6 +652,8 @@ void SurvivorRunController::QueueWorldVisuals()
     const myEngine::Vector3 cameraUp = myEngine::Normalize({cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2]});
     pickups_.Queue(*world_.resources.neonGridRenderer_, cameraRight, cameraUp, world_.resources.camera->GetTranslate(),
                    arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f, arenacamera::HalfViewHeight() + 2.0f);
+    lootField_.Queue(*world_.resources.neonGridRenderer_, cameraRight, cameraUp, world_.resources.camera->GetTranslate(),
+                     arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f, arenacamera::HalfViewHeight() + 2.0f);
     // 予告：輪は自機のまわりに、群れは湧く場所に、赤い破線の円を描く。湧く時刻が近いほど速く点滅する。
     for (const PendingWave& wave : pendingWaves_) {
         const float left = (std::max)(0.0f, wave.at - elapsed_);
@@ -729,6 +765,14 @@ void SurvivorRunController::DrawUi()
         expFill_->Draw();
     }
     hudText_->Draw();
+    if (WeaponMode()) {
+        if (lootText_) {
+            lootText_->Draw();
+        }
+        if (lootPrompt_ && !lootPromptShown_.empty()) {
+            lootPrompt_->Draw();
+        }
+    }
     if (exitOpen_ && exitText_) {
         exitText_->Draw();
     }

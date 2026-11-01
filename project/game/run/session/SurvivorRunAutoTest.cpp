@@ -77,6 +77,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         myEngine::Vector3 away{position.x - rival.x, position.y - rival.y, 0.0f};
         const float distance = myEngine::Length(away);
         goal = distance > 0.1f ? rival + away * (8.0f / distance) : rival;
+    } else if (WeaponMode() && lootField_.FindNearest(position, 14.0f, shard)) {
+        // 落ちた物（弾・素材・チップ・武器）を、欠片より先に拾いに行く。
+        goal = shard;
     } else if (pickups_.FindNearest(position, 12.0f, shard)) {
         goal = shard;
     } else {
@@ -108,6 +111,13 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     // 武器の枠：15秒ごとに次の枠へ切り替え、枠ごとに使った秒・撃った回数を足す。構えて0.5秒後に砲門の数・威力と発射間隔の倍率を控え、
     // 1.5秒後にその武器の画面を保存する（枠ごとに最初の1回）。
     if (WeaponMode()) {
+        // 拾える物が近くにあれば F を押したのと同じく拾う。拾う案内が出た画面と、チップか武器が落ちている画面を1回ずつ保存する。
+        if (!autoLootPromptCaptured_ && !lootPromptShown_.empty() && world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture("loot_prompt");
+            autoLootPromptCaptured_ = true;
+        } else if (autoLootPromptCaptured_ && lootField_.CountNear(position) > 0) {
+            PickUpLoot();
+        }
         // 15秒ごとに、ホイールを1刻み回したのと同じ切り替えで次の枠へ。切り替えの途中の画面を1回保存する。
         // このフレームの射撃は、切り替えや（自動の）リロードが始まる前に済んでいるので、撃てない間かは前のフレームの終わりの状態で見る。
         const bool lockedBefore = autoWasLocked_;
@@ -572,7 +582,21 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false") << ",\"weaponSwaps\":" << weaponSwaps_ << ",\"reloads\":" << reloads_ << ",\"lockedAttacks\":" << autoLockedAttacks_
             << ",\"lockedSeconds\":" << autoLockedSeconds_ << ",\"emptyAttacks\":" << autoEmptyAttacks_ << ",\"emptySeconds\":" << autoEmptySeconds_
             << ",\"reserves\":[" << reserves_[0] << "," << reserves_[1] << "," << reserves_[2] << "],\"swapMeasured\":[" << autoSwapMeasured_[0] << ","
-            << autoSwapMeasured_[1] << "," << autoSwapMeasured_[2] << "]" << ",\"weapons\":[" <<
+            << autoSwapMeasured_[1] << "," << autoSwapMeasured_[2] << "]"
+            << ",\"lootDropped\":[" << lootDropped_[0] << "," << lootDropped_[1] << "," << lootDropped_[2] << "," << lootDropped_[3]
+            << "],\"lootPicked\":[" << lootPicked_[0] << "," << lootPicked_[1] << "," << lootPicked_[2] << "," << lootPicked_[3]
+            << "],\"ammoPicked\":[" << ammoPicked_[0] << "," << ammoPicked_[1] << "," << ammoPicked_[2] << "],\"money\":" << bag_.money
+            << ",\"materials\":[" << bag_.materials[0] << "," << bag_.materials[1] << "," << bag_.materials[2] << "," << bag_.materials[3]
+            << "],\"bag\":\"" << [&] {
+                   std::ostringstream names;
+                   for (const auto& chip : bag_.chips) {
+                       names << config_.parts[static_cast<size_t>(chip.part)].key << ":" << survivor::RarityKey(chip.rarity) << " ";
+                   }
+                   for (const auto& weapon : bag_.weapons) {
+                       names << config_.weapons[static_cast<size_t>(weapon.weapon)].key << ":" << survivor::RarityKey(weapon.rarity) << " ";
+                   }
+                   return names.str();
+               }() << "\"" << ",\"weapons\":[" <<
             [&] {
                 std::ostringstream weapons;
                 for (size_t i = 0; i < weaponSlots_.size(); ++i) {

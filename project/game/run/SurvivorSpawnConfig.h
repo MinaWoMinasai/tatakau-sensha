@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 #include "game/player/combat/PlayerHeat.h"
 #include "game/run/SurvivorForms.h"
+#include "game/run/SurvivorLoot.h"
 #include "game/run/SurvivorParts.h"
 #include "game/run/SurvivorWeapons.h"
 #include <string>
@@ -219,8 +220,10 @@ struct SpawnConfig {
     bool weaponsEnabled = true;
     std::vector<WeaponDefinition> weapons = DefaultWeapons();
     std::array<std::string, kWeaponSlots> startWeapons{"cannon", "grenade", "beam"};
-    /// @brief 区画の始めに持っている予備の弾（ライト・ヘビー・エネルギー）。拾う弾は W3 で足す。
+    /// @brief 区画の始めに持っている予備の弾（ライト・ヘビー・エネルギー）。
     std::array<int, kAmmoTypeCount> startReserve{600, 40, 300};
+    /// @brief 敵が落とす物（お金・素材・弾・チップ・武器）の確率と量（W3）。
+    LootConfig loot{};
 
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
     int ExpToNextLevel(int level) const
@@ -647,6 +650,45 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             weapon.reloadScale = (std::max)(0.05f, weapon.reloadScale);
         }
     }
+    if (data.contains("loot") && data.at("loot").is_object()) {
+        const auto& loot = data.at("loot");
+        auto& out = config.loot;
+        number(loot, "moneyPerExp", out.moneyPerExp);
+        number(loot, "materialChance", out.materialChance);
+        number(loot, "bossMaterialChance", out.bossMaterialChance);
+        number(loot, "chipChance", out.chipChance);
+        number(loot, "weaponChance", out.weaponChance);
+        number(loot, "bigScale", out.bigScale);
+        number(loot, "pickupRadius", out.pickupRadius);
+        number(loot, "ammoMagnetRadius", out.ammoMagnetRadius);
+        number(loot, "lifetime", out.lifetime);
+        // 弾は種類ごと（ライト・ヘビー・エネルギー）の確率・量・予備の上限。
+        for (const char* key : {"ammoChance", "ammoAmount", "reserveMax"}) {
+            if (!loot.contains(key) || !loot.at(key).is_object()) {
+                continue;
+            }
+            for (size_t i = 0; i < kAmmoTypeCount; ++i) {
+                const char* ammo = AmmoKey(static_cast<AmmoType>(i));
+                if (std::string(key) == "ammoChance") {
+                    number(loot.at(key), ammo, out.ammoChance[i]);
+                } else if (std::string(key) == "ammoAmount") {
+                    number(loot.at(key), ammo, out.ammoAmount[i]);
+                } else {
+                    number(loot.at(key), ammo, out.reserveMax[i]);
+                }
+            }
+        }
+        if (loot.contains("rarityWeights") && loot.at("rarityWeights").is_object()) {
+            for (size_t i = 0; i < kRarityCount; ++i) {
+                number(loot.at("rarityWeights"), RarityKey(static_cast<Rarity>(i)), out.rarityWeights[i]);
+            }
+        }
+        for (size_t i = 0; i < kAmmoTypeCount; ++i) {
+            out.ammoAmount[i] = (std::max)(1, out.ammoAmount[i]);
+            out.reserveMax[i] = (std::max)(1, out.reserveMax[i]);
+        }
+        out.lifetime = (std::max)(1.0f, out.lifetime);
+    }
     return true;
 }
 
@@ -884,16 +926,35 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     lunge["interval"] = round(config.lungePentagon.interval);
     lunge["windup"] = round(config.lungePentagon.windup);
     lunge["duration"] = round(config.lungePentagon.duration);
+    auto& loot = section("loot");
+    loot["moneyPerExp"] = round(config.loot.moneyPerExp);
+    loot["materialChance"] = round(config.loot.materialChance);
+    loot["bossMaterialChance"] = round(config.loot.bossMaterialChance);
+    for (size_t i = 0; i < kAmmoTypeCount; ++i) {
+        const char* ammo = AmmoKey(static_cast<AmmoType>(i));
+        loot["ammoChance"][ammo] = round(config.loot.ammoChance[i]);
+        loot["ammoAmount"][ammo] = config.loot.ammoAmount[i];
+        loot["reserveMax"][ammo] = config.loot.reserveMax[i];
+    }
+    loot["chipChance"] = round(config.loot.chipChance);
+    loot["weaponChance"] = round(config.loot.weaponChance);
+    loot["bigScale"] = round(config.loot.bigScale);
+    for (size_t i = 0; i < kRarityCount; ++i) {
+        loot["rarityWeights"][RarityKey(static_cast<Rarity>(i))] = round(config.loot.rarityWeights[i]);
+    }
+    loot["pickupRadius"] = round(config.loot.pickupRadius);
+    loot["ammoMagnetRadius"] = round(config.loot.ammoMagnetRadius);
+    loot["lifetime"] = round(config.loot.lifetime);
     auto& rival = section("rival");
     rival["enabled"] = config.rival.enabled;
     rival["hp"] = config.rival.hp;
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 28> kOrder{
+    static constexpr std::array<const char*, 29> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "weapons",       "traits",        "relics",    "fusions",    "parts",       "heatVent",
+        "heat",          "shield",    "forms",           "weapons",       "loot",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
         "partTuning",    "bigPentagon", "damageNumbers"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {

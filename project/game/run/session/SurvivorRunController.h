@@ -1,6 +1,7 @@
 #pragma once
 #include "game/session/GameWorld.h"
 #include "game/run/SurvivorSpawnConfig.h"
+#include "game/run/session/SurvivorLootField.h"
 #include "game/run/session/SurvivorPickups.h"
 #include "game/ui/session/SurvivorChoiceHud.h"
 #include "game/ui/session/SurvivorLoadoutHud.h"
@@ -446,6 +447,32 @@ private:
     float reloadDuration_ = 0.0f;
     int reloads_ = 0;
     SurvivorWeaponHud weaponHud_;
+
+    // 落とす物と出撃中の袋（計画書 p3 の W3）。SurvivorRunLoot.cpp。
+    /// @brief 倒した敵から、素材・弾・チップ・武器を確率で落とす（お金は欠片のまま）。衝突処理の途中から呼ばれるので、床の列に足すだけ。
+    void DropLoot(const ExpEnemy& enemy);
+    /// @brief 床の物を動かして触れた弾を予備へ入れ、袋と拾う案内の文字を更新する。dt は区画の時間。
+    void UpdateLoot(float dt);
+    /// @brief F：近くの素材・チップ・武器を全部、袋へ入れる。拾った数を返す。
+    int PickUpLoot();
+    /// @brief 拾った物を袋へ入れる。
+    void AddToBag(const survivor::LootItem& item);
+    /// @brief 袋の中身の一行（お金・素材・チップ・武器）。
+    std::string DescribeBag() const;
+    /// @brief 床の物の名前（チップと武器はレア度つき）。
+    std::string LootName(const survivor::LootItem& item) const;
+    SurvivorLootField lootField_;
+    survivor::LootBag bag_;
+    // 欠片をお金に換えたときの端数。
+    float moneyRemainder_ = 0.0f;
+    // 種類ごと（弾・素材・チップ・武器の順）に落とした数と拾った数、種類ごとに拾った弾の数（自動確認と記録）。
+    std::array<int, 4> lootDropped_{};
+    std::array<int, 4> lootPicked_{};
+    std::array<int, survivor::kAmmoTypeCount> ammoPicked_{};
+    std::unique_ptr<myEngine::TextLabel> lootText_;
+    std::unique_ptr<myEngine::TextLabel> lootPrompt_;
+    std::string lootTextShown_;
+    std::string lootPromptShown_;
     int level_ = 1;
     int exp_ = 0;
     int pendingChoices_ = 0;
@@ -604,6 +631,7 @@ private:
     float autoSwapStartedAt_ = -1.0f;
     bool autoSwapCaptured_ = false;
     bool autoReloadCaptured_ = false;
+    bool autoLootPromptCaptured_ = false;
     uint32_t autoWeaponAttacks_ = 0;
     uint32_t autoWeaponRailShots_ = 0;
     int autoWeaponOverheats_ = 0;
