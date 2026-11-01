@@ -139,6 +139,17 @@ void SurvivorRunController::AddToBag(const survivor::LootItem& item)
     }
 }
 
+std::string SurvivorRunController::DescribeChips(const survivor::BaseWeapon& owned, const survivor::WeaponDefinition& weapon) const
+{
+    const int slots = survivor::ChipSlots(weapon, owned.rarity);
+    std::string text = "チップ " + std::to_string(owned.chips.size()) + "/" + std::to_string(slots);
+    for (size_t i = 0; i < owned.chips.size(); ++i) {
+        text += (i ? "・" : "：") + std::string(config_.parts[static_cast<size_t>(owned.chips[i].part)].name) + "（" +
+                survivor::RarityName(owned.chips[i].rarity) + "）";
+    }
+    return text;
+}
+
 std::string SurvivorRunController::DescribeBag() const
 {
     std::ostringstream text;
@@ -200,8 +211,8 @@ SurvivorInventoryHud::View SurvivorRunController::BuildInventoryView() const
         const survivor::WeaponDefinition& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[i])];
         card.empty = false;
         card.active = i == activeSlot_;
-        card.color = survivor::RarityColor(slotRarity_[i]);
-        card.title = std::to_string(i + 1) + "　" + weapon.name + "　" + survivor::RarityName(slotRarity_[i]) + (card.active ? "　（構えている）" : "");
+        card.color = survivor::RarityColor(runSlots_[i].weapon.rarity);
+        card.title = std::to_string(i + 1) + "　" + weapon.name + "　" + survivor::RarityName(runSlots_[i].weapon.rarity) + (card.active ? "　（構えている）" : "");
         const int reserve = reserves_[static_cast<size_t>(weapon.ammo)];
         const int damage = static_cast<int>((std::max)(1.0f, std::round(player.GetStats().bulletDamage * weapon.damageScale)));
         std::ostringstream detail;
@@ -220,7 +231,7 @@ SurvivorInventoryHud::View SurvivorRunController::BuildInventoryView() const
         if (weapon.magazine > 0) {
             detail << "　リロード " << fixed(weapon.reloadSeconds, 1) << " 秒";
         }
-        detail << "　チップ枠 " << weapon.chipSlots;
+        detail << "　" << DescribeChips(runSlots_[i].weapon, weapon);
         card.detail = detail.str();
     }
     // シールドの枠：今は区画の始めから持っている全周のシールド（計画書 p3 の0章）。

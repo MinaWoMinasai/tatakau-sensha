@@ -12,6 +12,8 @@ namespace survivor {
 struct BaseWeapon {
     std::string key;
     Rarity rarity = Rarity::Common;
+    /// @brief 付けているチップ（休憩部屋で付ける。数は ChipSlots まで）。
+    std::vector<LootBag::Chip> chips;
 
     bool operator==(const BaseWeapon&) const = default;
 };
@@ -30,16 +32,8 @@ struct BaseInventory {
 
     bool operator==(const BaseInventory& other) const
     {
-        if (money != other.money || materials != other.materials || weapons != other.weapons || equipped != other.equipped ||
-            sorties != other.sorties || clears != other.clears || chips.size() != other.chips.size()) {
-            return false;
-        }
-        for (size_t i = 0; i < chips.size(); ++i) {
-            if (chips[i].part != other.chips[i].part || chips[i].rarity != other.chips[i].rarity) {
-                return false;
-            }
-        }
-        return true;
+        return money == other.money && materials == other.materials && weapons == other.weapons && equipped == other.equipped &&
+               sorties == other.sorties && clears == other.clears && chips == other.chips;
     }
 };
 
@@ -48,7 +42,7 @@ inline BaseInventory NewBaseInventory(const std::vector<WeaponDefinition>& defin
 {
     BaseInventory base;
     for (const WeaponDefinition& weapon : definitions) {
-        base.weapons.push_back({weapon.key, Rarity::Common});
+        base.weapons.push_back({weapon.key, Rarity::Common, {}});
     }
     for (size_t slot = 0; slot < kWeaponSlots; ++slot) {
         for (size_t i = 0; i < base.weapons.size(); ++i) {
@@ -71,7 +65,7 @@ inline void AddBagToBase(BaseInventory& base, const LootBag& bag, const std::vec
     base.chips.insert(base.chips.end(), bag.chips.begin(), bag.chips.end());
     for (const LootBag::Weapon& weapon : bag.weapons) {
         if (weapon.weapon >= 0 && static_cast<size_t>(weapon.weapon) < definitions.size()) {
-            base.weapons.push_back({definitions[static_cast<size_t>(weapon.weapon)].key, weapon.rarity});
+            base.weapons.push_back({definitions[static_cast<size_t>(weapon.weapon)].key, weapon.rarity, {}});
         }
     }
 }
@@ -114,9 +108,22 @@ inline bool LoadBaseInventory(const std::string& path, const std::array<PartDefi
     if (data.contains("weapons") && data.at("weapons").is_array()) {
         for (const auto& item : data.at("weapons")) {
             const std::string key = item.value("key", std::string());
-            if (!key.empty()) {
-                base.weapons.push_back({key, FindRarity(item.value("rarity", std::string()))});
+            if (key.empty()) {
+                continue;
             }
+            BaseWeapon weapon{key, FindRarity(item.value("rarity", std::string())), {}};
+            if (item.contains("chips") && item.at("chips").is_array()) {
+                for (const auto& chip : item.at("chips")) {
+                    const std::string part = chip.value("part", std::string());
+                    for (const PartDefinition& definition : parts) {
+                        if (part == definition.key) {
+                            weapon.chips.push_back({definition.id, FindRarity(chip.value("rarity", std::string()))});
+                            break;
+                        }
+                    }
+                }
+            }
+            base.weapons.push_back(std::move(weapon));
         }
     }
     if (data.contains("equipped") && data.at("equipped").is_array()) {
@@ -145,7 +152,14 @@ inline bool SaveBaseInventory(const std::string& path, const BaseInventory& base
     }
     data["weapons"] = nlohmann::json::array();
     for (const BaseWeapon& weapon : base.weapons) {
-        data["weapons"].push_back({{"key", weapon.key}, {"rarity", RarityKey(weapon.rarity)}});
+        nlohmann::json item = {{"key", weapon.key}, {"rarity", RarityKey(weapon.rarity)}};
+        if (!weapon.chips.empty()) {
+            item["chips"] = nlohmann::json::array();
+            for (const LootBag::Chip& chip : weapon.chips) {
+                item["chips"].push_back({{"part", parts[static_cast<size_t>(chip.part)].key}, {"rarity", RarityKey(chip.rarity)}});
+            }
+        }
+        data["weapons"].push_back(std::move(item));
     }
     data["equipped"] = base.equipped;
     data["sorties"] = base.sorties;

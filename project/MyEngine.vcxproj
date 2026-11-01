@@ -542,6 +542,7 @@
     <ClCompile Include="game\run\session\SurvivorLootField.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunLoot.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunBase.cpp" />
+    <ClCompile Include="game\run\session\SurvivorRunRest.cpp" />
     <ClCompile Include="game\render\settings\RunVisualSettings.cpp" />
     <ClCompile Include="game\run\session\ExpeditionController.cpp" />
     <ClCompile Include="game\run\session\ExpeditionMapController.cpp" />

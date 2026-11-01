@@ -63,11 +63,14 @@ void SurvivorRunController::StartLoadout()
     std::optional<size_t> first;
     for (size_t i = 0; i < weaponSlots_.size(); ++i) {
         weaponSlots_[i] = -1;
-        slotRarity_[i] = survivor::Rarity::Common;
+        runSlots_[i] = {};
         const int index = base_.equipped[i];
         if (index >= 0 && static_cast<size_t>(index) < base_.weapons.size()) {
-            weaponSlots_[i] = survivor::FindWeapon(config_.weapons, base_.weapons[static_cast<size_t>(index)].key);
-            slotRarity_[i] = base_.weapons[static_cast<size_t>(index)].rarity;
+            const survivor::BaseWeapon& owned = base_.weapons[static_cast<size_t>(index)];
+            weaponSlots_[i] = survivor::FindWeapon(config_.weapons, owned.key);
+            if (weaponSlots_[i] >= 0) {
+                runSlots_[i] = {index, owned.chips.size(), owned};
+            }
         }
         if (weaponSlots_[i] >= 0 && !first) {
             first = i;
@@ -180,8 +183,8 @@ void SurvivorRunController::RefreshBaseScreen()
         std::ostringstream detail;
         detail << survivor::AmmoName(weapon.ammo) << "　" << (weapon.magazine > 0 ? "弾倉 " + std::to_string(weapon.magazine) : std::string("弾倉なし"))
                << "\n威力 " << damage << "　連射 ×" << std::fixed << std::setprecision(1) << 1.0f / (std::max)(0.05f, weapon.reloadScale)
-               << "　弾速 ×" << weapon.speedScale << "　熱 ×" << weapon.heatScale << "\n切り替え " << weapon.swapSeconds << " 秒　チップ枠 "
-               << weapon.chipSlots;
+               << "　弾速 ×" << weapon.speedScale << "　熱 ×" << weapon.heatScale << "\n切り替え " << weapon.swapSeconds << " 秒　"
+               << DescribeChips(owned, weapon);
         card.detail = detail.str();
     }
 
@@ -222,8 +225,20 @@ void SurvivorRunController::CommitRunToBase()
         return;
     }
     baseCommitted_ = true;
-    // 区画をクリアしたら、出撃中の袋を拠点へ持ち帰る。倒れたら袋の中身は失う（G4）。
+    // 区画をクリアしたら、枠の武器（付けたチップ・袋から付け替えた武器）と出撃中の袋を拠点へ持ち帰る。倒れたら袋の中身は失う（G4）。
     if (cleared_) {
+        for (size_t i = 0; i < runSlots_.size(); ++i) {
+            const RunSlot& slot = runSlots_[i];
+            if (slot.weapon.key.empty()) {
+                base_.equipped[i] = -1;
+            } else if (slot.baseIndex >= 0 && static_cast<size_t>(slot.baseIndex) < base_.weapons.size()) {
+                base_.weapons[static_cast<size_t>(slot.baseIndex)] = slot.weapon;
+                base_.equipped[i] = slot.baseIndex;
+            } else {
+                base_.weapons.push_back(slot.weapon);
+                base_.equipped[i] = static_cast<int>(base_.weapons.size()) - 1;
+            }
+        }
         survivor::AddBagToBase(base_, bag_, config_.weapons);
         ++base_.clears;
         baseBroughtHome_ = true;

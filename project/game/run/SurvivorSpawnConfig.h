@@ -678,6 +678,20 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
                 }
             }
         }
+        // 休憩部屋で売る値段。
+        for (const char* key : {"weaponPrice", "chipPrice"}) {
+            if (loot.contains(key) && loot.at(key).is_object()) {
+                for (size_t i = 0; i < kRarityCount; ++i) {
+                    number(loot.at(key), RarityKey(static_cast<Rarity>(i)),
+                           std::string(key) == "weaponPrice" ? out.weaponPrice[i] : out.chipPrice[i]);
+                }
+            }
+        }
+        if (loot.contains("materialPrice") && loot.at("materialPrice").is_object()) {
+            for (size_t i = 0; i < kMaterialCount; ++i) {
+                number(loot.at("materialPrice"), MaterialKey(static_cast<MaterialId>(i)), out.materialPrice[i]);
+            }
+        }
         if (loot.contains("rarityWeights") && loot.at("rarityWeights").is_object()) {
             for (size_t i = 0; i < kRarityCount; ++i) {
                 number(loot.at("rarityWeights"), RarityKey(static_cast<Rarity>(i)), out.rarityWeights[i]);
@@ -941,6 +955,13 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     loot["bigScale"] = round(config.loot.bigScale);
     for (size_t i = 0; i < kRarityCount; ++i) {
         loot["rarityWeights"][RarityKey(static_cast<Rarity>(i))] = round(config.loot.rarityWeights[i]);
+    }
+    for (size_t i = 0; i < kRarityCount; ++i) {
+        loot["weaponPrice"][RarityKey(static_cast<Rarity>(i))] = config.loot.weaponPrice[i];
+        loot["chipPrice"][RarityKey(static_cast<Rarity>(i))] = config.loot.chipPrice[i];
+    }
+    for (size_t i = 0; i < kMaterialCount; ++i) {
+        loot["materialPrice"][MaterialKey(static_cast<MaterialId>(i))] = config.loot.materialPrice[i];
     }
     loot["pickupRadius"] = round(config.loot.pickupRadius);
     loot["ammoMagnetRadius"] = round(config.loot.ammoMagnetRadius);

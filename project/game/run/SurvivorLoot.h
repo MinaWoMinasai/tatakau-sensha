@@ -64,6 +64,10 @@ struct LootConfig {
     float ammoMagnetRadius = 3.0f;
     /// @brief 弾と素材が床に残る秒（チップと武器は消えない）。
     float lifetime = 45.0f;
+    /// @brief 休憩部屋で売る値段（W6）。武器とチップはレア度ごと（コモン〜レジェンド）、素材は1つごと（四角・三角・五角・ボス）。
+    std::array<int, kRarityCount> weaponPrice{30, 60, 120, 240, 480};
+    std::array<int, kRarityCount> chipPrice{10, 20, 40, 80, 160};
+    std::array<int, kMaterialCount> materialPrice{2, 2, 3, 20};
 };
 
 /// @brief 床に落ちる物1つの中身。id は弾の種類・素材・部品・武器の番号（kind による）。
@@ -79,6 +83,8 @@ struct LootBag {
     struct Chip {
         PartId part = PartId::Warhead;
         Rarity rarity = Rarity::Common;
+
+        bool operator==(const Chip&) const = default;
     };
     struct Weapon {
         /// @brief SpawnConfig::weapons の番号。
@@ -109,6 +115,19 @@ inline Rarity RollRarity(const std::array<float, kRarityCount>& weights, std::mt
         }
     }
     return Rarity::Legendary;
+}
+
+/// @brief 武器に付けられるチップの数：武器の chipSlots に、レア度の分を足す（コモン +0・アンコモン +1・レア +1・エピック +2・レジェンド +3）。
+inline int ChipSlots(const WeaponDefinition& weapon, Rarity rarity)
+{
+    static constexpr std::array<int, kRarityCount> kBonus{0, 1, 1, 2, 3};
+    return weapon.chipSlots + kBonus[static_cast<size_t>(rarity)];
+}
+
+/// @brief チップ1つが部品の何段になるか（コモン 1 〜 レジェンド 5。部品の最大の段まで）。
+inline int ChipLevel(Rarity rarity)
+{
+    return static_cast<int>(rarity) + 1;
 }
 
 /// @brief チップになる部品か（G7：今の部品をチップに移す。Q で使う部品と合体の部品は除く）。

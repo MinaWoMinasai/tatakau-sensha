@@ -399,7 +399,9 @@ void SurvivorRunController::Update(float dt)
     UpdateTuningPanel();
     UpdateCinematic(dt);
     SampleFps();
-    if (traitChoiceOpen_) {
+    if (restRoomOpen_) {
+        UpdateRestRoomInput();
+    } else if (traitChoiceOpen_) {
         UpdateTraitChoiceInput();
     } else if (relicChoiceOpen_) {
         UpdateRelicChoiceInput();
@@ -511,7 +513,12 @@ void SurvivorRunController::Update(float dt)
                 damageNumbers_.Clear();
                 world_.resources.enemyManager_->ClearRunActors();
                 world_.resources.bulletManager_->ClearAll();
-                world_.combatFlow->EnterResultState(true);
+                // 武器の枠を使う遊び方では、結果画面の前に休憩部屋を開く（W6）。「帰る」で結果画面へ。
+                if (WeaponMode() && !world_.demo.titleDemo_) {
+                    OpenRestRoom();
+                } else {
+                    world_.combatFlow->EnterResultState(true);
+                }
             }
         }
     }
@@ -768,7 +775,7 @@ void SurvivorRunController::DrawUi()
     }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     // 持ち物の画面と拠点の画面を開いている間は、ほかの HUD を描かずにその画面だけを出す（暗幕から透けて読みにくくならないように）。
-    if (inventoryOpen_ || baseScreenOpen_) {
+    if (inventoryOpen_ || baseScreenOpen_ || restRoomOpen_) {
         inventoryHud_.Draw();
         DrawCinematic();
         return;

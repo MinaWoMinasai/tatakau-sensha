@@ -21,6 +21,23 @@ namespace gameplay {
 /// 部品と選択（SurvivorRunLoadout.cpp）、結果画面と記録（SurvivorRunResult.cpp）、自動確認（SurvivorRunAutoTest.cpp）。
 class SurvivorRunController {
 public:
+    /// @brief 休憩部屋の右の欄の1行（選べる行と見出し）。
+    struct RestRow {
+        enum class Kind {
+            Leave,
+            Next,
+            Header,
+            BagWeapon,
+            BagChip,
+            SlotChip,
+            Material
+        };
+        Kind kind = Kind::Header;
+        // 袋の武器・チップの番号、素材の番号、付いているチップの番号。
+        int index = -1;
+        // 付いているチップの枠。
+        int slot = -1;
+    };
     explicit SurvivorRunController(GameWorld& world) : world_(world) {}
 
     /// @brief 試作の見た目と自機の設定を整え、試作用の部屋と湧き方の設定を読み込み、敵のいないアリーナから始める。
@@ -68,7 +85,7 @@ public:
     /// @note 止めている間も、スロー演出ではないので画面の色は残す（GameplayQueries・CombatFramePipeline）。
     bool IsPaused() const
     {
-        return IsFormChoiceOpen() || inventoryOpen_ || baseScreenOpen_ || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro ||
+        return IsFormChoiceOpen() || inventoryOpen_ || baseScreenOpen_ || restRoomOpen_ || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro ||
                cineMode_ == CineMode::Evolve;
     }
 
@@ -460,6 +477,8 @@ private:
     int PickUpLoot();
     /// @brief 拾った物を袋へ入れる。
     void AddToBag(const survivor::LootItem& item);
+    /// @brief 武器に付いているチップの一行（「チップ 1/2：弾頭（レア）」）。
+    std::string DescribeChips(const survivor::BaseWeapon& owned, const survivor::WeaponDefinition& weapon) const;
     /// @brief 袋の中身の一行（お金・素材・チップ・武器）。
     std::string DescribeBag() const;
     /// @brief 床の物の名前（チップと武器はレア度つき）。
@@ -515,8 +534,49 @@ private:
     bool baseCommitted_ = false;
     bool baseBroughtHome_ = false;
     std::string baseError_;
-    // 枠の武器のレア度（拠点の武器のもの）。
-    std::array<survivor::Rarity, survivor::kWeaponSlots> slotRarity_{};
+    // 出撃中の枠の武器（レア度と付けているチップも持つ）。baseIndex は拠点の武器の番号（-1 は袋から付け替えた武器）。
+    // baseChips は拠点から付いてきたチップの数（それより後ろが、この出撃で付けたチップ。外せるのはそちらだけ）。
+    // 拠点へ書くのはクリアして持ち帰るときだけなので、倒れたら、袋から付けた武器とチップは失い、拠点の武器は元のまま。
+    struct RunSlot {
+        int baseIndex = -1;
+        size_t baseChips = 0;
+        survivor::BaseWeapon weapon;
+    };
+    std::array<RunSlot, survivor::kWeaponSlots> runSlots_{};
+
+    // 休憩部屋（W6・G6）。SurvivorRunRest.cpp。区画をクリアすると開き、袋の整理・売る・捨てる、袋の武器への付け替え、
+    // チップの付け外しをして、「帰る」で結果画面へ（拠点へ持ち帰る）。「次へ進む」は3ステージの流れ（W8）で入る。開いている間は止まる。
+    void OpenRestRoom();
+    /// @brief ↑↓ で選び、1〜3 で付け替える・付ける、X で売る、Z で捨てる・外す、Enter で帰る。
+    void UpdateRestRoomInput();
+    /// @brief 行と画面を作り直す（選んでいる行が見えるように一覧を動かす）。
+    void RefreshRestRoom();
+    /// @brief 休憩部屋を閉じて結果画面へ（結果画面で拠点へ持ち帰ってセーブする）。
+    void LeaveRestRoom();
+    /// @brief 袋の bagWeapon 番目の武器を slot 番目の枠へ。枠にあった武器は、袋から付けた物なら袋へ戻し（この出撃で付けたチップも袋へ）、
+    /// 拠点の武器なら拠点に置いたまま（この出撃で付けたチップは袋へ）にする。
+    bool RestEquip(int bagWeapon, size_t slot);
+    /// @brief 袋の bagChip 番目のチップを slot 番目の枠の武器に付ける。チップ枠が空いていなければ何もしない。
+    bool RestAttach(int bagChip, size_t slot);
+    /// @brief slot 番目の枠の武器から、この出撃で付けた chip 番目のチップを外して袋へ戻す。
+    bool RestDetach(size_t slot, size_t chip);
+    /// @brief 行の物を売る（素材は全部）。売った額を返す（売れなければ0）。
+    int RestSell(const RestRow& row);
+    /// @brief 行の物を捨てる（素材は全部）。
+    bool RestDiscard(const RestRow& row);
+    /// @brief 枠を変えた後：枠の武器を入れ直し（変えた枠の弾倉は満タン）、構えている武器のチップを効かせ直す。
+    void RefreshSlotsAfterChange(size_t changedSlot);
+    bool restRoomOpen_ = false;
+    int restCursor_ = 0;
+    int restScroll_ = 0;
+    std::vector<RestRow> restRows_;
+    // 休憩部屋でしたこと（自動確認と記録）。
+    int restEquips_ = 0;
+    int restAttaches_ = 0;
+    int restDetaches_ = 0;
+    int restSales_ = 0;
+    int restSoldMoney_ = 0;
+    int restDiscards_ = 0;
     int level_ = 1;
     int exp_ = 0;
     int pendingChoices_ = 0;
@@ -684,6 +744,9 @@ private:
     // 拠点の画面の確認：0 まだ・1 画面を頼んだ・2 出撃した。枠の入れ替えと戻しが合っていたか。
     int autoBaseState_ = 0;
     bool autoBaseEquipOk_ = false;
+    // 休憩部屋の確認：0 まだ・1 画面を頼んだ・2 操作して画面を頼んだ・3 帰った。チップを付けた武器を構えた時の部品の段の合計。
+    int autoRestState_ = 0;
+    int autoRestChipLevels_ = 0;
     uint32_t autoWeaponAttacks_ = 0;
     uint32_t autoWeaponRailShots_ = 0;
     int autoWeaponOverheats_ = 0;

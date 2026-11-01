@@ -70,6 +70,52 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
         return;
     }
+    // 休憩部屋：画面を保存し、袋のチップ枠のある武器を3つ目の枠へ付け替え、チップを付けて外して付け直し、
+    // チップを1つ売り、四角の素材を全部売り、袋の武器を1つ捨ててから、もう一度画面を保存して帰る。
+    if (restRoomOpen_) {
+        if (!world_.run.tankRunCapturePath_.empty()) {
+            return;
+        }
+        if (autoRestState_ == 0) {
+            RequestCapture("rest_room");
+            autoRestState_ = 1;
+        } else if (autoRestState_ == 1) {
+            int best = -1;
+            for (size_t i = 0; i < bag_.weapons.size(); ++i) {
+                const auto& weapon = config_.weapons[static_cast<size_t>(bag_.weapons[i].weapon)];
+                if (survivor::ChipSlots(weapon, bag_.weapons[i].rarity) > 0 &&
+                    (best < 0 || bag_.weapons[i].rarity > bag_.weapons[static_cast<size_t>(best)].rarity)) {
+                    best = static_cast<int>(i);
+                }
+            }
+            if (best >= 0) {
+                RestEquip(best, 2);
+            }
+            if (!bag_.chips.empty() && RestAttach(0, 2)) {
+                RestDetach(2, runSlots_[2].weapon.chips.size() - 1);
+                RestAttach(static_cast<int>(bag_.chips.size()) - 1, 2);
+                // 3つ目の枠を構えて、チップが部品の段として効くかを見る。
+                EquipWeapon(2);
+                for (int level : partLevels_) {
+                    autoRestChipLevels_ += level;
+                }
+            }
+            if (!bag_.chips.empty()) {
+                RestSell({RestRow::Kind::BagChip, 0});
+            }
+            RestSell({RestRow::Kind::Material, static_cast<int>(survivor::MaterialId::Square)});
+            if (!bag_.weapons.empty()) {
+                RestDiscard({RestRow::Kind::BagWeapon, 0});
+            }
+            RefreshRestRoom();
+            RequestCapture("rest_room_after");
+            autoRestState_ = 2;
+        } else if (autoRestState_ == 2) {
+            LeaveRestRoom();
+            autoRestState_ = 3;
+        }
+        return;
+    }
     autoTestTime_ += dt;
     const myEngine::Vector3 position = player.GetWorldPosition();
     myEngine::Vector3 aim = position + myEngine::Vector3{6.0f, 0.0f, 0.0f};
@@ -534,7 +580,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         autoSampleShots_ = player.GetPrimaryAttackCount();
     }
 
-    if (cleared_ && autoTestClearedTime_ < 0.0f) {
+    if (cleared_ && !restRoomOpen_ && autoTestClearedTime_ < 0.0f) {
         autoTestClearedTime_ = autoTestTime_;
     }
     const bool timedOut = autoTestTime_ > kSectorAutoTestExitSeconds + 90.0f;
@@ -578,7 +624,14 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"baseEquipOk\":" << (autoBaseEquipOk_ ? "true" : "false") << ",\"baseBroughtHome\":" << (baseBroughtHome_ ? "true" : "false")
             << ",\"base\":{\"money\":" << base_.money << ",\"materials\":[" << base_.materials[0] << "," << base_.materials[1] << ","
             << base_.materials[2] << "," << base_.materials[3] << "],\"chips\":" << base_.chips.size() << ",\"weapons\":" << base_.weapons.size()
-            << ",\"sorties\":" << base_.sorties << ",\"clears\":" << base_.clears << "}" << ",\"completed\":" << (cleared_ ? "true" : "false") << ",\"cleared\":" << (cleared_ ? "true" : "false")
+            << ",\"sorties\":" << base_.sorties << ",\"clears\":" << base_.clears << ",\"equipped3\":\""
+            << (base_.equipped[2] >= 0 ? base_.weapons[static_cast<size_t>(base_.equipped[2])].key + ":" +
+                                             survivor::RarityKey(base_.weapons[static_cast<size_t>(base_.equipped[2])].rarity) + " chips " +
+                                             std::to_string(base_.weapons[static_cast<size_t>(base_.equipped[2])].chips.size())
+                                       : std::string())
+            << "\"}" << ",\"rest\":{\"state\":" << autoRestState_ << ",\"equips\":" << restEquips_ << ",\"attaches\":" << restAttaches_
+            << ",\"detaches\":" << restDetaches_ << ",\"sales\":" << restSales_ << ",\"soldMoney\":" << restSoldMoney_
+            << ",\"discards\":" << restDiscards_ << ",\"chipLevels\":" << autoRestChipLevels_ << "}" << ",\"completed\":" << (cleared_ ? "true" : "false") << ",\"cleared\":" << (cleared_ ? "true" : "false")
             << ",\"sectorSeconds\":" << elapsed_ << ",\"exitOpen\":" << (exitOpen_ ? "true" : "false") << ",\"exit\":[" << exitPosition_.x
             << "," << exitPosition_.y << "],\"maxAliveAfterTwoMinutes\":" << maxAliveAfterTwoMinutes_
             << ",\"resultState\":" << static_cast<int>(world_.combat.combatFlow_.GetState()) << ",\"level\":" << level_

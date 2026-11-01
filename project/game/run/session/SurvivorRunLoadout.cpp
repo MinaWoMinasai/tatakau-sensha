@@ -670,6 +670,12 @@ void SurvivorRunController::EquipWeapon(size_t slot)
     }
     activeSlot_ = slot;
     weaponEquipped_ = true;
+    // チップは付けている武器を構えている間だけ効く（G7）。チップ1つが部品の段（コモン 1 〜 レジェンド 5）になり、同じ部品は足す。
+    partLevels_.fill(0);
+    for (const survivor::LootBag::Chip& chip : runSlots_[slot].weapon.chips) {
+        const size_t part = static_cast<size_t>(chip.part);
+        partLevels_[part] = (std::min)(config_.parts[part].maxLevel, partLevels_[part] + survivor::ChipLevel(chip.rarity));
+    }
     ApplyParts();
     LoadAmmoToPlayer();
     player.RestoreHeat(weaponHeat_[slot]);
@@ -726,7 +732,7 @@ void SurvivorRunController::StartSwap(size_t slot)
     swapDuration_ = (std::max)(0.05f, config_.weapons[static_cast<size_t>(weaponSlots_[slot])].swapSeconds);
     swapEquipped_ = false;
     // ディゾルブの境目の光：コモンは紫がかった桃色（ネオンボスと同じ）、それより上はレア度の色。
-    const survivor::Rarity rarity = slotRarity_[slot];
+    const survivor::Rarity rarity = runSlots_[slot].weapon.rarity;
     if (rarity == survivor::Rarity::Common) {
         world_.presentation.playerSwapDissolveColor_ = {1.9f, 0.35f, 1.3f, 1.0f};
     } else {
@@ -842,7 +848,7 @@ void SurvivorRunController::RefreshWeaponSlots()
         slots[i].empty = false;
         slots[i].name = weapon.name;
         slots[i].ammo = survivor::AmmoName(weapon.ammo);
-        slots[i].color = survivor::RarityColor(slotRarity_[i]);
+        slots[i].color = survivor::RarityColor(runSlots_[i].weapon.rarity);
     }
     weaponHud_.SetSlots(slots);
 }

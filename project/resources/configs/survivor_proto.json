@@ -90,13 +90,16 @@
                  "heavyBarrel": true }
   },
   "loot": {
-    "comment": "敵が落とす物（計画書 p3 の W3）。欠片はお金になり（経験値 × moneyPerExp）、自動で拾う。弾（ammoChance の確率で ammoAmount ずつ、予備は reserveMax まで）は近づくと寄ってきて触れると拾う。素材（倒した形の素材を materialChance、敵戦車はボスの素材を bossMaterialChance）・チップ（今の部品、chipChance）・武器（weaponChance）は F で出撃中の袋へ（pickupRadius 以内を全部）。確率は敵1体ごとで、大きな敵（敵戦車・大五角・重い四角）は bigScale 倍。チップと武器のレア度は rarityWeights の重みで選ぶ。弾と素材は lifetime 秒で消える。",
+    "comment": "敵が落とす物（計画書 p3 の W3）。欠片はお金になり（経験値 × moneyPerExp）、自動で拾う。弾（ammoChance の確率で ammoAmount ずつ、予備は reserveMax まで）は近づくと寄ってきて触れると拾う。素材（倒した形の素材を materialChance、敵戦車はボスの素材を bossMaterialChance）・チップ（今の部品、chipChance）・武器（weaponChance）は F で出撃中の袋へ（pickupRadius 以内を全部）。確率は敵1体ごとで、大きな敵（敵戦車・大五角・重い四角）は bigScale 倍。チップと武器のレア度は rarityWeights の重みで選ぶ。弾と素材は lifetime 秒で消える。休憩部屋で売る値段は weaponPrice・chipPrice（レア度ごと）と materialPrice（素材1つごと）。",
     "moneyPerExp": 0.1, "materialChance": 0.15, "bossMaterialChance": 0.3,
     "ammoChance": { "light": 0.1, "heavy": 0.05, "energy": 0.04 },
     "ammoAmount": { "light": 30, "heavy": 4, "energy": 15 },
     "reserveMax": { "light": 900, "heavy": 60, "energy": 450 },
     "chipChance": 0.01, "weaponChance": 0.004, "bigScale": 5.0,
     "rarityWeights": { "common": 60, "uncommon": 25, "rare": 10, "epic": 4, "legendary": 1 },
+    "weaponPrice": { "common": 30, "uncommon": 60, "rare": 120, "epic": 240, "legendary": 480 },
+    "chipPrice": { "common": 10, "uncommon": 20, "rare": 40, "epic": 80, "legendary": 160 },
+    "materialPrice": { "square": 2, "triangle": 2, "pentagon": 3, "boss": 20 },
     "pickupRadius": 2.6, "ammoMagnetRadius": 3.0, "lifetime": 45
   },
   "traits": {
