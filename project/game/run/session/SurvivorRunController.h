@@ -441,12 +441,18 @@ private:
     void RefreshWeaponSlots();
     /// @brief 持っている武器の名前を「・」でつなぐ。
     std::string WeaponNames() const;
+    /// @brief 構えている枠の武器の値（レア度を効かせたもの）。空きなら nullptr。
     const survivor::WeaponDefinition* ActiveWeapon() const
     {
-        return activeSlot_ < weaponSlots_.size() && weaponSlots_[activeSlot_] >= 0
-                   ? &config_.weapons[static_cast<size_t>(weaponSlots_[activeSlot_])]
-                   : nullptr;
+        return activeSlot_ < weaponSlots_.size() && weaponSlots_[activeSlot_] >= 0 ? &slotDefs_[activeSlot_] : nullptr;
     }
+    /// @brief slot 番目の枠の武器の値（レア度を効かせたもの。weaponSlots_ が空きでない枠だけ）。
+    const survivor::WeaponDefinition& SlotWeapon(size_t slot) const
+    {
+        return slotDefs_[slot];
+    }
+    /// @brief 枠の武器を runSlots_ から入れ直す（weaponSlots_ と、レア度を効かせた slotDefs_）。
+    void SyncSlotWeapons();
     // 枠ごとの武器（config_.weapons の番号、-1 は空き）と、使っている枠・切り替えた回数。
     std::array<int, survivor::kWeaponSlots> weaponSlots_{-1, -1, -1};
     size_t activeSlot_ = 0;
@@ -519,7 +525,11 @@ private:
     void OpenBaseScreen();
     /// @brief 拠点の weaponIndex 番目の武器を slot 番目の枠へ入れる（ほかの枠に入っていれば入れ替える）。
     void EquipFromBase(int weaponIndex, size_t slot);
-    /// @brief ↑↓ で拠点の武器を選び、1〜3 で枠へ入れ、Enter で出撃する。
+    /// @brief recipe 番目のレシピで、素材とお金を払ってコモンの武器を作り、拠点へ足す（W7）。足りなければ何もしない。
+    bool CraftWeapon(size_t recipe);
+    /// @brief 拠点の index 番目の武器を、派生の木の次の段（レア度を1つ上）へ進化させる（W7）。チップはそのまま。
+    bool EvolveBaseWeapon(int index);
+    /// @brief 右の欄（Tab で武器・作る・派生の木）ごとに、↑↓ で選び、1〜3 で枠へ入れ、C で作り、U で進化させ、Enter で出撃する。
     void UpdateBaseScreenInput();
     /// @brief 出撃する：枠を入れ直し、出撃の回数を足してセーブする。
     void StartSortie();
@@ -531,6 +541,11 @@ private:
     bool baseScreenOpen_ = false;
     int baseCursor_ = 0;
     int baseScroll_ = 0;
+    // 右の欄（0 武器・1 作る・2 派生の木）と、作る欄で選んでいるレシピ。作った数・進化させた数（自動確認と記録）。
+    int basePage_ = 0;
+    int craftCursor_ = 0;
+    int crafted_ = 0;
+    int evolved_ = 0;
     bool baseCommitted_ = false;
     bool baseBroughtHome_ = false;
     std::string baseError_;
@@ -543,6 +558,8 @@ private:
         survivor::BaseWeapon weapon;
     };
     std::array<RunSlot, survivor::kWeaponSlots> runSlots_{};
+    // 枠ごとの、レア度を効かせた武器の値（SyncSlotWeapons で作る）。
+    std::array<survivor::WeaponDefinition, survivor::kWeaponSlots> slotDefs_{};
 
     // 休憩部屋（W6・G6）。SurvivorRunRest.cpp。区画をクリアすると開き、袋の整理・売る・捨てる、袋の武器への付け替え、
     // チップの付け外しをして、「帰る」で結果画面へ（拠点へ持ち帰る）。「次へ進む」は3ステージの流れ（W8）で入る。開いている間は止まる。
@@ -744,6 +761,8 @@ private:
     // 拠点の画面の確認：0 まだ・1 画面を頼んだ・2 出撃した。枠の入れ替えと戻しが合っていたか。
     int autoBaseState_ = 0;
     bool autoBaseEquipOk_ = false;
+    // 作る・進化を1回ずつ試して、払った分・レア度・威力が合っていたか。
+    bool autoCraftOk_ = false;
     // 休憩部屋の確認：0 まだ・1 画面を頼んだ・2 操作して画面を頼んだ・3 帰った。チップを付けた武器を構えた時の部品の段の合計。
     int autoRestState_ = 0;
     int autoRestChipLevels_ = 0;

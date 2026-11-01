@@ -102,6 +102,23 @@
     "materialPrice": { "square": 2, "triangle": 2, "pentagon": 3, "boss": 20 },
     "pickupRadius": 2.6, "ammoMagnetRadius": 3.0, "lifetime": 45
   },
+  "crafting": {
+    "comment": "素材で作る・派生の木（計画書 p3 の W7）。拠点の画面で、recipes の素材とお金を払ってコモンの武器を作り、evolve でレア度を1段ずつ上げる（そのレア度へ上げるのに要る物に、武器の主な素材 main を main 個足す）。レア度ごとに威力 rarityDamage・弾倉 rarityMagazine の倍率がかかり、チップ枠も増える。別の武器へ分かれる枝は、武器が増える W10 で足す。",
+    "rarityDamage": { "common": 1.0, "uncommon": 1.1, "rare": 1.2, "epic": 1.35, "legendary": 1.5 },
+    "rarityMagazine": { "common": 1.0, "uncommon": 1.1, "rare": 1.2, "epic": 1.35, "legendary": 1.5 },
+    "recipes": {
+      "cannon": { "square": 10, "triangle": 5, "main": "square" },
+      "machineGun": { "triangle": 15, "main": "triangle" },
+      "grenade": { "square": 10, "pentagon": 3, "main": "square" },
+      "beam": { "triangle": 10, "pentagon": 5, "main": "pentagon" }
+    },
+    "evolve": {
+      "uncommon": { "money": 100, "main": 20 },
+      "rare": { "pentagon": 5, "money": 300, "main": 40 },
+      "epic": { "pentagon": 10, "boss": 3, "money": 800, "main": 60 },
+      "legendary": { "pentagon": 15, "boss": 10, "money": 2000, "main": 80 }
+    }
+  },
   "traits": {
     "comment": "特性。区画の始めに止めて、標準と冷却炉の2択を出す。冷却炉は熱の上限を furnaceHeatMax 倍、冷える速さ（撃っていない間と撃っている間の両方）を furnaceCool 倍にする。",
     "furnaceHeatMax": 2, "furnaceCool": 0.7

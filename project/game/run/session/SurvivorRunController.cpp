@@ -531,7 +531,7 @@ void SurvivorRunController::Update(float dt)
             state.active = swapTarget_ >= 0 && !swapEquipped_ ? static_cast<size_t>(swapTarget_) : activeSlot_;
             // 切り替えの前半は、もう替える先の武器の弾の数を出す（弾の種類の名前と合わせる）。
             if (weaponSlots_[state.active] >= 0) {
-                const survivor::WeaponDefinition& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[state.active])];
+                const survivor::WeaponDefinition& weapon = SlotWeapon(state.active);
                 state.magazineMax = weapon.magazine;
                 state.magazine = weapon.magazine > 0 ? magazines_[state.active] : 0;
                 state.reserve = reserves_[static_cast<size_t>(weapon.ammo)];

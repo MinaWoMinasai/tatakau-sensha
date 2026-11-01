@@ -208,7 +208,7 @@ SurvivorInventoryHud::View SurvivorRunController::BuildInventoryView() const
         if (weaponSlots_[i] < 0) {
             continue;
         }
-        const survivor::WeaponDefinition& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[i])];
+        const survivor::WeaponDefinition& weapon = SlotWeapon(i);
         card.empty = false;
         card.active = i == activeSlot_;
         card.color = survivor::RarityColor(runSlots_[i].weapon.rarity);

@@ -54,19 +54,60 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     // 部屋の中央の周りを回りながら近い敵を撃ち続け、近くの欠片は拾いに行く。4:00 を過ぎたら出口へ向かう
     // （レベルの曲線を4分で確かめるため、出口が開いてもすぐには入らない）。自機は無敵。
     auto& player = *world_.resources.player_;
-    // 拠点の画面：画面を保存し、4つ目の武器を3つ目の枠へ入れてから元に戻し（入れ替えの確認）、出撃する。区画の時間は進めない。
+    // 拠点の画面：画面を保存し、4つ目の武器を3つ目の枠へ入れてから元に戻し（入れ替えの確認）、作る・進化を1回ずつ試して
+    // 派生の木の画面を保存し、出撃する。区画の時間は進めない。
     if (baseScreenOpen_) {
-        if (autoBaseState_ == 0 && world_.run.tankRunCapturePath_.empty()) {
+        if (!world_.run.tankRunCapturePath_.empty()) {
+            return;
+        }
+        if (autoBaseState_ == 0) {
             RequestCapture("base");
             autoBaseState_ = 1;
-        } else if (autoBaseState_ == 1 && world_.run.tankRunCapturePath_.empty()) {
+        } else if (autoBaseState_ == 1) {
             const std::array<int, survivor::kWeaponSlots> before = base_.equipped;
             EquipFromBase(3, 2);
             const bool swapped = base_.equipped[2] == 3;
             EquipFromBase(before[2], 2);
             autoBaseEquipOk_ = swapped && base_.equipped == before;
-            StartSortie();
+            // 作る・進化：試しに素材とお金を足し（自動確認だけ。出撃の前に0へ戻す）、榴弾砲を作って、それをアンコモンへ進化させる。
+            // 払った分だけ減り、レア度が上がり、威力が上がるかを見る。
+            base_.materials = {100, 100, 100, 20};
+            base_.money = 5000;
+            size_t recipe = 0;
+            for (size_t i = 0; i < config_.crafting.recipes.size(); ++i) {
+                if (config_.crafting.recipes[i].key == "grenade") {
+                    recipe = i;
+                }
+            }
+            const size_t owned = base_.weapons.size();
+            const survivor::CraftCost craftCost = config_.crafting.recipes[recipe].cost;
+            const bool crafted = CraftWeapon(recipe) && base_.weapons.size() == owned + 1 &&
+                                 base_.materials[0] == 100 - craftCost.materials[0] && base_.materials[2] == 100 - craftCost.materials[2];
+            const std::array<int, survivor::kMaterialCount> materials = base_.materials;
+            const int money = base_.money;
+            const int crafted_index = static_cast<int>(base_.weapons.size()) - 1;
+            const survivor::CraftCost evolveCost = survivor::EvolveCost(config_.crafting, "grenade", survivor::Rarity::Uncommon);
+            bool evolved = EvolveBaseWeapon(crafted_index) && base_.weapons.back().rarity == survivor::Rarity::Uncommon &&
+                           base_.money == money - evolveCost.money;
+            for (size_t i = 0; i < survivor::kMaterialCount; ++i) {
+                evolved = evolved && base_.materials[i] == materials[i] - evolveCost.materials[i];
+            }
+            const int grenade = survivor::FindWeapon(config_.weapons, "grenade");
+            const bool stronger = grenade >= 0 && survivor::ApplyRarity(config_.weapons[static_cast<size_t>(grenade)], survivor::Rarity::Uncommon,
+                                                                         config_.crafting)
+                                                          .damageScale > config_.weapons[static_cast<size_t>(grenade)].damageScale;
+            autoCraftOk_ = crafted && evolved && stronger;
+            basePage_ = 2;
+            baseCursor_ = crafted_index;
+            RefreshBaseScreen();
+            RequestCapture("base_tree");
             autoBaseState_ = 2;
+        } else if (autoBaseState_ == 2) {
+            base_.materials = {};
+            base_.money = 0;
+            basePage_ = 0;
+            StartSortie();
+            autoBaseState_ = 3;
         }
         return;
     }
@@ -621,7 +662,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
         std::ofstream(std::string(kAutoTestDirectory) + "/autotest.json")
             << "{\"configRoundTrip\":" << (roundTrip ? "true" : "false") << ",\"baseRoundTrip\":" << (baseRoundTrip ? "true" : "false")
-            << ",\"baseEquipOk\":" << (autoBaseEquipOk_ ? "true" : "false") << ",\"baseBroughtHome\":" << (baseBroughtHome_ ? "true" : "false")
+            << ",\"baseEquipOk\":" << (autoBaseEquipOk_ ? "true" : "false") << ",\"craftOk\":" << (autoCraftOk_ ? "true" : "false")
+            << ",\"crafted\":" << crafted_ << ",\"evolved\":" << evolved_ << ",\"baseBroughtHome\":" << (baseBroughtHome_ ? "true" : "false")
             << ",\"base\":{\"money\":" << base_.money << ",\"materials\":[" << base_.materials[0] << "," << base_.materials[1] << ","
             << base_.materials[2] << "," << base_.materials[3] << "],\"chips\":" << base_.chips.size() << ",\"weapons\":" << base_.weapons.size()
             << ",\"sorties\":" << base_.sorties << ",\"clears\":" << base_.clears << ",\"equipped3\":\""

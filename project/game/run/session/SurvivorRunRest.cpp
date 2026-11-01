@@ -37,12 +37,9 @@ void SurvivorRunController::LeaveRestRoom()
 void SurvivorRunController::RefreshSlotsAfterChange(size_t changedSlot)
 {
     SyncAmmoFromPlayer();
-    for (size_t i = 0; i < weaponSlots_.size(); ++i) {
-        weaponSlots_[i] = runSlots_[i].weapon.key.empty() ? -1 : survivor::FindWeapon(config_.weapons, runSlots_[i].weapon.key);
-    }
+    SyncSlotWeapons();
     if (changedSlot < weaponSlots_.size()) {
-        magazines_[changedSlot] =
-            weaponSlots_[changedSlot] >= 0 ? config_.weapons[static_cast<size_t>(weaponSlots_[changedSlot])].magazine : 0;
+        magazines_[changedSlot] = weaponSlots_[changedSlot] >= 0 ? SlotWeapon(changedSlot).magazine : 0;
         weaponHeat_[changedSlot] = {};
     }
     // 構えている武器を入れ直して、形・弾・チップを効かせ直す（替えた回数には数えない）。
@@ -85,7 +82,7 @@ bool SurvivorRunController::RestAttach(int bagChip, size_t slot)
         return false;
     }
     RunSlot& target = runSlots_[slot];
-    const int capacity = survivor::ChipSlots(config_.weapons[static_cast<size_t>(weaponSlots_[slot])], target.weapon.rarity);
+    const int capacity = survivor::ChipSlots(SlotWeapon(slot), target.weapon.rarity);
     if (static_cast<int>(target.weapon.chips.size()) >= capacity) {
         world_.combatFlow->SetEventCallout(capacity == 0 ? "コモンの武器にはチップを付けられない" : "チップ枠が空いていない", 1.2f);
         return false;

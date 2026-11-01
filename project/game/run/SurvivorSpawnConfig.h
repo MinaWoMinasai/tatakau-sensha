@@ -5,6 +5,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include "game/player/combat/PlayerHeat.h"
+#include "game/run/SurvivorCrafting.h"
 #include "game/run/SurvivorForms.h"
 #include "game/run/SurvivorLoot.h"
 #include "game/run/SurvivorParts.h"
@@ -224,6 +225,8 @@ struct SpawnConfig {
     std::array<int, kAmmoTypeCount> startReserve{600, 40, 300};
     /// @brief 敵が落とす物（お金・素材・弾・チップ・武器）の確率と量（W3）。
     LootConfig loot{};
+    /// @brief 素材で作る・進化させる（派生の木）と、レア度の効き（W7）。
+    CraftingConfig crafting{};
 
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
     int ExpToNextLevel(int level) const
@@ -650,6 +653,61 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             weapon.reloadScale = (std::max)(0.05f, weapon.reloadScale);
         }
     }
+    if (data.contains("crafting") && data.at("crafting").is_object()) {
+        const auto& crafting = data.at("crafting");
+        auto& out = config.crafting;
+        // 素材とお金の組（{"square": 10, "money": 100} の形）を読む。
+        auto readCost = [&](const nlohmann::json& object, CraftCost& cost) {
+            for (size_t i = 0; i < kMaterialCount; ++i) {
+                number(object, MaterialKey(static_cast<MaterialId>(i)), cost.materials[i]);
+            }
+            number(object, "money", cost.money);
+        };
+        for (const char* key : {"rarityDamage", "rarityMagazine"}) {
+            if (crafting.contains(key) && crafting.at(key).is_object()) {
+                for (size_t i = 0; i < kRarityCount; ++i) {
+                    number(crafting.at(key), RarityKey(static_cast<Rarity>(i)),
+                           std::string(key) == "rarityDamage" ? out.rarityDamage[i] : out.rarityMagazine[i]);
+                }
+            }
+        }
+        if (crafting.contains("recipes") && crafting.at("recipes").is_object()) {
+            for (const auto& item : crafting.at("recipes").items()) {
+                if (!item.value().is_object()) {
+                    continue;
+                }
+                WeaponRecipe* recipe = nullptr;
+                for (auto& existing : out.recipes) {
+                    if (existing.key == item.key()) {
+                        recipe = &existing;
+                    }
+                }
+                if (!recipe) {
+                    out.recipes.push_back({item.key(), {}, MaterialId::Square});
+                    recipe = &out.recipes.back();
+                }
+                recipe->cost = {};
+                readCost(item.value(), recipe->cost);
+                const std::string main = item.value().value("main", std::string());
+                for (size_t i = 0; i < kMaterialCount; ++i) {
+                    if (main == MaterialKey(static_cast<MaterialId>(i))) {
+                        recipe->main = static_cast<MaterialId>(i);
+                    }
+                }
+            }
+        }
+        if (crafting.contains("evolve") && crafting.at("evolve").is_object()) {
+            for (size_t i = 1; i < kRarityCount; ++i) {
+                const char* rarity = RarityKey(static_cast<Rarity>(i));
+                if (crafting.at("evolve").contains(rarity) && crafting.at("evolve").at(rarity).is_object()) {
+                    const auto& step = crafting.at("evolve").at(rarity);
+                    out.evolve[i] = {};
+                    readCost(step, out.evolve[i]);
+                    number(step, "main", out.evolveMain[i]);
+                }
+            }
+        }
+    }
     if (data.contains("loot") && data.at("loot").is_object()) {
         const auto& loot = data.at("loot");
         auto& out = config.loot;
@@ -940,6 +998,35 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     lunge["interval"] = round(config.lungePentagon.interval);
     lunge["windup"] = round(config.lungePentagon.windup);
     lunge["duration"] = round(config.lungePentagon.duration);
+    auto& crafting = section("crafting");
+    auto writeCost = [](nlohmann::json& object, const CraftCost& cost) {
+        for (size_t i = 0; i < kMaterialCount; ++i) {
+            if (cost.materials[i] > 0) {
+                object[MaterialKey(static_cast<MaterialId>(i))] = cost.materials[i];
+            }
+        }
+        if (cost.money > 0) {
+            object["money"] = cost.money;
+        }
+    };
+    for (size_t i = 0; i < kRarityCount; ++i) {
+        crafting["rarityDamage"][RarityKey(static_cast<Rarity>(i))] = round(config.crafting.rarityDamage[i]);
+        crafting["rarityMagazine"][RarityKey(static_cast<Rarity>(i))] = round(config.crafting.rarityMagazine[i]);
+    }
+    crafting["recipes"] = nlohmann::json::object();
+    for (const WeaponRecipe& recipe : config.crafting.recipes) {
+        nlohmann::json item = nlohmann::json::object();
+        writeCost(item, recipe.cost);
+        item["main"] = MaterialKey(recipe.main);
+        crafting["recipes"][recipe.key] = item;
+    }
+    crafting["evolve"] = nlohmann::json::object();
+    for (size_t i = 1; i < kRarityCount; ++i) {
+        nlohmann::json step = nlohmann::json::object();
+        writeCost(step, config.crafting.evolve[i]);
+        step["main"] = config.crafting.evolveMain[i];
+        crafting["evolve"][RarityKey(static_cast<Rarity>(i))] = step;
+    }
     auto& loot = section("loot");
     loot["moneyPerExp"] = round(config.loot.moneyPerExp);
     loot["materialChance"] = round(config.loot.materialChance);
@@ -972,10 +1059,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 29> kOrder{
+    static constexpr std::array<const char*, 30> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "weapons",       "loot",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
+        "heat",          "shield",    "forms",           "weapons",       "loot",          "crafting",      "traits",        "relics",    "fusions",    "parts",       "heatVent",
         "partTuning",    "bigPentagon", "damageNumbers"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {

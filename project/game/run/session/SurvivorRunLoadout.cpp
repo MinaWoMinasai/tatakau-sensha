@@ -660,7 +660,7 @@ void SurvivorRunController::EquipWeapon(size_t slot)
         SyncAmmoFromPlayer();
         weaponHeat_[activeSlot_] = player.GetHeat().Save();
     }
-    const auto& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[slot])];
+    const auto& weapon = SlotWeapon(slot);
     ApplyFormToPlayer(survivor::WeaponForm(config_.forms, weapon), weapon.form);
     // 固有の能力（機関砲の加速・狙撃の印など）は、ApplyParts が formId_ の形態から渡す。
     formId_ = weapon.form;
@@ -729,7 +729,7 @@ void SurvivorRunController::StartSwap(size_t slot)
     reloadTimer_ = -1.0f;
     swapTarget_ = static_cast<int>(slot);
     swapTimer_ = 0.0f;
-    swapDuration_ = (std::max)(0.05f, config_.weapons[static_cast<size_t>(weaponSlots_[slot])].swapSeconds);
+    swapDuration_ = (std::max)(0.05f, SlotWeapon(slot).swapSeconds);
     swapEquipped_ = false;
     // ディゾルブの境目の光：コモンは紫がかった桃色（ネオンボスと同じ）、それより上はレア度の色。
     const survivor::Rarity rarity = runSlots_[slot].weapon.rarity;
@@ -844,7 +844,7 @@ void SurvivorRunController::RefreshWeaponSlots()
         if (weaponSlots_[i] < 0) {
             continue;
         }
-        const auto& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[i])];
+        const auto& weapon = SlotWeapon(i);
         slots[i].empty = false;
         slots[i].name = weapon.name;
         slots[i].ammo = survivor::AmmoName(weapon.ammo);
