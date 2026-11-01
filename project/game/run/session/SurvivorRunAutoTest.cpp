@@ -110,7 +110,26 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
 
     // 武器の枠：15秒ごとに次の枠へ切り替え、枠ごとに使った秒・撃った回数を足す。構えて0.5秒後に砲門の数・威力と発射間隔の倍率を控え、
     // 1.5秒後にその武器の画面を保存する（枠ごとに最初の1回）。
-    if (WeaponMode()) {
+    // 持ち物の画面：2:30 に1回開き、画面を保存して1秒後に閉じる。開いている間に区画の時計が進まないかを見る。
+    if (WeaponMode() && autoInventoryState_ == 0 && elapsed_ >= 150.0f && swapTarget_ < 0) {
+        OpenInventory();
+        autoInventoryElapsed_ = elapsed_;
+        autoInventoryTimer_ = 0.0f;
+        autoInventoryState_ = 1;
+    }
+    if (inventoryOpen_) {
+        autoInventoryTimer_ += dt;
+        if (autoInventoryState_ == 1 && world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture("inventory");
+            autoInventoryState_ = 2;
+        }
+        if (autoInventoryState_ == 2 && autoInventoryTimer_ >= 1.0f) {
+            autoInventoryFrozen_ = elapsed_ == autoInventoryElapsed_;
+            CloseInventory();
+            autoInventoryState_ = 3;
+        }
+    }
+    if (WeaponMode() && !inventoryOpen_) {
         // 拾える物が近くにあれば F を押したのと同じく拾う。拾う案内が出た画面と、チップか武器が落ちている画面を1回ずつ保存する。
         if (!autoLootPromptCaptured_ && !lootPromptShown_.empty() && world_.run.tankRunCapturePath_.empty()) {
             RequestCapture("loot_prompt");
@@ -583,6 +602,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"lockedSeconds\":" << autoLockedSeconds_ << ",\"emptyAttacks\":" << autoEmptyAttacks_ << ",\"emptySeconds\":" << autoEmptySeconds_
             << ",\"reserves\":[" << reserves_[0] << "," << reserves_[1] << "," << reserves_[2] << "],\"swapMeasured\":[" << autoSwapMeasured_[0] << ","
             << autoSwapMeasured_[1] << "," << autoSwapMeasured_[2] << "]"
+            << ",\"inventoryOpens\":" << inventoryOpens_ << ",\"inventoryFrozen\":" << (autoInventoryFrozen_ ? "true" : "false")
             << ",\"lootDropped\":[" << lootDropped_[0] << "," << lootDropped_[1] << "," << lootDropped_[2] << "," << lootDropped_[3]
             << "],\"lootPicked\":[" << lootPicked_[0] << "," << lootPicked_[1] << "," << lootPicked_[2] << "," << lootPicked_[3]
             << "],\"ammoPicked\":[" << ammoPicked_[0] << "," << ammoPicked_[1] << "," << ammoPicked_[2] << "],\"money\":" << bag_.money

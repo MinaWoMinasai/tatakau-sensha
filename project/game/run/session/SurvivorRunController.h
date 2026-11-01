@@ -6,6 +6,7 @@
 #include "game/ui/session/SurvivorChoiceHud.h"
 #include "game/ui/session/SurvivorLoadoutHud.h"
 #include "game/ui/session/SurvivorDamageNumbers.h"
+#include "game/ui/session/SurvivorInventoryHud.h"
 #include "game/ui/session/SurvivorWeaponHud.h"
 #include <chrono>
 #include <optional>
@@ -66,7 +67,8 @@ public:
     /// @note 止めている間も、スロー演出ではないので画面の色は残す（GameplayQueries・CombatFramePipeline）。
     bool IsPaused() const
     {
-        return IsFormChoiceOpen() || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro || cineMode_ == CineMode::Evolve;
+        return IsFormChoiceOpen() || inventoryOpen_ || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro ||
+               cineMode_ == CineMode::Evolve;
     }
 
     /// @brief 部品の3択を開いていて、その間はゲームを止める設定か（遊んだ感想から、読む時間を取るため既定で止める）。
@@ -473,6 +475,16 @@ private:
     std::unique_ptr<myEngine::TextLabel> lootPrompt_;
     std::string lootTextShown_;
     std::string lootPromptShown_;
+
+    // E の持ち物の画面（W4）。開いている間は区画を止める（IsPaused）。戦闘中は見るだけ。
+    /// @brief 持ち物の画面を開く（文字はここで1回だけ作る）。
+    void OpenInventory();
+    void CloseInventory();
+    /// @brief 装備（武器3・シールド・補助）と袋の中身を、画面に出す形にする。
+    SurvivorInventoryHud::View BuildInventoryView() const;
+    SurvivorInventoryHud inventoryHud_;
+    bool inventoryOpen_ = false;
+    int inventoryOpens_ = 0;
     int level_ = 1;
     int exp_ = 0;
     int pendingChoices_ = 0;
@@ -632,6 +644,11 @@ private:
     bool autoSwapCaptured_ = false;
     bool autoReloadCaptured_ = false;
     bool autoLootPromptCaptured_ = false;
+    // 持ち物の画面の確認：0 まだ・1 開いた・2 画面を頼んだ・3 閉じた。開いた時の区画の時計と、閉じる時に同じだったか。
+    int autoInventoryState_ = 0;
+    float autoInventoryTimer_ = 0.0f;
+    float autoInventoryElapsed_ = 0.0f;
+    bool autoInventoryFrozen_ = false;
     uint32_t autoWeaponAttacks_ = 0;
     uint32_t autoWeaponRailShots_ = 0;
     int autoWeaponOverheats_ = 0;

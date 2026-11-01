@@ -157,6 +157,7 @@ void SurvivorRunController::Initialize()
     RefreshEvolveText();
     // 武器の輪と弾の数（右下）。
     weaponHud_.Initialize();
+    inventoryHud_.Initialize();
     world_.presentation.playerSwapDissolve_ = 0.0f;
     // 最小の案内。文字は案内ごとに作り、遊んでいる間は書き換えない（描画中の SetText は落ちる原因になるため）。
     hintPanel_ = bar({190.0f, 548.0f}, {900.0f, 46.0f}, {0.01f, 0.03f, 0.05f, 0.80f});
@@ -174,7 +175,7 @@ void SurvivorRunController::Initialize()
         "Q で Q の部品を使う（状態は画面の下に出る）",
         "宿敵を倒すと出口が開く",
         "弾倉が空になると自動でリロード（予備の弾から込める。その間は撃てない）。R で早めにも入れ直せる",
-        "WASD 移動　／　左クリックで撃つ　／　ホイールか 1〜3 で武器を変える　／　R リロード"};
+        "WASD 移動　／　左クリックで撃つ　／　ホイールか 1〜3 で武器を変える　／　R リロード　／　F 拾う　／　E 持ち物"};
     for (size_t i = 0; i < hintTexts_.size(); ++i) {
         hintTexts_[i] = std::make_unique<myEngine::TextLabel>();
         const size_t text = i == 0 ? (WeaponMode() ? kHintTexts.size() - 1 : 0) : i == 1 ? (config_.choicePause ? 2 : 1) : i + 1;
@@ -410,12 +411,21 @@ void SurvivorRunController::Update(float dt)
         UpdateFormChoiceInput();
     } else if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
         if (WeaponMode()) {
-            UpdateWeaponInput();
+            // E で持ち物の画面を開け閉めする。開いている間は、武器の操作を受け付けない。
+            if (world_.resources.input_->IsKeyTriggered(DIK_E)) {
+                inventoryOpen_ ? CloseInventory() : OpenInventory();
+            } else if (!inventoryOpen_) {
+                UpdateWeaponInput();
+            }
         } else {
             UpdateChoiceInput();
         }
     } else if (choiceOpen_) {
         CloseChoices();
+    }
+    // 区画が終わったり倒れたりしたら、持ち物の画面は閉じる。
+    if (inventoryOpen_ && (world_.combat.combatFlow_.GetState() != GameFlowState::Playing || cleared_)) {
+        CloseInventory();
     }
     if (choiceOpen_) {
         choiceOpenSeconds_ += dt;
@@ -758,6 +768,12 @@ void SurvivorRunController::DrawUi()
         return;
     }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+    // 持ち物の画面を開いている間は、ほかの HUD を描かずに持ち物の画面だけを出す（暗幕から透けて読みにくくならないように）。
+    if (inventoryOpen_) {
+        inventoryHud_.Draw();
+        DrawCinematic();
+        return;
+    }
     // ダメージの数字は、HUD の文字より下に描く。
     damageNumbers_.Draw();
     if (expTrack_ && expFill_ && !WeaponMode()) {

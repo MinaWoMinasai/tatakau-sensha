@@ -1,6 +1,8 @@
 #include "game/run/session/SurvivorRunController.h"
 #include "game/session/GameplaySystems.h"
 #include <algorithm>
+#include <cmath>
+#include <iomanip>
 #include <sstream>
 
 // 育つ戦車の試作の、敵が落とす物と出撃中の袋（計画書 p3 の W3）。
@@ -158,6 +160,151 @@ std::string SurvivorRunController::LootName(const survivor::LootItem& item) cons
         return config_.weapons[static_cast<size_t>(item.id)].name + "（" + survivor::RarityName(item.rarity) + "）";
     }
     return {};
+}
+
+} // namespace gameplay
+
+namespace gameplay {
+
+void SurvivorRunController::OpenInventory()
+{
+    if (inventoryOpen_ || !WeaponMode()) {
+        return;
+    }
+    SyncAmmoFromPlayer();
+    inventoryHud_.Show(BuildInventoryView());
+    inventoryOpen_ = true;
+    ++inventoryOpens_;
+}
+
+void SurvivorRunController::CloseInventory()
+{
+    inventoryOpen_ = false;
+}
+
+SurvivorInventoryHud::View SurvivorRunController::BuildInventoryView() const
+{
+    SurvivorInventoryHud::View view;
+    const auto& player = *world_.resources.player_;
+    auto fixed = [](float value, int digits) {
+        std::ostringstream text;
+        text << std::fixed << std::setprecision(digits) << value;
+        return text.str();
+    };
+    for (size_t i = 0; i < view.weapons.size() && i < weaponSlots_.size(); ++i) {
+        auto& card = view.weapons[i];
+        card.title = std::to_string(i + 1) + "　武器";
+        if (weaponSlots_[i] < 0) {
+            continue;
+        }
+        const survivor::WeaponDefinition& weapon = config_.weapons[static_cast<size_t>(weaponSlots_[i])];
+        card.empty = false;
+        card.active = i == activeSlot_;
+        card.color = survivor::RarityColor(weapon.rarity);
+        card.title = std::to_string(i + 1) + "　" + weapon.name + "　" + survivor::RarityName(weapon.rarity) + (card.active ? "　（構えている）" : "");
+        const int reserve = reserves_[static_cast<size_t>(weapon.ammo)];
+        const int damage = static_cast<int>((std::max)(1.0f, std::round(player.GetStats().bulletDamage * weapon.damageScale)));
+        std::ostringstream detail;
+        detail << survivor::AmmoName(weapon.ammo) << "　";
+        if (weapon.magazine > 0) {
+            detail << "弾倉 " << magazines_[i] << " / " << weapon.magazine << "　予備 " << reserve;
+        } else {
+            detail << "弾倉なし（予備 " << reserve << " から直接撃つ）";
+        }
+        detail << "\n威力 " << damage << "　連射 ×" << fixed(1.0f / (std::max)(0.05f, weapon.reloadScale), 1) << "　弾速 ×"
+               << fixed(weapon.speedScale, 1) << "　熱 ×" << fixed(weapon.heatScale, 1);
+        if (weapon.blastRadius > 0.0f) {
+            detail << "　当たると爆発（半径 " << fixed(weapon.blastRadius, 1) << "）";
+        }
+        detail << "\n切り替え " << fixed(weapon.swapSeconds, 1) << " 秒";
+        if (weapon.magazine > 0) {
+            detail << "　リロード " << fixed(weapon.reloadSeconds, 1) << " 秒";
+        }
+        detail << "　チップ枠 " << weapon.chipSlots;
+        card.detail = detail.str();
+    }
+    // シールドの枠：今は区画の始めから持っている全周のシールド（計画書 p3 の0章）。
+    view.shield.empty = false;
+    view.shield.color = {0.35f, 0.85f, 1.0f, 1.0f};
+    view.shield.title = "シールド　全周のシールド";
+    view.shield.detail = "上限 " + std::to_string(static_cast<int>(player.GetShieldMax())) + "（最大HPの " +
+                         std::to_string(static_cast<int>(std::lround(config_.shieldMaxHpRatio * 100.0f))) + "%）　今 " +
+                         std::to_string(static_cast<int>(player.GetShield())) + "\n被弾しないと " + fixed(config_.shieldRegenDelay, 0) +
+                         " 秒で回復が始まる";
+    // 補助の枠（G9：レリックと回復キット）は、休憩部屋で入れられるようになるまで空き。
+    view.support.empty = true;
+    view.support.title = "補助";
+    view.support.color = {0.86f, 0.62f, 1.0f, 1.0f};
+
+    // 袋：お金・素材・予備の弾・チップ・武器。チップと武器は同じ物をまとめ、レア度の高い順に並べる。
+    using Line = SurvivorInventoryHud::Line;
+    const myEngine::Vector4 plain{0.85f, 0.92f, 1.0f, 1.0f};
+    const myEngine::Vector4 header{1.0f, 0.86f, 0.36f, 1.0f};
+    view.bag.push_back({"お金　" + std::to_string(bag_.money), plain});
+    std::ostringstream materials;
+    static constexpr std::array<const char*, survivor::kMaterialCount> kShort{"四角", "三角", "五角", "ボス"};
+    for (size_t i = 0; i < survivor::kMaterialCount; ++i) {
+        materials << (i ? "・" : "素材　") << kShort[i] << " " << bag_.materials[i];
+    }
+    view.bag.push_back({materials.str(), plain});
+    std::ostringstream ammo;
+    static constexpr std::array<const char*, survivor::kAmmoTypeCount> kAmmoShort{"ライト", "ヘビー", "エネルギー"};
+    for (size_t i = 0; i < survivor::kAmmoTypeCount; ++i) {
+        ammo << (i ? "・" : "予備の弾　") << kAmmoShort[i] << " " << reserves_[i] << "/" << config_.loot.reserveMax[i];
+    }
+    view.bag.push_back({ammo.str(), plain});
+    struct Group {
+        std::string name;
+        survivor::Rarity rarity;
+        int count;
+    };
+    auto grouped = [](std::vector<Group> groups) {
+        std::stable_sort(groups.begin(), groups.end(), [](const Group& a, const Group& b) {
+            return a.rarity > b.rarity;
+        });
+        return groups;
+    };
+    auto add = [](std::vector<Group>& groups, const std::string& name, survivor::Rarity rarity) {
+        for (Group& group : groups) {
+            if (group.name == name && group.rarity == rarity) {
+                ++group.count;
+                return;
+            }
+        }
+        groups.push_back({name, rarity, 1});
+    };
+    std::vector<Group> weapons, chips;
+    for (const auto& weapon : bag_.weapons) {
+        add(weapons, config_.weapons[static_cast<size_t>(weapon.weapon)].name, weapon.rarity);
+    }
+    for (const auto& chip : bag_.chips) {
+        add(chips, config_.parts[static_cast<size_t>(chip.part)].name, chip.rarity);
+    }
+    // 見出しと中身を、欄に収まる行数まで並べる（越える分は「ほか N 種類」）。
+    auto list = [&](const std::string& title, size_t total, const std::vector<Group>& groups, size_t room) {
+        view.bag.push_back({title + "（" + std::to_string(total) + "）", header});
+        if (groups.empty()) {
+            view.bag.push_back({"　なし", {0.5f, 0.56f, 0.64f, 1.0f}});
+            return;
+        }
+        for (size_t i = 0; i < groups.size(); ++i) {
+            if (i + 1 >= room && groups.size() > room) {
+                view.bag.push_back({"　ほか " + std::to_string(groups.size() - i) + " 種類", plain});
+                return;
+            }
+            const myEngine::Vector4 color = survivor::RarityColor(groups[i].rarity);
+            view.bag.push_back({"　" + groups[i].name + "（" + survivor::RarityName(groups[i].rarity) + "）" +
+                                    (groups[i].count > 1 ? " ×" + std::to_string(groups[i].count) : std::string()),
+                                color});
+        }
+    };
+    const size_t room = SurvivorInventoryHud::kBagLines - view.bag.size() - 2;
+    const std::vector<Group> weaponGroups = grouped(weapons);
+    const std::vector<Group> chipGroups = grouped(chips);
+    const size_t weaponRoom = (std::max)(static_cast<size_t>(1), (std::min)(weaponGroups.size(), room / 3));
+    list("武器", bag_.weapons.size(), weaponGroups, weaponGroups.empty() ? 1 : weaponRoom);
+    list("チップ", bag_.chips.size(), chipGroups, SurvivorInventoryHud::kBagLines - view.bag.size() - 1);
+    return view;
 }
 
 } // namespace gameplay
