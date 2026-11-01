@@ -1,4 +1,5 @@
 #include "game/run/session/SurvivorRunController.h"
+#include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
 #include <algorithm>
 #include <numeric>
@@ -26,6 +27,54 @@ void SurvivorRunController::OpenRestRoom()
     restScroll_ = 0;
     SyncAmmoFromPlayer();
     RefreshRestRoom();
+}
+
+void SurvivorRunController::ApplyStageSettings(int stage)
+{
+    stage_ = (std::clamp)(stage, 0, survivor::SpawnConfig::kStageCount - 1);
+    // ステージ1・2は時間で出口が開き、ボスステージは exitSeconds でボス（宿敵）が出て、倒すと出口が開く（G3）。
+    config_.exitOpenSeconds = config_.stages.exitSeconds[static_cast<size_t>(stage_)];
+    config_.rival.enabled = IsBossStage();
+}
+
+void SurvivorRunController::StartNextStage()
+{
+    if (IsBossStage()) {
+        return;
+    }
+    restRoomOpen_ = false;
+    ApplyStageSettings(stage_ + 1);
+    // 区画の時計・湧き方・脅威・出口・宿敵・床の物を、区画の始めの状態へ戻す（拾った物の袋と枠の武器・弾はそのまま）。
+    elapsed_ = 0.0f;
+    cleared_ = false;
+    exitOpen_ = false;
+    rivalSpawned_ = false;
+    rivalDefeated_ = false;
+    rivalSpawnedAt_ = -1.0f;
+    rivalDefeatedAt_ = -1.0f;
+    threatStage_ = 1;
+    spawnBudget_ = 0.0f;
+    nextSwarm_ = config_.swarm.from;
+    nextTank_ = config_.tanks.from;
+    nextBigPentagon_ = config_.bigPentagon.from;
+    nextHeavy_ = 0.0f;
+    nextRing_ = 0.0f;
+    pendingWaves_.clear();
+    pickups_.Clear();
+    lootField_.Clear();
+    damageNumbers_.Clear();
+    world_.resources.enemyManager_->ClearRunActors();
+    world_.resources.bulletManager_->ClearAll();
+    // 休憩したので、HPは満タンに戻し、部屋の真ん中から始める。
+    auto& player = *world_.resources.player_;
+    player.ResetRunRoomState(survivorrun::kPlayerStart);
+    player.HealRunPlayer(player.GetMaxHp());
+    world_.resources.camera->SetTranslate({survivorrun::kPlayerStart.x, survivorrun::kPlayerStart.y, world_.resources.camera->GetTranslate().z});
+    world_.resources.camera->Update();
+    weaponEquipped_ = false;
+    EquipWeapon(activeSlot_);
+    const std::string name = IsBossStage() ? std::string("ボスステージ") : "ステージ " + std::to_string(stage_ + 1);
+    world_.combatFlow->SetEventCallout(name, 1.6f);
 }
 
 void SurvivorRunController::LeaveRestRoom()
@@ -179,8 +228,8 @@ void SurvivorRunController::UpdateRestRoomInput()
     if (input.IsKeyTriggered(DIK_RETURN) || input.IsKeyTriggered(DIK_SPACE)) {
         if (row.kind == Kind::Leave) {
             LeaveRestRoom();
-        } else if (row.kind == Kind::Next) {
-            world_.combatFlow->SetEventCallout("次の区画へ進むのは、3ステージの流れ（W8）で入る", 1.4f);
+        } else if (row.kind == Kind::Next && !IsBossStage()) {
+            StartNextStage();
         }
         return;
     }
@@ -222,7 +271,15 @@ void SurvivorRunController::RefreshRestRoom()
         lines.push_back({text, color});
     };
     add({Kind::Leave}, "帰る：枠の武器と袋を持って拠点へ（セーブ）", kPlain);
-    add({Kind::Next}, "次へ進む（3ステージの流れは W8 で入る）", kGrey);
+    const int nextStage = stage_ + 2;
+    if (IsBossStage()) {
+        add({Kind::Next}, "次へ進む（ボスを倒した。あとは帰るだけ）", kGrey);
+    } else {
+        add({Kind::Next},
+            "次へ進む：" + std::string(nextStage == survivor::SpawnConfig::kStageCount ? "ボスステージ" : "ステージ " + std::to_string(nextStage)) +
+                "（HPが戻る。倒れたら拾った物は失う）",
+            kPlain);
+    }
 
     // 袋の武器とチップは、レア度の高い順に並べる（番号は袋の中の順のまま持つ）。
     auto order = [](size_t size, auto rarityOf) {
@@ -285,7 +342,7 @@ void SurvivorRunController::RefreshRestRoom()
         help += "Enter：拠点へ帰る";
         break;
     case Kind::Next:
-        help += "次へ進むのは W8 で入る";
+        help += IsBossStage() ? "最後のステージ" : "Enter：次のステージへ進む";
         break;
     case Kind::BagWeapon:
         help += "1〜3：その枠へ付け替える　／　X：売る（" +

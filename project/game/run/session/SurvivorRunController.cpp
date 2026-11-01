@@ -359,6 +359,13 @@ void SurvivorRunController::Initialize()
         }
         // 拠点の持ち物を読み（無ければ新しく作り）、装備している武器3つを枠に入れる（W5）。
         LoadBase();
+        // MYENGINE_SURVIVOR_FULL_RUN=1：自動確認で3ステージを通す（ステージ1・2は45秒で出口が開く）。
+        wchar_t fullRun[4]{};
+        if (autoTest_ == AutoTest::Sector && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_FULL_RUN", fullRun, 4) > 0 && fullRun[0] == L'1') {
+            autoFullRun_ = true;
+            config_.stages.exitSeconds[0] = 45.0f;
+            config_.stages.exitSeconds[1] = 45.0f;
+        }
         // MYENGINE_SURVIVOR_LOOT_BOOST=20：自動確認で、チップ・武器・ボスの素材の落ちる確率を何倍かにする（全種類が落ちるかを短い時間で見る）。
         wchar_t lootBoost[16]{};
         const DWORD lootBoostLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOT_BOOST", lootBoost, 16);
@@ -370,6 +377,7 @@ void SurvivorRunController::Initialize()
             lootField_.SetConfig(config_.loot);
         }
         StartLoadout();
+        ApplyStageSettings(0);
         // 出撃の前に、拠点の画面で持っていく武器を選ぶ。タイトルの見本と、四隅・fps の自動確認では出さない。
         if (!world_.demo.titleDemo_ && autoTest_ != AutoTest::Tour && autoTest_ != AutoTest::Perf) {
             OpenBaseScreen();
@@ -735,13 +743,17 @@ void SurvivorRunController::RefreshHud()
     std::ostringstream text;
     if (!WeaponMode()) {
         text << "Lv " << level_ << "   ";
+    } else {
+        // 3ステージの流れ（W8）：今のステージと難しさの段。
+        text << "ステージ " << stage_ + 1 << "/" << survivor::SpawnConfig::kStageCount << "（" << (IsBossStage() ? "ボス・" : "") << "段"
+             << config_.stages.tier << "）   ";
     }
     text << "区画  " << Clock(elapsed_) << "   脅威 Lv" << threatStage_;
     if (IsRivalActive()) {
         const auto& rival = *world_.resources.enemy_;
-        text << "   宿敵 " << (std::max)(0, rival.GetHp() * 100 / (std::max)(1, rival.GetMaxHp())) << "%";
+        text << (WeaponMode() ? "   ボス " : "   宿敵 ") << (std::max)(0, rival.GetHp() * 100 / (std::max)(1, rival.GetMaxHp())) << "%";
     } else if (!exitOpen_) {
-        text << (config_.rival.enabled ? "   宿敵まで " : "   出口まで ") << Clock(config_.exitOpenSeconds - elapsed_);
+        text << (config_.rival.enabled ? (WeaponMode() ? "   ボスまで " : "   宿敵まで ") : "   出口まで ") << Clock(config_.exitOpenSeconds - elapsed_);
     }
     text << "   敵 " << alive.total;
     hudText_->SetText(text.str());

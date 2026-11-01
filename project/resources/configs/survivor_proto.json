@@ -102,6 +102,10 @@
     "materialPrice": { "square": 2, "triangle": 2, "pentagon": 3, "boss": 20 },
     "pickupRadius": 2.6, "ammoMagnetRadius": 3.0, "lifetime": 45
   },
+  "stages": {
+    "comment": "3ステージの流れ（計画書 p3 の W8）。武器の枠を使う遊び方だけ。ステージ1 → 休憩部屋 → ステージ2 → 休憩部屋 → ボスステージ。exitSeconds はステージ1・2では出口が開くまでの秒、ボスステージではボス（宿敵）が出るまでの秒。threatOffset はステージごとの脅威の段階の上乗せ、enemyHp は湧く敵のHPの倍率。ボスを倒すと出口が開き、ボスの素材 bossMaterials 個と武器を1つ落とす。休憩部屋で次へ進むと、HPが戻る。tier は難しさの段（今は段1の入口だけ）。",
+    "exitSeconds": [180, 180, 15], "threatOffset": [0, 1, 2], "enemyHp": [1.0, 1.2, 1.4], "bossMaterials": 5, "tier": 1
+  },
   "crafting": {
     "comment": "素材で作る・派生の木（計画書 p3 の W7）。拠点の画面で、recipes の素材とお金を払ってコモンの武器を作り、evolve でレア度を1段ずつ上げる（そのレア度へ上げるのに要る物に、武器の主な素材 main を main 個足す）。レア度ごとに威力 rarityDamage・弾倉 rarityMagazine の倍率がかかり、チップ枠も増える。別の武器へ分かれる枝は、武器が増える W10 で足す。",
     "rarityDamage": { "common": 1.0, "uncommon": 1.1, "rare": 1.2, "epic": 1.35, "legendary": 1.5 },

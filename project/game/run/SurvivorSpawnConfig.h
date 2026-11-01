@@ -228,6 +228,19 @@ struct SpawnConfig {
     /// @brief 素材で作る・進化させる（派生の木）と、レア度の効き（W7）。
     CraftingConfig crafting{};
 
+    /// @brief 3ステージの流れ（計画書 p3 の W8・G3）：ステージ1 → 休憩 → ステージ2 → 休憩 → ボスステージ。武器の枠を使う遊び方だけ。
+    /// @note exitSeconds はステージ1・2では出口が開くまでの秒、ボスステージではボス（宿敵）が出るまでの秒。threatOffset は脅威の段階の上乗せ、
+    /// enemyHp は湧く敵のHPの倍率。ボスを倒すと bossMaterials 個のボスの素材と武器を1つ落とす。tier は難しさの段（今は段1の入口だけ）。
+    struct StageConfig {
+        std::array<float, 3> exitSeconds{180.0f, 180.0f, 15.0f};
+        std::array<int, 3> threatOffset{0, 1, 2};
+        std::array<float, 3> enemyHp{1.0f, 1.2f, 1.4f};
+        int bossMaterials = 5;
+        int tier = 1;
+    };
+    StageConfig stages{};
+    static constexpr int kStageCount = 3;
+
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
     int ExpToNextLevel(int level) const
     {
@@ -653,6 +666,26 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             weapon.reloadScale = (std::max)(0.05f, weapon.reloadScale);
         }
     }
+    if (data.contains("stages") && data.at("stages").is_object()) {
+        const auto& stages = data.at("stages");
+        auto readArray = [&](const char* key, auto& values) {
+            if (stages.contains(key) && stages.at(key).is_array()) {
+                for (size_t i = 0; i < values.size() && i < stages.at(key).size(); ++i) {
+                    if (stages.at(key)[i].is_number()) {
+                        values[i] = stages.at(key)[i].get<std::remove_reference_t<decltype(values[i])>>();
+                    }
+                }
+            }
+        };
+        readArray("exitSeconds", config.stages.exitSeconds);
+        readArray("threatOffset", config.stages.threatOffset);
+        readArray("enemyHp", config.stages.enemyHp);
+        number(stages, "bossMaterials", config.stages.bossMaterials);
+        number(stages, "tier", config.stages.tier);
+        for (float& seconds : config.stages.exitSeconds) {
+            seconds = (std::max)(1.0f, seconds);
+        }
+    }
     if (data.contains("crafting") && data.at("crafting").is_object()) {
         const auto& crafting = data.at("crafting");
         auto& out = config.crafting;
@@ -998,6 +1031,17 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     lunge["interval"] = round(config.lungePentagon.interval);
     lunge["windup"] = round(config.lungePentagon.windup);
     lunge["duration"] = round(config.lungePentagon.duration);
+    auto& stages = section("stages");
+    stages["exitSeconds"] = nlohmann::json::array();
+    stages["threatOffset"] = nlohmann::json::array();
+    stages["enemyHp"] = nlohmann::json::array();
+    for (size_t i = 0; i < config.stages.exitSeconds.size(); ++i) {
+        stages["exitSeconds"].push_back(round(config.stages.exitSeconds[i]));
+        stages["threatOffset"].push_back(config.stages.threatOffset[i]);
+        stages["enemyHp"].push_back(round(config.stages.enemyHp[i]));
+    }
+    stages["bossMaterials"] = config.stages.bossMaterials;
+    stages["tier"] = config.stages.tier;
     auto& crafting = section("crafting");
     auto writeCost = [](nlohmann::json& object, const CraftCost& cost) {
         for (size_t i = 0; i < kMaterialCount; ++i) {
@@ -1059,10 +1103,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 30> kOrder{
+    static constexpr std::array<const char*, 31> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "weapons",       "loot",          "crafting",      "traits",        "relics",    "fusions",    "parts",       "heatVent",
+        "heat",          "shield",    "forms",           "weapons",       "loot",          "crafting",      "stages",        "traits",        "relics",    "fusions",    "parts",       "heatVent",
         "partTuning",    "bigPentagon", "damageNumbers"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {

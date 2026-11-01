@@ -106,6 +106,14 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             base_.materials = {};
             base_.money = 0;
             basePage_ = 0;
+            // 3ステージを通す確認は、強い持ち物（装備の3つをレジェンド）で始める。
+            if (autoFullRun_) {
+                for (int index : base_.equipped) {
+                    if (index >= 0 && static_cast<size_t>(index) < base_.weapons.size()) {
+                        base_.weapons[static_cast<size_t>(index)].rarity = survivor::Rarity::Legendary;
+                    }
+                }
+            }
             StartSortie();
             autoBaseState_ = 3;
         }
@@ -151,9 +159,15 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             RefreshRestRoom();
             RequestCapture("rest_room_after");
             autoRestState_ = 2;
-        } else if (autoRestState_ == 2) {
-            LeaveRestRoom();
-            autoRestState_ = 3;
+        } else if (autoRestState_ == 2 || autoRestState_ == 4) {
+            // 3ステージを通す確認では、ボスステージまで「次へ進む」、ボスを倒した後の休憩部屋で帰る。
+            if (autoFullRun_ && !IsBossStage()) {
+                StartNextStage();
+                autoRestState_ = 4;
+            } else {
+                LeaveRestRoom();
+                autoRestState_ = 3;
+            }
         }
         return;
     }
@@ -172,7 +186,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     }
     myEngine::Vector3 goal{};
     myEngine::Vector3 shard{};
-    if (exitOpen_ && elapsed_ >= kSectorAutoTestExitSeconds) {
+    if (exitOpen_ && (autoFullRun_ || elapsed_ >= kSectorAutoTestExitSeconds)) {
         goal = exitPosition_;
     } else if (IsRivalActive()) {
         // 宿敵がいる間は、宿敵から8ほど離れた位置へ寄る。
@@ -624,7 +638,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     if (cleared_ && !restRoomOpen_ && autoTestClearedTime_ < 0.0f) {
         autoTestClearedTime_ = autoTestTime_;
     }
-    const bool timedOut = autoTestTime_ > kSectorAutoTestExitSeconds + 90.0f;
+    const bool timedOut = autoTestTime_ > kSectorAutoTestExitSeconds + (autoFullRun_ ? 360.0f : 90.0f);
     if ((autoTestClearedTime_ >= 0.0f && autoTestTime_ - autoTestClearedTime_ > 1.5f) || timedOut) {
         if (!autoTestCaptureQueued_) {
             RequestCapture(cleared_ ? "cleared" : "timeout");
@@ -663,7 +677,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         std::ofstream(std::string(kAutoTestDirectory) + "/autotest.json")
             << "{\"configRoundTrip\":" << (roundTrip ? "true" : "false") << ",\"baseRoundTrip\":" << (baseRoundTrip ? "true" : "false")
             << ",\"baseEquipOk\":" << (autoBaseEquipOk_ ? "true" : "false") << ",\"craftOk\":" << (autoCraftOk_ ? "true" : "false")
-            << ",\"crafted\":" << crafted_ << ",\"evolved\":" << evolved_ << ",\"baseBroughtHome\":" << (baseBroughtHome_ ? "true" : "false")
+            << ",\"crafted\":" << crafted_ << ",\"evolved\":" << evolved_ << ",\"fullRun\":" << (autoFullRun_ ? "true" : "false")
+            << ",\"stage\":" << stage_ + 1 << ",\"bossDefeated\":" << (IsBossStage() && rivalDefeated_ ? "true" : "false")
+            << ",\"bossDefeatedAt\":" << rivalDefeatedAt_ << ",\"baseBroughtHome\":" << (baseBroughtHome_ ? "true" : "false")
             << ",\"base\":{\"money\":" << base_.money << ",\"materials\":[" << base_.materials[0] << "," << base_.materials[1] << ","
             << base_.materials[2] << "," << base_.materials[3] << "],\"chips\":" << base_.chips.size() << ",\"weapons\":" << base_.weapons.size()
             << ",\"sorties\":" << base_.sorties << ",\"clears\":" << base_.clears << ",\"equipped3\":\""

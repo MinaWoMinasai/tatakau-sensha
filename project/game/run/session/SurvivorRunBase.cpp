@@ -232,7 +232,7 @@ void SurvivorRunController::StartSortie()
 void SurvivorRunController::RefreshBaseScreen()
 {
     SurvivorInventoryHud::View view = BuildInventoryView();
-    view.title = "拠点";
+    view.title = "拠点　─　難しさ 段" + std::to_string(config_.stages.tier);
     view.bagTitle = baseError_.empty() ? "拠点の持ち物（自動でセーブ）" : "拠点の持ち物（" + baseError_ + "。新しく始めた）";
     const float bulletDamage = world_.resources.player_->GetStats().bulletDamage;
     auto damageOf = [&](const survivor::WeaponDefinition& weapon) {

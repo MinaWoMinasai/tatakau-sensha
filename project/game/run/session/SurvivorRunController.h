@@ -583,6 +583,16 @@ private:
     bool RestDiscard(const RestRow& row);
     /// @brief 枠を変えた後：枠の武器を入れ直し（変えた枠の弾倉は満タン）、構えている武器のチップを効かせ直す。
     void RefreshSlotsAfterChange(size_t changedSlot);
+    // 3ステージの流れ（W8）。stage_ は今のステージ（0 ステージ1・1 ステージ2・2 ボスステージ）。
+    /// @brief stage 番目のステージの設定（出口の秒・宿敵を出すか）を入れる。
+    void ApplyStageSettings(int stage);
+    /// @brief 休憩部屋の「次へ進む」：次のステージを、区画の時計・湧き方・出口・床の物を入れ直して始める。HPは戻す。
+    void StartNextStage();
+    bool IsBossStage() const
+    {
+        return WeaponMode() && stage_ == survivor::SpawnConfig::kStageCount - 1;
+    }
+    int stage_ = 0;
     bool restRoomOpen_ = false;
     int restCursor_ = 0;
     int restScroll_ = 0;
@@ -761,6 +771,8 @@ private:
     // 拠点の画面の確認：0 まだ・1 画面を頼んだ・2 出撃した。枠の入れ替えと戻しが合っていたか。
     int autoBaseState_ = 0;
     bool autoBaseEquipOk_ = false;
+    // MYENGINE_SURVIVOR_FULL_RUN=1：3ステージを通す確認（ステージ1・2を短くし、強い持ち物で始め、ボスを倒して帰る）。
+    bool autoFullRun_ = false;
     // 作る・進化を1回ずつ試して、払った分・レア度・威力が合っていたか。
     bool autoCraftOk_ = false;
     // 休憩部屋の確認：0 まだ・1 画面を頼んだ・2 操作して画面を頼んだ・3 帰った。チップを付けた武器を構えた時の部品の段の合計。
