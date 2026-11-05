@@ -344,7 +344,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     RotateToMouse(viewProjection);
     // 試作では Shift でもダッシュでき、右クリックをため撃ちに使う形態では右クリックでダッシュしない。
     const bool rightClickDash =
-        !HasRailChargeForm() && input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1]);
+        rightClickDashEnabled_ && !HasRailChargeForm() && input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1]);
     const bool shiftDash = shiftDashEnabled_ && input_->IsTrigger(input_->GetKey()[DIK_LSHIFT], input_->GetPreKey()[DIK_LSHIFT]);
     if (!runRoomAwaitInputRelease_ && (demoInputEnabled_ ? demoDash_ : rightClickDash || shiftDash)) {
         demoDash_ = false;

@@ -644,6 +644,11 @@ public:
     /// @brief 育つ戦車の試作で、形態の装備に替える。HP・経験値・部品はそのまま。
     void ApplySurvivorForm(const PlayerClassConfig& config, const SurvivorFormTuning& tuning);
     /// @brief Shift でダッシュできるようにする（育つ戦車の試作。右クリックを形態の技に使うため）。
+    /// @brief 右クリックでのダッシュを許すか（育つ戦車の試作の武器の遊び方では、右クリックはバリア）。
+    void SetRightClickDashEnabled(bool enabled)
+    {
+        rightClickDashEnabled_ = enabled;
+    }
     void SetShiftDashEnabled(bool enabled)
     {
         shiftDashEnabled_ = enabled;
@@ -1190,6 +1195,7 @@ private:
     float loaderRamp_ = 0.0f;
     uint32_t critShots_ = 0;
     bool shiftDashEnabled_ = false;
+    bool rightClickDashEnabled_ = true;
     uint32_t dashBlocked_ = 0;
     uint32_t stillShots_ = 0;
     bool demoSpecialHold_ = false;

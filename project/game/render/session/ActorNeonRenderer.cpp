@@ -318,6 +318,12 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                 queueSegmentedArc(radius * 1.82f, 0.0f, 2.05f, 12, world_.resources.player_->GetShield() / shieldMax,
                                   {0.55f, 1.35f, 1.95f, 1.0f}, radius * 0.13f);
             }
+            // スタミナはシールドと同じ場所に、細い黄緑の弧として出す（尽きて張れない間は赤）。
+            if (world_.run.IsSurvivorRun() && world_.presentation.playerStaminaRatio_ >= 0.0f) {
+                const myEngine::Vector4 staminaColor = world_.presentation.playerStaminaExhausted_ ? myEngine::Vector4{1.9f, 0.3f, 0.25f, 1.0f}
+                                                                                                    : myEngine::Vector4{0.85f, 1.8f, 0.55f, 1.0f};
+                queueSegmentedArc(radius * 1.82f, 0.0f, 2.05f, 12, world_.presentation.playerStaminaRatio_, staminaColor, radius * 0.13f);
+            }
             // 熱は主砲のまわりの輪。真上から時計回りに、熱の割合だけ光る。オーバーヒートの間は赤く点滅する。
             const PlayerHeat& heat = world_.resources.player_->GetHeat();
             if (heat.IsEnabled() && (heat.IsOverheated() || heat.GetRatio() > 0.01f)) {

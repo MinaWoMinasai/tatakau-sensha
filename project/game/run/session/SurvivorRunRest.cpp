@@ -69,6 +69,10 @@ void SurvivorRunController::StartNextStage()
     auto& player = *world_.resources.player_;
     player.ResetRunRoomState(survivorrun::kPlayerStart);
     player.HealRunPlayer(player.GetMaxHp());
+    barrierStamina_ = config_.barrier.staminaMax;
+    barrierExhausted_ = 0.0f;
+    barrierOn_ = false;
+    barrierAwaitRelease_ = false;
     world_.resources.camera->SetTranslate({survivorrun::kPlayerStart.x, survivorrun::kPlayerStart.y, world_.resources.camera->GetTranslate().z});
     world_.resources.camera->Update();
     weaponEquipped_ = false;

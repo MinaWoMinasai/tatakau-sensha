@@ -589,6 +589,28 @@ private:
         return WeaponMode() && stage_ == survivor::SpawnConfig::kStageCount - 1;
     }
     int stage_ = 0;
+
+    // バリアとスタミナ（X3）。SurvivorRunBarrier.cpp。
+    /// @brief スタミナを増減し、wanted で張っている間は敵の弾と敵を止める。dt は区画の時間。
+    void UpdateBarrier(float dt, bool wanted);
+    /// @brief 位置が（margin の分だけ広げた）扇の中か。
+    bool IsInsideBarrier(const myEngine::Vector3& position, float margin) const;
+    /// @brief 張っている間、サッカーボールの網目の扇を積む。
+    void QueueBarrier(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraForward) const;
+    /// @brief 網目の線の数（自動確認）。
+    size_t BarrierNetSegmentCount() const;
+    float barrierStamina_ = 0.0f;
+    float barrierRegenWait_ = 0.0f;
+    float barrierExhausted_ = 0.0f;
+    float barrierFlash_ = 0.0f;
+    float barrierAge_ = 0.0f;
+    bool barrierOn_ = false;
+    bool barrierAwaitRelease_ = false;
+    // 張った秒・止めた弾・押し返した回数・尽きた回数（自動確認と記録）。
+    float barrierSeconds_ = 0.0f;
+    int barrierBlocked_ = 0;
+    int barrierPushes_ = 0;
+    int barrierBreaks_ = 0;
     bool restRoomOpen_ = false;
     int restCursor_ = 0;
     int restScroll_ = 0;
@@ -764,6 +786,10 @@ private:
     float autoInventoryElapsed_ = 0.0f;
     bool autoInventoryFrozen_ = false;
     // 拠点の画面の確認：0 まだ・1 画面を頼んだ・2 出撃した。枠の入れ替えと戻しが合っていたか。
+    // 自動確認でバリアを張りたい間か。止めた弾の画面を保存したか。スタミナの一番低い値。
+    bool autoBarrierWanted_ = false;
+    bool autoBarrierCaptured_ = false;
+    float autoStaminaMin_ = 100.0f;
     int autoBaseState_ = 0;
     bool autoBaseEquipOk_ = false;
     // MYENGINE_SURVIVOR_FULL_RUN=1：3ステージを通す確認（ステージ1・2を短くし、強い持ち物で始め、ボスを倒して帰る）。

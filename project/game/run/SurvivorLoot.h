@@ -129,9 +129,10 @@ inline int ChipLevel(Rarity rarity)
     return static_cast<int>(rarity) + 1;
 }
 
-/// @brief チップになる部品か（G7：今の部品をチップに移す。Q で使う部品と合体の部品は除く）。
+/// @brief チップになる部品か（G7：今の部品をチップに移す。Q で使う部品と合体の部品、効かなくなったダッシュとシールドの部品は除く）。
 inline bool IsChipPart(const PartDefinition& part)
 {
-    return !part.qSkill && !IsFusion(part);
+    const bool removed = part.id == PartId::DashBurst || part.id == PartId::ShieldCapacity || part.id == PartId::RamShield;
+    return !part.qSkill && !IsFusion(part) && !removed;
 }
 } // namespace survivor

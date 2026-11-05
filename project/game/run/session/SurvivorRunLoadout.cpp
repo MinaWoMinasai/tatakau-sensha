@@ -923,7 +923,8 @@ void SurvivorRunController::ApplyParts()
     }
     player.SetHeatConfig(heat);
     Player::ShieldConfig shield{};
-    shield.enabled = true;
+    // 武器の枠を使う遊び方では、全周のシールドは使わない（バリアとスタミナ、X3）。
+    shield.enabled = !WeaponMode();
     shield.maxHpRatio = config_.shieldMaxHpRatio * survivor::LightBonus(config_.parts, partLevels_, PartId::ShieldCapacity);
     shield.regenDelay = config_.shieldRegenDelay * (survivor::HasChange(partLevels_, PartId::ShieldCapacity) ? 0.5f : 1.0f);
     shield.regenPerSecond = config_.shieldRegenPerSecond;

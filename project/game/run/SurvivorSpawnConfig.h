@@ -240,6 +240,22 @@ struct SpawnConfig {
         int tier = 1;
     };
     StageConfig stages{};
+
+    /// @brief 右クリックのバリアとスタミナ（計画書 p3 の X3）。武器の枠を使う遊び方だけ。
+    /// @note radius と arcDegrees は扇の半径と開き。張っている間は drainPerSecond ずつ減り、弾を止めると hitCost、敵に触れていると1体ごとに
+    /// contactPerSecond ずつ減る。尽きると exhaustedSeconds の間は張れない。放してから regenDelay 秒たつと regenPerSecond ずつ戻る。
+    struct BarrierConfig {
+        float radius = 6.0f;
+        float arcDegrees = 110.0f;
+        float staminaMax = 100.0f;
+        float drainPerSecond = 15.0f;
+        float hitCost = 6.0f;
+        float contactPerSecond = 2.0f;
+        float regenPerSecond = 25.0f;
+        float regenDelay = 0.6f;
+        float exhaustedSeconds = 1.5f;
+    };
+    BarrierConfig barrier{};
     static constexpr int kStageCount = 3;
 
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
@@ -688,6 +704,20 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             seconds = (std::max)(1.0f, seconds);
         }
     }
+    if (data.contains("barrier") && data.at("barrier").is_object()) {
+        const auto& barrier = data.at("barrier");
+        number(barrier, "radius", config.barrier.radius);
+        number(barrier, "arcDegrees", config.barrier.arcDegrees);
+        number(barrier, "staminaMax", config.barrier.staminaMax);
+        number(barrier, "drainPerSecond", config.barrier.drainPerSecond);
+        number(barrier, "hitCost", config.barrier.hitCost);
+        number(barrier, "contactPerSecond", config.barrier.contactPerSecond);
+        number(barrier, "regenPerSecond", config.barrier.regenPerSecond);
+        number(barrier, "regenDelay", config.barrier.regenDelay);
+        number(barrier, "exhaustedSeconds", config.barrier.exhaustedSeconds);
+        config.barrier.radius = (std::max)(1.0f, config.barrier.radius);
+        config.barrier.staminaMax = (std::max)(1.0f, config.barrier.staminaMax);
+    }
     if (data.contains("crafting") && data.at("crafting").is_object()) {
         const auto& crafting = data.at("crafting");
         auto& out = config.crafting;
@@ -1044,6 +1074,16 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     stages["swarmScale"] = round(config.stages.swarmScale);
     stages["bossMaterials"] = config.stages.bossMaterials;
     stages["tier"] = config.stages.tier;
+    auto& barrier = section("barrier");
+    barrier["radius"] = round(config.barrier.radius);
+    barrier["arcDegrees"] = round(config.barrier.arcDegrees);
+    barrier["staminaMax"] = round(config.barrier.staminaMax);
+    barrier["drainPerSecond"] = round(config.barrier.drainPerSecond);
+    barrier["hitCost"] = round(config.barrier.hitCost);
+    barrier["contactPerSecond"] = round(config.barrier.contactPerSecond);
+    barrier["regenPerSecond"] = round(config.barrier.regenPerSecond);
+    barrier["regenDelay"] = round(config.barrier.regenDelay);
+    barrier["exhaustedSeconds"] = round(config.barrier.exhaustedSeconds);
     auto& crafting = section("crafting");
     auto writeCost = [](nlohmann::json& object, const CraftCost& cost) {
         for (size_t i = 0; i < kMaterialCount; ++i) {
@@ -1106,10 +1146,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 31> kOrder{
+    static constexpr std::array<const char*, 32> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "weapons",       "loot",          "crafting",      "stages",        "traits",        "relics",    "fusions",    "parts",       "heatVent",
+        "heat",          "shield",    "forms",           "weapons",       "loot",          "crafting",      "stages",        "barrier",       "traits",        "relics",    "fusions",    "parts",       "heatVent",
         "partTuning",    "bigPentagon", "damageNumbers"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {

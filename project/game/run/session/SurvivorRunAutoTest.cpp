@@ -219,7 +219,16 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
     }
     // 3秒ごとに1回ダッシュする（衝撃放電・推進器の確認）。
-    const bool dash = static_cast<int>(autoTestTime_ / 3.0f) != static_cast<int>((autoTestTime_ - dt) / 3.0f);
+    const bool dash = !WeaponMode() && static_cast<int>(autoTestTime_ / 3.0f) != static_cast<int>((autoTestTime_ - dt) / 3.0f);
+    // バリア：20秒のうち10秒押し続ける（途中でスタミナが尽きるかも見る）。弾を止めた瞬間の画面を1回保存する。
+    autoBarrierWanted_ = WeaponMode() && std::fmod(autoTestTime_, 20.0f) < 10.0f;
+    if (WeaponMode()) {
+        autoStaminaMin_ = (std::min)(autoStaminaMin_, barrierStamina_);
+        if (!autoBarrierCaptured_ && barrierOn_ && barrierFlash_ > 0.5f && world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture("barrier");
+            autoBarrierCaptured_ = true;
+        }
+    }
     // 不動砲台を持っていれば、6秒のうち2秒は止まって撃つ（止まっている間の威力の確認）。
     const bool standStill = relics_[static_cast<size_t>(survivor::RelicId::FixedTurret)] && std::fmod(autoTestTime_, 6.0f) < 2.0f;
     player.SetDemoInput(true, standStill ? myEngine::Vector2{} : myEngine::Vector2{move.x, move.y}, aim, true, dash);
@@ -670,6 +679,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         std::ofstream(std::string(kAutoTestDirectory) + "/autotest.json")
             << "{\"configRoundTrip\":" << (roundTrip ? "true" : "false") << ",\"baseRoundTrip\":" << (baseRoundTrip ? "true" : "false")
             << ",\"baseEquipOk\":" << (autoBaseEquipOk_ ? "true" : "false") << ",\"craftOk\":" << (autoCraftOk_ ? "true" : "false")
+            << ",\"barrier\":{\"seconds\":" << barrierSeconds_ << ",\"blocked\":" << barrierBlocked_ << ",\"pushes\":" << barrierPushes_
+            << ",\"breaks\":" << barrierBreaks_ << ",\"staminaMin\":" << autoStaminaMin_ << ",\"staminaEnd\":" << barrierStamina_
+            << ",\"netSegments\":" << BarrierNetSegmentCount() << ",\"dashes\":" << player.GetDashStartedCount() << "}"
             << ",\"defeated\":" << world_.combat.defeatedEnemies_ << ",\"swarms\":" << swarmsSpawned_ << ",\"crafted\":" << crafted_ << ",\"evolved\":" << evolved_ << ",\"fullRun\":" << (autoFullRun_ ? "true" : "false")
             << ",\"stage\":" << stage_ + 1 << ",\"bossDefeated\":" << (IsBossStage() && rivalDefeated_ ? "true" : "false")
             << ",\"bossDefeatedAt\":" << rivalDefeatedAt_ << ",\"baseBroughtHome\":" << (baseBroughtHome_ ? "true" : "false")

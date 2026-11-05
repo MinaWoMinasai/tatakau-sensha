@@ -588,6 +588,9 @@
     <ClCompile Include="game\run\session\SurvivorRunRest.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunBarrier.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\render\settings\RunVisualSettings.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>

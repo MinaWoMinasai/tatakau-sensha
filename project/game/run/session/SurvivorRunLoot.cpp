@@ -208,14 +208,13 @@ SurvivorInventoryHud::View SurvivorRunController::BuildInventoryView() const
         detail << "　" << DescribeChips(runSlots_[i].weapon, weapon);
         card.detail = detail.str();
     }
-    // シールドの枠：今は区画の始めから持っている全周のシールド（計画書 p3 の0章）。
+    // シールドの枠：今は右クリックのバリア（X3）。ダッシュなどはこの枠の装備として後で足す。
     view.shield.empty = false;
-    view.shield.color = {0.35f, 0.85f, 1.0f, 1.0f};
-    view.shield.title = "シールド　全周のシールド";
-    view.shield.detail = "上限 " + std::to_string(static_cast<int>(player.GetShieldMax())) + "（最大HPの " +
-                         std::to_string(static_cast<int>(std::lround(config_.shieldMaxHpRatio * 100.0f))) + "%）　今 " +
-                         std::to_string(static_cast<int>(player.GetShield())) + "\n被弾しないと " + fixed(config_.shieldRegenDelay, 0) +
-                         " 秒で回復が始まる";
+    view.shield.color = {0.55f, 1.2f, 1.0f, 1.0f};
+    view.shield.title = "シールド　網目のバリア（右クリック）";
+    view.shield.detail = "前に開き " + fixed(config_.barrier.arcDegrees, 0) + " 度・半径 " + fixed(config_.barrier.radius, 1) + " の扇。弾と敵を止める\nスタミナ " +
+                         std::to_string(static_cast<int>(barrierStamina_)) + " / " + fixed(config_.barrier.staminaMax, 0) + "　弾を止めると " +
+                         fixed(config_.barrier.hitCost, 0) + " 減る";
     // 補助の枠（G9：レリックと回復キット）は、休憩部屋で入れられるようになるまで空き。
     view.support.empty = true;
     view.support.title = "補助";

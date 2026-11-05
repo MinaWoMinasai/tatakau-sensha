@@ -65,12 +65,17 @@ void SurvivorRunController::Initialize()
     world_.resources.player_->ResetRunRoomState(kPlayerStart);
     // 試作では熱とシールドを基本で持つ。シールドの上限は最大HPに合わせて変わる。
     Player::ShieldConfig shield{};
-    shield.enabled = true;
+    // 武器の枠を使う遊び方では、全周のシールドの代わりにバリアとスタミナを使う（X3）。ダッシュもなくす（後でシールド枠の装備にする）。
+    shield.enabled = !config_.weaponsEnabled;
     shield.maxHpRatio = config_.shieldMaxHpRatio;
     shield.regenDelay = config_.shieldRegenDelay;
     shield.regenPerSecond = config_.shieldRegenPerSecond;
     world_.resources.player_->ConfigureSurvivorResources(config_.heat, shield);
-    world_.resources.player_->SetShiftDashEnabled(true);
+    world_.resources.player_->SetShiftDashEnabled(!config_.weaponsEnabled);
+    world_.resources.player_->SetRightClickDashEnabled(!config_.weaponsEnabled);
+    barrierStamina_ = config_.barrier.staminaMax;
+    world_.presentation.playerStaminaRatio_ = config_.weaponsEnabled ? 1.0f : -1.0f;
+    world_.presentation.playerStaminaExhausted_ = false;
     world_.resources.camera->SetTranslate({kPlayerStart.x, kPlayerStart.y, world_.resources.camera->GetTranslate().z});
     world_.resources.camera->Update();
 
@@ -170,7 +175,7 @@ void SurvivorRunController::Initialize()
         "Q で Q の部品を使う（状態は画面の下に出る）",
         "宿敵を倒すと出口が開く",
         "弾倉が空になると自動でリロード（予備の弾から込める。その間は撃てない）。R で早めにも入れ直せる",
-        "WASD 移動　／　左クリックで撃つ　／　ホイールか 1〜3 で武器を変える　／　R リロード　／　E 持ち物"};
+        "WASD 移動　／　左クリックで撃つ　／　ホイールか 1〜3 で武器を変える　／　右クリック バリア　／　R リロード　／　E 持ち物"};
     for (size_t i = 0; i < hintTexts_.size(); ++i) {
         hintTexts_[i] = std::make_unique<myEngine::TextLabel>();
         const size_t text = i == 0 ? (WeaponMode() ? kHintTexts.size() - 1 : 0) : i == 1 ? (config_.choicePause ? 2 : 1) : i + 1;
@@ -486,6 +491,12 @@ void SurvivorRunController::Update(float dt)
             separationSeconds_ += std::chrono::duration<double>(std::chrono::steady_clock::now() - separationStart).count();
             ++separationCalls_;
         }
+        // 右クリックを押している間、バリアを張る（敵どうしの押し離しの後で押し返す）。
+        if (gameDt > 0.0f && WeaponMode() && !world_.demo.titleDemo_) {
+            const bool wanted = autoTest_ != AutoTest::None ? autoBarrierWanted_
+                                                            : world_.resources.input_->IsPress(world_.resources.input_->GetMouseState().rgbButtons[1]);
+            UpdateBarrier(gameDt, wanted);
+        }
         // 宝箱のレリックは、ほかの選択を開いていないときに2択を出す（3択を開いていれば、閉じるまで待つ）。
         if (pendingRelics_ > 0 && !relicChoiceOpen_ && !formChoiceOpen_ && !traitChoiceOpen_ && !choiceOpen_) {
             OpenRelicChoice();
@@ -673,6 +684,7 @@ void SurvivorRunController::QueueWorldVisuals()
                    arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f, arenacamera::HalfViewHeight() + 2.0f);
     lootField_.Queue(*world_.resources.neonGridRenderer_, cameraRight, cameraUp, world_.resources.camera->GetTranslate(),
                      arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f, arenacamera::HalfViewHeight() + 2.0f);
+    QueueBarrier(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
     // 予告：輪は自機のまわりに、群れは湧く場所に、赤い破線の円を描く。湧く時刻が近いほど速く点滅する。
     for (const PendingWave& wave : pendingWaves_) {
         const float left = (std::max)(0.0f, wave.at - elapsed_);

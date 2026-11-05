@@ -106,6 +106,10 @@
     "comment": "3ステージの流れ（計画書 p3 の W8）。武器の枠を使う遊び方だけ。ステージ1 → 休憩部屋 → ステージ2 → 休憩部屋 → ボスステージ。exitSeconds はステージ1・2では出口が開くまでの秒、ボスステージではボス（宿敵）が出るまでの秒。threatOffset はステージごとの脅威の段階の上乗せ、enemyHp は湧く敵のHPの倍率。swarmScale は寄ってくる三角の群れと包囲の数の倍率。ボスを倒すと出口が開き、ボスの素材 bossMaterials 個と武器を1つ落とす。休憩部屋で次へ進むと、HPが戻る。tier は難しさの段（今は段1の入口だけ）。",
     "exitSeconds": [180, 180, 15], "threatOffset": [0, 1, 2], "enemyHp": [0.8, 0.96, 1.12], "swarmScale": 0.67, "bossMaterials": 5, "tier": 1
   },
+  "barrier": {
+    "comment": "右クリックのバリアとスタミナ（計画書 p3 の X3）。武器の枠を使う遊び方だけ。押している間、自機の前に半径 radius・開き arcDegrees 度の扇を張り、敵の弾を消し、敵を縁まで押し返す。張っている間は毎秒 drainPerSecond、弾を止めると hitCost、敵に触れていると1体ごとに毎秒 contactPerSecond 減る（上限 staminaMax）。尽きると exhaustedSeconds 秒は張れない。放して regenDelay 秒たつと毎秒 regenPerSecond 戻る。",
+    "radius": 6.0, "arcDegrees": 110, "staminaMax": 100, "drainPerSecond": 15, "hitCost": 6, "contactPerSecond": 2, "regenPerSecond": 25, "regenDelay": 0.6, "exhaustedSeconds": 1.5
+  },
   "crafting": {
     "comment": "素材で作る・派生の木（計画書 p3 の W7）。拠点の画面で、recipes の素材とお金を払ってコモンの武器を作り、evolve でレア度を1段ずつ上げる（そのレア度へ上げるのに要る物に、武器の主な素材 main を main 個足す）。レア度ごとに威力 rarityDamage・弾倉 rarityMagazine の倍率がかかり、チップ枠も増える。別の武器へ分かれる枝は、武器が増える W10 で足す。",
     "rarityDamage": { "common": 1.0, "uncommon": 1.1, "rare": 1.2, "epic": 1.35, "legendary": 1.5 },
