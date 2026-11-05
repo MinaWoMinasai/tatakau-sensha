@@ -138,17 +138,12 @@ void SurvivorRunController::Initialize()
     relicText_ = std::make_unique<myEngine::TextLabel>();
     relicText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
     relicText_->SetPosition({520.0f, 646.0f});
-    // 出撃中の袋（左上の2行目）と、近くに拾える物があるときの案内（画面の下の中ほど）。武器の枠を使う遊び方だけで出す。
+    // 出撃中の袋（左上の2行目）。武器の枠を使う遊び方だけで出す。
     style.fontSize = 20;
     style.color = {0.80f, 0.90f, 1.0f, 1.0f};
     lootText_ = std::make_unique<myEngine::TextLabel>();
     lootText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
     lootText_->SetPosition({24.0f, 48.0f});
-    style.fontSize = 24;
-    style.color = {1.0f, 0.92f, 0.55f, 1.0f};
-    lootPrompt_ = std::make_unique<myEngine::TextLabel>();
-    lootPrompt_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
-    lootPrompt_->SetPosition({470.0f, 600.0f});
     style.fontSize = 24;
     style.color = {0.60f, 0.92f, 1.0f, 1.0f};
     evolveText_ = std::make_unique<myEngine::TextLabel>();
@@ -175,7 +170,7 @@ void SurvivorRunController::Initialize()
         "Q で Q の部品を使う（状態は画面の下に出る）",
         "宿敵を倒すと出口が開く",
         "弾倉が空になると自動でリロード（予備の弾から込める。その間は撃てない）。R で早めにも入れ直せる",
-        "WASD 移動　／　左クリックで撃つ　／　ホイールか 1〜3 で武器を変える　／　R リロード　／　F 拾う　／　E 持ち物"};
+        "WASD 移動　／　左クリックで撃つ　／　ホイールか 1〜3 で武器を変える　／　R リロード　／　E 持ち物"};
     for (size_t i = 0; i < hintTexts_.size(); ++i) {
         hintTexts_[i] = std::make_unique<myEngine::TextLabel>();
         const size_t text = i == 0 ? (WeaponMode() ? kHintTexts.size() - 1 : 0) : i == 1 ? (config_.choicePause ? 2 : 1) : i + 1;
@@ -802,9 +797,6 @@ void SurvivorRunController::DrawUi()
     if (WeaponMode()) {
         if (lootText_) {
             lootText_->Draw();
-        }
-        if (lootPrompt_ && !lootPromptShown_.empty()) {
-            lootPrompt_->Draw();
         }
     }
     if (exitOpen_ && exitText_) {

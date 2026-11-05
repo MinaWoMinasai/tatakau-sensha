@@ -11,7 +11,7 @@ class NeonGridRenderer;
 }
 
 namespace gameplay {
-/// @brief 育つ戦車の試作の、床に落ちている物（計画書 p3 の W3）。弾は近づくと寄ってきて触れると拾い、素材・チップ・武器はキーで拾う。
+/// @brief 育つ戦車の試作の、床に落ちている物（計画書 p3 の W3・X1）。どれも近づくと寄ってきて、触れると拾う。
 /// @note 欠片（SurvivorPickups）と同じく、1つずつの Object3d にはせず、ネオンの格子のパスに小さな塗りの多角形として積む。
 /// チップと武器は、レア度の色の輪を脈打たせて目立たせる。
 class SurvivorLootField {
@@ -23,14 +23,10 @@ public:
 
     /// @brief item を position の周りに落とす（少し散らばる）。
     void Drop(const myEngine::Vector3& position, const survivor::LootItem& item, std::mt19937& random);
-    /// @brief 物を動かし、触れた弾を拾う。拾った弾の数を種類ごとに返す。
-    /// @param acceptAmmo 種類ごとに、拾えるか（予備が上限なら拾わずに残す）。
-    std::array<int, survivor::kAmmoTypeCount> Update(float dt, const myEngine::Vector3& player,
-                                                     const std::array<bool, survivor::kAmmoTypeCount>& acceptAmmo);
-    /// @brief position から pickupRadius 以内の、キーで拾う物を全部取り出す。
-    std::vector<survivor::LootItem> TakeNear(const myEngine::Vector3& position);
-    /// @brief position から pickupRadius 以内の、キーで拾う物の数と、一番近い物（無ければ nullptr）。
-    size_t CountNear(const myEngine::Vector3& position, const survivor::LootItem** nearest = nullptr) const;
+    /// @brief 物を動かし、触れた物を拾って返す。
+    /// @param acceptAmmo 弾の種類ごとに、拾えるか（予備が上限なら拾わずに残す）。
+    std::vector<survivor::LootItem> Update(float dt, const myEngine::Vector3& player,
+                                           const std::array<bool, survivor::kAmmoTypeCount>& acceptAmmo);
     /// @brief 画面の近くにある物を積む。
     void Queue(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp,
                const myEngine::Vector3& viewCenter, float halfWidth, float halfHeight) const;
@@ -56,11 +52,6 @@ private:
         bool attracted = false;
         bool taken = false;
     };
-
-    static bool IsKeyPickup(const survivor::LootItem& loot)
-    {
-        return loot.kind != survivor::LootKind::Ammo;
-    }
 
     survivor::LootConfig config_;
     std::vector<Item> items_;

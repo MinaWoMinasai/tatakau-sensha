@@ -71,52 +71,22 @@ void SurvivorRunController::UpdateLoot(float dt)
         accept[i] = reserves_[i] < loot.reserveMax[i];
     }
     const myEngine::Vector3 player = world_.resources.player_->GetWorldPosition();
-    const auto collected = lootField_.Update(dt, player, accept);
-    if (std::any_of(collected.begin(), collected.end(), [](int amount) { return amount > 0; })) {
+    const std::vector<survivor::LootItem> collected = lootField_.Update(dt, player, accept);
+    if (!collected.empty()) {
         // エネルギー弾は自機が予備から直接撃っているので、足す前に戻し、足した後に渡し直す。
         SyncAmmoFromPlayer();
-        for (size_t i = 0; i < collected.size(); ++i) {
-            if (collected[i] <= 0) {
-                continue;
-            }
-            reserves_[i] = (std::min)(loot.reserveMax[i], reserves_[i] + collected[i]);
-            ammoPicked_[i] += collected[i];
-            lootPicked_[static_cast<size_t>(survivor::LootKind::Ammo)] += (std::max)(1, collected[i] / loot.ammoAmount[i]);
+        for (const survivor::LootItem& item : collected) {
+            AddToBag(item);
         }
         LoadAmmoToPlayer();
     }
 
-    // 袋の一行と、近くにキーで拾える物があるときの案内。文字が変わったときだけ作り直す。
+    // 袋の一行。文字が変わったときだけ作り直す。
     const std::string bag = DescribeBag();
     if (lootText_ && bag != lootTextShown_) {
         lootText_->SetText(bag);
         lootTextShown_ = bag;
     }
-    const survivor::LootItem* nearest = nullptr;
-    const size_t nearCount = lootField_.CountNear(player, &nearest);
-    std::string prompt;
-    if (nearCount > 0 && nearest) {
-        prompt = "F：拾う　" + LootName(*nearest);
-        if (nearCount > 1) {
-            prompt += "　ほか " + std::to_string(nearCount - 1);
-        }
-    }
-    if (lootPrompt_ && prompt != lootPromptShown_) {
-        lootPrompt_->SetText(prompt.empty() ? std::string(" ") : prompt);
-        lootPromptShown_ = prompt;
-    }
-}
-
-int SurvivorRunController::PickUpLoot()
-{
-    if (!WeaponMode() || !world_.resources.player_) {
-        return 0;
-    }
-    const std::vector<survivor::LootItem> items = lootField_.TakeNear(world_.resources.player_->GetWorldPosition());
-    for (const survivor::LootItem& item : items) {
-        AddToBag(item);
-    }
-    return static_cast<int>(items.size());
 }
 
 void SurvivorRunController::AddToBag(const survivor::LootItem& item)
@@ -134,8 +104,12 @@ void SurvivorRunController::AddToBag(const survivor::LootItem& item)
         bag_.weapons.push_back({item.id, item.rarity});
         world_.combatFlow->SetEventCallout("拾った：" + LootName(item), 1.6f);
         break;
-    case survivor::LootKind::Ammo:
+    case survivor::LootKind::Ammo: {
+        const size_t type = static_cast<size_t>((std::clamp)(item.id, 0, static_cast<int>(survivor::kAmmoTypeCount) - 1));
+        reserves_[type] = (std::min)(config_.loot.reserveMax[type], reserves_[type] + item.amount);
+        ammoPicked_[type] += item.amount;
         break;
+    }
     }
 }
 

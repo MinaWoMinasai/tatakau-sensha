@@ -247,13 +247,6 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
     }
     if (WeaponMode() && !inventoryOpen_) {
-        // 拾える物が近くにあれば F を押したのと同じく拾う。拾う案内が出た画面と、チップか武器が落ちている画面を1回ずつ保存する。
-        if (!autoLootPromptCaptured_ && !lootPromptShown_.empty() && world_.run.tankRunCapturePath_.empty()) {
-            RequestCapture("loot_prompt");
-            autoLootPromptCaptured_ = true;
-        } else if (autoLootPromptCaptured_ && lootField_.CountNear(position) > 0) {
-            PickUpLoot();
-        }
         // 15秒ごとに、ホイールを1刻み回したのと同じ切り替えで次の枠へ。切り替えの途中の画面を1回保存する。
         // このフレームの射撃は、切り替えや（自動の）リロードが始まる前に済んでいるので、撃てない間かは前のフレームの終わりの状態で見る。
         const bool lockedBefore = autoWasLocked_;

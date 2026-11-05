@@ -6,10 +6,10 @@
 
 namespace gameplay {
 namespace {
-// 弾が寄ってくる速さと、触れたとみなす距離。
-constexpr float kAmmoCollectRadius = 1.2f;
-constexpr float kAmmoPullAcceleration = 60.0f;
-constexpr float kAmmoPullMaxSpeed = 24.0f;
+// 物が寄ってくる速さと、触れたとみなす距離。
+constexpr float kCollectRadius = 1.2f;
+constexpr float kPullAcceleration = 60.0f;
+constexpr float kPullMaxSpeed = 24.0f;
 
 float Distance2D(const myEngine::Vector3& a, const myEngine::Vector3& b)
 {
@@ -36,34 +36,35 @@ void SurvivorLootField::Drop(const myEngine::Vector3& position, const survivor::
     items_.push_back(dropped);
 }
 
-std::array<int, survivor::kAmmoTypeCount> SurvivorLootField::Update(float dt, const myEngine::Vector3& player,
-                                                                    const std::array<bool, survivor::kAmmoTypeCount>& acceptAmmo)
+std::vector<survivor::LootItem> SurvivorLootField::Update(float dt, const myEngine::Vector3& player,
+                                                          const std::array<bool, survivor::kAmmoTypeCount>& acceptAmmo)
 {
-    std::array<int, survivor::kAmmoTypeCount> collected{};
+    std::vector<survivor::LootItem> collected;
     for (Item& item : items_) {
         item.age += dt;
         const bool ammo = item.loot.kind == survivor::LootKind::Ammo;
         const size_t type = static_cast<size_t>((std::clamp)(item.loot.id, 0, static_cast<int>(survivor::kAmmoTypeCount) - 1));
+        const bool accept = !ammo || acceptAmmo[type];
         const myEngine::Vector3 toPlayer{player.x - item.position.x, player.y - item.position.y, 0.0f};
         const float distance = myEngine::Length(toPlayer);
-        if (ammo && acceptAmmo[type]) {
-            if (distance <= kAmmoCollectRadius) {
-                collected[type] += item.loot.amount;
+        if (accept) {
+            if (distance <= kCollectRadius) {
+                collected.push_back(item.loot);
                 item.taken = true;
                 continue;
             }
-            if (distance <= config_.ammoMagnetRadius) {
+            if (distance <= config_.magnetRadius) {
                 item.attracted = true;
             }
-        } else if (ammo) {
-            // 予備が上限の間は寄ってこない（あとで拾えるように残す）。
+        } else {
+            // 予備が上限の弾は寄ってこない（あとで拾えるように残す）。
             item.attracted = false;
         }
         if (item.attracted && distance > 0.001f) {
-            item.velocity += toPlayer * (kAmmoPullAcceleration * dt / distance);
+            item.velocity += toPlayer * (kPullAcceleration * dt / distance);
             const float speed = myEngine::Length(item.velocity);
-            if (speed > kAmmoPullMaxSpeed) {
-                item.velocity = item.velocity * (kAmmoPullMaxSpeed / speed);
+            if (speed > kPullMaxSpeed) {
+                item.velocity = item.velocity * (kPullMaxSpeed / speed);
             }
         } else {
             // 落ちた直後の散らばりは、すぐに止まる。
@@ -82,48 +83,6 @@ std::array<int, survivor::kAmmoTypeCount> SurvivorLootField::Update(float dt, co
                                 }),
                  items_.end());
     return collected;
-}
-
-std::vector<survivor::LootItem> SurvivorLootField::TakeNear(const myEngine::Vector3& position)
-{
-    std::vector<survivor::LootItem> taken;
-    for (Item& item : items_) {
-        if (IsKeyPickup(item.loot) && Distance2D(item.position, position) <= config_.pickupRadius) {
-            taken.push_back(item.loot);
-            item.taken = true;
-        }
-    }
-    items_.erase(std::remove_if(items_.begin(), items_.end(),
-                                [](const Item& item) {
-                                    return item.taken;
-                                }),
-                 items_.end());
-    return taken;
-}
-
-size_t SurvivorLootField::CountNear(const myEngine::Vector3& position, const survivor::LootItem** nearest) const
-{
-    size_t count = 0;
-    float best = config_.pickupRadius;
-    if (nearest) {
-        *nearest = nullptr;
-    }
-    for (const Item& item : items_) {
-        if (!IsKeyPickup(item.loot)) {
-            continue;
-        }
-        const float distance = Distance2D(item.position, position);
-        if (distance > config_.pickupRadius) {
-            continue;
-        }
-        ++count;
-        // 名前に出すのは、武器 → チップ → 素材の順で、同じ種類なら一番近い物。
-        if (nearest && (!*nearest || item.loot.kind > (*nearest)->kind || (item.loot.kind == (*nearest)->kind && distance < best))) {
-            best = distance;
-            *nearest = &item.loot;
-        }
-    }
-    return count;
 }
 
 void SurvivorLootField::Queue(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp,

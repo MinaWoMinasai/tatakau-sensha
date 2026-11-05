@@ -477,11 +477,9 @@ private:
     // 落とす物と出撃中の袋（計画書 p3 の W3）。SurvivorRunLoot.cpp。
     /// @brief 倒した敵から、素材・弾・チップ・武器を確率で落とす（お金は欠片のまま）。衝突処理の途中から呼ばれるので、床の列に足すだけ。
     void DropLoot(const ExpEnemy& enemy);
-    /// @brief 床の物を動かして触れた弾を予備へ入れ、袋と拾う案内の文字を更新する。dt は区画の時間。
+    /// @brief 床の物を動かして触れた物を拾い、袋の文字を更新する。dt は区画の時間。
     void UpdateLoot(float dt);
-    /// @brief F：近くの素材・チップ・武器を全部、袋へ入れる。拾った数を返す。
-    int PickUpLoot();
-    /// @brief 拾った物を袋へ入れる。
+    /// @brief 拾った物を、弾なら予備へ、ほかは袋へ入れる。
     void AddToBag(const survivor::LootItem& item);
     /// @brief 武器に付いているチップの一行（「チップ 1/2：弾頭（レア）」）。
     std::string DescribeChips(const survivor::BaseWeapon& owned, const survivor::WeaponDefinition& weapon) const;
@@ -498,9 +496,7 @@ private:
     std::array<int, 4> lootPicked_{};
     std::array<int, survivor::kAmmoTypeCount> ammoPicked_{};
     std::unique_ptr<myEngine::TextLabel> lootText_;
-    std::unique_ptr<myEngine::TextLabel> lootPrompt_;
     std::string lootTextShown_;
-    std::string lootPromptShown_;
 
     // E の持ち物の画面（W4）。開いている間は区画を止める（IsPaused）。戦闘中は見るだけ。
     /// @brief 持ち物の画面を開く（文字はここで1回だけ作る）。
@@ -762,7 +758,6 @@ private:
     float autoSwapStartedAt_ = -1.0f;
     bool autoSwapCaptured_ = false;
     bool autoReloadCaptured_ = false;
-    bool autoLootPromptCaptured_ = false;
     // 持ち物の画面の確認：0 まだ・1 開いた・2 画面を頼んだ・3 閉じた。開いた時の区画の時計と、閉じる時に同じだったか。
     int autoInventoryState_ = 0;
     float autoInventoryTimer_ = 0.0f;

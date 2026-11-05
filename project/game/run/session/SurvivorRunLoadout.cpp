@@ -699,9 +699,6 @@ void SurvivorRunController::UpdateWeaponInput()
     if (input.IsKeyTriggered(DIK_R)) {
         StartReload();
     }
-    if (input.IsKeyTriggered(DIK_F)) {
-        PickUpLoot();
-    }
 }
 
 void SurvivorRunController::HandleWeaponWheel(int notches)

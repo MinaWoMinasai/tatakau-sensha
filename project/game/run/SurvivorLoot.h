@@ -32,7 +32,7 @@ inline const char* MaterialName(MaterialId id)
     return kNames[static_cast<size_t>(id)];
 }
 
-/// @brief 床に落ちる物の種類。弾は触れると自動で拾い、ほかはキーで出撃中の袋へ入れる（お金は欠片のまま自動で拾う）。
+/// @brief 床に落ちる物の種類。どれも触れると自動で拾い、弾は予備へ、ほかは出撃中の袋へ入る（お金は欠片のまま拾う）。
 enum class LootKind {
     Ammo,
     Material,
@@ -59,9 +59,8 @@ struct LootConfig {
     float bigScale = 5.0f;
     /// @brief チップと武器のレア度の重み（コモン〜レジェンド）。
     std::array<float, kRarityCount> rarityWeights{60.0f, 25.0f, 10.0f, 4.0f, 1.0f};
-    /// @brief キーで拾える距離と、弾が寄ってくる距離（ワールド単位）。
-    float pickupRadius = 2.6f;
-    float ammoMagnetRadius = 3.0f;
+    /// @brief 落ちている物が寄ってくる距離（ワールド単位）。
+    float magnetRadius = 5.0f;
     /// @brief 弾と素材が床に残る秒（チップと武器は消えない）。
     float lifetime = 45.0f;
     /// @brief 休憩部屋で売る値段（W6）。武器とチップはレア度ごと（コモン〜レジェンド）、素材は1つごと（四角・三角・五角・ボス）。

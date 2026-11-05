@@ -750,8 +750,7 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(loot, "chipChance", out.chipChance);
         number(loot, "weaponChance", out.weaponChance);
         number(loot, "bigScale", out.bigScale);
-        number(loot, "pickupRadius", out.pickupRadius);
-        number(loot, "ammoMagnetRadius", out.ammoMagnetRadius);
+        number(loot, "magnetRadius", out.magnetRadius);
         number(loot, "lifetime", out.lifetime);
         // 弾は種類ごと（ライト・ヘビー・エネルギー）の確率・量・予備の上限。
         for (const char* key : {"ammoChance", "ammoAmount", "reserveMax"}) {
@@ -1094,8 +1093,9 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     for (size_t i = 0; i < kMaterialCount; ++i) {
         loot["materialPrice"][MaterialKey(static_cast<MaterialId>(i))] = config.loot.materialPrice[i];
     }
-    loot["pickupRadius"] = round(config.loot.pickupRadius);
-    loot["ammoMagnetRadius"] = round(config.loot.ammoMagnetRadius);
+    loot.erase("pickupRadius");
+    loot.erase("ammoMagnetRadius");
+    loot["magnetRadius"] = round(config.loot.magnetRadius);
     loot["lifetime"] = round(config.loot.lifetime);
     auto& rival = section("rival");
     rival["enabled"] = config.rival.enabled;
