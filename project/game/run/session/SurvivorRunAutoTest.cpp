@@ -670,7 +670,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         std::ofstream(std::string(kAutoTestDirectory) + "/autotest.json")
             << "{\"configRoundTrip\":" << (roundTrip ? "true" : "false") << ",\"baseRoundTrip\":" << (baseRoundTrip ? "true" : "false")
             << ",\"baseEquipOk\":" << (autoBaseEquipOk_ ? "true" : "false") << ",\"craftOk\":" << (autoCraftOk_ ? "true" : "false")
-            << ",\"crafted\":" << crafted_ << ",\"evolved\":" << evolved_ << ",\"fullRun\":" << (autoFullRun_ ? "true" : "false")
+            << ",\"defeated\":" << world_.combat.defeatedEnemies_ << ",\"swarms\":" << swarmsSpawned_ << ",\"crafted\":" << crafted_ << ",\"evolved\":" << evolved_ << ",\"fullRun\":" << (autoFullRun_ ? "true" : "false")
             << ",\"stage\":" << stage_ + 1 << ",\"bossDefeated\":" << (IsBossStage() && rivalDefeated_ ? "true" : "false")
             << ",\"bossDefeatedAt\":" << rivalDefeatedAt_ << ",\"baseBroughtHome\":" << (baseBroughtHome_ ? "true" : "false")
             << ",\"base\":{\"money\":" << base_.money << ",\"materials\":[" << base_.materials[0] << "," << base_.materials[1] << ","

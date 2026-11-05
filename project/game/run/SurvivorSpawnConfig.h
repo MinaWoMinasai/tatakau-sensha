@@ -230,11 +230,12 @@ struct SpawnConfig {
 
     /// @brief 3ステージの流れ（計画書 p3 の W8・G3）：ステージ1 → 休憩 → ステージ2 → 休憩 → ボスステージ。武器の枠を使う遊び方だけ。
     /// @note exitSeconds はステージ1・2では出口が開くまでの秒、ボスステージではボス（宿敵）が出るまでの秒。threatOffset は脅威の段階の上乗せ、
-    /// enemyHp は湧く敵のHPの倍率。ボスを倒すと bossMaterials 個のボスの素材と武器を1つ落とす。tier は難しさの段（今は段1の入口だけ）。
+    /// enemyHp は湧く敵のHPの倍率。swarmScale は寄ってくる三角の群れと包囲の数の倍率。ボスを倒すと bossMaterials 個のボスの素材と武器を1つ落とす。tier は難しさの段（今は段1の入口だけ）。
     struct StageConfig {
         std::array<float, 3> exitSeconds{180.0f, 180.0f, 15.0f};
         std::array<int, 3> threatOffset{0, 1, 2};
-        std::array<float, 3> enemyHp{1.0f, 1.2f, 1.4f};
+        std::array<float, 3> enemyHp{0.8f, 0.96f, 1.12f};
+        float swarmScale = 0.67f;
         int bossMaterials = 5;
         int tier = 1;
     };
@@ -680,6 +681,7 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         readArray("exitSeconds", config.stages.exitSeconds);
         readArray("threatOffset", config.stages.threatOffset);
         readArray("enemyHp", config.stages.enemyHp);
+        number(stages, "swarmScale", config.stages.swarmScale);
         number(stages, "bossMaterials", config.stages.bossMaterials);
         number(stages, "tier", config.stages.tier);
         for (float& seconds : config.stages.exitSeconds) {
@@ -1039,6 +1041,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         stages["threatOffset"].push_back(config.stages.threatOffset[i]);
         stages["enemyHp"].push_back(round(config.stages.enemyHp[i]));
     }
+    stages["swarmScale"] = round(config.stages.swarmScale);
     stages["bossMaterials"] = config.stages.bossMaterials;
     stages["tier"] = config.stages.tier;
     auto& crafting = section("crafting");

@@ -148,7 +148,9 @@ void SurvivorRunController::ReleasePendingWaves()
             continue;
         }
         pendingWaves_.erase(pendingWaves_.begin() + static_cast<std::ptrdiff_t>(i));
-        const int count = (std::min)(wave.count, config_.telegraph.maxChasers - CountChasers());
+        // 武器の枠を使う遊び方では、群れと包囲の数を減らす（区切りB の感想）。
+        const int waveCount = WeaponMode() ? (std::max)(1, static_cast<int>(std::lround(static_cast<float>(wave.count) * config_.stages.swarmScale))) : wave.count;
+        const int count = (std::min)(waveCount, config_.telegraph.maxChasers - CountChasers());
         if (count <= 0) {
             ++wavesSkipped_;
             continue;
