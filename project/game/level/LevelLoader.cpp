@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <numbers>
+#include <type_traits>
 
 namespace {
 
@@ -42,40 +43,54 @@ myEngine::Vector3 ReadVector3Array(const nlohmann::json& json, const myEngine::V
     return {json[0].get<float>(), json[1].get<float>(), json[2].get<float>()};
 }
 
+/// @brief キーの値を型 T として読み取る。キーが無いか、型が合わないときは fallback を返す。
+template <class T> T ReadValue(const nlohmann::json& json, const char* key, const T& fallback)
+{
+    if (!json.contains(key)) {
+        return fallback;
+    }
+    const nlohmann::json& value = json[key];
+    bool typeMatches = false;
+    if constexpr (std::is_same_v<T, bool>) {
+        typeMatches = value.is_boolean();
+    } else if constexpr (std::is_arithmetic_v<T>) {
+        typeMatches = value.is_number();
+    } else {
+        typeMatches = value.is_string();
+    }
+    return typeMatches ? value.get<T>() : fallback;
+}
+
 /// @brief 文字列を読み取る。
 std::string ReadString(const nlohmann::json& json, const char* key, const std::string& fallback)
 {
-    if (!json.contains(key) || !json[key].is_string()) {
-        return fallback;
-    }
-    return json[key].get<std::string>();
+    return ReadValue<std::string>(json, key, fallback);
 }
 
-/// @brief 浮動小数を読み取る。
-float ReadFloat(const nlohmann::json& json, const char* key, float fallback)
+/// @brief キーの値がオブジェクトなら outValue へ写す。
+void ReadObjectInto(const nlohmann::json& json, const char* key, nlohmann::json& outValue)
 {
-    if (!json.contains(key) || !json[key].is_number()) {
-        return fallback;
+    if (json.contains(key) && json[key].is_object()) {
+        outValue = json[key];
     }
-    return json[key].get<float>();
 }
 
-/// @brief 整数を読み取る。
-int ReadInt(const nlohmann::json& json, const char* key, int fallback)
+/// @brief json[key] の配列の要素を順に処理する。オブジェクトでない要素は警告して飛ばす。
+/// @param label 警告に出す配列の名前。
+/// @return key の値が配列でなければ false（キーが無いときは空の配列として true）。
+template <class Function> bool ForEachObjectIn(const nlohmann::json& json, const char* key, const std::string& label, Function&& function)
 {
-    if (!json.contains(key) || !json[key].is_number()) {
-        return fallback;
+    if (json.contains(key) && !json[key].is_array()) {
+        return false;
     }
-    return json[key].get<int>();
-}
-
-/// @brief Boolを読み取る。
-bool ReadBool(const nlohmann::json& json, const char* key, bool fallback)
-{
-    if (!json.contains(key) || !json[key].is_boolean()) {
-        return fallback;
+    for (const auto& entry : json.value(key, nlohmann::json::array())) {
+        if (!entry.is_object()) {
+            LogLevelWarning("Skipped non-object entry in " + label + ".");
+            continue;
+        }
+        function(entry);
     }
-    return json[key].get<bool>();
+    return true;
 }
 
 /// @brief レベルオブジェクトを読み取る。
@@ -89,10 +104,7 @@ LevelObject ReadLevelObject(const nlohmann::json& objectJson)
     object.transform.translate = ReadVector3Object(objectJson.value("position", nlohmann::json::object()), object.transform.translate);
     object.transform.rotate = ReadVector3Object(objectJson.value("rotation", nlohmann::json::object()), object.transform.rotate);
     object.transform.scale = ReadVector3Object(objectJson.value("scale", nlohmann::json::object()), object.transform.scale);
-
-    if (objectJson.contains("customProperties") && objectJson["customProperties"].is_object()) {
-        object.customProperties = objectJson["customProperties"];
-    }
+    ReadObjectInto(objectJson, "customProperties", object.customProperties);
     return object;
 }
 
@@ -128,14 +140,33 @@ LevelSpawnArea ReadSpawnArea(const nlohmann::json& areaJson)
     area.prefab = ReadString(areaJson, "prefab", "Basic");
     area.center = ReadVector3Object(areaJson.value("center", areaJson.value("position", nlohmann::json::object())), {0.0f, 0.0f, 0.0f});
     area.size = ReadVector3Object(areaJson.value("size", nlohmann::json::object()), {10.0f, 10.0f, 0.0f});
-    area.spawnInterval = ReadFloat(areaJson, "spawnInterval", 2.0f);
-    area.maxAlive = ReadInt(areaJson, "maxAlive", 8);
-    area.hp = ReadInt(areaJson, "hp", -1);
-    area.enabled = ReadBool(areaJson, "enabled", true);
-    if (areaJson.contains("customProperties") && areaJson["customProperties"].is_object()) {
-        area.customProperties = areaJson["customProperties"];
-    }
+    area.spawnInterval = ReadValue(areaJson, "spawnInterval", 2.0f);
+    area.maxAlive = ReadValue(areaJson, "maxAlive", 8);
+    area.hp = ReadValue(areaJson, "hp", -1);
+    area.enabled = ReadValue(areaJson, "enabled", true);
+    ReadObjectInto(areaJson, "customProperties", area.customProperties);
     return area;
+}
+
+/// @brief ボスの段階を読み取る。
+/// @param outPhase objects の値が配列でないときは false を返す（読み飛ばす段階として扱う）。
+bool ReadBossPhase(const nlohmann::json& phaseJson, LevelBossPhase& outPhase)
+{
+    outPhase.name = ReadString(phaseJson, "name", "");
+    outPhase.startHpRate = ReadValue(phaseJson, "startHpRate", 1.0f);
+    outPhase.message = ReadString(phaseJson, "message", "");
+    ReadObjectInto(phaseJson, "customProperties", outPhase.customProperties);
+    const bool objectsValid =
+        ForEachObjectIn(phaseJson, "objects", "bossPhase objects: " + outPhase.name, [&](const nlohmann::json& objectJson) {
+            LevelObject object = ReadLevelObject(objectJson);
+            if (!object.type.empty()) {
+                outPhase.objects.push_back(std::move(object));
+            }
+        });
+    if (!objectsValid) {
+        LogLevelWarning("bossPhase objects must be an array: " + outPhase.name);
+    }
+    return objectsValid;
 }
 
 } // namespace
@@ -169,99 +200,59 @@ bool LevelLoader::Load(const std::string& filePath, LevelData& outLevel) const
         outLevel.editorMode = "Blender";
         outLevel.levelName = ReadString(json, "name", "scene");
 
-        if (json.contains("objects") && !json["objects"].is_array()) {
-            LogLevelWarning("Blender objects must be an array: " + filePath);
-            return false;
-        }
-        for (const auto& objectJson : json.value("objects", nlohmann::json::array())) {
-            if (!objectJson.is_object()) {
-                LogLevelWarning("Skipped non-object entry in Blender objects.");
-                continue;
-            }
+        const bool objectsValid = ForEachObjectIn(json, "objects", "Blender objects", [&](const nlohmann::json& objectJson) {
             if (ReadString(objectJson, "type", "") != "MESH") {
-                continue;
+                return;
             }
-
             LevelObject object = ReadBlenderLevelObject(objectJson);
             if (object.prefab.empty()) {
                 LogLevelWarning("Skipped Blender MESH without file_name: " + object.name);
-                continue;
+                return;
             }
             outLevel.objects.push_back(std::move(object));
+        });
+        if (!objectsValid) {
+            LogLevelWarning("Blender objects must be an array: " + filePath);
         }
-        return true;
+        return objectsValid;
     }
 
     outLevel = {};
     outLevel.toolName = ReadString(json, "toolName", "Level AI-ditor");
     outLevel.editorMode = ReadString(json, "editorMode", "ArenaBattle");
     outLevel.levelName = ReadString(json, "levelName", "");
-    if (json.contains("balance") && json["balance"].is_object()) {
-        outLevel.balance = json["balance"];
-    }
+    ReadObjectInto(json, "balance", outLevel.balance);
 
-    if (json.contains("objects") && !json["objects"].is_array()) {
-        LogLevelWarning("objects must be an array: " + filePath);
-        return false;
-    }
-    for (const auto& objectJson : json.value("objects", nlohmann::json::array())) {
-        if (!objectJson.is_object()) {
-            LogLevelWarning("Skipped non-object entry in objects.");
-            continue;
-        }
-
+    const bool objectsValid = ForEachObjectIn(json, "objects", "objects", [&](const nlohmann::json& objectJson) {
         LevelObject object = ReadLevelObject(objectJson);
         if (object.type.empty()) {
             LogLevelWarning("Skipped object with empty type: " + object.name);
-            continue;
+            return;
         }
         outLevel.objects.push_back(std::move(object));
+    });
+    if (!objectsValid) {
+        LogLevelWarning("objects must be an array: " + filePath);
+        return false;
     }
 
-    if (json.contains("spawnAreas") && !json["spawnAreas"].is_array()) {
+    const bool spawnAreasValid = ForEachObjectIn(json, "spawnAreas", "spawnAreas", [&](const nlohmann::json& areaJson) {
+        outLevel.spawnAreas.push_back(ReadSpawnArea(areaJson));
+    });
+    if (!spawnAreasValid) {
         LogLevelWarning("spawnAreas must be an array: " + filePath);
         return false;
     }
-    for (const auto& areaJson : json.value("spawnAreas", nlohmann::json::array())) {
-        if (!areaJson.is_object()) {
-            LogLevelWarning("Skipped non-object entry in spawnAreas.");
-            continue;
-        }
-        outLevel.spawnAreas.push_back(ReadSpawnArea(areaJson));
-    }
 
-    if (json.contains("bossPhases") && !json["bossPhases"].is_array()) {
+    const bool bossPhasesValid = ForEachObjectIn(json, "bossPhases", "bossPhases", [&](const nlohmann::json& phaseJson) {
+        LevelBossPhase phase{};
+        if (ReadBossPhase(phaseJson, phase)) {
+            outLevel.bossPhases.push_back(std::move(phase));
+        }
+    });
+    if (!bossPhasesValid) {
         LogLevelWarning("bossPhases must be an array: " + filePath);
         return false;
-    }
-    for (const auto& phaseJson : json.value("bossPhases", nlohmann::json::array())) {
-        if (!phaseJson.is_object()) {
-            LogLevelWarning("Skipped non-object entry in bossPhases.");
-            continue;
-        }
-
-        LevelBossPhase phase{};
-        phase.name = ReadString(phaseJson, "name", "");
-        phase.startHpRate = ReadFloat(phaseJson, "startHpRate", 1.0f);
-        phase.message = ReadString(phaseJson, "message", "");
-        if (phaseJson.contains("customProperties") && phaseJson["customProperties"].is_object()) {
-            phase.customProperties = phaseJson["customProperties"];
-        }
-        if (phaseJson.contains("objects") && !phaseJson["objects"].is_array()) {
-            LogLevelWarning("bossPhase objects must be an array: " + phase.name);
-            continue;
-        }
-        for (const auto& objectJson : phaseJson.value("objects", nlohmann::json::array())) {
-            if (!objectJson.is_object()) {
-                LogLevelWarning("Skipped non-object entry in bossPhase objects: " + phase.name);
-                continue;
-            }
-            LevelObject object = ReadLevelObject(objectJson);
-            if (!object.type.empty()) {
-                phase.objects.push_back(std::move(object));
-            }
-        }
-        outLevel.bossPhases.push_back(std::move(phase));
     }
 
     return true;
