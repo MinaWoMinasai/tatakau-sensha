@@ -377,6 +377,7 @@ void SurvivorRunController::Initialize()
             lootField_.SetConfig(config_.loot);
         }
         baseBulletDamage_ = world_.resources.player_->GetStats().bulletDamage;
+        ResetEliteTimers();
         StartLoadout();
         ApplyStageSettings(0);
         // 出撃の前に、拠点の画面で持っていく武器を選ぶ。タイトルの見本と、四隅・fps の自動確認では出さない。
@@ -493,6 +494,9 @@ void SurvivorRunController::Update(float dt)
             SeparateEnemies();
             separationSeconds_ += std::chrono::duration<double>(std::chrono::steady_clock::now() - separationStart).count();
             ++separationCalls_;
+        }
+        if (gameDt > 0.0f) {
+            UpdateElites(gameDt);
         }
         // 右クリックを押している間、バリアを張る（敵どうしの押し離しの後で押し返す）。
         if (gameDt > 0.0f && WeaponMode() && !world_.demo.titleDemo_) {
@@ -688,6 +692,7 @@ void SurvivorRunController::QueueWorldVisuals()
     lootField_.Queue(*world_.resources.neonGridRenderer_, cameraRight, cameraUp, world_.resources.camera->GetTranslate(),
                      arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f, arenacamera::HalfViewHeight() + 2.0f);
     QueueBarrier(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
+    QueueEliteRings(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
     // 予告：輪は自機のまわりに、群れは湧く場所に、赤い破線の円を描く。湧く時刻が近いほど速く点滅する。
     for (const PendingWave& wave : pendingWaves_) {
         const float left = (std::max)(0.0f, wave.at - elapsed_);

@@ -11,6 +11,10 @@ namespace gameplay {
 
 void SurvivorRunController::DropLoot(const ExpEnemy& enemy)
 {
+    // 地雷は何も落とさない。
+    if (enemy.GetSurvivorRole() == ExpEnemy::SurvivorRole::Mine) {
+        return;
+    }
     const auto& loot = config_.loot;
     const ExpEnemyType type = enemy.GetType();
     // 敵戦車（遠征の敵）と、大五角・重い四角のような大きな敵は、確率が bigScale 倍。

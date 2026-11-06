@@ -256,6 +256,43 @@ struct SpawnConfig {
         float exhaustedSeconds = 1.5f;
     };
     BarrierConfig barrier{};
+
+    /// @brief ステージ fromStage（1から数える）から出る新しい敵（計画書 p3 の W9）。武器の枠を使う遊び方だけ。
+    /// @note 三角の群れと包囲の erraticRatio の割合が、ばらばらな軌道になる。回復する敵・ワープする敵・地雷をまく敵は、
+    /// ステージの始めから first 秒後に、その後 interval 秒ごとに、同時に maxAlive 体まで湧く。
+    struct EliteConfig {
+        int fromStage = 2;
+        float erraticRatio = 0.5f;
+        float erraticStrength = 1.6f;
+        float erraticFrequency = 5.0f;
+        float healerFirst = 15.0f;
+        float healerInterval = 25.0f;
+        int healerMaxAlive = 2;
+        float healerHpScale = 3.0f;
+        float healerSpeed = 2.5f;
+        float healInterval = 2.5f;
+        float healRadius = 9.0f;
+        float healRatio = 0.15f;
+        float warperFirst = 8.0f;
+        float warperInterval = 14.0f;
+        int warperMaxAlive = 3;
+        float warperHpScale = 2.5f;
+        float warpInterval = 4.0f;
+        float warpDistance = 9.0f;
+        float mineLayerFirst = 22.0f;
+        float mineLayerInterval = 18.0f;
+        int mineLayerMaxAlive = 3;
+        float mineLayerHpScale = 2.0f;
+        float layInterval = 3.0f;
+        int mineMaxAlive = 14;
+        int mineHp = 1;
+        float mineArmSeconds = 1.0f;
+        float mineLifeSeconds = 14.0f;
+        float mineTriggerRadius = 2.2f;
+        float mineBlastRadius = 3.4f;
+        int mineDamage = 8;
+    };
+    EliteConfig elites{};
     static constexpr int kStageCount = 3;
 
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
@@ -718,6 +755,39 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         config.barrier.radius = (std::max)(1.0f, config.barrier.radius);
         config.barrier.staminaMax = (std::max)(1.0f, config.barrier.staminaMax);
     }
+    if (data.contains("elites") && data.at("elites").is_object()) {
+        const auto& elites = data.at("elites");
+        number(elites, "fromStage", config.elites.fromStage);
+        number(elites, "erraticRatio", config.elites.erraticRatio);
+        number(elites, "erraticStrength", config.elites.erraticStrength);
+        number(elites, "erraticFrequency", config.elites.erraticFrequency);
+        number(elites, "healerFirst", config.elites.healerFirst);
+        number(elites, "healerInterval", config.elites.healerInterval);
+        number(elites, "healerMaxAlive", config.elites.healerMaxAlive);
+        number(elites, "healerHpScale", config.elites.healerHpScale);
+        number(elites, "healerSpeed", config.elites.healerSpeed);
+        number(elites, "healInterval", config.elites.healInterval);
+        number(elites, "healRadius", config.elites.healRadius);
+        number(elites, "healRatio", config.elites.healRatio);
+        number(elites, "warperFirst", config.elites.warperFirst);
+        number(elites, "warperInterval", config.elites.warperInterval);
+        number(elites, "warperMaxAlive", config.elites.warperMaxAlive);
+        number(elites, "warperHpScale", config.elites.warperHpScale);
+        number(elites, "warpInterval", config.elites.warpInterval);
+        number(elites, "warpDistance", config.elites.warpDistance);
+        number(elites, "mineLayerFirst", config.elites.mineLayerFirst);
+        number(elites, "mineLayerInterval", config.elites.mineLayerInterval);
+        number(elites, "mineLayerMaxAlive", config.elites.mineLayerMaxAlive);
+        number(elites, "mineLayerHpScale", config.elites.mineLayerHpScale);
+        number(elites, "layInterval", config.elites.layInterval);
+        number(elites, "mineMaxAlive", config.elites.mineMaxAlive);
+        number(elites, "mineHp", config.elites.mineHp);
+        number(elites, "mineArmSeconds", config.elites.mineArmSeconds);
+        number(elites, "mineLifeSeconds", config.elites.mineLifeSeconds);
+        number(elites, "mineTriggerRadius", config.elites.mineTriggerRadius);
+        number(elites, "mineBlastRadius", config.elites.mineBlastRadius);
+        number(elites, "mineDamage", config.elites.mineDamage);
+    }
     if (data.contains("crafting") && data.at("crafting").is_object()) {
         const auto& crafting = data.at("crafting");
         auto& out = config.crafting;
@@ -1084,6 +1154,37 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     barrier["regenPerSecond"] = round(config.barrier.regenPerSecond);
     barrier["regenDelay"] = round(config.barrier.regenDelay);
     barrier["exhaustedSeconds"] = round(config.barrier.exhaustedSeconds);
+    auto& elites = section("elites");
+    elites["fromStage"] = config.elites.fromStage;
+    elites["erraticRatio"] = round(config.elites.erraticRatio);
+    elites["erraticStrength"] = round(config.elites.erraticStrength);
+    elites["erraticFrequency"] = round(config.elites.erraticFrequency);
+    elites["healerFirst"] = round(config.elites.healerFirst);
+    elites["healerInterval"] = round(config.elites.healerInterval);
+    elites["healerMaxAlive"] = config.elites.healerMaxAlive;
+    elites["healerHpScale"] = round(config.elites.healerHpScale);
+    elites["healerSpeed"] = round(config.elites.healerSpeed);
+    elites["healInterval"] = round(config.elites.healInterval);
+    elites["healRadius"] = round(config.elites.healRadius);
+    elites["healRatio"] = round(config.elites.healRatio);
+    elites["warperFirst"] = round(config.elites.warperFirst);
+    elites["warperInterval"] = round(config.elites.warperInterval);
+    elites["warperMaxAlive"] = config.elites.warperMaxAlive;
+    elites["warperHpScale"] = round(config.elites.warperHpScale);
+    elites["warpInterval"] = round(config.elites.warpInterval);
+    elites["warpDistance"] = round(config.elites.warpDistance);
+    elites["mineLayerFirst"] = round(config.elites.mineLayerFirst);
+    elites["mineLayerInterval"] = round(config.elites.mineLayerInterval);
+    elites["mineLayerMaxAlive"] = config.elites.mineLayerMaxAlive;
+    elites["mineLayerHpScale"] = round(config.elites.mineLayerHpScale);
+    elites["layInterval"] = round(config.elites.layInterval);
+    elites["mineMaxAlive"] = config.elites.mineMaxAlive;
+    elites["mineHp"] = config.elites.mineHp;
+    elites["mineArmSeconds"] = round(config.elites.mineArmSeconds);
+    elites["mineLifeSeconds"] = round(config.elites.mineLifeSeconds);
+    elites["mineTriggerRadius"] = round(config.elites.mineTriggerRadius);
+    elites["mineBlastRadius"] = round(config.elites.mineBlastRadius);
+    elites["mineDamage"] = config.elites.mineDamage;
     auto& crafting = section("crafting");
     auto writeCost = [](nlohmann::json& object, const CraftCost& cost) {
         for (size_t i = 0; i < kMaterialCount; ++i) {
@@ -1146,10 +1247,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 32> kOrder{
+    static constexpr std::array<const char*, 33> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "weapons",       "loot",          "crafting",      "stages",        "barrier",       "traits",        "relics",    "fusions",    "parts",       "heatVent",
+        "heat",          "shield",    "forms",           "weapons",       "loot",          "crafting",      "stages",        "barrier",       "elites",        "traits",        "relics",    "fusions",    "parts",       "heatVent",
         "partTuning",    "bigPentagon", "damageNumbers"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {

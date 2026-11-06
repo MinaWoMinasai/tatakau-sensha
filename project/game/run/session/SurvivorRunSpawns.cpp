@@ -164,8 +164,9 @@ void SurvivorRunController::ReleasePendingWaves()
             myEngine::Vector3 position = wave.center + myEngine::Vector3{offset(random_), offset(random_), 0.0f};
             position.x = (std::clamp)(position.x, kSpawnMinX, kSpawnMaxX);
             position.y = (std::clamp)(position.y, kSpawnMinY, kSpawnMaxY);
-            if (!world_.resources.stage_->IsCollisionWithAnyBlock(position, 1.2f)) {
-                SpawnShape("Triangle", position, true);
+            if (!world_.resources.stage_->IsCollisionWithAnyBlock(position, 1.2f) && SpawnShape("Triangle", position, true) && ElitesActive() &&
+                std::uniform_real_distribution<float>(0.0f, 1.0f)(random_) < config_.elites.erraticRatio) {
+                MakeErratic(*world_.resources.enemyManager_->GetEnemyPtrs().back());
             }
         }
         ++swarmsSpawned_;

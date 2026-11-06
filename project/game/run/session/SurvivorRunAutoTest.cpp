@@ -284,6 +284,25 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     const bool dash = !WeaponMode() && static_cast<int>(autoTestTime_ / 3.0f) != static_cast<int>((autoTestTime_ - dt) / 3.0f);
     // バリア：20秒のうち10秒押し続ける（途中でスタミナが尽きるかも見る）。弾を止めた瞬間の画面を1回保存する。
     autoBarrierWanted_ = WeaponMode() && std::fmod(autoTestTime_, 20.0f) < 10.0f;
+    // 新しい敵：それぞれが自機の近くにいる画面を1回ずつ保存する（ワープする敵は消えている途中、ばらばらな三角は役割なしで見分ける）。
+    if (ElitesActive() && world_.run.tankRunCapturePath_.empty()) {
+        for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (!enemy || enemy->IsDead() || myEngine::Length(myEngine::Vector3{enemy->GetWorldPosition().x - position.x, enemy->GetWorldPosition().y - position.y, 0.0f}) > 13.0f) {
+                continue;
+            }
+            const size_t role = static_cast<size_t>(enemy->GetSurvivorRole());
+            const bool ready = role != static_cast<size_t>(ExpEnemy::SurvivorRole::Warper) || (enemy->GetWarpDissolve() > 0.3f && enemy->GetWarpDissolve() < 0.9f);
+            if (role > 0 && !autoEliteCaptured_[role] && ready) {
+                static constexpr std::array<const char*, 5> kNames{"", "elite_healer", "elite_warper", "elite_layer", "elite_mine"};
+                RequestCapture(kNames[role]);
+                autoEliteCaptured_[role] = true;
+                if (role == static_cast<size_t>(ExpEnemy::SurvivorRole::Warper)) {
+                    autoWarperOffset_ = {enemy->GetWorldPosition().x - position.x, enemy->GetWorldPosition().y - position.y, enemy->GetWarpDissolve()};
+                }
+                break;
+            }
+        }
+    }
     if (WeaponMode()) {
         autoStaminaMin_ = (std::min)(autoStaminaMin_, barrierStamina_);
         if (!autoBarrierCaptured_ && barrierOn_ && barrierFlash_ > 0.5f && world_.run.tankRunCapturePath_.empty()) {
@@ -744,6 +763,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"barrier\":{\"seconds\":" << barrierSeconds_ << ",\"blocked\":" << barrierBlocked_ << ",\"pushes\":" << barrierPushes_
             << ",\"breaks\":" << barrierBreaks_ << ",\"staminaMin\":" << autoStaminaMin_ << ",\"staminaEnd\":" << barrierStamina_
             << ",\"netSegments\":" << BarrierNetSegmentCount() << ",\"dashes\":" << player.GetDashStartedCount() << "}"
+            << ",\"warperOffset\":[" << autoWarperOffset_.x << "," << autoWarperOffset_.y << "," << autoWarperOffset_.z << "]"
+            << ",\"elites\":{\"erratic\":" << eliteStats_.erratic << ",\"healers\":" << eliteStats_.spawned[0] << ",\"warpers\":" << eliteStats_.spawned[1]
+            << ",\"layers\":" << eliteStats_.spawned[2] << ",\"heals\":" << eliteStats_.heals << ",\"healedHp\":" << eliteStats_.healedHp << ",\"warps\":" << eliteStats_.warps
+            << ",\"minesLaid\":" << eliteStats_.minesLaid << ",\"mineExplosions\":" << eliteStats_.mineExplosions << ",\"mineHits\":" << eliteStats_.mineHits << "}"
             << ",\"defeated\":" << world_.combat.defeatedEnemies_ << ",\"swarms\":" << swarmsSpawned_ << ",\"crafted\":" << crafted_ << ",\"evolved\":" << evolved_ << ",\"fullRun\":" << (autoFullRun_ ? "true" : "false")
             << ",\"stage\":" << stage_ + 1 << ",\"bossDefeated\":" << (IsBossStage() && rivalDefeated_ ? "true" : "false")
             << ",\"bossDefeatedAt\":" << rivalDefeatedAt_ << ",\"baseBroughtHome\":" << (baseBroughtHome_ ? "true" : "false")

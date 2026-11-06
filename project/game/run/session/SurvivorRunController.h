@@ -598,6 +598,41 @@ private:
     }
     int stage_ = 0;
 
+    // ステージ2から出る新しい敵（W9）。SurvivorRunElites.cpp。
+    bool ElitesActive() const;
+    /// @brief ステージの始めに、湧く時刻を入れ直す。
+    void ResetEliteTimers();
+    /// @brief 寄ってくる三角を、ばらばらな軌道にする。
+    void MakeErratic(ExpEnemy& enemy);
+    void SpawnElite(ExpEnemy::SurvivorRole role);
+    void ExplodeMine(ExpEnemy& mine);
+    /// @brief 新しい敵を湧かせ、役割ごとの行動（回復・ワープ・地雷）をさせる。dt は区画の時間。
+    void UpdateElites(float dt);
+    /// @brief 回復と爆発の広がる輪、地雷の範囲の輪を積む。
+    void QueueEliteRings(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraForward) const;
+    struct EliteRing {
+        myEngine::Vector3 position{};
+        float age = 0.0f;
+        float radius = 1.0f;
+        myEngine::Vector4 color{};
+    };
+    // 回復する敵・ワープする敵・地雷をまく敵の、次に湧く時刻と、初めて出たことを知らせたか。
+    std::array<float, 3> nextElite_{};
+    std::array<bool, 3> eliteAnnounced_{};
+    std::vector<EliteRing> eliteRings_;
+    // 行動の回数（自動確認と記録）。
+    struct EliteStats {
+        int erratic = 0;
+        std::array<int, 3> spawned{};
+        int heals = 0;
+        int healedHp = 0;
+        int warps = 0;
+        int minesLaid = 0;
+        int mineExplosions = 0;
+        int mineHits = 0;
+    };
+    EliteStats eliteStats_{};
+
     // バリアとスタミナ（X3）。SurvivorRunBarrier.cpp。
     /// @brief スタミナを増減し、wanted で張っている間は敵の弾と敵を止める。dt は区画の時間。
     void UpdateBarrier(float dt, bool wanted);
@@ -794,6 +829,9 @@ private:
     // 自動確認でバリアを張りたい間か。止めた弾の画面を保存したか。スタミナの一番低い値。
     bool autoBarrierWanted_ = false;
     bool autoBarrierCaptured_ = false;
+    std::array<bool, 5> autoEliteCaptured_{};
+    // ワープする敵の画面を保存した時の、自機からの位置（x, y）とディゾルブの進み（z）。
+    myEngine::Vector3 autoWarperOffset_{};
     float autoStaminaMin_ = 100.0f;
     int autoBaseState_ = 0;
     bool autoBaseEquipOk_ = false;

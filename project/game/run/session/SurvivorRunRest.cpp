@@ -45,6 +45,7 @@ void SurvivorRunController::StartNextStage()
     nextHeavy_ = 0.0f;
     nextRing_ = 0.0f;
     pendingWaves_.clear();
+    ResetEliteTimers();
     pickups_.Clear();
     lootField_.Clear();
     damageNumbers_.Clear();

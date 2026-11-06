@@ -435,7 +435,13 @@ void ExpEnemy::Update(Stage& stage, float deltaTime)
             }
         }
         if (distance > 0.001f) {
-            velocity_ += toPlayer * (acceleration * deltaTime / (distance * myEngine::kFixedStepsPerSecond));
+            myEngine::Vector3 steer = toPlayer;
+            if (wobbleStrength_ > 0.0f) {
+                // 向きを左右へ揺らして、ばらばらな軌道にする。
+                wobbleTime_ += deltaTime * wobbleFrequency_;
+                steer += myEngine::Vector3{-toPlayer.y, toPlayer.x, 0.0f} * (wobbleStrength_ * std::sin(wobbleTime_));
+            }
+            velocity_ += steer * (acceleration * deltaTime / (distance * myEngine::kFixedStepsPerSecond));
         }
         const float maxStep = maxSpeed / myEngine::kFixedStepsPerSecond;
         const float speed = myEngine::Length(velocity_);

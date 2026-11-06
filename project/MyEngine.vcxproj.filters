@@ -594,6 +594,9 @@
     <ClCompile Include="game\run\session\SurvivorRunScreens.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunElites.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\render\settings\RunVisualSettings.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>

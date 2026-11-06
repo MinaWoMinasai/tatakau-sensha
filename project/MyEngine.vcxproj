@@ -546,6 +546,7 @@
     <ClCompile Include="game\run\session\SurvivorRunRest.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunBarrier.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunScreens.cpp" />
+    <ClCompile Include="game\run\session\SurvivorRunElites.cpp" />
     <ClCompile Include="game\render\settings\RunVisualSettings.cpp" />
     <ClCompile Include="game\run\session\ExpeditionController.cpp" />
     <ClCompile Include="game\run\session\ExpeditionMapController.cpp" />

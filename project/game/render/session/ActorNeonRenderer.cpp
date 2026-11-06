@@ -605,9 +605,23 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
                 const float a = rotation + 6.28318530718f * i / sides;
                 points[i] = center + (cameraRight * std::cos(a) + cameraUp * std::sin(a)) * (size * scale * 0.96f);
             }
+            // 育つ戦車の試作のワープする敵は、塗りも線と同じディゾルブで消して（現して）いく。
+            if (enemy->GetWarpDissolve() > 0.0f) {
+                myEngine::NeonGridRenderer::LineDissolve dissolve{};
+                dissolve.origin = enemy->GetWorldPosition();
+                dissolve.direction = myEngine::Normalize(cameraRight - cameraUp);
+                dissolve.extent = (std::max)(0.5f, size * scale) * 1.4f;
+                dissolve.progress = enemy->GetWarpDissolve();
+                dissolve.pieceLength = (std::max)(0.05f, size * scale * 0.2f);
+                dissolve.edgeColor = {1.9f, 0.5f, 1.9f, 1.0f};
+                world_.resources.neonGridRenderer_->BeginLineDissolve(dissolve);
+            }
             world_.resources.neonGridRenderer_->QueueBeveledPolygonFill(points, sides, world_.presentation.actorNeonBodyFillColor_,
                                                                         enemy->GetVisualColor(),
                                                                         myEngine::Normalize(cameraUp - cameraRight * 0.5f));
+            if (enemy->GetWarpDissolve() > 0.0f) {
+                world_.resources.neonGridRenderer_->EndLineDissolve();
+            }
         }
     }
     world_.resources.neonGridRenderer_->SetBodyShadingEye(nullptr);

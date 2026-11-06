@@ -239,6 +239,17 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
             expEnemy->GetWorldPosition() +
             (world_.presentation.expEnemyNeonRenderMode_ >= 2 ? myEngine::Vector3{} : myEngine::Vector3{0.0f, 0.0f, 0.35f});
         const myEngine::Vector4 color = expEnemy->GetVisualColor();
+        // 育つ戦車の試作のワープする敵は、線をディゾルブで消して（現して）いく。
+        if (expEnemy->GetWarpDissolve() > 0.0f) {
+            myEngine::NeonGridRenderer::LineDissolve dissolve{};
+            dissolve.origin = expEnemy->GetWorldPosition();
+            dissolve.direction = myEngine::Normalize(cameraRight - cameraUp);
+            dissolve.extent = (std::max)(0.5f, shapeRadius * scalePulse) * 1.4f;
+            dissolve.progress = expEnemy->GetWarpDissolve();
+            dissolve.pieceLength = (std::max)(0.05f, shapeRadius * 0.2f);
+            dissolve.edgeColor = {1.9f, 0.5f, 1.9f, 1.0f};
+            world_.resources.neonGridRenderer_->BeginLineDissolve(dissolve);
+        }
         if (world_.presentation.expEnemyNeonRenderMode_ >= 2) {
             if (expEnemy->GetType() == ExpEnemyType::Triangle) {
                 queueTriangularPyramid(center, world_.presentation.expEnemyNeonTriangleRadius_, expEnemy->GetVisualRotate(), visualScale,
@@ -270,6 +281,9 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
                 {world_.presentation.expEnemyNeonSquareSize_ * scalePulse, world_.presentation.expEnemyNeonSquareSize_ * scalePulse},
                 expEnemy->GetVisualRotation(), world_.presentation.expEnemyNeonLineWidth_, color, cameraRight, cameraUp, cameraForward,
                 myEngine::ActorNeonContourStyle());
+        }
+        if (expEnemy->GetWarpDissolve() > 0.0f) {
+            world_.resources.neonGridRenderer_->EndLineDissolve();
         }
     }
 }

@@ -160,6 +160,67 @@ public:
         return chaseAcceleration_ > 0.0f;
     }
 
+    /// @brief 育つ戦車の試作の新しい敵の役割（計画書 p3 の W9）。動きの中身は SurvivorRunController が持つ。
+    enum class SurvivorRole {
+        None,
+        Healer,
+        Warper,
+        MineLayer,
+        Mine
+    };
+    void SetSurvivorRole(SurvivorRole role)
+    {
+        survivorRole_ = role;
+    }
+    SurvivorRole GetSurvivorRole() const
+    {
+        return survivorRole_;
+    }
+    /// @brief 役割の時間を進めて返す。
+    float AdvanceRoleTimer(float dt)
+    {
+        roleTimer_ += dt;
+        return roleTimer_;
+    }
+    void SetRoleTimer(float seconds)
+    {
+        roleTimer_ = seconds;
+    }
+    /// @brief ワープのディゾルブの進み（0 なら何も変わらない）。
+    void SetWarpDissolve(float progress)
+    {
+        warpDissolve_ = progress;
+    }
+    float GetWarpDissolve() const
+    {
+        return warpDissolve_;
+    }
+    /// @brief 寄ってくる向きを左右へ揺らす。strength は横の強さ（前への強さに対する割合）、frequency は1秒あたりのラジアン。
+    void SetWobble(float strength, float frequency, float phase)
+    {
+        wobbleStrength_ = strength;
+        wobbleFrequency_ = frequency;
+        wobbleTime_ = phase;
+    }
+    /// @brief 元の色を替える（被弾の光はこの色から戻る）。
+    void SetBaseColor(const myEngine::Vector4& color)
+    {
+        baseColor_ = color;
+        visualColor_ = color;
+    }
+    /// @brief 最大HPまで回復する。実際に増えた量を返す。
+    int HealHp(int amount)
+    {
+        const int before = hp_;
+        hp_ = (std::min)(maxHp_, hp_ + (std::max)(0, amount));
+        return hp_ - before;
+    }
+    /// @brief 報酬なしで消す（爆発した地雷など）。
+    void DespawnWithoutReward()
+    {
+        isDead_ = true;
+    }
+
     /// @brief SetSizeScale で付けた大きさの倍率を返す（既定1）。
     float GetSizeScale() const
     {
@@ -560,6 +621,12 @@ private:
     float sizeScale_ = 1.0f;
     float chaseAcceleration_ = 0.0f;
     float chaseMaxSpeed_ = 0.0f;
+    SurvivorRole survivorRole_ = SurvivorRole::None;
+    float roleTimer_ = 0.0f;
+    float warpDissolve_ = 0.0f;
+    float wobbleStrength_ = 0.0f;
+    float wobbleFrequency_ = 0.0f;
+    float wobbleTime_ = 0.0f;
     // 突進（SetPlayerLunge）。interval が0なら突進しない（既定）。
     float lungeInterval_ = 0.0f;
     float lungeWindup_ = 0.0f;
