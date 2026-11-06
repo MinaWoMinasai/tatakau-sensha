@@ -165,6 +165,35 @@ bool SurvivorRunController::EvolveBaseWeapon(int index)
     return true;
 }
 
+bool SurvivorRunController::BranchBaseWeapon(int index, size_t branch)
+{
+    if (index < 0 || static_cast<size_t>(index) >= base_.weapons.size() || branch >= config_.crafting.branches.size()) {
+        return false;
+    }
+    survivor::BaseWeapon& owned = base_.weapons[static_cast<size_t>(index)];
+    const survivor::WeaponBranch& entry = config_.crafting.branches[branch];
+    const int target = survivor::FindWeapon(config_.weapons, entry.to);
+    if (owned.key != entry.from || target < 0 || owned.rarity < entry.minRarity) {
+        return false;
+    }
+    if (!survivor::CanAfford(base_.materials, base_.money, entry.cost)) {
+        world_.combatFlow->SetEventCallout("素材かお金が足りない", 1.0f);
+        return false;
+    }
+    survivor::Pay(base_.materials, base_.money, entry.cost);
+    owned.key = entry.to;
+    // レア度とチップはそのまま。チップ枠を越える分は拠点へ戻す。
+    const size_t capacity = static_cast<size_t>((std::max)(0, survivor::ChipSlots(config_.weapons[static_cast<size_t>(target)], owned.rarity)));
+    while (owned.chips.size() > capacity) {
+        base_.chips.push_back(owned.chips.back());
+        owned.chips.pop_back();
+    }
+    ++evolved_;
+    world_.combatFlow->SetEventCallout("派生した：" + config_.weapons[static_cast<size_t>(target)].name, 1.2f);
+    SaveBase();
+    return true;
+}
+
 void SurvivorRunController::StartSortie()
 {
     const bool any = std::any_of(base_.equipped.begin(), base_.equipped.end(), [&](int index) {

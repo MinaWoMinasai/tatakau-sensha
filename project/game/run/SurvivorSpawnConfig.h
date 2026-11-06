@@ -709,6 +709,10 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             if (value.contains("heavyBarrel") && value.at("heavyBarrel").is_boolean()) {
                 weapon.heavyBarrel = value.at("heavyBarrel").get<bool>();
             }
+            number(value, "homingPower", weapon.homingPower);
+            if (value.contains("starter") && value.at("starter").is_boolean()) {
+                weapon.starter = value.at("starter").get<bool>();
+            }
             if (value.contains("railCharge") && value.at("railCharge").is_boolean()) {
                 weapon.railCharge = value.at("railCharge").get<bool>();
             }
@@ -823,11 +827,26 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
                 }
                 recipe->cost = {};
                 readCost(item.value(), recipe->cost);
+                recipe->craftable = item.value().value("craftable", true);
                 const std::string main = item.value().value("main", std::string());
                 for (size_t i = 0; i < kMaterialCount; ++i) {
                     if (main == MaterialKey(static_cast<MaterialId>(i))) {
                         recipe->main = static_cast<MaterialId>(i);
                     }
+                }
+            }
+        }
+        // 枝は、書いてあれば全部入れ替える。
+        if (crafting.contains("branches") && crafting.at("branches").is_array()) {
+            out.branches.clear();
+            for (const auto& item : crafting.at("branches")) {
+                WeaponBranch branch{};
+                branch.from = item.value("from", std::string());
+                branch.to = item.value("to", std::string());
+                branch.minRarity = FindRarity(item.value("minRarity", std::string("uncommon")));
+                readCost(item, branch.cost);
+                if (!branch.from.empty() && !branch.to.empty()) {
+                    out.branches.push_back(branch);
                 }
             }
         }
@@ -1089,6 +1108,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         if (weapon.railCharge) {
             item["railCharge"] = true;
         }
+        if (weapon.homingPower > 0.0f) {
+            item["homingPower"] = round(weapon.homingPower);
+        }
+        item["starter"] = weapon.starter;
     }
     auto& parts = section("parts");
     for (const auto& part : config.parts) {
@@ -1205,7 +1228,16 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         nlohmann::json item = nlohmann::json::object();
         writeCost(item, recipe.cost);
         item["main"] = MaterialKey(recipe.main);
+        if (!recipe.craftable) {
+            item["craftable"] = false;
+        }
         crafting["recipes"][recipe.key] = item;
+    }
+    crafting["branches"] = nlohmann::json::array();
+    for (const WeaponBranch& branch : config.crafting.branches) {
+        nlohmann::json item = {{"from", branch.from}, {"to", branch.to}, {"minRarity", RarityKey(branch.minRarity)}};
+        writeCost(item, branch.cost);
+        crafting["branches"].push_back(item);
     }
     crafting["evolve"] = nlohmann::json::object();
     for (size_t i = 1; i < kRarityCount; ++i) {

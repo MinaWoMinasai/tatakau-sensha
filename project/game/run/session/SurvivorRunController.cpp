@@ -175,7 +175,7 @@ void SurvivorRunController::Initialize()
         "Q で Q の部品を使う（状態は画面の下に出る）",
         "宿敵を倒すと出口が開く",
         "弾倉が空になると自動でリロード（予備の弾から込める。その間は撃てない）。R で早めにも入れ直せる",
-        "WASD 移動　／　左クリックで撃つ　／　ホイールか 1〜3 で武器を変える　／　右クリック バリア　／　R リロード　／　E 持ち物"};
+        "WASD 移動 ／ 左クリック 撃つ ／ ホイール 武器 ／ 右クリック バリア ／ R リロード ／ E 持ち物"};
     for (size_t i = 0; i < hintTexts_.size(); ++i) {
         hintTexts_[i] = std::make_unique<myEngine::TextLabel>();
         const size_t text = i == 0 ? (WeaponMode() ? kHintTexts.size() - 1 : 0) : i == 1 ? (config_.choicePause ? 2 : 1) : i + 1;

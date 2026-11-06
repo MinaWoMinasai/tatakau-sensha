@@ -75,19 +75,27 @@
                     "railPower": 1.0, "railHeatBase": 10, "railHeatPerCharge": 25 }
   },
   "weapons": {
-    "comment": "カスタマイズシューティング（計画書 p3）の武器。enabled が true なら、3択・レベル・形態の選択・特性・レリックを止め、start の武器3つを持って始める（1〜3キーで切り替え）。false ならこれまでの育つ戦車の試作。form は砲塔と固有の能力を借りる形態（basic は基本砲）。倍率は基本砲に対する値で、形態の倍率の代わりに使う。ammo は light・heavy・energy、rarity は common〜legendary。magazine は弾倉の弾の数（0 は弾倉なし＝予備から直接撃つ）、swapSeconds は切り替え（ホイールか1〜3キー、その間は撃てない）、spreadDeg は撃つ向きのばらつき（度）、reloadSeconds はリロード（弾倉が空になると自動で始まる。R で早めにも入れ直せる）、railCharge が true なら形態の右クリックのため撃ちを使い（既定は false で、右クリックは Shift と同じダッシュ）、railAmmoCost はため撃ち1発で使う弾。reserve は区画の始めの予備の弾。熱は武器ごと（heatScale は1発の熱の倍率、しまってある武器は冷えていく）。blastRadius があると当たった場所で爆発し、当たった敵に blastCenter、まわりに blastSplash の倍率で当てる。",
+    "comment": "カスタマイズシューティング（計画書 p3）の武器。enabled が true なら、3択・レベル・形態の選択・特性・レリックを止め、start の武器3つを持って始める（1〜3キーで切り替え）。false ならこれまでの育つ戦車の試作。form は砲塔と固有の能力を借りる形態（basic は基本砲）。倍率は基本砲に対する値で、形態の倍率の代わりに使う。ammo は light・heavy・energy、rarity は common〜legendary。magazine は弾倉の弾の数（0 は弾倉なし＝予備から直接撃つ）、swapSeconds は切り替え（ホイールか1〜3キー、その間は撃てない）、spreadDeg は撃つ向きのばらつき（度）、reloadSeconds はリロード（弾倉が空になると自動で始まる。R で早めにも入れ直せる）、railCharge が true なら形態の右クリックのため撃ちを使い（既定は false で、右クリックは Shift と同じダッシュ）、railAmmoCost はため撃ち1発で使う弾。reserve は区画の始めの予備の弾。熱は武器ごと（heatScale は1発の熱の倍率、しまってある武器は冷えていく）。blastRadius があると当たった場所で爆発し、当たった敵に blastCenter、まわりに blastSplash の倍率で当てる。homingPower があると弾が近くの敵へ曲がる。starter が true の武器は、初めて遊ぶときに拠点にある（ほかは拾うか派生の木で手に入れる）。",
     "enabled": true,
     "start": ["cannon", "grenade", "beam"],
     "reserve": { "light": 600, "heavy": 40, "energy": 300 },
-    "cannon": { "name": "単発の砲", "form": "basic", "ammo": "light", "rarity": "common", "magazine": 30, "swapSeconds": 0.8, "reloadSeconds": 1.4, "chipSlots": 0,
+    "cannon": { "name": "単発の砲", "starter": true, "form": "basic", "ammo": "light", "rarity": "common", "magazine": 30, "swapSeconds": 0.8, "reloadSeconds": 1.4, "chipSlots": 0,
                 "damageScale": 1.4, "reloadScale": 0.5, "speedScale": 2.0, "heatScale": 0.6, "spreadDeg": 3.0 },
-    "machineGun": { "name": "機関砲", "form": "machineGun", "ammo": "light", "rarity": "common", "magazine": 40, "swapSeconds": 1.0, "reloadSeconds": 2.0, "chipSlots": 0,
+    "machineGun": { "name": "機関砲", "starter": true, "form": "machineGun", "ammo": "light", "rarity": "common", "magazine": 40, "swapSeconds": 1.0, "reloadSeconds": 2.0, "chipSlots": 0,
                     "damageScale": 0.45, "reloadScale": 0.55, "speedScale": 1.0, "heatScale": 0.35 },
-    "beam": { "name": "光線砲", "form": "beam", "ammo": "energy", "rarity": "common", "magazine": 0, "swapSeconds": 1.6, "railAmmoCost": 8, "chipSlots": 0,
+    "beam": { "name": "光線砲", "starter": true, "form": "beam", "ammo": "energy", "rarity": "common", "magazine": 0, "swapSeconds": 1.6, "railAmmoCost": 8, "chipSlots": 0,
               "damageScale": 1.9, "reloadScale": 1.35, "speedScale": 1.8, "heatScale": 2.2 },
-    "grenade": { "name": "榴弾砲", "form": "basic", "ammo": "heavy", "rarity": "common", "magazine": 4, "swapSeconds": 1.4, "reloadSeconds": 2.2, "chipSlots": 0,
+    "grenade": { "name": "榴弾砲", "starter": true, "form": "basic", "ammo": "heavy", "rarity": "common", "magazine": 4, "swapSeconds": 1.4, "reloadSeconds": 2.2, "chipSlots": 0,
                  "damageScale": 0.8, "reloadScale": 2.2, "speedScale": 0.7, "heatScale": 1.0, "blastRadius": 3.2, "blastCenter": 1.0, "blastSplash": 0.8,
-                 "heavyBarrel": true }
+                 "heavyBarrel": true },
+    "shotgun": { "name": "散弾砲", "form": "triple", "ammo": "light", "rarity": "common", "magazine": 8, "swapSeconds": 1.0, "reloadSeconds": 1.8, "chipSlots": 0,
+                 "damageScale": 0.9, "reloadScale": 1.6, "speedScale": 1.2, "heatScale": 0.8, "spreadDeg": 4.0 },
+    "sniper": { "name": "狙撃砲", "form": "sniper", "ammo": "heavy", "rarity": "common", "magazine": 5, "swapSeconds": 1.4, "reloadSeconds": 2.4, "chipSlots": 0,
+                "damageScale": 5.0, "reloadScale": 2.6, "speedScale": 2.6, "heatScale": 1.0 },
+    "homing": { "name": "誘導砲", "form": "basic", "ammo": "light", "rarity": "common", "magazine": 24, "swapSeconds": 1.0, "reloadSeconds": 1.8, "chipSlots": 0,
+                "damageScale": 0.9, "reloadScale": 0.8, "speedScale": 0.9, "heatScale": 0.7, "homingPower": 2.5 },
+    "ricochet": { "name": "反射砲", "form": "ricochet", "ammo": "light", "rarity": "common", "magazine": 20, "swapSeconds": 1.0, "reloadSeconds": 1.6, "chipSlots": 0,
+                  "damageScale": 1.2, "reloadScale": 0.8, "speedScale": 1.6, "heatScale": 0.6 }
   },
   "loot": {
     "comment": "敵が落とす物（計画書 p3 の W3）。欠片はお金になり（経験値 × moneyPerExp）、自動で拾う。落ちている物は magnetRadius まで近づくと寄ってきて、触れると拾う。弾は ammoChance の確率で ammoAmount ずつ、予備は reserveMax まで（上限の弾は残る）。素材（倒した形の素材を materialChance、敵戦車はボスの素材を bossMaterialChance）・チップ（今の部品、chipChance）・武器（weaponChance）は出撃中の袋へ入る。確率は敵1体ごとで、大きな敵（敵戦車・大五角・重い四角）は bigScale 倍。チップと武器のレア度は rarityWeights の重みで選ぶ。弾と素材は lifetime 秒で消える。休憩部屋で売る値段は weaponPrice・chipPrice（レア度ごと）と materialPrice（素材1つごと）。",
@@ -119,15 +127,25 @@
     "mineArmSeconds": 1, "mineLifeSeconds": 14, "mineTriggerRadius": 2.2, "mineBlastRadius": 3.4, "mineDamage": 8
   },
   "crafting": {
-    "comment": "素材で作る・派生の木（計画書 p3 の W7）。拠点の画面で、recipes の素材とお金を払ってコモンの武器を作り、evolve でレア度を1段ずつ上げる（そのレア度へ上げるのに要る物に、武器の主な素材 main を main 個足す）。レア度ごとに威力 rarityDamage・弾倉 rarityMagazine の倍率がかかり、チップ枠も増える。別の武器へ分かれる枝は、武器が増える W10 で足す。",
+    "comment": "素材で作る・派生の木（計画書 p3 の W7）。拠点の画面で、recipes の素材とお金を払ってコモンの武器を作り、evolve でレア度を1段ずつ上げる（そのレア度へ上げるのに要る物に、武器の主な素材 main を main 個足す）。レア度ごとに威力 rarityDamage・弾倉 rarityMagazine の倍率がかかり、チップ枠も増える。branches は別の武器へ分かれる枝で、from の武器が minRarity 以上なら、要る物を払って to の武器へ変わる（レア度とチップはそのまま）。craftable が false のレシピは作れず、進化の主な素材だけを決める。",
     "rarityDamage": { "common": 1.0, "uncommon": 1.1, "rare": 1.2, "epic": 1.35, "legendary": 1.5 },
     "rarityMagazine": { "common": 1.0, "uncommon": 1.1, "rare": 1.2, "epic": 1.35, "legendary": 1.5 },
     "recipes": {
       "cannon": { "square": 10, "triangle": 5, "main": "square" },
       "machineGun": { "triangle": 15, "main": "triangle" },
       "grenade": { "square": 10, "pentagon": 3, "main": "square" },
-      "beam": { "triangle": 10, "pentagon": 5, "main": "pentagon" }
+      "beam": { "triangle": 10, "pentagon": 5, "main": "pentagon" },
+      "shotgun": { "main": "triangle", "craftable": false },
+      "sniper": { "main": "pentagon", "craftable": false },
+      "homing": { "main": "triangle", "craftable": false },
+      "ricochet": { "main": "square", "craftable": false }
     },
+    "branches": [
+      { "from": "cannon", "to": "ricochet", "minRarity": "uncommon", "square": 30, "money": 200 },
+      { "from": "cannon", "to": "sniper", "minRarity": "rare", "square": 40, "pentagon": 10, "money": 400 },
+      { "from": "machineGun", "to": "shotgun", "minRarity": "uncommon", "triangle": 30, "money": 200 },
+      { "from": "machineGun", "to": "homing", "minRarity": "rare", "triangle": 40, "pentagon": 10, "money": 400 }
+    ],
     "evolve": {
       "uncommon": { "money": 100, "main": 20 },
       "rare": { "pentagon": 5, "money": 300, "main": 40 },

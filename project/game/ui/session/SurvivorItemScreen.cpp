@@ -274,7 +274,9 @@ void SurvivorItemScreen::LayoutGrid()
     const size_t first = static_cast<size_t>(scroll_) * kColumns;
     for (size_t i = 0; i < gridCells_.size(); ++i) {
         const size_t index = first + i;
-        FillCell(gridCells_[i], index < view_.grid.size() ? &view_.grid[index] : nullptr, GridPosition(i), kCell, view_.showEmptyCells);
+        // アイコンの無い Item は、段をそろえるための空きとして何も出さない。
+        const Item* item = index < view_.grid.size() && !view_.grid[index].icon.empty() ? &view_.grid[index] : nullptr;
+        FillCell(gridCells_[i], item, GridPosition(i), kCell, view_.showEmptyCells);
     }
 }
 

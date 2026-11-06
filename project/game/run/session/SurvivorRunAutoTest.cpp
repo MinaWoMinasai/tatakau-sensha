@@ -117,8 +117,31 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                                                                          config_.crafting)
                                                           .damageScale > config_.weapons[static_cast<size_t>(grenade)].damageScale;
             autoCraftOk_ = crafted && evolved && stronger;
-            // 次の段に合わせて説明の札を出した画面を保存する。
-            DriveScreenPointer(itemScreen_.CenterOf({Zone::Grid, 2}), false, false, 0);
+            // 枝：機関砲を作ってアンコモンへ進化させ、散弾砲へ分かれる。枝の絵のマスは2段目の先頭（10番）。
+            click({Zone::Tab, 1});
+            size_t gunRecipe = 0;
+            for (size_t i = 0; i < config_.crafting.recipes.size(); ++i) {
+                if (config_.crafting.recipes[i].key == "machineGun") {
+                    gunRecipe = i;
+                }
+            }
+            click({Zone::Grid, static_cast<int>(gunRecipe)});
+            const int gunIndex = static_cast<int>(base_.weapons.size()) - 1;
+            click({Zone::Tab, 0});
+            click({Zone::Grid, gunIndex});
+            click({Zone::Grid, 1});
+            click({Zone::Grid, static_cast<int>(SurvivorItemScreen::kColumns)});
+            autoBranchOk_ = base_.weapons[static_cast<size_t>(gunIndex)].key == "shotgun" && base_.weapons[static_cast<size_t>(gunIndex)].rarity == survivor::Rarity::Uncommon;
+            // 枝のある武器（最初の単発の砲か機関砲）の木を開き直して保存する。説明の札は枝のマスに合わせる。
+            click({Zone::Tab, 0});
+            for (int i = 0; i < static_cast<int>(base_.weapons.size()); ++i) {
+                if (base_.weapons[static_cast<size_t>(i)].key == "cannon" || base_.weapons[static_cast<size_t>(i)].key == "machineGun") {
+                    click({Zone::Grid, i});
+                    break;
+                }
+            }
+            // 枝のマスに合わせて説明の札を出した画面を保存する。
+            DriveScreenPointer(itemScreen_.CenterOf({Zone::Grid, static_cast<int>(SurvivorItemScreen::kColumns)}), false, false, 0);
             RequestCapture("base_tree");
             autoBaseState_ = 2;
         } else if (autoBaseState_ == 2) {
@@ -282,6 +305,22 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     }
     // 3秒ごとに1回ダッシュする（衝撃放電・推進器の確認）。
     const bool dash = !WeaponMode() && static_cast<int>(autoTestTime_ / 3.0f) != static_cast<int>((autoTestTime_ - dt) / 3.0f);
+    // 誘導：誘導の武器を構えている間、自機の弾の向きが飛んでいる途中で変わった回数を数える。
+    if (const survivor::WeaponDefinition* weapon = WeaponMode() ? ActiveWeapon() : nullptr; weapon && weapon->homingPower > 0.0f) {
+        for (const Bullet* bullet : world_.resources.bulletManager_->GetBulletPtrs()) {
+            if (!bullet || bullet->IsDead() || bullet->GetOwner() != kPlayer || myEngine::Length(bullet->GetMove()) < 0.001f) {
+                continue;
+            }
+            const myEngine::Vector3 direction = myEngine::Normalize(bullet->GetMove());
+            const auto [entry, added] = autoHomingDirections_.try_emplace(bullet->GetCollisionId(), direction);
+            if (!added && myEngine::Length(entry->second - direction) > 0.002f) {
+                ++autoHomingTurns_;
+            }
+            entry->second = direction;
+        }
+    } else {
+        autoHomingDirections_.clear();
+    }
     // バリア：20秒のうち10秒押し続ける（途中でスタミナが尽きるかも見る）。弾を止めた瞬間の画面を1回保存する。
     autoBarrierWanted_ = WeaponMode() && std::fmod(autoTestTime_, 20.0f) < 10.0f;
     // 新しい敵：それぞれが自機の近くにいる画面を1回ずつ保存する（ワープする敵は消えている途中、ばらばらな三角は役割なしで見分ける）。
@@ -759,12 +798,12 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
         std::ofstream(std::string(kAutoTestDirectory) + "/autotest.json")
             << "{\"configRoundTrip\":" << (roundTrip ? "true" : "false") << ",\"baseRoundTrip\":" << (baseRoundTrip ? "true" : "false")
-            << ",\"baseEquipOk\":" << (autoBaseEquipOk_ ? "true" : "false") << ",\"craftOk\":" << (autoCraftOk_ ? "true" : "false")
+            << ",\"baseEquipOk\":" << (autoBaseEquipOk_ ? "true" : "false") << ",\"craftOk\":" << (autoCraftOk_ ? "true" : "false") << ",\"branchOk\":" << (autoBranchOk_ ? "true" : "false")
             << ",\"barrier\":{\"seconds\":" << barrierSeconds_ << ",\"blocked\":" << barrierBlocked_ << ",\"pushes\":" << barrierPushes_
             << ",\"breaks\":" << barrierBreaks_ << ",\"staminaMin\":" << autoStaminaMin_ << ",\"staminaEnd\":" << barrierStamina_
             << ",\"netSegments\":" << BarrierNetSegmentCount() << ",\"dashes\":" << player.GetDashStartedCount() << "}"
             << ",\"warperOffset\":[" << autoWarperOffset_.x << "," << autoWarperOffset_.y << "," << autoWarperOffset_.z << "]"
-            << ",\"elites\":{\"erratic\":" << eliteStats_.erratic << ",\"healers\":" << eliteStats_.spawned[0] << ",\"warpers\":" << eliteStats_.spawned[1]
+            << ",\"homingTurns\":" << autoHomingTurns_ << ",\"elites\":{\"erratic\":" << eliteStats_.erratic << ",\"healers\":" << eliteStats_.spawned[0] << ",\"warpers\":" << eliteStats_.spawned[1]
             << ",\"layers\":" << eliteStats_.spawned[2] << ",\"heals\":" << eliteStats_.heals << ",\"healedHp\":" << eliteStats_.healedHp << ",\"warps\":" << eliteStats_.warps
             << ",\"minesLaid\":" << eliteStats_.minesLaid << ",\"mineExplosions\":" << eliteStats_.mineExplosions << ",\"mineHits\":" << eliteStats_.mineHits << "}"
             << ",\"defeated\":" << world_.combat.defeatedEnemies_ << ",\"swarms\":" << swarmsSpawned_ << ",\"crafted\":" << crafted_ << ",\"evolved\":" << evolved_ << ",\"fullRun\":" << (autoFullRun_ ? "true" : "false")

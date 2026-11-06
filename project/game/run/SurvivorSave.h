@@ -1,5 +1,6 @@
 #pragma once
 #include "game/run/SurvivorLoot.h"
+#include <algorithm>
 #include <array>
 #include <filesystem>
 #include <fstream>
@@ -42,7 +43,10 @@ inline BaseInventory NewBaseInventory(const std::vector<WeaponDefinition>& defin
 {
     BaseInventory base;
     for (const WeaponDefinition& weapon : definitions) {
-        base.weapons.push_back({weapon.key, Rarity::Common, {}});
+        // 始めから持つ武器と、設定の start に書いた武器。
+        if (weapon.starter || std::find(start.begin(), start.end(), weapon.key) != start.end()) {
+            base.weapons.push_back({weapon.key, Rarity::Common, {}});
+        }
     }
     for (size_t slot = 0; slot < kWeaponSlots; ++slot) {
         for (size_t i = 0; i < base.weapons.size(); ++i) {

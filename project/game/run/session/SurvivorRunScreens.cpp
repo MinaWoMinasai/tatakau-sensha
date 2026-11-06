@@ -24,7 +24,7 @@ std::string Icon(const std::string& name)
 std::string WeaponIcon(const std::string& key)
 {
     // 絵の無い武器（設定で足した物）は単発の砲の絵にする。
-    static const std::array<const char*, 4> kKnown{"cannon", "machineGun", "grenade", "beam"};
+    static const std::array<const char*, 8> kKnown{"cannon", "machineGun", "grenade", "beam", "shotgun", "sniper", "homing", "ricochet"};
     return Icon("weapon_" + (std::find(kKnown.begin(), kKnown.end(), key) != kKnown.end() ? key : std::string("cannon")));
 }
 
@@ -51,7 +51,7 @@ std::string Fixed(float value, int digits)
 std::vector<std::string> SurvivorRunController::ScreenIconPaths() const
 {
     std::vector<std::string> icons;
-    for (const char* name : {"weapon_cannon", "weapon_machineGun", "weapon_grenade", "weapon_beam", "ammo_light", "ammo_heavy", "ammo_energy", "material_square",
+    for (const char* name : {"weapon_cannon", "weapon_machineGun", "weapon_grenade", "weapon_beam", "weapon_shotgun", "weapon_sniper", "weapon_homing", "weapon_ricochet", "ammo_light", "ammo_heavy", "ammo_energy", "material_square",
                              "material_triangle", "material_pentagon", "material_boss", "money", "shield_barrier", "support_empty", "chip_armor", "chip_ram",
                              "chip_warhead", "chip_loader", "chip_thruster", "chip_collector", "chip_cooler", "chip_pierce", "chip_chainLightning", "chip_killBurst",
                              "chip_heavyWarhead", "chip_residualHeat", "chip_morale", "chip_default"}) {
@@ -282,7 +282,7 @@ void SurvivorRunController::RefreshBaseScreen()
         for (size_t i = 0; i < config_.crafting.recipes.size(); ++i) {
             const survivor::WeaponRecipe& recipe = config_.crafting.recipes[i];
             const int definition = survivor::FindWeapon(config_.weapons, recipe.key);
-            if (definition < 0) {
+            if (definition < 0 || !recipe.craftable) {
                 continue;
             }
             const bool affordable = survivor::CanAfford(base_.materials, base_.money, recipe.cost);
@@ -300,7 +300,7 @@ void SurvivorRunController::RefreshBaseScreen()
     } else if (basePage_ == 2 && count > 0) {
         const survivor::BaseWeapon& owned = base_.weapons[static_cast<size_t>(baseCursor_)];
         const int definition = survivor::FindWeapon(config_.weapons, owned.key);
-        view.help = "左から右へ、レア度を1段ずつ上げる　／　マウスを合わせると値と要る物が出る　／　次の段をクリックで進化";
+        view.help = "上の段：レア度を1段ずつ上げる　／　下の段：別の武器へ分かれる　／　クリックで進化　／　合わせると値と要る物が出る";
         view.gridTitle = "派生の木：" + (definition >= 0 ? config_.weapons[static_cast<size_t>(definition)].name : owned.key);
         view.showEmptyCells = false;
         if (definition >= 0) {
@@ -326,6 +326,31 @@ void SurvivorRunController::RefreshBaseScreen()
                         item.actions = "先に、ひとつ前の段へ進化する";
                     }
                 }
+                view.grid.push_back(item);
+            }
+            // 2段目：別の武器へ分かれる枝。
+            view.grid.resize(SurvivorItemScreen::kColumns);
+            for (size_t b = 0; b < config_.crafting.branches.size(); ++b) {
+                const survivor::WeaponBranch& branch = config_.crafting.branches[b];
+                const int target = survivor::FindWeapon(config_.weapons, branch.to);
+                if (branch.from != owned.key || target < 0) {
+                    continue;
+                }
+                const survivor::WeaponDefinition weapon = survivor::ApplyRarity(config_.weapons[static_cast<size_t>(target)], owned.rarity, config_.crafting);
+                const bool unlocked = owned.rarity >= branch.minRarity;
+                const bool affordable = survivor::CanAfford(base_.materials, base_.money, branch.cost);
+                Item item;
+                item.icon = WeaponIcon(branch.to);
+                item.color = survivor::RarityColor(owned.rarity);
+                item.dim = !unlocked || !affordable;
+                item.kind = static_cast<int>(ScreenItem::TreeBranch);
+                item.id = static_cast<int>(b);
+                item.title = "分かれる：" + weapon.name;
+                item.body = std::string(survivor::AmmoName(weapon.ammo)) + "　威力 " + std::to_string(static_cast<int>((std::max)(1.0f, std::round(bulletDamage * weapon.damageScale)))) +
+                            "　連射 ×" + Fixed(1.0f / (std::max)(0.05f, weapon.reloadScale), 1) + "\n要る物：" + survivor::DescribeCost(branch.cost);
+                item.actions = !unlocked  ? std::string(survivor::RarityName(branch.minRarity)) + " 以上で分かれられる"
+                               : affordable ? std::string("クリック：この武器へ変わる（レア度とチップはそのまま）")
+                                            : std::string("素材かお金が足りない");
                 view.grid.push_back(item);
             }
         }
@@ -398,6 +423,10 @@ void SurvivorRunController::HandleScreenEvent(const SurvivorItemScreen::Event& e
         } else if (event.type == EventType::Click && kind == ScreenItem::TreeNode) {
             const int current = static_cast<int>(base_.weapons[static_cast<size_t>(baseCursor_)].rarity);
             if (id == current + 1 && EvolveBaseWeapon(baseCursor_)) {
+                RefreshBaseScreen();
+            }
+        } else if (event.type == EventType::Click && kind == ScreenItem::TreeBranch) {
+            if (BranchBaseWeapon(baseCursor_, static_cast<size_t>(id))) {
                 RefreshBaseScreen();
             }
         }

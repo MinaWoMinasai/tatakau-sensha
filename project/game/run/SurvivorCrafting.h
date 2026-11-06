@@ -17,10 +17,20 @@ struct WeaponRecipe {
     std::string key;
     CraftCost cost{};
     MaterialId main = MaterialId::Square;
+    /// @brief 作れるか（false なら、進化の主な素材を決めるだけ。作るのではなく派生の木で手に入れる武器）。
+    bool craftable = true;
+};
+
+/// @brief 派生の木の枝：from の武器が minRarity 以上なら、cost を払って to の武器へ変えられる（レア度とチップはそのまま）。
+struct WeaponBranch {
+    std::string from;
+    std::string to;
+    Rarity minRarity = Rarity::Uncommon;
+    CraftCost cost{};
 };
 
 /// @brief 作る・派生の木（進化）とレア度の効き（survivor_proto.json の crafting で変える。数値は仮）。
-/// @note 派生の木は、今はレア度を1段ずつ上げる道（コモン → … → レジェンド）。別の武器へ分かれる枝は、武器が増える W10 で足す。
+/// @note 派生の木は、レア度を1段ずつ上げる道（コモン → … → レジェンド）と、別の武器へ分かれる枝（branches）。
 struct CraftingConfig {
     /// @brief レア度ごとの威力と弾倉の倍率（コモン〜レジェンド）。チップ枠はレア度の分が別に足される（ChipSlots）。
     std::array<float, kRarityCount> rarityDamage{1.0f, 1.1f, 1.2f, 1.35f, 1.5f};
@@ -30,6 +40,16 @@ struct CraftingConfig {
         {"machineGun", {{0, 15, 0, 0}, 0}, MaterialId::Triangle},
         {"grenade", {{10, 0, 3, 0}, 0}, MaterialId::Square},
         {"beam", {{0, 10, 5, 0}, 0}, MaterialId::Pentagon},
+        {"shotgun", {}, MaterialId::Triangle, false},
+        {"sniper", {}, MaterialId::Pentagon, false},
+        {"homing", {}, MaterialId::Triangle, false},
+        {"ricochet", {}, MaterialId::Square, false},
+    };
+    std::vector<WeaponBranch> branches{
+        {"cannon", "ricochet", Rarity::Uncommon, {{30, 0, 0, 0}, 200}},
+        {"cannon", "sniper", Rarity::Rare, {{40, 0, 10, 0}, 400}},
+        {"machineGun", "shotgun", Rarity::Uncommon, {{0, 30, 0, 0}, 200}},
+        {"machineGun", "homing", Rarity::Rare, {{0, 40, 10, 0}, 400}},
     };
     /// @brief そのレア度へ進化するのに要る物（[0] のコモンは使わない）と、そのほかに要る主な素材の数。
     std::array<CraftCost, kRarityCount> evolve{

@@ -880,6 +880,11 @@ void SurvivorRunController::ApplyParts()
         world_.resources.bulletManager_->SetMarkThreshold(form.markDetonation ? form.markHits : 4, form.markDetonation ? form.markHits + 1 : 6,
                                                           form.markDetonation);
     }
+    // 武器の誘導：弾が近くの敵へ曲がる（誘導のカードの効果を使う）。
+    if (const survivor::WeaponDefinition* weapon = WeaponMode() ? ActiveWeapon() : nullptr; weapon && weapon->homingPower > 0.0f) {
+        modifiers.homing = true;
+        modifiers.effectPower[tankrun::CardIndex(tankrun::CardId::Homing)] = weapon->homingPower;
+    }
     // レリックの一発屋：威力を上げ、1秒の発射数を落とす（間隔は割る）。
     if (relics_[static_cast<size_t>(survivor::RelicId::OneShot)]) {
         modifiers.partScales.bulletDamage *= config_.relics.oneShotDamage;

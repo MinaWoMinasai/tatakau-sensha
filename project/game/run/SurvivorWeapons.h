@@ -114,6 +114,10 @@ struct WeaponDefinition {
     float blastSplash = 0.0f;
     /// @brief 太い砲身にする。
     bool heavyBarrel = false;
+    /// @brief 弾が近くの敵へ曲がる強さ（0 なら曲がらない。1 で毎秒1.6ラジアン）。
+    float homingPower = 0.0f;
+    /// @brief 初めて遊ぶときに拠点にある武器か（ほかは拾うか、派生の木で手に入れる）。
+    bool starter = false;
     /// @brief 弾と軌跡の色（A が0なら形態の色のまま）。
     myEngine::Vector4 color{0, 0, 0, 0};
 };
@@ -121,7 +125,7 @@ struct WeaponDefinition {
 /// @brief 武器の既定値。survivor_proto.json の weapons で上書き・追加する（計画書 p3 の2章の案。数値は仮）。
 inline std::vector<WeaponDefinition> DefaultWeapons()
 {
-    std::vector<WeaponDefinition> weapons(4);
+    std::vector<WeaponDefinition> weapons(8);
     auto& cannon = weapons[0];
     cannon.key = "cannon";
     cannon.name = "単発の砲";
@@ -171,6 +175,61 @@ inline std::vector<WeaponDefinition> DefaultWeapons()
     grenade.blastSplash = 0.8f;
     grenade.heavyBarrel = true;
     grenade.color = {1.9f, 0.7f, 0.2f, 1.0f};
+    for (auto& weapon : weapons) {
+        weapon.starter = true;
+    }
+    // ここから下は、拾うか派生の木で手に入れる武器（W10）。
+    auto& shotgun = weapons[4];
+    shotgun.key = "shotgun";
+    shotgun.name = "散弾砲";
+    shotgun.form = FormId::Triple;
+    shotgun.magazine = 8;
+    shotgun.swapSeconds = 1.0f;
+    shotgun.reloadSeconds = 1.8f;
+    shotgun.damageScale = 0.9f;
+    shotgun.reloadScale = 1.6f;
+    shotgun.speedScale = 1.2f;
+    shotgun.heatScale = 0.8f;
+    shotgun.spreadDeg = 4.0f;
+    shotgun.starter = false;
+    auto& sniper = weapons[5];
+    sniper.key = "sniper";
+    sniper.name = "狙撃砲";
+    sniper.form = FormId::Sniper;
+    sniper.ammo = AmmoType::Heavy;
+    sniper.magazine = 5;
+    sniper.swapSeconds = 1.4f;
+    sniper.reloadSeconds = 2.4f;
+    sniper.damageScale = 5.0f;
+    sniper.reloadScale = 2.6f;
+    sniper.speedScale = 2.6f;
+    sniper.heatScale = 1.0f;
+    sniper.starter = false;
+    auto& homing = weapons[6];
+    homing.key = "homing";
+    homing.name = "誘導砲";
+    homing.magazine = 24;
+    homing.swapSeconds = 1.0f;
+    homing.reloadSeconds = 1.8f;
+    homing.damageScale = 0.9f;
+    homing.reloadScale = 0.8f;
+    homing.speedScale = 0.9f;
+    homing.heatScale = 0.7f;
+    homing.homingPower = 2.5f;
+    homing.color = {0.6f, 1.7f, 0.9f, 1.0f};
+    homing.starter = false;
+    auto& ricochet = weapons[7];
+    ricochet.key = "ricochet";
+    ricochet.name = "反射砲";
+    ricochet.form = FormId::Ricochet;
+    ricochet.magazine = 20;
+    ricochet.swapSeconds = 1.0f;
+    ricochet.reloadSeconds = 1.6f;
+    ricochet.damageScale = 1.2f;
+    ricochet.reloadScale = 0.8f;
+    ricochet.speedScale = 1.6f;
+    ricochet.heatScale = 0.6f;
+    ricochet.starter = false;
     return weapons;
 }
 

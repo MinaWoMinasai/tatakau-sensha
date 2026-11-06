@@ -13,6 +13,7 @@
 #include <optional>
 #include <random>
 #include <sstream>
+#include <unordered_map>
 
 namespace gameplay {
 /// @brief 育つ戦車の試作（RunMode::Survivor）の進行を担当し、同じプレイの共有状態を借用する。
@@ -495,7 +496,8 @@ private:
         SlotChip,
         Material,
         Recipe,
-        TreeNode
+        TreeNode,
+        TreeBranch
     };
     /// @brief 読み込んでおくアイコンの画像の場所。
     std::vector<std::string> ScreenIconPaths() const;
@@ -539,6 +541,8 @@ private:
     bool CraftWeapon(size_t recipe);
     /// @brief 拠点の index 番目の武器を、派生の木の次の段（レア度を1つ上）へ進化させる（W7）。チップはそのまま。
     bool EvolveBaseWeapon(int index);
+    /// @brief 拠点の index 番目の武器を、branch 番目の枝の武器へ変える（W10）。レア度とチップはそのまま。
+    bool BranchBaseWeapon(int index, size_t branch);
     /// @brief 出撃する：枠を入れ直し、出撃の回数を足してセーブする。
     void StartSortie();
     /// @brief 拠点の画面の中身を作り直して画面に渡す。
@@ -839,6 +843,10 @@ private:
     bool autoFullRun_ = false;
     // 作る・進化を1回ずつ試して、払った分・レア度・威力が合っていたか。
     bool autoCraftOk_ = false;
+    bool autoBranchOk_ = false;
+    // 誘導の武器の弾の向きが、飛んでいる途中で変わった回数。
+    std::unordered_map<uint64_t, myEngine::Vector3> autoHomingDirections_;
+    int autoHomingTurns_ = 0;
     // 休憩部屋の確認：0 まだ・1 画面を頼んだ・2 操作して画面を頼んだ・3 帰った。チップを付けた武器を構えた時の部品の段の合計。
     int autoRestState_ = 0;
     int autoRestChipLevels_ = 0;
