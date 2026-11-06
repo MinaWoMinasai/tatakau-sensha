@@ -283,6 +283,231 @@ bool DrawPartsAndChoices(SpawnConfig& config)
     }
     return changed;
 }
+
+/// @brief レア度ごとの値を1行ずつ。
+template <class T, class Draw>
+bool DrawByRarity(std::array<T, kRarityCount>& values, Draw draw)
+{
+    bool changed = false;
+    for (size_t i = 0; i < kRarityCount; ++i) {
+        changed |= draw(RarityName(static_cast<Rarity>(i)), values[i]);
+    }
+    return changed;
+}
+
+/// @brief 素材4種とお金の組。
+bool DrawCost(CraftCost& cost)
+{
+    bool changed = false;
+    for (size_t i = 0; i < kMaterialCount; ++i) {
+        changed |= ImGui::DragInt(MaterialName(static_cast<MaterialId>(i)), &cost.materials[i], 0.2f, 0, 999);
+    }
+    changed |= ImGui::DragInt("お金", &cost.money, 2.0f, 0, 99999);
+    return changed;
+}
+
+/// @brief 武器の値（カスタマイズシューティング、計画書 p3 の W11）。
+bool DrawWeapons(SpawnConfig& config)
+{
+    bool changed = false;
+    if (!ImGui::CollapsingHeader("武器", ImGuiTreeNodeFlags_DefaultOpen)) {
+        return false;
+    }
+    ImGui::TextDisabled("構えている武器にすぐ効く。");
+    for (auto& weapon : config.weapons) {
+        ImGui::PushID(weapon.key.c_str());
+        if (ImGui::TreeNode(weapon.name.c_str())) {
+            changed |= ImGui::DragFloat("威力の倍率", &weapon.damageScale, 0.01f, 0.05f, 20.0f, "%.2f");
+            changed |= ImGui::DragFloat("発射間隔の倍率（小さいほど速い）", &weapon.reloadScale, 0.01f, 0.05f, 8.0f, "%.2f");
+            changed |= ImGui::DragFloat("弾速の倍率", &weapon.speedScale, 0.01f, 0.1f, 6.0f, "%.2f");
+            changed |= ImGui::DragFloat("熱の倍率", &weapon.heatScale, 0.01f, 0.0f, 8.0f, "%.2f");
+            changed |= ImGui::DragFloat("ばらつき（度。負は形態のまま）", &weapon.spreadDeg, 0.1f, -1.0f, 45.0f, "%.1f");
+            changed |= ImGui::DragInt("弾倉（0は弾倉なし）", &weapon.magazine, 0.2f, 0, 300);
+            changed |= ImGui::DragFloat("切り替え（秒）", &weapon.swapSeconds, 0.02f, 0.0f, 6.0f, "%.2f");
+            changed |= ImGui::DragFloat("リロード（秒）", &weapon.reloadSeconds, 0.02f, 0.0f, 8.0f, "%.2f");
+            changed |= ImGui::DragInt("チップ枠（レア度の分とは別）", &weapon.chipSlots, 0.05f, 0, 6);
+            changed |= ImGui::DragFloat("爆発の半径（0はなし）", &weapon.blastRadius, 0.05f, 0.0f, 20.0f, "%.2f");
+            if (weapon.blastRadius > 0.0f) {
+                changed |= ImGui::DragFloat("爆発：当たった敵の倍率", &weapon.blastCenter, 0.01f, 0.0f, 10.0f, "%.2f");
+                changed |= ImGui::DragFloat("爆発：まわりの倍率", &weapon.blastSplash, 0.01f, 0.0f, 10.0f, "%.2f");
+            }
+            changed |= ImGui::DragFloat("誘導の強さ（0はなし）", &weapon.homingPower, 0.02f, 0.0f, 5.0f, "%.2f");
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+    }
+    ImGui::SeparatorText("レア度の効き");
+    changed |= DrawByRarity(config.crafting.rarityDamage, [](const char* name, float& value) {
+        return ImGui::DragFloat((std::string("威力：") + name).c_str(), &value, 0.01f, 0.1f, 10.0f, "x%.2f");
+    });
+    changed |= DrawByRarity(config.crafting.rarityMagazine, [](const char* name, float& value) {
+        return ImGui::DragFloat((std::string("弾倉：") + name).c_str(), &value, 0.01f, 0.1f, 10.0f, "x%.2f");
+    });
+    return changed;
+}
+
+/// @brief 落とす物と値段。
+bool DrawLoot(SpawnConfig& config)
+{
+    bool changed = false;
+    if (!ImGui::CollapsingHeader("落とす物と値段")) {
+        return false;
+    }
+    auto& loot = config.loot;
+    changed |= ImGui::DragFloat("お金（経験値に掛ける）", &loot.moneyPerExp, 0.005f, 0.0f, 5.0f, "%.3f");
+    changed |= ImGui::DragFloat("素材の確率", &loot.materialChance, 0.005f, 0.0f, 1.0f, "%.3f");
+    changed |= ImGui::DragFloat("ボスの素材の確率（敵戦車）", &loot.bossMaterialChance, 0.005f, 0.0f, 1.0f, "%.3f");
+    changed |= ImGui::DragFloat("チップの確率", &loot.chipChance, 0.001f, 0.0f, 1.0f, "%.3f");
+    changed |= ImGui::DragFloat("武器の確率", &loot.weaponChance, 0.001f, 0.0f, 1.0f, "%.3f");
+    changed |= ImGui::DragFloat("大きな敵の確率の倍率", &loot.bigScale, 0.05f, 0.0f, 50.0f, "x%.2f");
+    changed |= ImGui::DragFloat("寄ってくる距離", &loot.magnetRadius, 0.05f, 0.0f, 30.0f, "%.2f");
+    changed |= ImGui::DragFloat("弾と素材が残る秒", &loot.lifetime, 0.5f, 1.0f, 300.0f, "%.0f");
+    for (size_t i = 0; i < kAmmoTypeCount; ++i) {
+        const std::string name = AmmoName(static_cast<AmmoType>(i));
+        ImGui::SeparatorText(name.c_str());
+        ImGui::PushID(static_cast<int>(i));
+        changed |= ImGui::DragFloat("落ちる確率", &loot.ammoChance[i], 0.002f, 0.0f, 1.0f, "%.3f");
+        changed |= ImGui::DragInt("1つで増える数", &loot.ammoAmount[i], 0.2f, 1, 300);
+        changed |= ImGui::DragInt("予備の上限", &loot.reserveMax[i], 1.0f, 1, 9999);
+        changed |= ImGui::DragInt("区画の始めの予備", &config.startReserve[i], 1.0f, 0, 9999);
+        ImGui::PopID();
+    }
+    ImGui::SeparatorText("レア度の出やすさ（重み）");
+    changed |= DrawByRarity(loot.rarityWeights, [](const char* name, float& value) {
+        return ImGui::DragFloat(name, &value, 0.1f, 0.0f, 1000.0f, "%.1f");
+    });
+    ImGui::SeparatorText("売る値段");
+    changed |= DrawByRarity(loot.weaponPrice, [](const char* name, int& value) {
+        return ImGui::DragInt((std::string("武器：") + name).c_str(), &value, 1.0f, 0, 99999);
+    });
+    changed |= DrawByRarity(loot.chipPrice, [](const char* name, int& value) {
+        return ImGui::DragInt((std::string("チップ：") + name).c_str(), &value, 1.0f, 0, 99999);
+    });
+    for (size_t i = 0; i < kMaterialCount; ++i) {
+        changed |= ImGui::DragInt((std::string("1つ：") + MaterialName(static_cast<MaterialId>(i))).c_str(), &loot.materialPrice[i], 0.2f, 0, 9999);
+    }
+    return changed;
+}
+
+/// @brief 作る・進化・枝に要る物。
+bool DrawCrafting(SpawnConfig& config)
+{
+    bool changed = false;
+    if (!ImGui::CollapsingHeader("作る・派生の木")) {
+        return false;
+    }
+    auto& crafting = config.crafting;
+    for (auto& recipe : crafting.recipes) {
+        if (!recipe.craftable) {
+            continue;
+        }
+        ImGui::PushID(recipe.key.c_str());
+        if (ImGui::TreeNode((std::string("作る：") + recipe.key).c_str())) {
+            changed |= DrawCost(recipe.cost);
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+    }
+    for (size_t i = 1; i < kRarityCount; ++i) {
+        ImGui::PushID(static_cast<int>(i));
+        if (ImGui::TreeNode((std::string("進化：") + RarityName(static_cast<Rarity>(i))).c_str())) {
+            changed |= ImGui::DragInt("主な素材の数", &crafting.evolveMain[i], 0.2f, 0, 999);
+            changed |= DrawCost(crafting.evolve[i]);
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+    }
+    for (size_t i = 0; i < crafting.branches.size(); ++i) {
+        WeaponBranch& branch = crafting.branches[i];
+        ImGui::PushID(static_cast<int>(100 + i));
+        if (ImGui::TreeNode((std::string("枝：") + branch.from + " → " + branch.to).c_str())) {
+            int rarity = static_cast<int>(branch.minRarity);
+            if (ImGui::SliderInt("必要なレア度（0 コモン〜4 レジェンド）", &rarity, 0, static_cast<int>(kRarityCount) - 1)) {
+                branch.minRarity = static_cast<Rarity>(rarity);
+                changed = true;
+            }
+            changed |= DrawCost(branch.cost);
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+    }
+    return changed;
+}
+
+/// @brief ステージ・バリア・新しい敵。
+bool DrawStagesAndEnemies(SpawnConfig& config)
+{
+    bool changed = false;
+    if (!ImGui::CollapsingHeader("ステージとバリア")) {
+        return changed;
+    }
+    auto& stages = config.stages;
+    for (size_t i = 0; i < stages.exitSeconds.size(); ++i) {
+        ImGui::PushID(static_cast<int>(i));
+        ImGui::SeparatorText(i + 1 == stages.exitSeconds.size() ? "ボスステージ" : (std::string("ステージ ") + std::to_string(i + 1)).c_str());
+        changed |= ImGui::DragFloat(i + 1 == stages.exitSeconds.size() ? "ボスが出るまで（秒）" : "出口が開くまで（秒）", &stages.exitSeconds[i], 1.0f, 1.0f, 900.0f, "%.0f");
+        changed |= ImGui::DragInt("脅威の上乗せ", &stages.threatOffset[i], 0.05f, 0, 8);
+        changed |= ImGui::DragFloat("敵のHPの倍率", &stages.enemyHp[i], 0.01f, 0.1f, 10.0f, "x%.2f");
+        ImGui::PopID();
+    }
+    changed |= ImGui::DragFloat("群れと包囲の数の倍率", &stages.swarmScale, 0.01f, 0.05f, 3.0f, "x%.2f");
+    changed |= ImGui::DragInt("ボスの素材の数", &stages.bossMaterials, 0.1f, 0, 99);
+    auto& barrier = config.barrier;
+    ImGui::SeparatorText("バリアとスタミナ");
+    changed |= ImGui::DragFloat("半径", &barrier.radius, 0.05f, 1.0f, 20.0f, "%.2f");
+    changed |= ImGui::DragFloat("開き（度）", &barrier.arcDegrees, 0.5f, 10.0f, 360.0f, "%.0f");
+    changed |= ImGui::DragFloat("スタミナの上限", &barrier.staminaMax, 0.5f, 1.0f, 1000.0f, "%.0f");
+    changed |= ImGui::DragFloat("張っている間の減り（毎秒）", &barrier.drainPerSecond, 0.1f, 0.0f, 200.0f, "%.1f");
+    changed |= ImGui::DragFloat("弾を止めたときの減り", &barrier.hitCost, 0.1f, 0.0f, 100.0f, "%.1f");
+    changed |= ImGui::DragFloat("敵1体が触れている間の減り（毎秒）", &barrier.contactPerSecond, 0.05f, 0.0f, 50.0f, "%.2f");
+    changed |= ImGui::DragFloat("回復（毎秒）", &barrier.regenPerSecond, 0.1f, 0.0f, 200.0f, "%.1f");
+    changed |= ImGui::DragFloat("回復が始まるまで（秒）", &barrier.regenDelay, 0.02f, 0.0f, 10.0f, "%.2f");
+    changed |= ImGui::DragFloat("尽きた後に張れない秒", &barrier.exhaustedSeconds, 0.02f, 0.0f, 10.0f, "%.2f");
+    return changed;
+}
+
+/// @brief ステージ2からの新しい敵。
+bool DrawElites(SpawnConfig& config)
+{
+    bool changed = false;
+    if (!ImGui::CollapsingHeader("新しい敵")) {
+        return false;
+    }
+    auto& elites = config.elites;
+    changed |= ImGui::DragInt("出始めるステージ", &elites.fromStage, 0.05f, 1, 4);
+    ImGui::SeparatorText("ばらばらな三角");
+    changed |= ImGui::DragFloat("群れの中の割合", &elites.erraticRatio, 0.01f, 0.0f, 1.0f, "%.2f");
+    changed |= ImGui::DragFloat("揺れの強さ", &elites.erraticStrength, 0.02f, 0.0f, 6.0f, "%.2f");
+    changed |= ImGui::DragFloat("揺れの速さ", &elites.erraticFrequency, 0.05f, 0.0f, 20.0f, "%.2f");
+    ImGui::SeparatorText("回復する敵");
+    changed |= ImGui::DragFloat("最初に出る秒##healer", &elites.healerFirst, 0.5f, 0.0f, 300.0f, "%.0f");
+    changed |= ImGui::DragFloat("湧く間隔##healer", &elites.healerInterval, 0.5f, 1.0f, 300.0f, "%.0f");
+    changed |= ImGui::DragInt("同時の上限##healer", &elites.healerMaxAlive, 0.05f, 0, 20);
+    changed |= ImGui::DragFloat("HPの倍率##healer", &elites.healerHpScale, 0.02f, 0.1f, 30.0f, "x%.2f");
+    changed |= ImGui::DragFloat("回復の間隔（秒）", &elites.healInterval, 0.02f, 0.1f, 30.0f, "%.2f");
+    changed |= ImGui::DragFloat("回復の半径", &elites.healRadius, 0.05f, 0.5f, 40.0f, "%.2f");
+    changed |= ImGui::DragFloat("回復の割合", &elites.healRatio, 0.005f, 0.0f, 1.0f, "%.3f");
+    ImGui::SeparatorText("ワープする敵");
+    changed |= ImGui::DragFloat("最初に出る秒##warper", &elites.warperFirst, 0.5f, 0.0f, 300.0f, "%.0f");
+    changed |= ImGui::DragFloat("湧く間隔##warper", &elites.warperInterval, 0.5f, 1.0f, 300.0f, "%.0f");
+    changed |= ImGui::DragInt("同時の上限##warper", &elites.warperMaxAlive, 0.05f, 0, 20);
+    changed |= ImGui::DragFloat("HPの倍率##warper", &elites.warperHpScale, 0.02f, 0.1f, 30.0f, "x%.2f");
+    changed |= ImGui::DragFloat("ワープの間隔（秒）", &elites.warpInterval, 0.02f, 1.0f, 30.0f, "%.2f");
+    changed |= ImGui::DragFloat("自機からの距離", &elites.warpDistance, 0.05f, 2.0f, 40.0f, "%.2f");
+    ImGui::SeparatorText("地雷をまく敵");
+    changed |= ImGui::DragFloat("最初に出る秒##layer", &elites.mineLayerFirst, 0.5f, 0.0f, 300.0f, "%.0f");
+    changed |= ImGui::DragFloat("湧く間隔##layer", &elites.mineLayerInterval, 0.5f, 1.0f, 300.0f, "%.0f");
+    changed |= ImGui::DragInt("同時の上限##layer", &elites.mineLayerMaxAlive, 0.05f, 0, 20);
+    changed |= ImGui::DragFloat("HPの倍率##layer", &elites.mineLayerHpScale, 0.02f, 0.1f, 30.0f, "x%.2f");
+    changed |= ImGui::DragFloat("地雷を置く間隔（秒）", &elites.layInterval, 0.02f, 0.2f, 30.0f, "%.2f");
+    changed |= ImGui::DragInt("地雷の上限", &elites.mineMaxAlive, 0.1f, 0, 100);
+    changed |= ImGui::DragFloat("反応するまで（秒）", &elites.mineArmSeconds, 0.02f, 0.0f, 10.0f, "%.2f");
+    changed |= ImGui::DragFloat("残る秒", &elites.mineLifeSeconds, 0.1f, 1.0f, 120.0f, "%.1f");
+    changed |= ImGui::DragFloat("反応する半径", &elites.mineTriggerRadius, 0.02f, 0.2f, 20.0f, "%.2f");
+    changed |= ImGui::DragFloat("爆発の半径##mine", &elites.mineBlastRadius, 0.02f, 0.2f, 30.0f, "%.2f");
+    changed |= ImGui::DragInt("爆発のダメージ", &elites.mineDamage, 0.1f, 0, 500);
+    return changed;
+}
 } // namespace
 #endif
 
@@ -315,6 +540,14 @@ TuningPanelResult DrawTuningPanel(SpawnConfig& config, bool& open, bool& pauseWh
     if (!status.empty()) {
         ImGui::SameLine();
         ImGui::TextUnformatted(status.c_str());
+    }
+    if (config.weaponsEnabled) {
+        result.changed |= DrawWeapons(config);
+        result.changed |= DrawLoot(config);
+        result.changed |= DrawCrafting(config);
+        result.changed |= DrawStagesAndEnemies(config);
+        result.changed |= DrawElites(config);
+        ImGui::SeparatorText("ここから下は、これまでの遊び方と共通の値");
     }
     result.changed |= DrawHeatAndShield(config);
     result.changed |= DrawExperience(config);

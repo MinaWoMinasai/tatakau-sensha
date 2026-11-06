@@ -321,6 +321,16 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     } else {
         autoHomingDirections_.clear();
     }
+    // 調整パネル：ステージ1の8秒から1秒だけ開いて、画面を保存する（止めない）。
+    if (WeaponMode() && stage_ == 0) {
+        const bool show = elapsed_ >= 8.0f && elapsed_ < 9.0f;
+        tuningPause_ = false;
+        tuningOpen_ = show;
+        if (show && !autoTuningCaptured_ && elapsed_ >= 8.5f && world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture("tuning");
+            autoTuningCaptured_ = true;
+        }
+    }
     // バリア：20秒のうち10秒押し続ける（途中でスタミナが尽きるかも見る）。弾を止めた瞬間の画面を1回保存する。
     autoBarrierWanted_ = WeaponMode() && std::fmod(autoTestTime_, 20.0f) < 10.0f;
     // 新しい敵：それぞれが自機の近くにいる画面を1回ずつ保存する（ワープする敵は消えている途中、ばらばらな三角は役割なしで見分ける）。
@@ -778,14 +788,18 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             std::filesystem::copy_file(kConfigPath, path, std::filesystem::copy_options::overwrite_existing, ignored);
             std::string error;
             survivor::SpawnConfig loaded;
-            if (survivor::SaveSpawnConfig(path, config_, error) && survivor::LoadSpawnConfig(path, loaded, error)) {
+            if (survivor::SaveSpawnConfig(path, ConfigForSaving(), error) && survivor::LoadSpawnConfig(path, loaded, error)) {
                 roundTrip = loaded.ExpToNextLevel(10) == config_.ExpToNextLevel(10) && loaded.heat.maxHeat == config_.heat.maxHeat &&
                             loaded.heat.coolPerSecondWhileFiring == config_.heat.coolPerSecondWhileFiring &&
                             loaded.shapeTargetAlive == config_.shapeTargetAlive && loaded.choiceSlowTimeScale == config_.choiceSlowTimeScale &&
                             loaded.parts[0].perLevel == config_.parts[0].perLevel && loaded.forms[1].damageScale == config_.forms[1].damageScale &&
                             loaded.tankTypes == config_.tankTypes && loaded.weaponsEnabled == config_.weaponsEnabled &&
                             loaded.weapons.size() == config_.weapons.size() && loaded.weapons[1].damageScale == config_.weapons[1].damageScale &&
-                            loaded.weapons[2].ammo == config_.weapons[2].ammo && loaded.startWeapons == config_.startWeapons;
+                            loaded.weapons[2].ammo == config_.weapons[2].ammo && loaded.startWeapons == config_.startWeapons &&
+                            loaded.loot.weaponPrice == config_.loot.weaponPrice && loaded.stages.swarmScale == config_.stages.swarmScale &&
+                            loaded.barrier.radius == config_.barrier.radius && loaded.elites.healRatio == config_.elites.healRatio &&
+                            loaded.crafting.branches.size() == config_.crafting.branches.size() && loaded.exitOpenSeconds == fileExitOpenSeconds_ &&
+                            loaded.rival.enabled == fileRivalEnabled_;
             }
         }
         // 拠点：結果画面で持ち帰ってセーブした物を読み直し、同じになるかを見る。

@@ -601,6 +601,16 @@ private:
         return WeaponMode() && stage_ == survivor::SpawnConfig::kStageCount - 1;
     }
     int stage_ = 0;
+    /// @brief 設定ファイルへ書く形：ステージが動かす値（出口の秒・宿敵を出すか）を、読んだときの値へ戻したもの。
+    survivor::SpawnConfig ConfigForSaving() const
+    {
+        survivor::SpawnConfig saving = config_;
+        saving.exitOpenSeconds = fileExitOpenSeconds_;
+        saving.rival.enabled = fileRivalEnabled_;
+        return saving;
+    }
+    float fileExitOpenSeconds_ = 180.0f;
+    bool fileRivalEnabled_ = true;
 
     // ステージ2から出る新しい敵（W9）。SurvivorRunElites.cpp。
     bool ElitesActive() const;
@@ -844,6 +854,7 @@ private:
     // 作る・進化を1回ずつ試して、払った分・レア度・威力が合っていたか。
     bool autoCraftOk_ = false;
     bool autoBranchOk_ = false;
+    bool autoTuningCaptured_ = false;
     // 誘導の武器の弾の向きが、飛んでいる途中で変わった回数。
     std::unordered_map<uint64_t, myEngine::Vector3> autoHomingDirections_;
     int autoHomingTurns_ = 0;

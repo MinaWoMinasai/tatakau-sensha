@@ -37,6 +37,8 @@ void SurvivorRunController::Initialize()
     if (!survivor::LoadSpawnConfig(kConfigPath, config_, error)) {
         OutputDebugStringA(("[Survivor] " + error + "\n").c_str());
     }
+    fileExitOpenSeconds_ = config_.exitOpenSeconds;
+    fileRivalEnabled_ = config_.rival.enabled;
     // MYENGINE_SURVIVOR_WEAPONS=0：武器の枠を使わず、これまでの育つ戦車の試作（3択・レベル・形態の進化）で遊ぶ。
     wchar_t weaponsSwitch[4]{};
     if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_WEAPONS", weaponsSwitch, 4) > 0) {
@@ -174,7 +176,7 @@ void SurvivorRunController::Initialize()
         "赤い破線の円：まわりを三角に囲まれる。早めに円の外へ抜ける",
         "Q で Q の部品を使う（状態は画面の下に出る）",
         "宿敵を倒すと出口が開く",
-        "弾倉が空になると自動でリロード（予備の弾から込める。その間は撃てない）。R で早めにも入れ直せる",
+        "弾倉が空になると自動でリロード（その間は撃てない）。R で早めにも入れ直せる",
         "WASD 移動 ／ 左クリック 撃つ ／ ホイール 武器 ／ 右クリック バリア ／ R リロード ／ E 持ち物"};
     for (size_t i = 0; i < hintTexts_.size(); ++i) {
         hintTexts_[i] = std::make_unique<myEngine::TextLabel>();
@@ -647,7 +649,14 @@ void SurvivorRunController::UpdateTuningPanel()
         survivor::SpawnConfig loaded;
         std::string error;
         if (survivor::LoadSpawnConfig(kConfigPath, loaded, error)) {
+            // 武器の枠を使うかは起動の設定（環境変数）のままにする。
+            loaded.weaponsEnabled = config_.weaponsEnabled;
             config_ = loaded;
+            fileExitOpenSeconds_ = config_.exitOpenSeconds;
+            fileRivalEnabled_ = config_.rival.enabled;
+            if (WeaponMode()) {
+                ApplyStageSettings(stage_);
+            }
             tuningStatus_ = "再読込しました";
         } else {
             tuningStatus_ = error;
@@ -658,13 +667,19 @@ void SurvivorRunController::UpdateTuningPanel()
         ConfigurePickups();
         ApplyDamageNumberConfig();
         ApplyParts();
+        // 武器の値：構えている武器へ入れ直す（今の熱は控えて戻す）。出口の秒もステージの値を入れる。
+        if (WeaponMode() && weaponEquipped_) {
+            weaponHeat_[activeSlot_] = world_.resources.player_->GetHeat().Save();
+            RefreshSlotsAfterChange(survivor::kWeaponSlots);
+            ApplyStageSettings(stage_);
+        }
         if (result.changed) {
             tuningStatus_ = "変更あり（未保存）";
         }
     }
     if (result.saveRequested) {
         std::string error;
-        tuningStatus_ = survivor::SaveSpawnConfig(kConfigPath, config_, error) ? std::string("保存しました") : error;
+        tuningStatus_ = survivor::SaveSpawnConfig(kConfigPath, ConfigForSaving(), error) ? std::string("保存しました") : error;
     }
 #endif
 }
