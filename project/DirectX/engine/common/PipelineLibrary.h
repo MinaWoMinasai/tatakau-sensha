@@ -14,6 +14,65 @@ namespace myEngine {
 
 class DirectXCommon;
 
+/// @brief PipelineLibrary が持つパイプラインの名前。Hdr はシーン（HDR）向け。作る順に並べている。
+enum class PipelineId {
+    ObjectNone,
+    ObjectAlpha,
+    ObjectAdd,
+    ObjectNoneHdr,
+    ObjectAlphaHdr,
+    ObjectAddHdr,
+    Particle,
+    ModelParticle,
+    ModelParticleHdr,
+    ParticleInitialize,
+    ParticleEmit,
+    ParticleEmitBatch,
+    ParticleUpdate,
+    ParticleScan,
+    ParticleCompact,
+    BloomExtract,
+    BloomExtractHdr,
+    BloomBlurH,
+    BloomBlurHHdr,
+    BloomBlurV,
+    BloomBlurVHdr,
+    GaussianFilter,
+    BloomComposite,
+    ObjectPostComposite,
+    ObjectPostOutlineAdd,
+    ObjectPostBloomAdd,
+    ObjectPostCompositeHdr,
+    ObjectPostOutlineAddHdr,
+    ObjectPostBloomAddHdr,
+    Random,
+    RandomHdr,
+    SsaoResolve,
+    SsaoDenoise,
+    SsrResolve,
+    SsrResolveHdr,
+    SsrDenoise,
+    SsrDenoiseHdr,
+    MotionVectorResolve,
+    TemporalResolve,
+    PhosphorPersistence,
+    CrtPresent,
+    BloomDownsample,
+    BloomDownsampleHdr,
+    Shadow,
+    Trail,
+    TrailHdr,
+    HudRect,
+    Skybox,
+    SkyboxHdr,
+    Skinning,
+    SkinningDoubleSided,
+    SkinningHdr,
+    SkinningDoubleSidedHdr,
+    SkinningShadow,
+    Count,
+};
+
 /// @brief 描画とコンピュートのパイプライン（PSO）を作って持つ。作成は起動中に少しずつ進められる。
 class PipelineLibrary : public RenderTargetFormats {
 public:
@@ -65,10 +124,10 @@ public:
         Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob_;
         Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob_;
         Microsoft::WRL::ComPtr<IDxcBlob> computeShaderBlob_;
-        ShaderType shaderType_;
+        ShaderType shaderType_ = Object;
         std::wstring vsFilePath_;
         std::wstring psFilePath_;
-        PostEffectType postEffectType_;
+        PostEffectType postEffectType_ = Bloom_Extract;
     };
 
     /// @brief 作成に使うデバイスとシェーダーのコンパイラを借りる。dxCommonは作成が終わるまで有効に保つ。
@@ -87,204 +146,19 @@ public:
     /// @brief 作成途中のコルーチンを捨てる。
     void Release();
 
+    /// @brief 名前を指定してPSOを返す。
+    PSO& GetPipeline(PipelineId id)
+    {
+        return pipelines_[static_cast<size_t>(id)];
+    }
+
     /// @brief ブレンドモードに対応する、バックバッファ（SDR）向けのPSOを返す。
-    PSO& GetPSOObject(BlendMode blendMode = kAdd)
-    {
-        switch (blendMode) {
-        case kNone:
-            return objectPSO_None;
-            break;
-        case kNormal:
-            return objectPSO_Alpha;
-            break;
-        case kAdd:
-            return objectPSO_Add;
-            break;
-        case kShadow:
-            return shadowPSO;
-            break;
-        case kAdd_Bloom_Extract:
-            return bloomPSO;
-            break;
-
-        case kAdd_Bloom_Downsample:
-            return downsamplePSO;
-            break;
-
-        case kAdd_Bloom_BlurH:
-            return blurHPSO;
-            break;
-
-        case kAdd_Bloom_BlurV:
-            return blurVPSO;
-            break;
-
-        case kAdd_Bloom_Composite:
-            return compositePSO;
-            break;
-        case kAdd_ObjectPost_Composite:
-            return objectPostCompositePSO;
-            break;
-        case kAdd_ObjectPost_OutlineAdd:
-            return objectPostOutlineAddPSO;
-            break;
-        case kAdd_ObjectPost_BloomAdd:
-            return objectPostBloomAddPSO;
-            break;
-        case kRandom:
-            return randomPSO;
-            break;
-        case kAdd_SSAO_Resolve:
-            return ssaoResolvePSO;
-            break;
-        case kAdd_SSAO_Denoise:
-            return ssaoDenoisePSO;
-            break;
-        case kAdd_SSR_Resolve:
-            return ssrResolvePSO;
-            break;
-        case kAdd_SSR_Denoise:
-            return ssrDenoisePSO;
-            break;
-        case kAdd_MotionVector_Resolve:
-            return motionVectorResolvePSO;
-            break;
-        case kAdd_Temporal_Resolve:
-            return temporalResolvePSO;
-            break;
-        case kAdd_Phosphor_Persistence:
-            return phosphorPersistencePSO;
-            break;
-        case kAdd_Crt_Present:
-            return crtPresentPSO;
-            break;
-        default:
-            return objectPSO_None;
-            break;
-        }
-    }
-
+    PSO& GetPSOObject(BlendMode blendMode = kAdd);
     /// @brief ブレンドモードに対応する、シーン（HDR）向けのPSOを返す。
-    PSO& GetPSOObjectForScene(BlendMode blendMode = kAdd)
-    {
-        switch (blendMode) {
-        case kNone:
-            return objectPSO_None_HDR;
-        case kNormal:
-            return objectPSO_Alpha_HDR;
-        case kAdd:
-            return objectPSO_Add_HDR;
-        case kShadow:
-            return shadowPSO;
-        case kAdd_Bloom_Extract:
-            return bloomPSO_HDR;
-        case kAdd_Bloom_Downsample:
-            return downsamplePSO_HDR;
-        case kAdd_Bloom_BlurH:
-            return blurHPSO_HDR;
-        case kAdd_Bloom_BlurV:
-            return blurVPSO_HDR;
-        case kAdd_ObjectPost_Composite:
-            return objectPostCompositePSO_HDR;
-        case kAdd_ObjectPost_OutlineAdd:
-            return objectPostOutlineAddPSO_HDR;
-        case kAdd_ObjectPost_BloomAdd:
-            return objectPostBloomAddPSO_HDR;
-        case kRandom:
-            return randomPSO_HDR;
-        case kAdd_SSAO_Resolve:
-            return ssaoResolvePSO;
-        case kAdd_SSAO_Denoise:
-            return ssaoDenoisePSO;
-        case kAdd_SSR_Resolve:
-            return ssrResolvePSO_HDR;
-        case kAdd_SSR_Denoise:
-            return ssrDenoisePSO_HDR;
-        case kAdd_MotionVector_Resolve:
-            return motionVectorResolvePSO;
-        case kAdd_Temporal_Resolve:
-            return temporalResolvePSO;
-        case kAdd_Phosphor_Persistence:
-            return phosphorPersistencePSO;
-        default:
-            return objectPSO_None_HDR;
-        }
-    }
+    PSO& GetPSOObjectForScene(BlendMode blendMode = kAdd);
 
     /// @brief 深度を持たないHDRキャプチャにはDSVなしの互換PSOを再利用する。
     ID3D12PipelineState* GetObjectScenePipeline(BlendMode blendMode, bool hasDepth);
-
-    /// @brief パーティクル用のPSOを返す。
-    PSO& GetPSOParticle()
-    {
-        return psoParticle_;
-    }
-
-    /// @brief モデルパーティクル用のPSOを返す。
-    PSO& GetPSOModelParticle()
-    {
-        return psoModelParticle_;
-    }
-
-    /// @brief モデルパーティクルのシーン（HDR）用PSOを返す。
-    PSO& GetPSOModelParticleForScene()
-    {
-        return psoModelParticle_HDR;
-    }
-
-    /// @brief ガウシアンフィルター用のPSOを返す。
-    const PSO& GetGaussianFilterPSO() const
-    {
-        return gaussianFilterPSO;
-    }
-
-    /// @brief GPUパーティクルを更新するPSOを返す。
-    PSO& GetPSOComputeParticle()
-    {
-        return psoComputeParticle_;
-    }
-
-    /// @brief GPUパーティクルの詰め先を数えるPSOを返す。
-    PSO& GetPSOScanParticle()
-    {
-        return psoScanParticle_;
-    }
-
-    /// @brief GPUパーティクルを詰め直すPSOを返す。
-    PSO& GetPSOCompactParticle()
-    {
-        return psoCompactParticle_;
-    }
-
-    /// @brief GPUパーティクルを初期化するPSOを返す。
-    PSO& GetPSOInitializeParticle()
-    {
-        return psoInitializeParticle_;
-    }
-
-    /// @brief GPUパーティクルを発生させるPSOを返す。
-    PSO& GetPSOEmitParticle()
-    {
-        return psoEmitParticle_;
-    }
-
-    /// @brief GPUパーティクルをまとめて発生させるPSOを返す。
-    PSO& GetPSOEmitBatchParticle()
-    {
-        return psoEmitBatchParticle_;
-    }
-
-    /// @brief 軌跡用のPSOを返す。
-    PSO& GetPSOTrail()
-    {
-        return trailPSO;
-    }
-
-    /// @brief 軌跡のシーン（HDR）用PSOを返す。
-    PSO& GetPSOTrailForScene()
-    {
-        return trailPSO_HDR;
-    }
 
     /// @brief 深度バッファなしでシーン（HDR）へ軌跡を描くパイプラインを作る。成功したらtrueを返す。
     bool InitializeTrailSceneNoDepthPipeline();
@@ -293,48 +167,6 @@ public:
     ID3D12PipelineState* GetTrailSceneNoDepthPipeline() const
     {
         return trailSceneNoDepthPipeline_.Get();
-    }
-
-    /// @brief HUDの矩形用のPSOを返す。
-    PSO& GetPSOHudRect()
-    {
-        return hudRectPSO;
-    }
-
-    /// @brief スカイボックス用のPSOを返す。
-    PSO& GetPSOSkybox()
-    {
-        return skyboxPSO_HDR;
-    }
-
-    /// @brief スキニング用のPSOを返す。
-    PSO& GetPSOSkinning()
-    {
-        return skinningPSO;
-    }
-
-    /// @brief スキニングのシーン（HDR）用PSOを返す。
-    PSO& GetPSOSkinningForScene()
-    {
-        return skinningPSO_HDR;
-    }
-
-    /// @brief 両面を描くスキニング用のPSOを返す。
-    PSO& GetPSOSkinningDoubleSided()
-    {
-        return skinningDoubleSidedPSO;
-    }
-
-    /// @brief 両面を描くスキニングのシーン（HDR）用PSOを返す。
-    PSO& GetPSOSkinningDoubleSidedForScene()
-    {
-        return skinningDoubleSidedPSO_HDR;
-    }
-
-    /// @brief スキニングの影用のPSOを返す。
-    PSO& GetPSOSkinningShadow()
-    {
-        return skinningShadowPSO;
     }
 
 private:
@@ -351,62 +183,9 @@ private:
     DirectXCommon* dxCommon_ = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Device> device_;
 
-    PSO objectPSO_None;
-    PSO objectPSO_Alpha;
-    PSO objectPSO_Add;
-    PSO objectPSO_None_HDR;
-    PSO objectPSO_Alpha_HDR;
-    PSO objectPSO_Add_HDR;
-    PSO psoParticle_;
-    PSO psoModelParticle_;
-    PSO psoModelParticle_HDR;
-    PSO psoComputeParticle_;
-    PSO psoScanParticle_;
-    PSO psoCompactParticle_;
-    PSO psoInitializeParticle_;
-    PSO psoEmitParticle_;
-    PSO psoEmitBatchParticle_;
-    PSO bloomPSO;
-    PSO downsamplePSO;
-    PSO blurHPSO;
-    PSO blurVPSO;
-    PSO bloomPSO_HDR;
-    PSO downsamplePSO_HDR;
-    PSO blurHPSO_HDR;
-    PSO blurVPSO_HDR;
-    PSO gaussianFilterPSO;
-    PSO compositePSO;
-    PSO objectPostCompositePSO;
-    PSO objectPostOutlineAddPSO;
-    PSO objectPostBloomAddPSO;
-    PSO randomPSO;
-    PSO ssaoResolvePSO;
-    PSO ssaoDenoisePSO;
-    PSO ssrResolvePSO;
-    PSO ssrDenoisePSO;
-    PSO motionVectorResolvePSO;
-    PSO temporalResolvePSO;
-    PSO phosphorPersistencePSO;
-    PSO crtPresentPSO;
-    PSO objectPostCompositePSO_HDR;
-    PSO objectPostOutlineAddPSO_HDR;
-    PSO objectPostBloomAddPSO_HDR;
-    PSO randomPSO_HDR;
-    PSO ssrResolvePSO_HDR;
-    PSO ssrDenoisePSO_HDR;
-    PSO shadowPSO;
-    PSO trailPSO;
-    PSO trailPSO_HDR;
+    std::array<PSO, static_cast<size_t>(PipelineId::Count)> pipelines_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> trailSceneNoDepthPipeline_;
-    PSO hudRectPSO;
     std::array<Microsoft::WRL::ComPtr<ID3D12PipelineState>, 3> noDepthObjectPipelines_;
-    PSO skyboxPSO;
-    PSO skyboxPSO_HDR;
-    PSO skinningPSO;
-    PSO skinningDoubleSidedPSO;
-    PSO skinningPSO_HDR;
-    PSO skinningDoubleSidedPSO_HDR;
-    PSO skinningShadowPSO;
 };
 
 } // namespace myEngine

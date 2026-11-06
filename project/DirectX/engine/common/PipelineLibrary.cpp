@@ -3,6 +3,7 @@
 #include "ResourcePaths.h"
 
 #include <cassert>
+#include <iterator>
 #include "Bloom.h"
 #include "StartupTrace.h"
 #include "Utf8Path.h"
@@ -10,6 +11,202 @@
 namespace myEngine {
 
 using namespace Microsoft::WRL;
+
+namespace {
+
+/// @brief ポストエフェクトのピクセルシェーダー。PostEffectType と同じ順に並べる。
+constexpr const wchar_t* kPostEffectPixelShaders[] = {
+    L"BloomExtract.PS.hlsl",        L"BloomDownsample.PS.hlsl", L"BloomBlurH.PS.hlsl",          L"BloomBlurV.PS.hlsl",
+    L"GaussianFilter.PS.hlsl",      L"Composite.PS.hlsl",       L"ObjectPostComposite.PS.hlsl", L"ObjectPostOutlineAdd.PS.hlsl",
+    L"ObjectPostBloomAdd.PS.hlsl",  L"Random.PS.hlsl",          L"SSAOResolve.PS.hlsl",         L"SSAODenoise.PS.hlsl",
+    L"SSRResolve.PS.hlsl",          L"SSRDenoise.PS.hlsl",      L"MotionVectorResolve.PS.hlsl", L"TemporalResolve.PS.hlsl",
+    L"PhosphorPersistence.PS.hlsl", L"CrtPresent.PS.hlsl",
+};
+static_assert(std::size(kPostEffectPixelShaders) == PipelineLibrary::Crt_Present + 1);
+
+/// @brief 1パイプラインの作り方。
+struct PipelineSpec {
+    PipelineId id;
+    PipelineLibrary::ShaderType shaderType;
+    BlendMode blendMode = kNone;
+    DXGI_FORMAT format = RenderTargetFormats::kBackBufferRenderTargetFormat;
+    bool doubleSided = false;
+    PipelineLibrary::PostEffectType postEffectType = PipelineLibrary::Bloom_Extract;
+    const wchar_t* computeShader = nullptr;
+};
+
+constexpr DXGI_FORMAT kBack = RenderTargetFormats::kBackBufferRenderTargetFormat;
+constexpr DXGI_FORMAT kHdr = RenderTargetFormats::kSceneRenderTargetFormat;
+
+/// @brief ポストエフェクトのパイプラインの作り方を返す。
+constexpr PipelineSpec PostEffectSpec(PipelineId id, PipelineLibrary::PostEffectType type, BlendMode blendMode = kNone,
+                                      DXGI_FORMAT format = kBack)
+{
+    return {id, PipelineLibrary::PostEffect, blendMode, format, false, type};
+}
+
+/// @brief コンピュートパイプラインの作り方を返す。
+constexpr PipelineSpec ComputeSpec(PipelineId id, const wchar_t* shader)
+{
+    return {id, PipelineLibrary::ComputeParticle, kNone, kBack, false, PipelineLibrary::Bloom_Extract, shader};
+}
+
+/// @brief すべてのパイプラインの作り方。上から順に作る。
+constexpr PipelineSpec kPipelineSpecs[] = {
+    {PipelineId::ObjectNone, PipelineLibrary::Object, kNone},
+    {PipelineId::ObjectAlpha, PipelineLibrary::Object, kNormal},
+    {PipelineId::ObjectAdd, PipelineLibrary::Object, kAdd},
+    {PipelineId::ObjectNoneHdr, PipelineLibrary::Object, kNone, kHdr},
+    {PipelineId::ObjectAlphaHdr, PipelineLibrary::Object, kNormal, kHdr},
+    {PipelineId::ObjectAddHdr, PipelineLibrary::Object, kAdd, kHdr},
+    {PipelineId::Particle, PipelineLibrary::Particle, kAdd},
+    {PipelineId::ModelParticle, PipelineLibrary::ModelParticle, kAdd},
+    {PipelineId::ModelParticleHdr, PipelineLibrary::ModelParticle, kAdd, kHdr},
+    ComputeSpec(PipelineId::ParticleInitialize, L"ParticleInitialize.CS.hlsl"),
+    ComputeSpec(PipelineId::ParticleEmit, L"ParticleEmit.CS.hlsl"),
+    ComputeSpec(PipelineId::ParticleEmitBatch, L"ParticleEmitBatch.CS.hlsl"),
+    ComputeSpec(PipelineId::ParticleUpdate, L"ParticleUpdate.CS.hlsl"),
+    ComputeSpec(PipelineId::ParticleScan, L"ParticleScan.CS.hlsl"),
+    ComputeSpec(PipelineId::ParticleCompact, L"ParticleCompact.CS.hlsl"),
+    PostEffectSpec(PipelineId::BloomExtract, PipelineLibrary::Bloom_Extract),
+    PostEffectSpec(PipelineId::BloomExtractHdr, PipelineLibrary::Bloom_Extract, kNone, kHdr),
+    PostEffectSpec(PipelineId::BloomBlurH, PipelineLibrary::Bloom_BlurH),
+    PostEffectSpec(PipelineId::BloomBlurHHdr, PipelineLibrary::Bloom_BlurH, kNone, kHdr),
+    PostEffectSpec(PipelineId::BloomBlurV, PipelineLibrary::Bloom_BlurV),
+    PostEffectSpec(PipelineId::BloomBlurVHdr, PipelineLibrary::Bloom_BlurV, kNone, kHdr),
+    PostEffectSpec(PipelineId::GaussianFilter, PipelineLibrary::Gaussian_Filter),
+    PostEffectSpec(PipelineId::BloomComposite, PipelineLibrary::Bloom_Composite, kAdd),
+    PostEffectSpec(PipelineId::ObjectPostComposite, PipelineLibrary::ObjectPost_Composite, kNormal),
+    PostEffectSpec(PipelineId::ObjectPostOutlineAdd, PipelineLibrary::ObjectPost_OutlineAdd, kAdd),
+    PostEffectSpec(PipelineId::ObjectPostBloomAdd, PipelineLibrary::ObjectPost_BloomAdd, kAdd),
+    PostEffectSpec(PipelineId::ObjectPostCompositeHdr, PipelineLibrary::ObjectPost_Composite, kNormal, kHdr),
+    PostEffectSpec(PipelineId::ObjectPostOutlineAddHdr, PipelineLibrary::ObjectPost_OutlineAdd, kAdd, kHdr),
+    PostEffectSpec(PipelineId::ObjectPostBloomAddHdr, PipelineLibrary::ObjectPost_BloomAdd, kAdd, kHdr),
+    PostEffectSpec(PipelineId::Random, PipelineLibrary::Random),
+    PostEffectSpec(PipelineId::RandomHdr, PipelineLibrary::Random, kNone, kHdr),
+    PostEffectSpec(PipelineId::SsaoResolve, PipelineLibrary::SSAO_Resolve, kNone, RenderTargetFormats::kAmbientOcclusionBufferFormat),
+    PostEffectSpec(PipelineId::SsaoDenoise, PipelineLibrary::SSAO_Denoise, kNone, RenderTargetFormats::kAmbientOcclusionBufferFormat),
+    PostEffectSpec(PipelineId::SsrResolve, PipelineLibrary::SSR_Resolve),
+    PostEffectSpec(PipelineId::SsrResolveHdr, PipelineLibrary::SSR_Resolve, kNone, kHdr),
+    PostEffectSpec(PipelineId::SsrDenoise, PipelineLibrary::SSR_Denoise),
+    PostEffectSpec(PipelineId::SsrDenoiseHdr, PipelineLibrary::SSR_Denoise, kNone, kHdr),
+    PostEffectSpec(PipelineId::MotionVectorResolve, PipelineLibrary::MotionVector_Resolve, kNone,
+                   RenderTargetFormats::kMotionVectorBufferFormat),
+    PostEffectSpec(PipelineId::TemporalResolve, PipelineLibrary::Temporal_Resolve, kNone, kHdr),
+    PostEffectSpec(PipelineId::PhosphorPersistence, PipelineLibrary::Phosphor_Persistence, kNone, kHdr),
+    PostEffectSpec(PipelineId::CrtPresent, PipelineLibrary::Crt_Present),
+    PostEffectSpec(PipelineId::BloomDownsample, PipelineLibrary::Bloom_Downsample),
+    PostEffectSpec(PipelineId::BloomDownsampleHdr, PipelineLibrary::Bloom_Downsample, kNone, kHdr),
+    {PipelineId::Shadow, PipelineLibrary::Shadow, kShadow},
+    {PipelineId::Trail, PipelineLibrary::Trail, kAdd},
+    {PipelineId::TrailHdr, PipelineLibrary::Trail, kAdd, kHdr},
+    {PipelineId::HudRect, PipelineLibrary::Trail, kNormal},
+    {PipelineId::Skybox, PipelineLibrary::Skybox, kNone},
+    {PipelineId::SkyboxHdr, PipelineLibrary::Skybox, kNone, kHdr},
+    {PipelineId::Skinning, PipelineLibrary::Skinning, kNone},
+    {PipelineId::SkinningDoubleSided, PipelineLibrary::Skinning, kNone, kBack, true},
+    {PipelineId::SkinningHdr, PipelineLibrary::Skinning, kNone, kHdr},
+    {PipelineId::SkinningDoubleSidedHdr, PipelineLibrary::Skinning, kNone, kHdr, true},
+    {PipelineId::SkinningShadow, PipelineLibrary::SkinningShadow, kShadow},
+};
+static_assert(std::size(kPipelineSpecs) == static_cast<size_t>(PipelineId::Count));
+
+/// @brief 起動の1ステップ目にまとめて作るパイプラインの数。残りは1つずつ作る。
+constexpr size_t kPipelinesInFirstStep = 3;
+
+} // namespace
+
+PipelineLibrary::PSO& PipelineLibrary::GetPSOObject(BlendMode blendMode)
+{
+    switch (blendMode) {
+    case kNormal:
+        return GetPipeline(PipelineId::ObjectAlpha);
+    case kAdd:
+        return GetPipeline(PipelineId::ObjectAdd);
+    case kShadow:
+        return GetPipeline(PipelineId::Shadow);
+    case kAdd_Bloom_Extract:
+        return GetPipeline(PipelineId::BloomExtract);
+    case kAdd_Bloom_Downsample:
+        return GetPipeline(PipelineId::BloomDownsample);
+    case kAdd_Bloom_BlurH:
+        return GetPipeline(PipelineId::BloomBlurH);
+    case kAdd_Bloom_BlurV:
+        return GetPipeline(PipelineId::BloomBlurV);
+    case kAdd_Bloom_Composite:
+        return GetPipeline(PipelineId::BloomComposite);
+    case kAdd_ObjectPost_Composite:
+        return GetPipeline(PipelineId::ObjectPostComposite);
+    case kAdd_ObjectPost_OutlineAdd:
+        return GetPipeline(PipelineId::ObjectPostOutlineAdd);
+    case kAdd_ObjectPost_BloomAdd:
+        return GetPipeline(PipelineId::ObjectPostBloomAdd);
+    case kRandom:
+        return GetPipeline(PipelineId::Random);
+    case kAdd_SSAO_Resolve:
+        return GetPipeline(PipelineId::SsaoResolve);
+    case kAdd_SSAO_Denoise:
+        return GetPipeline(PipelineId::SsaoDenoise);
+    case kAdd_SSR_Resolve:
+        return GetPipeline(PipelineId::SsrResolve);
+    case kAdd_SSR_Denoise:
+        return GetPipeline(PipelineId::SsrDenoise);
+    case kAdd_MotionVector_Resolve:
+        return GetPipeline(PipelineId::MotionVectorResolve);
+    case kAdd_Temporal_Resolve:
+        return GetPipeline(PipelineId::TemporalResolve);
+    case kAdd_Phosphor_Persistence:
+        return GetPipeline(PipelineId::PhosphorPersistence);
+    case kAdd_Crt_Present:
+        return GetPipeline(PipelineId::CrtPresent);
+    default:
+        return GetPipeline(PipelineId::ObjectNone);
+    }
+}
+
+PipelineLibrary::PSO& PipelineLibrary::GetPSOObjectForScene(BlendMode blendMode)
+{
+    switch (blendMode) {
+    case kNormal:
+        return GetPipeline(PipelineId::ObjectAlphaHdr);
+    case kAdd:
+        return GetPipeline(PipelineId::ObjectAddHdr);
+    case kShadow:
+        return GetPipeline(PipelineId::Shadow);
+    case kAdd_Bloom_Extract:
+        return GetPipeline(PipelineId::BloomExtractHdr);
+    case kAdd_Bloom_Downsample:
+        return GetPipeline(PipelineId::BloomDownsampleHdr);
+    case kAdd_Bloom_BlurH:
+        return GetPipeline(PipelineId::BloomBlurHHdr);
+    case kAdd_Bloom_BlurV:
+        return GetPipeline(PipelineId::BloomBlurVHdr);
+    case kAdd_ObjectPost_Composite:
+        return GetPipeline(PipelineId::ObjectPostCompositeHdr);
+    case kAdd_ObjectPost_OutlineAdd:
+        return GetPipeline(PipelineId::ObjectPostOutlineAddHdr);
+    case kAdd_ObjectPost_BloomAdd:
+        return GetPipeline(PipelineId::ObjectPostBloomAddHdr);
+    case kRandom:
+        return GetPipeline(PipelineId::RandomHdr);
+    case kAdd_SSAO_Resolve:
+        return GetPipeline(PipelineId::SsaoResolve);
+    case kAdd_SSAO_Denoise:
+        return GetPipeline(PipelineId::SsaoDenoise);
+    case kAdd_SSR_Resolve:
+        return GetPipeline(PipelineId::SsrResolveHdr);
+    case kAdd_SSR_Denoise:
+        return GetPipeline(PipelineId::SsrDenoiseHdr);
+    case kAdd_MotionVector_Resolve:
+        return GetPipeline(PipelineId::MotionVectorResolve);
+    case kAdd_Temporal_Resolve:
+        return GetPipeline(PipelineId::TemporalResolve);
+    case kAdd_Phosphor_Persistence:
+        return GetPipeline(PipelineId::PhosphorPersistence);
+    default:
+        return GetPipeline(PipelineId::ObjectNoneHdr);
+    }
+}
 
 void PipelineLibrary::Initialize(DirectXCommon* dxCommon)
 {
@@ -59,62 +256,7 @@ void PipelineLibrary::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool dou
     case PostEffect:
         pso.root_.InitializeForPostEffect();
         pso.vsFilePath_ = ResourcePaths::EngineShader(L"FullScreen.VS.hlsl");
-        switch (pso.postEffectType_) {
-        case Bloom_Extract:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"BloomExtract.PS.hlsl");
-            break;
-        case Bloom_Downsample:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"BloomDownsample.PS.hlsl");
-            break;
-        case Bloom_BlurH:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"BloomBlurH.PS.hlsl");
-            break;
-        case Bloom_BlurV:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"BloomBlurV.PS.hlsl");
-            break;
-        case Gaussian_Filter:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"GaussianFilter.PS.hlsl");
-            break;
-        case Bloom_Composite:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"Composite.PS.hlsl");
-            break;
-        case ObjectPost_Composite:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"ObjectPostComposite.PS.hlsl");
-            break;
-        case ObjectPost_OutlineAdd:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"ObjectPostOutlineAdd.PS.hlsl");
-            break;
-        case ObjectPost_BloomAdd:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"ObjectPostBloomAdd.PS.hlsl");
-            break;
-        case Random:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"Random.PS.hlsl");
-            break;
-        case SSAO_Resolve:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"SSAOResolve.PS.hlsl");
-            break;
-        case SSAO_Denoise:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"SSAODenoise.PS.hlsl");
-            break;
-        case SSR_Resolve:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"SSRResolve.PS.hlsl");
-            break;
-        case SSR_Denoise:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"SSRDenoise.PS.hlsl");
-            break;
-        case MotionVector_Resolve:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"MotionVectorResolve.PS.hlsl");
-            break;
-        case Temporal_Resolve:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"TemporalResolve.PS.hlsl");
-            break;
-        case Phosphor_Persistence:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"PhosphorPersistence.PS.hlsl");
-            break;
-        case Crt_Present:
-            pso.psFilePath_ = ResourcePaths::EngineShader(L"CrtPresent.PS.hlsl");
-            break;
-        }
+        pso.psFilePath_ = ResourcePaths::EngineShader(kPostEffectPixelShaders[pso.postEffectType_]);
         break;
     case Trail:
         pso.root_.InitializeForTrail(); // 上で作った関数
@@ -298,24 +440,17 @@ void PipelineLibrary::CreateShaderCommon(PSO& pso, BlendMode blendMode, bool dou
         pso.graphicsDesc_.NumRenderTargets = 3;
         pso.graphicsDesc_.RTVFormats[1] = kNormalBufferFormat;
         pso.graphicsDesc_.RTVFormats[2] = kMaterialBufferFormat;
-        pso.graphicsDesc_.BlendState.RenderTarget[1].BlendEnable = FALSE;
-        pso.graphicsDesc_.BlendState.RenderTarget[1].SrcBlend = D3D12_BLEND_ONE;
-        pso.graphicsDesc_.BlendState.RenderTarget[1].DestBlend = D3D12_BLEND_ZERO;
-        pso.graphicsDesc_.BlendState.RenderTarget[1].BlendOp = D3D12_BLEND_OP_ADD;
-        pso.graphicsDesc_.BlendState.RenderTarget[1].SrcBlendAlpha = D3D12_BLEND_ONE;
-        pso.graphicsDesc_.BlendState.RenderTarget[1].DestBlendAlpha = D3D12_BLEND_ZERO;
-        pso.graphicsDesc_.BlendState.RenderTarget[1].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-        pso.graphicsDesc_.BlendState.RenderTarget[1].RenderTargetWriteMask =
-            (blendMode == kNone && pso.shaderType_ != Skybox) ? D3D12_COLOR_WRITE_ENABLE_ALL : 0;
-        pso.graphicsDesc_.BlendState.RenderTarget[2].BlendEnable = FALSE;
-        pso.graphicsDesc_.BlendState.RenderTarget[2].SrcBlend = D3D12_BLEND_ONE;
-        pso.graphicsDesc_.BlendState.RenderTarget[2].DestBlend = D3D12_BLEND_ZERO;
-        pso.graphicsDesc_.BlendState.RenderTarget[2].BlendOp = D3D12_BLEND_OP_ADD;
-        pso.graphicsDesc_.BlendState.RenderTarget[2].SrcBlendAlpha = D3D12_BLEND_ONE;
-        pso.graphicsDesc_.BlendState.RenderTarget[2].DestBlendAlpha = D3D12_BLEND_ZERO;
-        pso.graphicsDesc_.BlendState.RenderTarget[2].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-        pso.graphicsDesc_.BlendState.RenderTarget[2].RenderTargetWriteMask =
-            (blendMode == kNone && pso.shaderType_ != Skybox) ? D3D12_COLOR_WRITE_ENABLE_ALL : 0;
+        for (const int target : {1, 2}) {
+            D3D12_RENDER_TARGET_BLEND_DESC& blend = pso.graphicsDesc_.BlendState.RenderTarget[target];
+            blend.BlendEnable = FALSE;
+            blend.SrcBlend = D3D12_BLEND_ONE;
+            blend.DestBlend = D3D12_BLEND_ZERO;
+            blend.BlendOp = D3D12_BLEND_OP_ADD;
+            blend.SrcBlendAlpha = D3D12_BLEND_ONE;
+            blend.DestBlendAlpha = D3D12_BLEND_ZERO;
+            blend.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+            blend.RenderTargetWriteMask = (blendMode == kNone && pso.shaderType_ != Skybox) ? D3D12_COLOR_WRITE_ENABLE_ALL : 0;
+        }
     }
     pso.graphicsDesc_.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     pso.graphicsDesc_.SampleDesc.Count = 1;
@@ -368,196 +503,20 @@ bool PipelineLibrary::InitializeStep()
 
 InitializationTask PipelineLibrary::BuildPipelines()
 {
-    objectPSO_None.shaderType_ = Object;
-    objectPSO_Alpha.shaderType_ = Object;
-    objectPSO_Add.shaderType_ = Object;
-    objectPSO_None_HDR.shaderType_ = Object;
-    objectPSO_Alpha_HDR.shaderType_ = Object;
-    objectPSO_Add_HDR.shaderType_ = Object;
-    psoParticle_.shaderType_ = Particle;
-    psoModelParticle_.shaderType_ = ModelParticle;
-    psoModelParticle_HDR.shaderType_ = ModelParticle;
-    psoComputeParticle_.shaderType_ = ComputeParticle;
-    psoScanParticle_.shaderType_ = ComputeParticle;
-    psoCompactParticle_.shaderType_ = ComputeParticle;
-    psoInitializeParticle_.shaderType_ = ComputeParticle;
-    psoEmitParticle_.shaderType_ = ComputeParticle;
-    psoEmitBatchParticle_.shaderType_ = ComputeParticle;
-    bloomPSO.shaderType_ = PostEffect;
-    blurHPSO.shaderType_ = PostEffect;
-    blurVPSO.shaderType_ = PostEffect;
-    bloomPSO_HDR.shaderType_ = PostEffect;
-    blurHPSO_HDR.shaderType_ = PostEffect;
-    blurVPSO_HDR.shaderType_ = PostEffect;
-    gaussianFilterPSO.shaderType_ = PostEffect;
-    compositePSO.shaderType_ = PostEffect;
-    objectPostCompositePSO.shaderType_ = PostEffect;
-    objectPostOutlineAddPSO.shaderType_ = PostEffect;
-    objectPostBloomAddPSO.shaderType_ = PostEffect;
-    randomPSO.shaderType_ = PostEffect;
-    ssaoResolvePSO.shaderType_ = PostEffect;
-    ssaoDenoisePSO.shaderType_ = PostEffect;
-    ssrResolvePSO.shaderType_ = PostEffect;
-    ssrDenoisePSO.shaderType_ = PostEffect;
-    motionVectorResolvePSO.shaderType_ = PostEffect;
-    temporalResolvePSO.shaderType_ = PostEffect;
-    phosphorPersistencePSO.shaderType_ = PostEffect;
-    crtPresentPSO.shaderType_ = PostEffect;
-    objectPostCompositePSO_HDR.shaderType_ = PostEffect;
-    objectPostOutlineAddPSO_HDR.shaderType_ = PostEffect;
-    objectPostBloomAddPSO_HDR.shaderType_ = PostEffect;
-    randomPSO_HDR.shaderType_ = PostEffect;
-    ssrResolvePSO_HDR.shaderType_ = PostEffect;
-    ssrDenoisePSO_HDR.shaderType_ = PostEffect;
-    downsamplePSO.shaderType_ = PostEffect;
-    downsamplePSO_HDR.shaderType_ = PostEffect;
-    shadowPSO.shaderType_ = Shadow;
-    trailPSO.shaderType_ = Trail;
-    trailPSO_HDR.shaderType_ = Trail;
-    hudRectPSO.shaderType_ = Trail;
-    skyboxPSO.shaderType_ = Skybox;
-    skyboxPSO_HDR.shaderType_ = Skybox;
-    skinningPSO.shaderType_ = Skinning;
-    skinningDoubleSidedPSO.shaderType_ = Skinning;
-    skinningPSO_HDR.shaderType_ = Skinning;
-    skinningDoubleSidedPSO_HDR.shaderType_ = Skinning;
-    skinningShadowPSO.shaderType_ = SkinningShadow;
-
-    bloomPSO.postEffectType_ = Bloom_Extract;
-    blurHPSO.postEffectType_ = Bloom_BlurH;
-    blurVPSO.postEffectType_ = Bloom_BlurV;
-    bloomPSO_HDR.postEffectType_ = Bloom_Extract;
-    blurHPSO_HDR.postEffectType_ = Bloom_BlurH;
-    blurVPSO_HDR.postEffectType_ = Bloom_BlurV;
-    gaussianFilterPSO.postEffectType_ = Gaussian_Filter;
-    compositePSO.postEffectType_ = Bloom_Composite;
-    objectPostCompositePSO.postEffectType_ = ObjectPost_Composite;
-    objectPostOutlineAddPSO.postEffectType_ = ObjectPost_OutlineAdd;
-    objectPostBloomAddPSO.postEffectType_ = ObjectPost_BloomAdd;
-    randomPSO.postEffectType_ = Random;
-    ssaoResolvePSO.postEffectType_ = SSAO_Resolve;
-    ssaoDenoisePSO.postEffectType_ = SSAO_Denoise;
-    ssrResolvePSO.postEffectType_ = SSR_Resolve;
-    ssrDenoisePSO.postEffectType_ = SSR_Denoise;
-    motionVectorResolvePSO.postEffectType_ = MotionVector_Resolve;
-    temporalResolvePSO.postEffectType_ = Temporal_Resolve;
-    phosphorPersistencePSO.postEffectType_ = Phosphor_Persistence;
-    crtPresentPSO.postEffectType_ = Crt_Present;
-    objectPostCompositePSO_HDR.postEffectType_ = ObjectPost_Composite;
-    objectPostOutlineAddPSO_HDR.postEffectType_ = ObjectPost_OutlineAdd;
-    objectPostBloomAddPSO_HDR.postEffectType_ = ObjectPost_BloomAdd;
-    randomPSO_HDR.postEffectType_ = Random;
-    ssrResolvePSO_HDR.postEffectType_ = SSR_Resolve;
-    ssrDenoisePSO_HDR.postEffectType_ = SSR_Denoise;
-    downsamplePSO.postEffectType_ = Bloom_Downsample;
-    downsamplePSO_HDR.postEffectType_ = Bloom_Downsample;
-
-    CreateShaderCommon(objectPSO_None, kNone);
-    CreateShaderCommon(objectPSO_Alpha, kNormal);
-    CreateShaderCommon(objectPSO_Add, kAdd);
-    co_await std::suspend_always{};
-    CreateShaderCommon(objectPSO_None_HDR, kNone, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(objectPSO_Alpha_HDR, kNormal, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(objectPSO_Add_HDR, kAdd, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(psoParticle_, kAdd);
-    co_await std::suspend_always{};
-    CreateShaderCommon(psoModelParticle_, kAdd);
-    co_await std::suspend_always{};
-    CreateShaderCommon(psoModelParticle_HDR, kAdd, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateComputeShaderCommon(psoInitializeParticle_, ResourcePaths::EngineShader(L"ParticleInitialize.CS.hlsl"));
-    co_await std::suspend_always{};
-    CreateComputeShaderCommon(psoEmitParticle_, ResourcePaths::EngineShader(L"ParticleEmit.CS.hlsl"));
-    co_await std::suspend_always{};
-    CreateComputeShaderCommon(psoEmitBatchParticle_, ResourcePaths::EngineShader(L"ParticleEmitBatch.CS.hlsl"));
-    co_await std::suspend_always{};
-    CreateComputeShaderCommon(psoComputeParticle_, ResourcePaths::EngineShader(L"ParticleUpdate.CS.hlsl"));
-    co_await std::suspend_always{};
-    CreateComputeShaderCommon(psoScanParticle_, ResourcePaths::EngineShader(L"ParticleScan.CS.hlsl"));
-    co_await std::suspend_always{};
-    CreateComputeShaderCommon(psoCompactParticle_, ResourcePaths::EngineShader(L"ParticleCompact.CS.hlsl"));
-    co_await std::suspend_always{};
-    CreateShaderCommon(bloomPSO, kNone);
-    co_await std::suspend_always{};
-    CreateShaderCommon(bloomPSO_HDR, kNone, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(blurHPSO, kNone);
-    co_await std::suspend_always{};
-    CreateShaderCommon(blurHPSO_HDR, kNone, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(blurVPSO, kNone);
-    co_await std::suspend_always{};
-    CreateShaderCommon(blurVPSO_HDR, kNone, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(gaussianFilterPSO, kNone);
-    co_await std::suspend_always{};
-    CreateShaderCommon(compositePSO, kAdd);
-    co_await std::suspend_always{};
-    CreateShaderCommon(objectPostCompositePSO, kNormal);
-    co_await std::suspend_always{};
-    CreateShaderCommon(objectPostOutlineAddPSO, kAdd);
-    co_await std::suspend_always{};
-    CreateShaderCommon(objectPostBloomAddPSO, kAdd);
-    co_await std::suspend_always{};
-    CreateShaderCommon(objectPostCompositePSO_HDR, kNormal, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(objectPostOutlineAddPSO_HDR, kAdd, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(objectPostBloomAddPSO_HDR, kAdd, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(randomPSO, kNone);
-    co_await std::suspend_always{};
-    CreateShaderCommon(randomPSO_HDR, kNone, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(ssaoResolvePSO, kNone, false, kAmbientOcclusionBufferFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(ssaoDenoisePSO, kNone, false, kAmbientOcclusionBufferFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(ssrResolvePSO, kNone);
-    co_await std::suspend_always{};
-    CreateShaderCommon(ssrResolvePSO_HDR, kNone, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(ssrDenoisePSO, kNone);
-    co_await std::suspend_always{};
-    CreateShaderCommon(ssrDenoisePSO_HDR, kNone, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(motionVectorResolvePSO, kNone, false, kMotionVectorBufferFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(temporalResolvePSO, kNone, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(phosphorPersistencePSO, kNone, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(crtPresentPSO, kNone);
-    co_await std::suspend_always{};
-    CreateShaderCommon(downsamplePSO, kNone);
-    co_await std::suspend_always{};
-    CreateShaderCommon(downsamplePSO_HDR, kNone, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(shadowPSO, kShadow);
-    co_await std::suspend_always{};
-    CreateShaderCommon(trailPSO, kAdd);
-    co_await std::suspend_always{};
-    CreateShaderCommon(trailPSO_HDR, kAdd, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(hudRectPSO, kNormal);
-    co_await std::suspend_always{};
-    CreateShaderCommon(skyboxPSO, kNone);
-    co_await std::suspend_always{};
-    CreateShaderCommon(skyboxPSO_HDR, kNone, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(skinningPSO, kNone);
-    co_await std::suspend_always{};
-    CreateShaderCommon(skinningDoubleSidedPSO, kNone, true);
-    co_await std::suspend_always{};
-    CreateShaderCommon(skinningPSO_HDR, kNone, false, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(skinningDoubleSidedPSO_HDR, kNone, true, kSceneRenderTargetFormat);
-    co_await std::suspend_always{};
-    CreateShaderCommon(skinningShadowPSO, kShadow);
-    co_await std::suspend_always{};
+    for (size_t index = 0; index < std::size(kPipelineSpecs); ++index) {
+        const PipelineSpec& spec = kPipelineSpecs[index];
+        PSO& pso = GetPipeline(spec.id);
+        pso.shaderType_ = spec.shaderType;
+        pso.postEffectType_ = spec.postEffectType;
+        if (spec.computeShader) {
+            CreateComputeShaderCommon(pso, ResourcePaths::EngineShader(spec.computeShader));
+        } else {
+            CreateShaderCommon(pso, spec.blendMode, spec.doubleSided, spec.format);
+        }
+        if (index + 1 >= kPipelinesInFirstStep) {
+            co_await std::suspend_always{};
+        }
+    }
 }
 
 bool PipelineLibrary::InitializeTrailSceneNoDepthPipeline()
@@ -565,10 +524,11 @@ bool PipelineLibrary::InitializeTrailSceneNoDepthPipeline()
     if (trailSceneNoDepthPipeline_) {
         return true;
     }
-    if (!device_ || !trailPSO_HDR.graphicsState_) {
+    const PSO& source = GetPipeline(PipelineId::TrailHdr);
+    if (!device_ || !source.graphicsState_) {
         return false;
     }
-    auto description = trailPSO_HDR.graphicsDesc_;
+    auto description = source.graphicsDesc_;
     description.DepthStencilState.DepthEnable = FALSE;
     description.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
     description.DSVFormat = DXGI_FORMAT_UNKNOWN;

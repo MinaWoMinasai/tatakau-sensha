@@ -43,9 +43,9 @@ void NeonGridRenderer::DrawRange(uint32_t startVertex, uint32_t vertexCount, con
     *viewProjectionData_ = viewProjection;
 
     auto commandList = dxCommon_->GetList();
-    commandList->SetGraphicsRootSignature(dxCommon_->GetPSOTrailForScene().root_.GetSignature().Get());
+    commandList->SetGraphicsRootSignature(dxCommon_->GetPipeline(myEngine::PipelineId::TrailHdr).root_.GetSignature().Get());
     auto* pipeline = noDepth || !dxCommon_->HasCurrentDSV() ? dxCommon_->GetTrailSceneNoDepthPipeline()
-                                                            : dxCommon_->GetPSOTrailForScene().graphicsState_.Get();
+                                                            : dxCommon_->GetPipeline(myEngine::PipelineId::TrailHdr).graphicsState_.Get();
     if (!pipeline) {
         return;
     }
@@ -70,7 +70,7 @@ void NeonGridRenderer::DrawRangeSolid(uint32_t startVertex, uint32_t vertexCount
     const bool hasDepth = dxCommon_->HasCurrentDSV();
     auto& pipeline = hdrFillPipelines_[hasDepth ? 1 : 0];
     if (!pipeline) {
-        auto description = dxCommon_->GetPSOTrailForScene().graphicsDesc_;
+        auto description = dxCommon_->GetPipeline(myEngine::PipelineId::TrailHdr).graphicsDesc_;
         description.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
         description.DepthStencilState.DepthEnable = hasDepth ? TRUE : FALSE;
         description.DSVFormat = hasDepth ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_UNKNOWN;
@@ -82,7 +82,7 @@ void NeonGridRenderer::DrawRangeSolid(uint32_t startVertex, uint32_t vertexCount
             return;
         }
     }
-    commandList->SetGraphicsRootSignature(dxCommon_->GetPSOTrailForScene().root_.GetSignature().Get());
+    commandList->SetGraphicsRootSignature(dxCommon_->GetPipeline(myEngine::PipelineId::TrailHdr).root_.GetSignature().Get());
     commandList->SetPipelineState(pipeline.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
@@ -101,7 +101,7 @@ bool NeonGridRenderer::InitializeSceneSolidPipeline()
         return false;
     }
     // HUD用のLDR PSOをHDR描画先へ転用せず、SceneのMRT形式とroot signatureを維持する。
-    auto description = dxCommon_->GetPSOTrailForScene().graphicsDesc_;
+    auto description = dxCommon_->GetPipeline(myEngine::PipelineId::TrailHdr).graphicsDesc_;
     description.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
     description.BlendState.RenderTarget[0].BlendEnable = FALSE;
     return SUCCEEDED(dxCommon_->GetDevice()->CreateGraphicsPipelineState(&description, IID_PPV_ARGS(&sceneSolidPipeline_)));
@@ -114,7 +114,7 @@ void NeonGridRenderer::DrawRangeSceneSolid(uint32_t startVertex, uint32_t vertex
     }
     *viewProjectionData_ = viewProjection;
     auto list = dxCommon_->GetList();
-    list->SetGraphicsRootSignature(dxCommon_->GetPSOTrailForScene().root_.GetSignature().Get());
+    list->SetGraphicsRootSignature(dxCommon_->GetPipeline(myEngine::PipelineId::TrailHdr).root_.GetSignature().Get());
     list->SetPipelineState(sceneSolidPipeline_.Get());
     list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     list->IASetVertexBuffers(0, 1, &vertexBufferView_);

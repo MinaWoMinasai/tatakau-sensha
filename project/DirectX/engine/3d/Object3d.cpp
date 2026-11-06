@@ -164,7 +164,7 @@ void Object3d::Initialize()
 void Object3d::DrawSkinned(SkinnedModel& model)
 {
     auto commandList = object3dCommon_->GetDxCommon()->GetList();
-    auto& pso = object3dCommon_->GetDxCommon()->GetPSOSkinningForScene();
+    auto& pso = object3dCommon_->GetDxCommon()->GetPipeline(PipelineId::SkinningHdr);
     commandList->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
     commandList->SetPipelineState(pso.graphicsState_.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -192,7 +192,7 @@ void Object3d::DrawSkinned(SkinnedModel& model)
 void Object3d::DrawSkinnedShadow(SkinnedModel& model)
 {
     auto commandList = object3dCommon_->GetDxCommon()->GetList();
-    auto& pso = object3dCommon_->GetDxCommon()->GetPSOSkinningShadow();
+    auto& pso = object3dCommon_->GetDxCommon()->GetPipeline(PipelineId::SkinningShadow);
     commandList->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
     commandList->SetPipelineState(pso.graphicsState_.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

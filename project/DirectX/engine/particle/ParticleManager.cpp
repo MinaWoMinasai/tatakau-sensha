@@ -491,17 +491,17 @@ void ParticleManager::DispatchGpu(float deltaTime, const Matrix4x4& viewProjecti
     // 生存分の詰め直しとフリーリストへの返却は、不可分操作ではなくパーティクルの番号順で行う。
     // 不可分操作の順序はウェーブの実行順で実行ごとに変わり、加算合成の描画順が揺れて画素が1ずれるため。
     // 1. 寿命と物理を進め、グループごとの生存数・死亡数を数える
-    SetGpuParticleComputeRoot(dxCommon_->GetPSOComputeParticle());
+    SetGpuParticleComputeRoot(dxCommon_->GetPipeline(PipelineId::ParticleUpdate));
     commandList->Dispatch(kUpdateGroupCount, 1, 1);
     AddUavBarrier({particleResource_.Get(), groupCountsResource_.Get()});
 
     // 2. グループごとの書き込み開始位置、InstanceCount、フリーリストの先頭を決める
-    SetGpuParticleComputeRoot(dxCommon_->GetPSOScanParticle());
+    SetGpuParticleComputeRoot(dxCommon_->GetPipeline(PipelineId::ParticleScan));
     commandList->Dispatch(1, 1, 1);
     AddUavBarrier({groupCountsResource_.Get(), drawArgsResource_.Get(), freeListIndexResource_.Get()});
 
     // 3. 描画データを詰め、寿命が尽きたものをフリーリストへ返す
-    SetGpuParticleComputeRoot(dxCommon_->GetPSOCompactParticle());
+    SetGpuParticleComputeRoot(dxCommon_->GetPipeline(PipelineId::ParticleCompact));
     commandList->Dispatch(kUpdateGroupCount, 1, 1);
     AddUavBarrier({particleResource_.Get(), gpuInstancingResource_.Get(), drawArgsResource_.Get(), freeListIndexResource_.Get(),
                    freeListResource_.Get()});
@@ -536,7 +536,7 @@ void ParticleManager::InitializeGpuParticles()
 
     srvManager_->PreDraw();
     auto commandList = dxCommon_->GetList();
-    auto& pso = dxCommon_->GetPSOInitializeParticle();
+    auto& pso = dxCommon_->GetPipeline(PipelineId::ParticleInitialize);
     commandList->SetComputeRootSignature(pso.root_.GetSignature().Get());
     commandList->SetPipelineState(pso.computeState_.Get());
     commandList->SetComputeRootConstantBufferView(0, initializeConfigResource_->GetGPUVirtualAddress());
@@ -566,7 +566,7 @@ uint32_t ParticleManager::DispatchGpuEmitters()
         *config = {0.0f, kMaxInstance, gpuTime_, count, emitCount};
         emitterConfigResource_->Unmap(0, nullptr);
 
-        auto& pso = dxCommon_->GetPSOEmitParticle();
+        auto& pso = dxCommon_->GetPipeline(PipelineId::ParticleEmit);
         commandList->SetComputeRootSignature(pso.root_.GetSignature().Get());
         commandList->SetPipelineState(pso.computeState_.Get());
         commandList->SetComputeRootConstantBufferView(0, emitterConfigResource_->GetGPUVirtualAddress());
@@ -591,7 +591,7 @@ uint32_t ParticleManager::DispatchGpuEmitters()
         *config = {0.0f, kMaxInstance, gpuTime_, count, emitCount};
         batchConfigResource_->Unmap(0, nullptr);
 
-        auto& pso = dxCommon_->GetPSOEmitBatchParticle();
+        auto& pso = dxCommon_->GetPipeline(PipelineId::ParticleEmitBatch);
         commandList->SetComputeRootSignature(pso.root_.GetSignature().Get());
         commandList->SetPipelineState(pso.computeState_.Get());
         commandList->SetComputeRootConstantBufferView(0, batchConfigResource_->GetGPUVirtualAddress());
@@ -1169,7 +1169,7 @@ void ParticleManager::Draw()
     }
 
     auto commandList = dxCommon_->GetList();
-    auto& pso = dxCommon_->GetPSOModelParticleForScene(); // SceneRT向けのModelParticlePSOを使用
+    auto& pso = dxCommon_->GetPipeline(PipelineId::ModelParticleHdr); // SceneRT向けのModelParticlePSOを使用
     commandList->SetGraphicsRootSignature(pso.root_.GetSignature().Get());
     commandList->SetPipelineState(pso.graphicsState_.Get());
 
