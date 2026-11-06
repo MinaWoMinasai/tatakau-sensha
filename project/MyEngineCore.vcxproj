@@ -48,9 +48,9 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="DirectX\engine\common\RingManager.cpp" />
-    <ClCompile Include="DirectX\engine\common\TrailInstance.cpp" />
-    <ClCompile Include="DirectX\engine\common\TrailManager.cpp">
+    <ClCompile Include="DirectX\engine\trail\RingManager.cpp" />
+    <ClCompile Include="DirectX\engine\trail\TrailInstance.cpp" />
+    <ClCompile Include="DirectX\engine\trail\TrailManager.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
     </ClCompile>
     <ClCompile Include="DirectX\engine\2d\TextLabel.cpp" />
@@ -61,7 +61,7 @@
     <ClCompile Include="DirectX\engine\postEffect\ObjectPostEffect.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\PostEffect.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\RenderTexture.cpp" />
-    <ClCompile Include="DirectX\engine\common\RtvManager.cpp" />
+    <ClCompile Include="DirectX\engine\graphics\RtvManager.cpp" />
     <ClCompile Include="DirectX\engine\debugCamera\Camera.cpp" />
     <ClCompile Include="DirectX\engine\debugCamera\MapCamera.cpp" />
     <ClCompile Include="DirectX\engine\audio\Audio.cpp">
@@ -76,15 +76,15 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\DirectXCommon.cpp">
+    <ClCompile Include="DirectX\engine\graphics\DirectXCommon.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\ShaderCompiler.cpp">
+    <ClCompile Include="DirectX\engine\graphics\ShaderCompiler.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\PipelineLibrary.cpp">
+    <ClCompile Include="DirectX\engine\graphics\PipelineLibrary.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
@@ -121,7 +121,7 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\InputDesc.cpp">
+    <ClCompile Include="DirectX\engine\graphics\InputDesc.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
@@ -138,11 +138,11 @@
     <ClCompile Include="game\runtime\SceneRegistry.cpp" />
     <ClCompile Include="game\scene\SceneFactory.cpp" />
     <ClCompile Include="game\scene\SceneManager.cpp" />
-    <ClCompile Include="DirectX\engine\common\Resource.cpp">
+    <ClCompile Include="DirectX\engine\graphics\Resource.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\Root.cpp">
+    <ClCompile Include="DirectX\engine\graphics\Root.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
@@ -158,11 +158,11 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\Texture.cpp">
+    <ClCompile Include="DirectX\engine\graphics\Texture.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\WinApp.cpp">
+    <ClCompile Include="DirectX\engine\platform\WinApp.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
@@ -177,17 +177,17 @@
     <ClCompile Include="DirectX\engine\3d\ModelPrimitives.cpp" />
     <ClCompile Include="DirectX\engine\3d\ModelTangents.cpp" />
     <ClCompile Include="DirectX\engine\3d\ModelManager.cpp" />
-    <ClCompile Include="DirectX\engine\common\SrvManager.cpp" />
+    <ClCompile Include="DirectX\engine\graphics\SrvManager.cpp" />
     <ClCompile Include="DirectX\engine\particle\ParticleManager.cpp" />
-    <ClCompile Include="DirectX\engine\common\ShadowMap.cpp" />
+    <ClCompile Include="DirectX\engine\graphics\ShadowMap.cpp" />
     <ClCompile Include="DirectX\engine\postEffect\Shadow.cpp" />
     <ClCompile Include="DirectX\engine\3d\Skybox.cpp" />
     <ClInclude Include="DirectX\engine\common\BackgroundLoader.h" />
-    <ClInclude Include="DirectX\engine\common\ScopedComApartment.h" />
+    <ClInclude Include="DirectX\engine\platform\ScopedComApartment.h" />
     <ClInclude Include="DirectX\engine\common\InitializationTask.h" />
-    <ClInclude Include="DirectX\engine\common\RingManager.h" />
-    <ClInclude Include="DirectX\engine\common\TrailInstance.h" />
-    <ClInclude Include="DirectX\engine\common\TrailManager.h" />
+    <ClInclude Include="DirectX\engine\trail\RingManager.h" />
+    <ClInclude Include="DirectX\engine\trail\TrailInstance.h" />
+    <ClInclude Include="DirectX\engine\trail\TrailManager.h" />
     <ClInclude Include="DirectX\engine\2d\TextLabel.h" />
     <ClInclude Include="DirectX\engine\2d\TextRenderer.h" />
     <ClInclude Include="DirectX\engine\postEffect\Bloom.h" />
@@ -198,16 +198,16 @@
     <ClInclude Include="DirectX\engine\postEffect\PostEffect.h" />
     <ClInclude Include="DirectX\engine\postEffect\PostEffectSettings.h" />
     <ClInclude Include="DirectX\engine\postEffect\RenderTexture.h" />
-    <ClInclude Include="DirectX\engine\common\RtvManager.h" />
+    <ClInclude Include="DirectX\engine\graphics\RtvManager.h" />
     <ClInclude Include="DirectX\engine\debugCamera\Camera.h" />
     <ClInclude Include="DirectX\engine\debugCamera\MapCamera.h" />
     <ClInclude Include="DirectX\engine\audio\Audio.h" />
     <ClInclude Include="DirectX\engine\calc\Calculation.h" />
     <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h" />
-    <ClInclude Include="DirectX\engine\common\DirectXCommon.h" />
-    <ClInclude Include="DirectX\engine\common\ShaderCompiler.h" />
-    <ClInclude Include="DirectX\engine\common\PipelineLibrary.h" />
-    <ClInclude Include="DirectX\engine\common\RenderTargetFormats.h" />
+    <ClInclude Include="DirectX\engine\graphics\DirectXCommon.h" />
+    <ClInclude Include="DirectX\engine\graphics\ShaderCompiler.h" />
+    <ClInclude Include="DirectX\engine\graphics\PipelineLibrary.h" />
+    <ClInclude Include="DirectX\engine\graphics\RenderTargetFormats.h" />
     <ClInclude Include="DirectX\engine\dumpClass\Dump.h" />
     <ClInclude Include="DirectX\engine\easing\Easing.h" />
     <ClInclude Include="externals\imgui\imconfig.h">
@@ -235,12 +235,12 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="DirectX\engine\input\Input.h" />
-    <ClInclude Include="DirectX\engine\common\InputDesc.h" />
+    <ClInclude Include="DirectX\engine\graphics\InputDesc.h" />
     <ClInclude Include="DirectX\engine\common\LogWrite.h" />
     <ClInclude Include="DirectX\engine\common\ResourcePaths.h" />
     <ClInclude Include="DirectX\engine\common\Utf8Path.h" />
-    <ClInclude Include="DirectX\engine\common\Resource.h" />
-    <ClInclude Include="DirectX\engine\common\Root.h" />
+    <ClInclude Include="DirectX\engine\graphics\Resource.h" />
+    <ClInclude Include="DirectX\engine\graphics\Root.h" />
     <ClInclude Include="DirectX\engine\2d\DynamicTexture.h" />
     <ClInclude Include="DirectX\engine\ui\GlyphAtlas.h" />
     <ClInclude Include="DirectX\engine\ui\UiBatch.h" />
@@ -257,8 +257,8 @@
     <ClInclude Include="DirectX\engine\struct\BlendMode.h" />
     <ClInclude Include="DirectX\engine\struct\ParticleTypes.h" />
     <ClInclude Include="DirectX\engine\struct\WaveFileTypes.h" />
-    <ClInclude Include="DirectX\engine\common\Texture.h" />
-    <ClInclude Include="DirectX\engine\common\WinApp.h" />
+    <ClInclude Include="DirectX\engine\graphics\Texture.h" />
+    <ClInclude Include="DirectX\engine\platform\WinApp.h" />
     <ClInclude Include="DirectX\engine\2d\TextureManager.h" />
     <ClInclude Include="DirectX\engine\3d\Object3dCommon.h" />
     <ClInclude Include="DirectX\engine\3d\Object3d.h" />
@@ -268,7 +268,7 @@
     <ClInclude Include="DirectX\engine\3d\Model.h" />
     <ClInclude Include="DirectX\engine\3d\ModelInternal.h" />
     <ClInclude Include="DirectX\engine\3d\ModelManager.h" />
-    <ClInclude Include="DirectX\engine\common\SrvManager.h" />
+    <ClInclude Include="DirectX\engine\graphics\SrvManager.h" />
     <ClInclude Include="game\runtime\Application.h" />
     <ClInclude Include="game\runtime\ApplicationMain.h" />
     <ClInclude Include="game\runtime\EntityScene.h" />
@@ -279,7 +279,7 @@
     <ClInclude Include="game\runtime\SceneRegistry.h" />
     <ClInclude Include="game\scene\SceneManager.h" />
     <ClInclude Include="DirectX\engine\particle\ParticleManager.h" />
-    <ClInclude Include="DirectX\engine\common\ShadowMap.h" />
+    <ClInclude Include="DirectX\engine\graphics\ShadowMap.h" />
     <ClInclude Include="game\scene\IScene.h" />
     <ClInclude Include="game\scene\SceneFactory.h" />
     <ClInclude Include="DirectX\engine\postEffect\Shadow.h" />
@@ -290,11 +290,11 @@
     <ClCompile Include="DirectX\engine\common\RuntimeProfiler.cpp" />
     <ClInclude Include="DirectX\engine\common\RuntimeProfiler.h" />
     <ClInclude Include="DirectX\engine\common\StartupTrace.h" />
-    <ClInclude Include="DirectX\engine\common\ShaderDiskCache.h" />
+    <ClInclude Include="DirectX\engine\graphics\ShaderDiskCache.h" />
     <ClInclude Include="DirectX\engine\2d\GeneratedTextureCache.h" />
     <ClInclude Include="DirectX\engine\common\FramePacer.h" />
     <ClInclude Include="DirectX\engine\common\FixedTimestep.h" />
-    <ClInclude Include="DirectX\engine\common\TrailStressFixture.h" />
+    <ClInclude Include="DirectX\engine\trail\TrailStressFixture.h" />
     <ClInclude Include="DirectX\engine\common\StringUtils.h" />
   </ItemGroup>
   <ItemGroup>
