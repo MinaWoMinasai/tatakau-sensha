@@ -540,7 +540,7 @@
     <ClCompile Include="game\ui\session\SurvivorDamageNumbers.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="game\ui\session\SurvivorInventoryHud.cpp">
+    <ClCompile Include="game\ui\session\SurvivorItemScreen.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\ui\session\SurvivorWeaponHud.cpp">
@@ -589,6 +589,9 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\run\session\SurvivorRunBarrier.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunScreens.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\render\settings\RunVisualSettings.cpp">
@@ -703,7 +706,7 @@
     <ClInclude Include="game\ui\session\SurvivorDamageNumbers.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="game\ui\session\SurvivorInventoryHud.h">
+    <ClInclude Include="game\ui\session\SurvivorItemScreen.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\ui\session\SurvivorWeaponHud.h">

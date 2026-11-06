@@ -64,15 +64,32 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             RequestCapture("base");
             autoBaseState_ = 1;
         } else if (autoBaseState_ == 1) {
+            // マウスの操作を実際の道筋で試す。drag は押して動かして放す、click はその場で押して放す。
+            auto drag = [this](const SurvivorItemScreen::Hit& from, const SurvivorItemScreen::Hit& to) {
+                const myEngine::Vector2 a = itemScreen_.CenterOf(from), b = itemScreen_.CenterOf(to);
+                DriveScreenPointer(a, false, false, 0);
+                DriveScreenPointer(a, true, false, 0);
+                DriveScreenPointer(b, true, false, 0);
+                DriveScreenPointer(b, false, false, 0);
+            };
+            auto click = [this](const SurvivorItemScreen::Hit& hit) {
+                const myEngine::Vector2 a = itemScreen_.CenterOf(hit);
+                DriveScreenPointer(a, false, false, 0);
+                DriveScreenPointer(a, true, false, 0);
+                DriveScreenPointer(a, false, false, 0);
+            };
+            using Zone = SurvivorItemScreen::Zone;
             const std::array<int, survivor::kWeaponSlots> before = base_.equipped;
-            EquipFromBase(3, 2);
+            // 4つ目の武器を3つ目の枠へドラッグし、元の武器を戻す（入れ替えの確認）。
+            drag({Zone::Grid, 3}, {Zone::Card, 2});
             const bool swapped = base_.equipped[2] == 3;
-            EquipFromBase(before[2], 2);
+            drag({Zone::Grid, before[2]}, {Zone::Card, 2});
             autoBaseEquipOk_ = swapped && base_.equipped == before;
-            // 作る・進化：試しに素材とお金を足し（自動確認だけ。出撃の前に0へ戻す）、榴弾砲を作って、それをアンコモンへ進化させる。
-            // 払った分だけ減り、レア度が上がり、威力が上がるかを見る。
+            // 作る・進化：試しに素材とお金を足し（自動確認だけ。出撃の前に0へ戻す）、作る欄で榴弾砲をクリックし、武器の欄で作った物をクリックして
+            // 派生の木を開き、次の段をクリックする。払った分だけ減り、レア度が上がり、威力が上がるかを見る。
             base_.materials = {100, 100, 100, 20};
             base_.money = 5000;
+            click({Zone::Tab, 1});
             size_t recipe = 0;
             for (size_t i = 0; i < config_.crafting.recipes.size(); ++i) {
                 if (config_.crafting.recipes[i].key == "grenade") {
@@ -81,14 +98,17 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             }
             const size_t owned = base_.weapons.size();
             const survivor::CraftCost craftCost = config_.crafting.recipes[recipe].cost;
-            const bool crafted = CraftWeapon(recipe) && base_.weapons.size() == owned + 1 &&
-                                 base_.materials[0] == 100 - craftCost.materials[0] && base_.materials[2] == 100 - craftCost.materials[2];
+            click({Zone::Grid, static_cast<int>(recipe)});
+            const bool crafted = base_.weapons.size() == owned + 1 && base_.materials[0] == 100 - craftCost.materials[0] &&
+                                 base_.materials[2] == 100 - craftCost.materials[2];
             const std::array<int, survivor::kMaterialCount> materials = base_.materials;
             const int money = base_.money;
             const int crafted_index = static_cast<int>(base_.weapons.size()) - 1;
             const survivor::CraftCost evolveCost = survivor::EvolveCost(config_.crafting, "grenade", survivor::Rarity::Uncommon);
-            bool evolved = EvolveBaseWeapon(crafted_index) && base_.weapons.back().rarity == survivor::Rarity::Uncommon &&
-                           base_.money == money - evolveCost.money;
+            click({Zone::Tab, 0});
+            click({Zone::Grid, crafted_index});
+            click({Zone::Grid, 1});
+            bool evolved = base_.weapons.back().rarity == survivor::Rarity::Uncommon && base_.money == money - evolveCost.money;
             for (size_t i = 0; i < survivor::kMaterialCount; ++i) {
                 evolved = evolved && base_.materials[i] == materials[i] - evolveCost.materials[i];
             }
@@ -97,15 +117,15 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                                                                          config_.crafting)
                                                           .damageScale > config_.weapons[static_cast<size_t>(grenade)].damageScale;
             autoCraftOk_ = crafted && evolved && stronger;
-            basePage_ = 2;
-            baseCursor_ = crafted_index;
-            RefreshBaseScreen();
+            // 次の段に合わせて説明の札を出した画面を保存する。
+            DriveScreenPointer(itemScreen_.CenterOf({Zone::Grid, 2}), false, false, 0);
             RequestCapture("base_tree");
             autoBaseState_ = 2;
         } else if (autoBaseState_ == 2) {
             base_.materials = {};
             base_.money = 0;
             basePage_ = 0;
+            RefreshBaseScreen();
             // 3ステージを通す確認は、強い持ち物（装備の3つをレジェンド）で始める。
             if (autoFullRun_) {
                 for (int index : base_.equipped) {
@@ -114,7 +134,12 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                     }
                 }
             }
-            StartSortie();
+            {
+                const myEngine::Vector2 button = itemScreen_.CenterOf({SurvivorItemScreen::Zone::Button, 0});
+                DriveScreenPointer(button, false, false, 0);
+                DriveScreenPointer(button, true, false, 0);
+                DriveScreenPointer(button, false, false, 0);
+            }
             autoBaseState_ = 3;
         }
         return;
@@ -129,45 +154,82 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             RequestCapture("rest_room");
             autoRestState_ = 1;
         } else if (autoRestState_ == 1) {
-            int best = -1;
-            for (size_t i = 0; i < bag_.weapons.size(); ++i) {
-                const auto& weapon = config_.weapons[static_cast<size_t>(bag_.weapons[i].weapon)];
-                if (survivor::ChipSlots(weapon, bag_.weapons[i].rarity) > 0 &&
-                    (best < 0 || bag_.weapons[i].rarity > bag_.weapons[static_cast<size_t>(best)].rarity)) {
-                    best = static_cast<int>(i);
+            using Zone = SurvivorItemScreen::Zone;
+            auto drag = [this](const SurvivorItemScreen::Hit& from, const SurvivorItemScreen::Hit& to) {
+                const myEngine::Vector2 a = itemScreen_.CenterOf(from), b = itemScreen_.CenterOf(to);
+                DriveScreenPointer(a, false, false, 0);
+                DriveScreenPointer(a, true, false, 0);
+                DriveScreenPointer(b, true, false, 0);
+                DriveScreenPointer(b, false, false, 0);
+            };
+            auto rightClick = [this](const SurvivorItemScreen::Hit& hit) {
+                const myEngine::Vector2 a = itemScreen_.CenterOf(hit);
+                DriveScreenPointer(a, false, false, 0);
+                DriveScreenPointer(a, false, true, 0);
+            };
+            // 右の欄から、種類の合う最初のマスを探す（条件は Item を見る）。
+            auto find = [this](ScreenItem kind, auto condition) {
+                for (int i = 0;; ++i) {
+                    const SurvivorItemScreen::Item* item = itemScreen_.ItemAt({SurvivorItemScreen::Zone::Grid, i});
+                    if (!item) {
+                        return -1;
+                    }
+                    if (item->kind == static_cast<int>(kind) && condition(*item)) {
+                        return i;
+                    }
+                }
+            };
+            auto any = [](const SurvivorItemScreen::Item&) {
+                return true;
+            };
+            // チップ枠のある武器を3つ目の枠へドラッグする（レア度の高い順に並んでいるので最初の物。コモンならチップは付かない）。
+            const int weaponCell = find(ScreenItem::BagWeapon, any);
+            if (weaponCell >= 0) {
+                drag({Zone::Grid, weaponCell}, {Zone::Card, 2});
+            }
+            // チップを付ける → 右クリックで外す → もう一度付ける。
+            int chipCell = find(ScreenItem::BagChip, any);
+            if (chipCell >= 0) {
+                const int attaches = restAttaches_;
+                drag({Zone::Grid, chipCell}, {Zone::Card, 2});
+                if (restAttaches_ > attaches) {
+                    rightClick({Zone::Socket, 2, static_cast<int>(runSlots_[2].weapon.chips.size()) - 1});
+                    chipCell = find(ScreenItem::BagChip, any);
+                    drag({Zone::Grid, chipCell}, {Zone::Card, 2});
+                    // 3つ目の枠を構えて、チップが部品の段として効くかを見る。
+                    EquipWeapon(2);
+                    for (int level : partLevels_) {
+                        autoRestChipLevels_ += level;
+                    }
+                    RefreshRestRoom();
                 }
             }
-            if (best >= 0) {
-                RestEquip(best, 2);
+            // チップを1つ売り、素材を1種類売り、袋の武器を1つ Z で捨てる。
+            chipCell = find(ScreenItem::BagChip, any);
+            if (chipCell >= 0) {
+                rightClick({Zone::Grid, chipCell});
             }
-            if (!bag_.chips.empty() && RestAttach(0, 2)) {
-                RestDetach(2, runSlots_[2].weapon.chips.size() - 1);
-                RestAttach(static_cast<int>(bag_.chips.size()) - 1, 2);
-                // 3つ目の枠を構えて、チップが部品の段として効くかを見る。
-                EquipWeapon(2);
-                for (int level : partLevels_) {
-                    autoRestChipLevels_ += level;
-                }
+            const int materialCell = find(ScreenItem::Material, any);
+            if (materialCell >= 0) {
+                rightClick({Zone::Grid, materialCell});
             }
-            if (!bag_.chips.empty()) {
-                RestSell({RestRow::Kind::BagChip, 0});
+            const int discardCell = find(ScreenItem::BagWeapon, any);
+            if (discardCell >= 0) {
+                DriveScreenPointer(itemScreen_.CenterOf({Zone::Grid, discardCell}), false, false, 0);
+                DiscardHoveredItem();
             }
-            RestSell({RestRow::Kind::Material, static_cast<int>(survivor::MaterialId::Square)});
-            if (!bag_.weapons.empty()) {
-                RestDiscard({RestRow::Kind::BagWeapon, 0});
-            }
-            RefreshRestRoom();
+            // 最初のマスに合わせて、説明の札を出した画面を保存する。
+            DriveScreenPointer(itemScreen_.CenterOf({Zone::Grid, 0}), false, false, 0);
             RequestCapture("rest_room_after");
             autoRestState_ = 2;
         } else if (autoRestState_ == 2 || autoRestState_ == 4) {
-            // 3ステージを通す確認では、ボスステージまで「次へ進む」、ボスを倒した後の休憩部屋で帰る。
-            if (autoFullRun_ && !IsBossStage()) {
-                StartNextStage();
-                autoRestState_ = 4;
-            } else {
-                LeaveRestRoom();
-                autoRestState_ = 3;
-            }
+            // 3ステージを通す確認では、ボスステージまで「次へ進む」、ボスを倒した後の休憩部屋で帰る。ボタンを押して進む。
+            const bool next = autoFullRun_ && !IsBossStage();
+            const myEngine::Vector2 button = itemScreen_.CenterOf({SurvivorItemScreen::Zone::Button, next ? 1 : 0});
+            autoRestState_ = next ? 4 : 3;
+            DriveScreenPointer(button, false, false, 0);
+            DriveScreenPointer(button, true, false, 0);
+            DriveScreenPointer(button, false, false, 0);
         }
         return;
     }

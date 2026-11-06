@@ -7,7 +7,7 @@
 #include "game/ui/session/SurvivorChoiceHud.h"
 #include "game/ui/session/SurvivorLoadoutHud.h"
 #include "game/ui/session/SurvivorDamageNumbers.h"
-#include "game/ui/session/SurvivorInventoryHud.h"
+#include "game/ui/session/SurvivorItemScreen.h"
 #include "game/ui/session/SurvivorWeaponHud.h"
 #include <chrono>
 #include <optional>
@@ -21,23 +21,6 @@ namespace gameplay {
 /// 部品と選択（SurvivorRunLoadout.cpp）、結果画面と記録（SurvivorRunResult.cpp）、自動確認（SurvivorRunAutoTest.cpp）。
 class SurvivorRunController {
 public:
-    /// @brief 休憩部屋の右の欄の1行（選べる行と見出し）。
-    struct RestRow {
-        enum class Kind {
-            Leave,
-            Next,
-            Header,
-            BagWeapon,
-            BagChip,
-            SlotChip,
-            Material
-        };
-        Kind kind = Kind::Header;
-        // 袋の武器・チップの番号、素材の番号、付いているチップの番号。
-        int index = -1;
-        // 付いているチップの枠。
-        int slot = -1;
-    };
     explicit SurvivorRunController(GameWorld& world) : world_(world) {}
 
     /// @brief 試作の見た目と自機の設定を整え、試作用の部屋と湧き方の設定を読み込み、敵のいないアリーナから始める。
@@ -502,9 +485,40 @@ private:
     /// @brief 持ち物の画面を開く（文字はここで1回だけ作る）。
     void OpenInventory();
     void CloseInventory();
-    /// @brief 装備（武器3・シールド・補助）と袋の中身を、画面に出す形にする。
-    SurvivorInventoryHud::View BuildInventoryView() const;
-    SurvivorInventoryHud inventoryHud_;
+    // アイコン中心の画面（X4）。SurvivorRunScreens.cpp。持ち物・拠点・休憩部屋で共通に使う。
+    /// @brief マスの中身の種類（SurvivorItemScreen::Item::kind）。
+    enum class ScreenItem {
+        None,
+        BaseWeapon,
+        BagWeapon,
+        BagChip,
+        SlotChip,
+        Material,
+        Recipe,
+        TreeNode
+    };
+    /// @brief 読み込んでおくアイコンの画像の場所。
+    std::vector<std::string> ScreenIconPaths() const;
+    SurvivorItemScreen::Item MakeChipItem(const survivor::LootBag::Chip& chip, ScreenItem kind, int id, const std::string& actions) const;
+    /// @brief 武器の札を埋める。magazine が負なら、弾倉の残りと予備を出さない。removableFrom 番目以降のチップを外せる物にする。
+    void FillWeaponCard(SurvivorItemScreen::WeaponCard& card, size_t slot, const survivor::BaseWeapon& owned, const survivor::WeaponDefinition& weapon, int magazine,
+                        size_t removableFrom, const std::string& chipActions, const std::string& weaponActions) const;
+    /// @brief 上の列（お金・素材・弾）とシールド・補助を埋めた画面の土台。
+    SurvivorItemScreen::View BuildScreenBase(const std::array<int, survivor::kMaterialCount>& materials, int money, bool showAmmo) const;
+    /// @brief 袋の武器・チップ（actions なら素材も）をマスへ並べる。actions なら動かせる。
+    void AddBagToGrid(SurvivorItemScreen::View& view, bool actions) const;
+    void RefreshInventoryScreen();
+    /// @brief 画面で起きた事象（ドラッグ・クリック・右クリック・ボタン）を実行する。
+    void HandleScreenEvent(const SurvivorItemScreen::Event& event);
+    /// @brief 開いている画面のマウスとキーを見る（自動確認では何もしない）。
+    void UpdateScreenInput();
+    /// @brief マウスの状態を画面へ渡し、起きた事象を実行する（自動確認はこれを直接呼ぶ）。
+    void DriveScreenPointer(const myEngine::Vector2& mouse, bool leftDown, bool rightTrigger, int wheel);
+    /// @brief 休憩部屋で、マウスを合わせている物を捨てる。
+    void DiscardHoveredItem();
+    SurvivorItemScreen itemScreen_;
+    // チップを効かせる前の弾の威力（画面の数字に、構えている武器のチップの分が乗らないように）。
+    float baseBulletDamage_ = 1.0f;
     bool inventoryOpen_ = false;
     int inventoryOpens_ = 0;
 
@@ -525,8 +539,6 @@ private:
     bool CraftWeapon(size_t recipe);
     /// @brief 拠点の index 番目の武器を、派生の木の次の段（レア度を1つ上）へ進化させる（W7）。チップはそのまま。
     bool EvolveBaseWeapon(int index);
-    /// @brief 右の欄（Tab で武器・作る・派生の木）ごとに、↑↓ で選び、1〜3 で枠へ入れ、C で作り、U で進化させ、Enter で出撃する。
-    void UpdateBaseScreenInput();
     /// @brief 出撃する：枠を入れ直し、出撃の回数を足してセーブする。
     void StartSortie();
     /// @brief 拠点の画面の中身を作り直して画面に渡す。
@@ -536,10 +548,8 @@ private:
     survivor::BaseInventory base_;
     bool baseScreenOpen_ = false;
     int baseCursor_ = 0;
-    int baseScroll_ = 0;
-    // 右の欄（0 武器・1 作る・2 派生の木）と、作る欄で選んでいるレシピ。作った数・進化させた数（自動確認と記録）。
+    // 右の欄（0 武器・1 作る・2 派生の木）。baseCursor_ は派生の木で見ている武器。作った数・進化させた数（自動確認と記録）。
     int basePage_ = 0;
-    int craftCursor_ = 0;
     int crafted_ = 0;
     int evolved_ = 0;
     bool baseCommitted_ = false;
@@ -560,8 +570,6 @@ private:
     // 休憩部屋（W6・G6）。SurvivorRunRest.cpp。区画をクリアすると開き、袋の整理・売る・捨てる、袋の武器への付け替え、
     // チップの付け外しをして、「帰る」で結果画面へ（拠点へ持ち帰る）。「次へ進む」は3ステージの流れ（W8）で入る。開いている間は止まる。
     void OpenRestRoom();
-    /// @brief ↑↓ で選び、1〜3 で付け替える・付ける、X で売る、Z で捨てる・外す、Enter で帰る。
-    void UpdateRestRoomInput();
     /// @brief 行と画面を作り直す（選んでいる行が見えるように一覧を動かす）。
     void RefreshRestRoom();
     /// @brief 休憩部屋を閉じて結果画面へ（結果画面で拠点へ持ち帰ってセーブする）。
@@ -573,10 +581,10 @@ private:
     bool RestAttach(int bagChip, size_t slot);
     /// @brief slot 番目の枠の武器から、この出撃で付けた chip 番目のチップを外して袋へ戻す。
     bool RestDetach(size_t slot, size_t chip);
-    /// @brief 行の物を売る（素材は全部）。売った額を返す（売れなければ0）。
-    int RestSell(const RestRow& row);
-    /// @brief 行の物を捨てる（素材は全部）。
-    bool RestDiscard(const RestRow& row);
+    /// @brief 袋の物を売る（素材は全部）。売った額を返す（売れなければ0）。
+    int RestSell(ScreenItem kind, int index);
+    /// @brief 袋の物を捨てる（素材は全部）。
+    bool RestDiscard(ScreenItem kind, int index);
     /// @brief 枠を変えた後：枠の武器を入れ直し（変えた枠の弾倉は満タン）、構えている武器のチップを効かせ直す。
     void RefreshSlotsAfterChange(size_t changedSlot);
     // 3ステージの流れ（W8）。stage_ は今のステージ（0 ステージ1・1 ステージ2・2 ボスステージ）。
@@ -612,9 +620,6 @@ private:
     int barrierPushes_ = 0;
     int barrierBreaks_ = 0;
     bool restRoomOpen_ = false;
-    int restCursor_ = 0;
-    int restScroll_ = 0;
-    std::vector<RestRow> restRows_;
     // 休憩部屋でしたこと（自動確認と記録）。
     int restEquips_ = 0;
     int restAttaches_ = 0;

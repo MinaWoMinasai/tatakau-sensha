@@ -157,7 +157,7 @@ void SurvivorRunController::Initialize()
     RefreshEvolveText();
     // 武器の輪と弾の数（右下）。
     weaponHud_.Initialize();
-    inventoryHud_.Initialize();
+    itemScreen_.Initialize(ScreenIconPaths());
     world_.presentation.playerSwapDissolve_ = 0.0f;
     // 最小の案内。文字は案内ごとに作り、遊んでいる間は書き換えない（描画中の SetText は落ちる原因になるため）。
     hintPanel_ = bar({190.0f, 548.0f}, {900.0f, 46.0f}, {0.01f, 0.03f, 0.05f, 0.80f});
@@ -376,6 +376,7 @@ void SurvivorRunController::Initialize()
             config_.loot.bossMaterialChance = (std::min)(1.0f, config_.loot.bossMaterialChance * boost);
             lootField_.SetConfig(config_.loot);
         }
+        baseBulletDamage_ = world_.resources.player_->GetStats().bulletDamage;
         StartLoadout();
         ApplyStageSettings(0);
         // 出撃の前に、拠点の画面で持っていく武器を選ぶ。タイトルの見本と、四隅・fps の自動確認では出さない。
@@ -408,7 +409,7 @@ void SurvivorRunController::Update(float dt)
     UpdateCinematic(dt);
     SampleFps();
     if (restRoomOpen_) {
-        UpdateRestRoomInput();
+        UpdateScreenInput();
     } else if (traitChoiceOpen_) {
         UpdateTraitChoiceInput();
     } else if (relicChoiceOpen_) {
@@ -419,10 +420,12 @@ void SurvivorRunController::Update(float dt)
         if (WeaponMode()) {
             // 出撃前の拠点の画面。E で持ち物の画面を開け閉めする。開いている間は、武器の操作を受け付けない。
             if (baseScreenOpen_) {
-                UpdateBaseScreenInput();
+                UpdateScreenInput();
             } else if (world_.resources.input_->IsKeyTriggered(DIK_E)) {
                 inventoryOpen_ ? CloseInventory() : OpenInventory();
-            } else if (!inventoryOpen_) {
+            } else if (inventoryOpen_) {
+                UpdateScreenInput();
+            } else {
                 UpdateWeaponInput();
             }
         } else {
@@ -795,7 +798,7 @@ void SurvivorRunController::DrawUi()
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     // 持ち物の画面と拠点の画面を開いている間は、ほかの HUD を描かずにその画面だけを出す（暗幕から透けて読みにくくならないように）。
     if (inventoryOpen_ || baseScreenOpen_ || restRoomOpen_) {
-        inventoryHud_.Draw();
+        itemScreen_.Draw();
         DrawCinematic();
         return;
     }
