@@ -12,6 +12,7 @@
 #include "RuntimeProfiler.h"
 #include "StartupTrace.h"
 #include "BackgroundLoader.h"
+#include "ScopedComApartment.h"
 #include "SkinCluster.h"
 #include "ResourcePaths.h"
 #include "ModelManager.h"
@@ -234,7 +235,7 @@ bool Application::Initialize(const GameProjectCommandLineOptions& projectOptions
     // 音声（XAudio2・Media Foundation・MP3のデコード）も同様に別スレッドで進める。
     // メインスレッドは InitializePresentation で完了を待つまで Audio に触れない。
     audioLoad_ = std::async(std::launch::async, [this] {
-        const HRESULT comResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        const myEngine::ScopedComApartment com;
         try {
             myEngine::StartupTrace::Scope scope("Presentation.Audio");
             myEngine::Audio::GetInstance()->Initialize();
@@ -242,9 +243,6 @@ bool Application::Initialize(const GameProjectCommandLineOptions& projectOptions
         }
         catch (...) {
             // 音声が無くてもゲームは続ける。
-        }
-        if (SUCCEEDED(comResult)) {
-            CoUninitialize();
         }
     });
     InitializeEngine();

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -183,6 +183,7 @@
     <ClCompile Include="DirectX\engine\postEffect\Shadow.cpp" />
     <ClCompile Include="DirectX\engine\3d\Skybox.cpp" />
     <ClInclude Include="DirectX\engine\common\BackgroundLoader.h" />
+    <ClInclude Include="DirectX\engine\common\ScopedComApartment.h" />
     <ClInclude Include="DirectX\engine\common\InitializationTask.h" />
     <ClInclude Include="DirectX\engine\common\RingManager.h" />
     <ClInclude Include="DirectX\engine\common\TrailInstance.h" />
