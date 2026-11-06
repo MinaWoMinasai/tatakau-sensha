@@ -98,11 +98,6 @@ public:
         return hpRatio_;
     }
 
-    float GetIntroProgress() const
-    {
-        return introProgress_;
-    }
-
     float GetCollapseProgress() const
     {
         return Unit(deathElapsed_ / timing_.collapseSeconds);

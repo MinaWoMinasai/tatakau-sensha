@@ -98,12 +98,6 @@ public:
     /// @brief startPosへボスの位置、targetPosへPlayerの位置を代入する。移動方向は計算しない。
     void ApproachToPlayer(myEngine::Vector3& startPos, myEngine::Vector3& targetPos);
 
-    /// @brief ボスが保持する姿勢への借用参照を返す。
-    const myEngine::Transform& GetWorldTransform() const
-    {
-        return worldTransform_;
-    }
-
     /// @brief ワールド座標での位置を返す。
     myEngine::Vector3 GetWorldPosition() const override;
 
@@ -144,12 +138,6 @@ public:
         return radius_;
     }
 
-    /// @brief 死亡状態を返す。
-    bool GetIsDead() const
-    {
-        return isDead_;
-    }
-
     /// @brief 死亡であるか判定する。
     bool IsDead()
     {
@@ -172,12 +160,6 @@ public:
 
     /// @brief AABBを返す。
     myEngine::AABB GetAABB();
-
-    /// @brief 直近の移動用方向を返す。ためらい中などは単位長とは限らない。
-    myEngine::Vector3 GetDir()
-    {
-        return dir_;
-    }
 
     /// @brief 照準方向を返す。
     myEngine::Vector3 GetAimDirection() const

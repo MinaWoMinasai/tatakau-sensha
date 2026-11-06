@@ -42,12 +42,6 @@ public:
         return level_;
     }
 
-    /// @brief レベルが上がって貯まった、まだ使っていない選択の数を返す。
-    int GetPendingChoices() const
-    {
-        return pendingChoices_;
-    }
-
     /// @brief 戦闘の時間に掛ける倍率を返す。3択を止めずに開いている間（choices.pause が false）はスロー（既定0.25）、それ以外は1。
     /// @note CombatFramePipeline が、演出の減速（ジャスト回避など）を掛けた後の時間にさらに掛ける。
     float GetTimeScale() const

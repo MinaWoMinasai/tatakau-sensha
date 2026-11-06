@@ -42,12 +42,6 @@ public:
     /// @brief ブルーム元データを描画する。
     void DrawBloomSource();
 
-    /// @brief 表示値を返す。
-    float GetDisplayValue() const
-    {
-        return displayValue_;
-    }
-
 private:
     /// @brief スプライトを更新する。
     void UpdateSprites();

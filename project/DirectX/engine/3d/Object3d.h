@@ -74,13 +74,6 @@ public:
         useQuaternionRotate_ = false;
     }
 
-    /// @brief クォータニオン回転を設定する。
-    void SetQuaternionRotate(const Quaternion& rotate)
-    {
-        quaternionRotate_ = rotate;
-        useQuaternionRotate_ = true;
-    }
-
     /// @brief オブジェクトの回転表現をオイラー角へ切り替える。
     void UseEulerRotate()
     {
@@ -146,11 +139,6 @@ public:
         hasTextureOverride_ = false;
     }
 
-    bool HasTextureOverride() const
-    {
-        return hasTextureOverride_;
-    }
-
     /// @brief ライティング方式を設定する。
     void SetLightingMode(int32_t mode)
     {
@@ -179,24 +167,6 @@ public:
     void SetInsensity(float insensity)
     {
         directionalLightData->intensity = insensity;
-    }
-
-    /// @brief 点ライト方向を返す。
-    Vector3 GetPointLightDirection()
-    {
-        return directionalLightData->direction;
-    }
-
-    /// @brief 点ライト位置を返す。
-    Vector3 GetPointLightPosition()
-    {
-        return pointLightData->position;
-    }
-
-    /// @brief 点ライト方向を設定する。
-    void SetPointLightDirection(const Vector3& direction)
-    {
-        directionalLightData->direction = Normalize(direction);
     }
 
     /// @brief 点ライト位置を設定する。
@@ -297,18 +267,6 @@ public:
         materialData_->iblSpecularIntensity = specularIntensity;
     }
 
-    /// @brief IBLで使う最大のミップレベルを設定する。
-    void SetIBLMaxMipLevel(float maxMipLevel)
-    {
-        materialData_->iblMaxMipLevel = maxMipLevel;
-    }
-
-    /// @brief PBR環境方式を設定する。
-    void SetPBREnvironmentMode(float mode)
-    {
-        materialData_->pbrEnvironmentMode = mode;
-    }
-
     /// @brief 影を受ける強さを設定する。
     void SetShadowReceiveStrength(float strength)
     {
@@ -320,59 +278,6 @@ public:
     {
         materialData_->normalDetailStrength = strength;
         materialData_->normalDetailScale = scale;
-    }
-
-    /// @brief 法線マップ強度を設定する。
-    void SetNormalMapStrength(float strength)
-    {
-        materialData_->normalMapStrength = strength;
-    }
-
-    /// @brief 金属度マップ強度を設定する。
-    void SetMetallicMapStrength(float strength)
-    {
-        materialData_->metallicMapStrength = strength;
-    }
-
-    /// @brief 粗さマップ強度を設定する。
-    void SetRoughnessMapStrength(float strength)
-    {
-        materialData_->roughnessMapStrength = strength;
-    }
-
-    /// @brief 金属度粗さマップ強度を設定する。
-    void SetMetallicRoughnessMapStrength(float strength)
-    {
-        materialData_->metallicMapStrength = strength;
-        materialData_->roughnessMapStrength = strength;
-    }
-
-    /// @brief Occlusionマップ強度を設定する。
-    void SetOcclusionMapStrength(float strength)
-    {
-        materialData_->occlusionMapStrength = strength;
-    }
-
-    /// @brief 複数成分を格納した材質マップチャンネルを設定する。
-    void SetPackedMaterialMapChannels(float metallicChannel, float roughnessChannel, float occlusionChannel)
-    {
-        materialData_->metallicMapChannel = metallicChannel;
-        materialData_->roughnessMapChannel = roughnessChannel;
-        materialData_->occlusionMapChannel = occlusionChannel;
-    }
-
-    /// @brief 影のバイアスとPCFのぼかし半径を設定する。
-    void SetShadowFilter(float depthBias, float slopeBias, float pcfRadius)
-    {
-        materialData_->shadowDepthBias = depthBias;
-        materialData_->shadowSlopeBias = slopeBias;
-        materialData_->shadowPcfRadius = pcfRadius;
-    }
-
-    /// @brief 材質のデバッグ表示モードを設定する。
-    void SetMaterialDebugMode(int32_t mode)
-    {
-        materialData_->materialDebugMode = static_cast<float>(mode);
     }
 
     /// @brief 水面診断値を設定する。

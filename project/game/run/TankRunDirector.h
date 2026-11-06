@@ -297,12 +297,6 @@ public:
         return core_;
     }
 
-    /// @brief 装備構成を返す。
-    int GetLoadout() const
-    {
-        return loadout_;
-    }
-
     /// @brief Salvageを返す。
     int GetSalvage() const
     {
@@ -337,12 +331,6 @@ public:
     int GetRivalClaims() const
     {
         return rivalClaims_;
-    }
-
-    /// @brief 戦闘秒を返す。
-    float GetCombatSeconds() const
-    {
-        return config_.combatSeconds;
     }
 
     /// @brief 遠征経過時間秒を返す。
@@ -386,12 +374,6 @@ public:
     {
         const auto i = static_cast<std::size_t>(card);
         return i < CardCount ? cards_[i] : 0;
-    }
-
-    /// @brief 乱数シードを返す。
-    std::uint32_t GetSeed() const
-    {
-        return seed_;
     }
 
 private:

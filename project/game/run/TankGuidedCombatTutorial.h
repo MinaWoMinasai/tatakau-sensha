@@ -63,34 +63,10 @@ public:
         return completedDashes_;
     }
 
-    /// @brief Killsを返す。
-    int GetKills() const
-    {
-        return kills_;
-    }
-
-    /// @brief Collected通貨を返す。
-    int GetCollectedCredits() const
-    {
-        return credits_;
-    }
-
-    /// @brief 発射済みが存在するか判定する。
-    bool HasFired() const
-    {
-        return fired_;
-    }
-
     /// @brief Purchase強化が行われたか判定する。
     bool DidPurchaseUpgrade() const
     {
         return purchased_;
-    }
-
-    /// @brief ダッシュの練習中かを返す。
-    bool IsDashAttemptActive() const
-    {
-        return dashAttempt_;
     }
 
     /// @brief 現在の説明を確認済みにして次の段階へ進む。

@@ -620,11 +620,6 @@ public:
     {
         return shieldConfig_.enabled ? stats_.maxHp * shieldConfig_.maxHpRatio : 0.0f;
     }
-    /// @brief これまでにシールドが受け止めたダメージの合計。
-    float GetShieldAbsorbed() const
-    {
-        return shieldAbsorbed_;
-    }
 
     /// @brief 育つ戦車の試作の形態の、撃ち方に関わる値。
     struct SurvivorFormTuning {
@@ -798,22 +793,10 @@ public:
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateDefeatPresentation(float deltaTime);
 
-    /// @brief 地形衝突処理で設定された接地状態を返す。
-    bool IsOnGround() const
-    {
-        return isOnGround_;
-    }
-
     /// @brief 接地状態を設定する。
     void SetOnGround(bool onGround)
     {
         isOnGround_ = onGround;
-    }
-
-    /// @brief XY平面での照準角度（ラジアン）を返す。
-    float GetAngle() const
-    {
-        return angle_;
     }
 
     /// @brief 照準方向への読み取り専用参照を返す。
@@ -900,12 +883,6 @@ public:
     /// @brief 撃破報酬をレベルへ加算せず、マップ所有の財布へ渡す通貨として保留する方式を切り替える。
     /// @note 方式が変わると保留通貨を消去する。有効化時はレベル・経験値・強化ポイントを初期化し進化画面を閉じる。
     void SetRunCurrencyMode(bool enabled);
-
-    /// @brief 撃破報酬を通貨として保留する方式かを返す。
-    bool IsRunCurrencyMode() const
-    {
-        return runCurrencyMode_;
-    }
 
     /// @brief 未反映の獲得通貨を取り出し、取り出した分を消費済みにする。
     int TakeRunCurrencyEarned()

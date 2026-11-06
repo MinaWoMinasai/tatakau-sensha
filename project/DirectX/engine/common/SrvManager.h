@@ -21,12 +21,6 @@ public:
         return allocatedCount_;
     }
 
-    /// @brief 高精度水面マーキングを返す。
-    uint32_t GetHighWaterMark() const
-    {
-        return highWaterMark_;
-    }
-
     /// @brief CPUディスクリプターハンドルを返す。
     D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(uint32_t index);
     /// @brief GPUディスクリプターハンドルを返す。

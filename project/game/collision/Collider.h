@@ -38,12 +38,6 @@ public:
     }
 
     // 半径を設定
-    void SetRadius(float radius)
-    {
-        if (std::isfinite(radius) && radius >= 0.0f) {
-            radius_ = radius;
-        }
-    }
 
     /// @brief ワールド座標の取得
     virtual myEngine::Vector3 GetWorldPosition() const = 0;
@@ -81,12 +75,6 @@ public:
         return shape_;
     }
 
-    /// @brief 形状を設定する。
-    void SetShape(ColliderShape shape)
-    {
-        shape_ = shape;
-    }
-
     /// @brief カプセルを設定する。
     void SetCapsule(const myEngine::Segment& seg, float r)
     {
@@ -113,12 +101,6 @@ public:
     float GetHitPower() const
     {
         return hitPower_;
-    }
-
-    /// @brief 命中強度を設定する。
-    void SetHitPower(float power)
-    {
-        hitPower_ = power;
     }
 
     /// @brief ダメージを返す。

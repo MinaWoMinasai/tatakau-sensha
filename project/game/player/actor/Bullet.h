@@ -264,12 +264,6 @@ public:
         return radius_;
     }
 
-    /// @brief 壁反射を許可する設定かを返す。残り反射回数は別に判定する。
-    bool IsReflectable() const
-    {
-        return isReflectable_;
-    }
-
     /// @brief 所有者を返す。
     BulletOwner GetOwner() const
     {
@@ -322,24 +316,6 @@ public:
     /// @brief 保留した分裂を消費し、残り枠の範囲で生成した子弾をchildrenへ所有権付きで追加する。
     /// @note 衝突走査後に呼ぶ。枠不足でも予約を消費する。子弾は再分裂せず、親の残り寿命と命中履歴を引き継ぐ。
     void AppendImpactChildren(std::vector<std::unique_ptr<Bullet>>& children, size_t availableSlots);
-
-    /// @brief 残りの壁反射回数を返す。-1は無制限。
-    int GetRemainingWallBounces() const
-    {
-        return remainingWallBounces_;
-    }
-
-    /// @brief アクターへ命中後も飛行を続けられる残り回数を返す。
-    int GetRemainingActorPierces() const
-    {
-        return remainingActorPierces_;
-    }
-
-    /// @brief 残り寿命（秒）を返す。
-    float GetRemainingLifetime() const
-    {
-        return deathTimer_;
-    }
 
     /// @brief 成長イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     GrowthEvents ConsumeGrowthEvents()

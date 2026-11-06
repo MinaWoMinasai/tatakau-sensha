@@ -74,12 +74,6 @@ public:
         return commands_.size();
     }
 
-    /// @brief 前の Draw で描画命令を出した回数（テクスチャが変わるたびに1回）。
-    size_t GetLastDrawCallCount() const
-    {
-        return lastDrawCalls_;
-    }
-
     /// @brief 積んだ頂点（テスト用。1つの四角形は 6 頂点）。
     const std::vector<UiVertex>& GetVertices() const
     {

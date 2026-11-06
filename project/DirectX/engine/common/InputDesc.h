@@ -14,12 +14,6 @@ public:
     /// @brief スキニング用の頂点レイアウトにする。
     void InitializeForSkinning();
 
-    /// @brief Element記述情報を返す。
-    std::span<const D3D12_INPUT_ELEMENT_DESC> GetElementDescs() const
-    {
-        return std::span{ElementDescs_, _countof(ElementDescs_)};
-    }
-
     /// @brief 配置を返す。
     D3D12_INPUT_LAYOUT_DESC GetLayout()
     {

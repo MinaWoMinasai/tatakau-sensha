@@ -215,11 +215,6 @@ public:
         return releaseRequested_;
     }
 
-    unsigned GetAnimationSelectionCount() const
-    {
-        return animationSelectionCount_;
-    }
-
 private:
     neondepth::Lifecycle depth_{};
     NeonBossVisualLife life_ = NeonBossVisualLife::Dormant;

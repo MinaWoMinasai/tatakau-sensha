@@ -278,11 +278,6 @@ public:
         return frame_;
     }
 
-    const myEngine::Vector3& GetLaunchSocket() const
-    {
-        return launch_;
-    }
-
     unsigned GetLaunchCount() const
     {
         return launchCount_;

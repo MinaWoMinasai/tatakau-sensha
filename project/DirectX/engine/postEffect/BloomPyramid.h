@@ -36,11 +36,6 @@ public:
     // その縮小レベルだけを出力する（0 = 1/2解像度 ... kMaxLevels-1 = 1/32）。
     static void SetPresentationView(bool off, int isolatedLevel);
 
-    static int GetPresentationIsolatedLevel()
-    {
-        return presentationLevel_;
-    }
-
     /// @brief 1段だけ表示するときの明るさ補正（全段合成でその段が受け持つ割合の逆数）。
     static float GetPresentationGainScale(float scatter);
 
@@ -53,31 +48,6 @@ public:
     static uint32_t EffectiveMode(const BloomParam& param);
 
     uint32_t GetExtractSrvIndex() const;
-
-    uint32_t GetOutputSrvIndex() const
-    {
-        return outputSrv_;
-    }
-
-    uint32_t GetActiveLevelCount() const
-    {
-        return activeLevelCount_;
-    }
-
-    uint32_t GetSourceWidth() const
-    {
-        return sourceWidth_;
-    }
-
-    uint32_t GetSourceHeight() const
-    {
-        return sourceHeight_;
-    }
-
-    const std::array<LevelDimensions, kMaxLevels>& GetLevelDimensions() const
-    {
-        return dimensions_;
-    }
 
 private:
     struct PipelineBundle;

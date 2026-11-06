@@ -48,18 +48,6 @@ public:
     /// @brief プレビュー描画を利用前に準備する。
     void PreparePreviewRender();
 
-    /// @brief プレビュー描画件数を返す。
-    uint64_t GetPreviewRenderCount() const
-    {
-        return preview_ ? preview_->GetRenderCount() : 0;
-    }
-
-    /// @brief プレビュー頂点件数を返す。
-    uint32_t GetPreviewVertexCount() const
-    {
-        return preview_ ? preview_->GetGeometryVertexCount() : 0;
-    }
-
     // 毎回の Update で呼んでよい。内容が同じモデルなら、文字を作り直さない。
     /// @brief モデルを設定する。
     void SetModel(const TankRewardCardModel& model);
@@ -79,24 +67,6 @@ public:
     const TankRewardCardModel& GetModel() const
     {
         return model_;
-    }
-
-    /// @brief デモ状態の写しを返す。
-    const tankreward::DemoSnapshot& GetDemoSnapshot(bool after = true) const
-    {
-        return after ? after_ : before_;
-    }
-
-    /// @brief デモ時間を返す。
-    float GetDemoTime() const
-    {
-        return clock_.Elapsed();
-    }
-
-    /// @brief デモ進行件数を返す。
-    std::uint64_t GetDemoAdvanceCount() const
-    {
-        return clock_.AdvanceCount();
     }
 
     /// @brief AcquireAnimatingであるか判定する。

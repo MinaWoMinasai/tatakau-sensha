@@ -212,22 +212,10 @@ public:
         return roomIndex_;
     }
 
-    /// @brief 部屋件数を返す。
-    static constexpr int GetRoomCount()
-    {
-        return 5;
-    }
-
     /// @brief 今の進路選択が何回目か（0始まり）を返す。
     int GetRouteRound() const
     {
         return routeRound_;
-    }
-
-    /// @brief 通った進路の番号を返す。
-    const std::array<int, 2>& GetVisitedRouteIndexes() const
-    {
-        return visitedRoutes_;
     }
 
     /// @brief 指定した回で選んだ進路を返す。
@@ -258,12 +246,6 @@ public:
     int GetRewardCount() const
     {
         return rewardCount_;
-    }
-
-    /// @brief 部屋経過時間秒を返す。
-    double GetRoomElapsedSeconds() const
-    {
-        return roomElapsed_;
     }
 
     /// @brief 遠征経過時間秒を返す。

@@ -20,18 +20,6 @@ public:
     /// @brief 現在の状態を1回分進める。初期化後、描画に必要な状態を更新するために呼ぶ。
     void Update();
 
-    /// @brief デバッグUIを表示するかを設定する。
-    void SetDebugUiEnabled(bool enabled)
-    {
-        debugUiEnabled_ = enabled;
-    }
-
-    /// @brief デバッグUIを表示するかを返す。
-    bool GetDebugUiEnabled() const
-    {
-        return debugUiEnabled_;
-    }
-
     // 共通描画設定
     void PreDraw(BlendMode blendMode);
 
@@ -89,12 +77,6 @@ public:
         return srvManager_;
     }
 
-    /// @brief 合成方式を返す。
-    BlendMode GetBlendMode()
-    {
-        return blendMode_;
-    }
-
     /// @brief 影マップを返す。
     ShadowMap* GetShadowMap()
     {
@@ -105,30 +87,6 @@ public:
     Vector3& GetLightDir()
     {
         return lightDir_;
-    }
-
-    /// @brief 影注目点を設定する。
-    void SetShadowFocus(const Vector3& focus)
-    {
-        shadowFocus_ = focus;
-    }
-
-    /// @brief 影範囲を設定する。
-    void SetShadowRange(float range)
-    {
-        shadowRange_ = (std::max)(range, 1.0f);
-    }
-
-    /// @brief 影注目点を返す。
-    const Vector3& GetShadowFocus() const
-    {
-        return shadowFocus_;
-    }
-
-    /// @brief 影範囲を返す。
-    float GetShadowRange() const
-    {
-        return shadowRange_;
     }
 
 private:

@@ -404,18 +404,6 @@ public:
     /// @return 正面の反射受付が成立した場合true。弾の生成・追加予約は呼び出し側が行う。
     bool TryReflectProjectile(const myEngine::Vector3& attackSource);
 
-    /// @brief 反射装甲の受付が成立した回数を返す。反射弾の登録成功数ではない。
-    uint32_t GetReflectionCount() const
-    {
-        return reflectionCount_;
-    }
-
-    /// @brief EMPパルスを発動した回数を返す。範囲外・遮蔽で自機に適用されない発動も含む。
-    uint32_t GetEmpPulseCount() const
-    {
-        return empPulseCount_;
-    }
-
     /// @brief 召喚要求の有無を返して保留フラグを消去する。複数の要求を件数として蓄積しない。
     bool ConsumeSummonRequest()
     {
@@ -465,12 +453,6 @@ public:
     const myEngine::Vector3& GetAimDirection() const
     {
         return aimDirection_;
-    }
-
-    /// @brief 地形で切り詰めた攻撃予告の終点を借用参照で返す。位置は更新時に変わる。
-    const myEngine::Vector3& GetTelegraphEnd() const
-    {
-        return telegraphEnd_;
     }
 
     /// @brief 生存中の移動戦闘役の輪郭・攻撃予告・残弾などを、シーンが使うネオン描画先へ予約する。

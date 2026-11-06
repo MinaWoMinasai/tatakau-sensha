@@ -57,12 +57,6 @@ public:
     /// @brief 文字範囲ごとのフォント上書き設定を設定する。
     void SetFontOverride(const TextFontOverride& fontOverride);
 
-    /// @brief 文字範囲ごとのフォント上書き設定を返す。
-    const TextFontOverride& GetFontOverride() const
-    {
-        return fontOverride_;
-    }
-
     /// @brief フォントが変わるたびに増える番号を返す。
     unsigned long long GetFontRevision() const
     {
