@@ -388,6 +388,8 @@
     <ClInclude Include="game\run\SurvivorLoot.h" />
     <ClInclude Include="game\run\SurvivorSave.h" />
     <ClInclude Include="game\run\SurvivorCrafting.h" />
+    <ClInclude Include="game\run\SurvivorAudioConfig.h" />
+    <ClInclude Include="game\run\session\SurvivorAudio.h" />
     <ClInclude Include="game\editor\ExpeditionRoomEditor.h" />
     <ClInclude Include="game\editor\ExpeditionMapEditor.h" />
     <ClInclude Include="game\editor\SurvivorTuningPanel.h" />
@@ -547,6 +549,8 @@
     <ClCompile Include="game\run\session\SurvivorRunBarrier.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunScreens.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunElites.cpp" />
+    <ClCompile Include="game\run\session\SurvivorAudio.cpp" />
+    <ClCompile Include="game\run\session\SurvivorRunAudio.cpp" />
     <ClCompile Include="game\render\settings\RunVisualSettings.cpp" />
     <ClCompile Include="game\run\session\ExpeditionController.cpp" />
     <ClCompile Include="game\run\session\ExpeditionMapController.cpp" />

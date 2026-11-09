@@ -5,6 +5,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include "game/player/combat/PlayerHeat.h"
+#include "game/run/SurvivorAudioConfig.h"
 #include "game/run/SurvivorCrafting.h"
 #include "game/run/SurvivorForms.h"
 #include "game/run/SurvivorLoot.h"
@@ -293,6 +294,8 @@ struct SpawnConfig {
         int mineDamage = 8;
     };
     EliteConfig elites{};
+    /// @brief BGM と効果音（武器の枠を使う遊び方だけ）。
+    AudioConfig audio = DefaultAudioConfig();
     static constexpr int kStageCount = 3;
 
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
@@ -759,6 +762,35 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         config.barrier.radius = (std::max)(1.0f, config.barrier.radius);
         config.barrier.staminaMax = (std::max)(1.0f, config.barrier.staminaMax);
     }
+    if (data.contains("audio") && data.at("audio").is_object()) {
+        const auto& audio = data.at("audio");
+        number(audio, "musicVolume", config.audio.musicVolume);
+        number(audio, "effectsVolume", config.audio.effectsVolume);
+        number(audio, "fadeSeconds", config.audio.fadeSeconds);
+        number(audio, "duckRatio", config.audio.duckRatio);
+        // 書いてある音だけを上書き・追加する（書いていない音は既定のまま）。
+        auto readCues = [&](const char* key, std::map<std::string, AudioCue>& cues) {
+            if (!audio.contains(key) || !audio.at(key).is_object()) {
+                return;
+            }
+            for (const auto& item : audio.at(key).items()) {
+                if (!item.value().is_object()) {
+                    continue;
+                }
+                AudioCue& cue = cues[item.key()];
+                if (item.value().contains("file") && item.value().at("file").is_string()) {
+                    cue.file = item.value().at("file").get<std::string>();
+                }
+                number(item.value(), "volume", cue.volume);
+                number(item.value(), "pitch", cue.pitch);
+                number(item.value(), "pitchJitter", cue.pitchJitter);
+                number(item.value(), "cooldown", cue.cooldown);
+                number(item.value(), "voices", cue.voices);
+            }
+        };
+        readCues("music", config.audio.music);
+        readCues("cues", config.audio.cues);
+    }
     if (data.contains("elites") && data.at("elites").is_object()) {
         const auto& elites = data.at("elites");
         number(elites, "fromStage", config.elites.fromStage);
@@ -1177,6 +1209,20 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     barrier["regenPerSecond"] = round(config.barrier.regenPerSecond);
     barrier["regenDelay"] = round(config.barrier.regenDelay);
     barrier["exhaustedSeconds"] = round(config.barrier.exhaustedSeconds);
+    auto& audio = section("audio");
+    audio["musicVolume"] = round(config.audio.musicVolume);
+    audio["effectsVolume"] = round(config.audio.effectsVolume);
+    audio["fadeSeconds"] = round(config.audio.fadeSeconds);
+    audio["duckRatio"] = round(config.audio.duckRatio);
+    auto writeCues = [&](const char* key, const std::map<std::string, AudioCue>& cues) {
+        audio[key] = nlohmann::json::object();
+        for (const auto& [name, cue] : cues) {
+            audio[key][name] = {{"file", cue.file}, {"volume", round(cue.volume)}, {"pitch", round(cue.pitch)}, {"pitchJitter", round(cue.pitchJitter)},
+                                {"cooldown", round(cue.cooldown)}, {"voices", cue.voices}};
+        }
+    };
+    writeCues("music", config.audio.music);
+    writeCues("cues", config.audio.cues);
     auto& elites = section("elites");
     elites["fromStage"] = config.elites.fromStage;
     elites["erraticRatio"] = round(config.elites.erraticRatio);
@@ -1279,10 +1325,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 33> kOrder{
+    static constexpr std::array<const char*, 34> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "weapons",       "loot",          "crafting",      "stages",        "barrier",       "elites",        "traits",        "relics",    "fusions",    "parts",       "heatVent",
+        "heat",          "shield",    "forms",           "weapons",       "loot",          "crafting",      "stages",        "barrier",       "elites",        "audio",         "traits",        "relics",    "fusions",    "parts",       "heatVent",
         "partTuning",    "bigPentagon", "damageNumbers"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {

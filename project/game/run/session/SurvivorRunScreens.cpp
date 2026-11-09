@@ -391,6 +391,7 @@ void SurvivorRunController::HandleScreenEvent(const SurvivorItemScreen::Event& e
     if (event.type == EventType::None) {
         return;
     }
+    audio_.Play(event.type == EventType::Drop ? "ui_drop" : "ui_click");
     const Item* source = itemScreen_.ItemAt(event.source);
     const ScreenItem kind = source ? static_cast<ScreenItem>(source->kind) : ScreenItem::None;
     const int id = source ? source->id : -1;

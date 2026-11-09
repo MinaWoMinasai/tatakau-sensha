@@ -380,6 +380,10 @@ void SurvivorRunController::Initialize()
         }
         baseBulletDamage_ = world_.resources.player_->GetStats().bulletDamage;
         ResetEliteTimers();
+        // 音：タイトルの見本では鳴らさない。自動確認は音量0で鳴らして回数だけ数える。
+        if (!world_.demo.titleDemo_) {
+            audio_.Initialize(config_.audio, autoTest_ != AutoTest::None);
+        }
         StartLoadout();
         ApplyStageSettings(0);
         // 出撃の前に、拠点の画面で持っていく武器を選ぶ。タイトルの見本と、四隅・fps の自動確認では出さない。
@@ -593,6 +597,7 @@ void SurvivorRunController::Update(float dt)
             return;
         }
     }
+    UpdateAudio(dt);
     myEngine::RuntimeProfiler::CpuScope autoTestScope("Survivor AutoTest");
     if (autoTest_ == AutoTest::Sector) {
         UpdateSectorAutoTest(dt);

@@ -817,6 +817,15 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"breaks\":" << barrierBreaks_ << ",\"staminaMin\":" << autoStaminaMin_ << ",\"staminaEnd\":" << barrierStamina_
             << ",\"netSegments\":" << BarrierNetSegmentCount() << ",\"dashes\":" << player.GetDashStartedCount() << "}"
             << ",\"warperOffset\":[" << autoWarperOffset_.x << "," << autoWarperOffset_.y << "," << autoWarperOffset_.z << "]"
+            << ",\"audio\":{\"loaded\":" << audio_.GetLoadedFiles() << ",\"missing\":" << audio_.GetMissingFiles() << ",\"plays\":{" << [&] {
+                   std::ostringstream plays;
+                   bool first = true;
+                   for (const auto& [cue, count] : audio_.GetPlayCounts()) {
+                       plays << (first ? "" : ",") << "\"" << cue << "\":" << count;
+                       first = false;
+                   }
+                   return plays.str();
+               }() << "}}"
             << ",\"homingTurns\":" << autoHomingTurns_ << ",\"elites\":{\"erratic\":" << eliteStats_.erratic << ",\"healers\":" << eliteStats_.spawned[0] << ",\"warpers\":" << eliteStats_.spawned[1]
             << ",\"layers\":" << eliteStats_.spawned[2] << ",\"heals\":" << eliteStats_.heals << ",\"healedHp\":" << eliteStats_.healedHp << ",\"warps\":" << eliteStats_.warps
             << ",\"minesLaid\":" << eliteStats_.minesLaid << ",\"mineExplosions\":" << eliteStats_.mineExplosions << ",\"mineHits\":" << eliteStats_.mineHits << "}"

@@ -2,6 +2,7 @@
 #include "game/session/GameWorld.h"
 #include "game/run/SurvivorSave.h"
 #include "game/run/SurvivorSpawnConfig.h"
+#include "game/run/session/SurvivorAudio.h"
 #include "game/run/session/SurvivorLootField.h"
 #include "game/run/session/SurvivorPickups.h"
 #include "game/ui/session/SurvivorChoiceHud.h"
@@ -595,6 +596,38 @@ private:
         return WeaponMode() && stage_ == survivor::SpawnConfig::kStageCount - 1;
     }
     int stage_ = 0;
+
+    // BGM と効果音。SurvivorRunAudio.cpp。毎フレームの回数の増え方から鳴らし、場面で曲を替える。
+    struct AudioCounters {
+        uint32_t shots = 0;
+        size_t hits = 0;
+        int kills = 0;
+        uint64_t blasts = 0;
+        int hp = 0;
+        int reloads = 0;
+        bool swapping = false;
+        bool barrierOn = false;
+        int blocked = 0;
+        int breaks = 0;
+        int ammoPicked = 0;
+        int rarePicked = 0;
+        int mines = 0;
+        int warps = 0;
+        int heals = 0;
+        int sales = 0;
+        int crafted = 0;
+        int evolved = 0;
+        int sorties = 0;
+        bool cleared = false;
+        bool bossSpawned = false;
+        bool bossDefeated = false;
+    };
+    AudioCounters ReadAudioCounters() const;
+    /// @brief 回数の増え方から効果音を鳴らし、場面の曲を流す。dt は実時間（止めている間も曲を合わせる）。
+    void UpdateAudio(float dt);
+    SurvivorAudio audio_;
+    AudioCounters audioCounters_{};
+    bool audioCountersReady_ = false;
     /// @brief 設定ファイルへ書く形：ステージが動かす値（出口の秒・宿敵を出すか）を、読んだときの値へ戻したもの。
     survivor::SpawnConfig ConfigForSaving() const
     {
