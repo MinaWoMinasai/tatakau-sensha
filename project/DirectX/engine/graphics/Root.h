@@ -32,36 +32,6 @@ public:
     /// @brief InitializeFor〜で決めた配置から、ルートシグネチャを作る。
     void Create(Microsoft::WRL::ComPtr<ID3D12Device>& device);
 
-    /// @brief ルートシグネチャの記述を返す。
-    D3D12_ROOT_SIGNATURE_DESC GetDescriptionSignature()
-    {
-        return descriptionSignature_;
-    }
-
-    /// @brief パラメーターを返す。
-    std::span<const D3D12_ROOT_PARAMETER> GetParameters() const
-    {
-        return Parameters_;
-    }
-
-    /// @brief ディスクリプター範囲を返す。
-    std::span<const D3D12_DESCRIPTOR_RANGE> GetDescriptorRange() const
-    {
-        return descriptorRange_;
-    }
-
-    /// @brief シリアライズしたルートシグネチャを返す。
-    ID3DBlob* GetSignatureBlob()
-    {
-        return signatureBlob_.Get();
-    }
-
-    /// @brief シリアライズに失敗したときのエラーメッセージを返す。
-    ID3DBlob* GetErrorBlob()
-    {
-        return errorBlob_.Get();
-    }
-
     /// @brief ルートシグネチャを返す。
     Microsoft::WRL::ComPtr<ID3D12RootSignature> GetSignature()
     {

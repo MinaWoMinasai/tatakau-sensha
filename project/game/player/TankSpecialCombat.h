@@ -255,12 +255,6 @@ public:
         return bomb_;
     }
 
-    /// @brief Arriveで記録した未消費の到着イベントがあるかを返す。
-    bool HasImpact() const
-    {
-        return impact_;
-    }
-
     /// @brief 到着イベントの有無を返し、保留フラグを解除する。未消費の到着があればtrue。
     bool ConsumeImpact()
     {

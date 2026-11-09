@@ -72,12 +72,6 @@ public:
         return steps;
     }
 
-    /// @brief 直前のAdvanceで測った実時間（秒）。上限で切る前の値。
-    double GetLastFrameSeconds() const
-    {
-        return lastFrameSeconds_;
-    }
-
     /// @brief 上限を超えたため進めずに捨てた時間（秒）の合計。
     double GetDroppedSeconds() const
     {

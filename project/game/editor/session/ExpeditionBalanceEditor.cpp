@@ -29,7 +29,7 @@ void ExpeditionBalanceEditor::InitializeTankExpeditionBalance()
 
 void ExpeditionBalanceEditor::ApplyTankExpeditionRoomBalance()
 {
-    if (!world_.run.expeditionRun_ || !world_.run.tankExpeditionBalance_.is_object()) {
+    if (!world_.run.IsExpeditionRun() || !world_.run.tankExpeditionBalance_.is_object()) {
         return;
     }
     auto effective = world_.run.tankExpeditionBalance_;
@@ -75,7 +75,7 @@ void ExpeditionBalanceEditor::UpdateTankExpeditionBalanceEditor()
         return;
     }
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
-    if (!world_.run.expeditionRun_ || !ImGui::GetCurrentContext()) {
+    if (!world_.run.IsExpeditionRun() || !ImGui::GetCurrentContext()) {
         return;
     }
     if (world_.resources.input_->IsKeyTriggered(DIK_F2)) {
@@ -93,7 +93,7 @@ void ExpeditionBalanceEditor::UpdateTankExpeditionBalanceEditor()
 void ExpeditionBalanceEditor::DrawTankExpeditionBalanceEditor()
 {
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
-    if (!world_.run.expeditionRun_ || !world_.run.tankExpeditionBalanceEditorOpen_ || !ImGui::GetCurrentContext()) {
+    if (!world_.run.IsExpeditionRun() || !world_.run.tankExpeditionBalanceEditorOpen_ || !ImGui::GetCurrentContext()) {
         return;
     }
     ImGui::SetNextWindowPos({210, 82}, ImGuiCond_FirstUseEver);

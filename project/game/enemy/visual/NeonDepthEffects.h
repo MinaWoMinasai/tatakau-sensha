@@ -51,11 +51,6 @@ public:
         return stats_;
     }
 
-    const neondepth::EffectGeometryFrame& GetGeometry() const
-    {
-        return builder_.GetFrame();
-    }
-
     const std::string& GetStatus() const
     {
         return status_;

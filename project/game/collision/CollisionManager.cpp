@@ -4,6 +4,7 @@
 #include "Bullet.h"
 #include "BulletManager.h"
 #include "EnemyManager.h"
+#include "RuntimeProfiler.h"
 
 void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletManager* bulletManager, EnemyManager* enemyManager)
 {
@@ -23,6 +24,7 @@ void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletMa
         }
     }
     // 通知中は生成を予約し、全ペアの走査後に反映する。追加による弾配列の再確保を走査へ持ち込まない。
+    myEngine::RuntimeProfiler::CpuScope flushScope("Collision Flush");
     bulletManager->FlushPendingSplits();
     rules_.SetBulletManager(nullptr);
 }
@@ -45,6 +47,7 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
         return;
     }
     // 接触した組への処理（ダッシュ衝撃・床コア・装甲反射・ドローン補正・通知）は戦闘のルールに任せる。
+    myEngine::RuntimeProfiler::CpuScope scope("Collision Resolve");
     rules_.Resolve(colliderA, colliderB);
 }
 

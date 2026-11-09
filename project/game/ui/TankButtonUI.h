@@ -159,12 +159,6 @@ public:
     /// @brief ImGUIを描画する。
     void DrawImGui();
 
-    /// @brief 表示中を設定する。
-    void SetVisible(bool visible)
-    {
-        visible_ = visible;
-    }
-
     /// @brief 表示中であるか判定する。
     bool IsVisible() const
     {

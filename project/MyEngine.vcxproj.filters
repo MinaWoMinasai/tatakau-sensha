@@ -337,8 +337,11 @@
     <ClInclude Include="game\run\TankExpeditionBalance.h" />
     <ClInclude Include="game\run\TankExpeditionTutorial.h" />
     <None Include="resources\configs\tankExpeditionBalance.json" />
+    <None Include="resources\configs\survivor_proto.json" />
     <None Include="resources\maps\expedition_outskirts.csv" />
+    <None Include="resources\maps\survivor_arena.csv" />
     <None Include="resources\projects\tank_game.project.json" />
+    <None Include="resources\projects\tank_survivor.project.json" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="game\ui\TankRewardCard.cpp" />
@@ -348,6 +351,7 @@
     <ClCompile Include="game\editor\ExpeditionRoomEditor.cpp" />
     <ClCompile Include="game\editor\ExpeditionMapEditor.cpp" />
     <ClCompile Include="game\editor\ExpeditionContentEditor.cpp" />
+    <ClCompile Include="game\editor\SurvivorTuningPanel.cpp" />
     <ClInclude Include="game\run\TankExpeditionMap.h" />
     <ClInclude Include="game\run\TankExpeditionTransition.h" />
     <ClInclude Include="game\run\TankGuidedCombatTutorial.h" />
@@ -355,9 +359,17 @@
     <ClInclude Include="game\enemy\actor\RivalBossCombat.h" />
     <ClInclude Include="game\run\TankExpeditionRooms.h" />
     <ClInclude Include="game\run\TankExpeditionContent.h" />
+    <ClInclude Include="game\run\SurvivorSpawnConfig.h" />
+    <ClInclude Include="game\run\SurvivorForms.h" />
+    <ClInclude Include="game\run\SurvivorParts.h" />
+    <ClInclude Include="game\run\SurvivorWeapons.h" />
+    <ClInclude Include="game\run\SurvivorLoot.h" />
+    <ClInclude Include="game\run\SurvivorSave.h" />
+    <ClInclude Include="game\run\SurvivorCrafting.h" />
     <ClInclude Include="game\editor\ExpeditionRoomEditor.h" />
     <ClInclude Include="game\editor\ExpeditionMapEditor.h" />
     <ClInclude Include="game\editor\ExpeditionContentEditor.h" />
+    <ClInclude Include="game\editor\SurvivorTuningPanel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="game\ui\TankRewardPreviewRenderer.cpp" />
@@ -519,6 +531,21 @@
     <ClCompile Include="game\ui\session\GameplayHud.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorChoiceHud.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorLoadoutHud.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorDamageNumbers.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorItemScreen.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorWeaponHud.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\editor\session\GameplayEditor.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -526,6 +553,48 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\run\session\ArenaRunController.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunController.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunAutoTest.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunCinematic.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunLoadout.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunResult.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunSpawns.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorPickups.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorLootField.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunLoot.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunBase.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunRest.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunBarrier.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunScreens.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunElites.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\render\settings\RunVisualSettings.cpp">
@@ -631,6 +700,21 @@
     <ClInclude Include="game\ui\session\GameplayHud.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorChoiceHud.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorLoadoutHud.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorDamageNumbers.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorItemScreen.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorWeaponHud.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\editor\session\GameplayEditor.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -638,6 +722,18 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\run\session\ArenaRunController.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\SurvivorRunController.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\SurvivorRunShared.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\SurvivorPickups.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\SurvivorLootField.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\render\settings\RunVisualSettings.h">
@@ -695,6 +791,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\session\GameSession.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\RunMode.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\session\TitleDemoStatus.h">
@@ -770,6 +869,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="game\player\combat\PlayerHeat.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\player\combat\PlayerWeapons.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

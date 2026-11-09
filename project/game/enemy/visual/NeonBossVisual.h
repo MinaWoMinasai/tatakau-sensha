@@ -66,6 +66,15 @@ public:
         enabled_ = enabled;
     }
 
+    /// @brief 奥行きのない遭遇戦で、宿敵の頭を照準へ回さず、常に画面の上へ向けて置くか（育つ戦車の試作。立ち姿に見せる）。
+    /// @param heightScale そのときの大きさの倍率（既定の大きさに掛ける）。
+    /// @note 既定は頭を照準へ向ける置き方（既存の遠征）。
+    void SetUpright(bool upright, float heightScale = 1.0f)
+    {
+        upright_ = upright;
+        uprightHeightScale_ = heightScale;
+    }
+
     bool IsEnabled() const
     {
         return enabled_;
@@ -160,6 +169,8 @@ private:
     myEngine::Vector3 modelCenter_{};
     float modelHeight_ = 1.6f;
     float lastAliveRadius_ = 2.0f;
+    bool upright_ = false;
+    float uprightHeightScale_ = 1.0f;
     myEngine::Matrix4x4 world_{};
     bool enabled_ = true, loadAttempted_ = false, encounterActive_ = false;
     std::string status_;

@@ -30,7 +30,7 @@ using namespace detail;
 void LevelRuntime::ApplyTankExpeditionRoomGeometry()
 {
     // 遮蔽物や危険地帯の前に、開けた床で移動と単発射撃を覚えさせる。
-    if (world_.run.expeditionRun_ && world_.run.tankExpedition_.GetRoomIndex() == 0) {
+    if (world_.run.IsExpeditionRun() && world_.run.tankExpedition_.GetRoomIndex() == 0) {
         world_.resources.stage_->LoadRunMap("resources/maps/expedition_outskirts.csv");
         world_.presentation.stagePostCacheValid_ = false;
     }
@@ -38,7 +38,8 @@ void LevelRuntime::ApplyTankExpeditionRoomGeometry()
 
 bool LevelRuntime::LoadLevelFile(LevelData& outLevel) const
 {
-    return LevelLoader().Load(world_.run.prototypeRun_ ? "resources/levels/tank_run.json" : "resources/levels/level_test.json", outLevel);
+    return LevelLoader().Load(world_.run.UsesPrototypeRules() ? "resources/levels/tank_run.json" : "resources/levels/level_test.json",
+                              outLevel);
 }
 
 void LevelRuntime::ReloadLevelData(bool resetSpawnPositions)

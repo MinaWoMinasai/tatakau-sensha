@@ -248,6 +248,15 @@ void NeonBossVisual::UpdatePlacement(const NeonBossVisualInput& input)
     // 正となるコライダーの上に中央揃えし、頭を照準方向へ向け、
     // 既存のカメラで立体感が出るよう見た目だけを前傾させる。
     const auto centered = myEngine::MakeTranslateMatrix({-modelCenter_.x, -modelCenter_.y, -modelCenter_.z});
+    if (upright_) {
+        // 立ち姿に見せる置き方：照準の向きに頭を回さず、頭を常に画面の上（+Y）へ向けてカメラに顔を向ける。
+        // 真上からのカメラでは、照準へ頭を向けると横向きに寝て見えるため。
+        const float tall = scale * uprightHeightScale_;
+        const auto placed = myEngine::MakeAffineMatrix(myEngine::Vector3{tall, tall, tall}, myEngine::Vector3{0.35f, 0.0f, 0.0f},
+                                                       myEngine::Vector3{input.position.x, input.position.y, input.position.z - 0.45f});
+        world_ = myEngine::Multiply(centered, placed);
+        return;
+    }
     const auto placed =
         myEngine::MakeAffineMatrix(myEngine::Vector3{scale, scale, scale}, myEngine::Vector3{0.35f, 0.0f, aim - myEngine::pi * 0.5f},
                                    myEngine::Vector3{input.position.x, input.position.y, input.position.z - 0.45f});

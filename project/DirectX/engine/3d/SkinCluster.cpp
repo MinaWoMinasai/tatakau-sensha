@@ -1201,7 +1201,7 @@ void SkinnedModel::Draw(const std::vector<D3D12_GPU_VIRTUAL_ADDRESS>& materialCb
         const MaterialData& material =
             asset_.modelData.materials.empty() ? asset_.modelData.material : asset_.modelData.materials[materialIndex];
 
-        auto& pso = submesh.doubleSided ? dxCommon_->GetPSOSkinningDoubleSidedForScene() : dxCommon_->GetPSOSkinningForScene();
+        auto& pso = submesh.doubleSided ? dxCommon_->GetPipeline(PipelineId::SkinningDoubleSidedHdr) : dxCommon_->GetPipeline(PipelineId::SkinningHdr);
         commandList->SetPipelineState(pso.graphicsState_.Get());
         if (materialIndex < materialCbvAddresses.size() && materialCbvAddresses[materialIndex] != 0) {
             commandList->SetGraphicsRootConstantBufferView(0, materialCbvAddresses[materialIndex]);

@@ -130,14 +130,33 @@ public:
     }
 
     /// @brief 破裂・分裂の子弾を識別するフラグを設定する。子弾を生成する処理ではない。
-    /// @note trueの弾はBulletManager::NotifyPlayerHitの対象外となり、その通知による連鎖・マーキング／起爆・撃破時破裂を行わない。
+    /// @note trueの弾はBulletManager::NotifyPlayerHitでの連鎖・マーキング／起爆・撃破時破裂を行わない。
+    /// 例外として、再発動の残り回数（SetBurstRepeats）を持つ子弾は、敵を倒したときにもう一度破裂する。
     /// 壁反射や衝突時の分裂回数を変更するフラグではない。分裂の制限はConfigureGrowthなどが別に設定する。
     void SetBurstChild(bool value)
     {
         burstChild_ = value;
     }
 
+    /// @brief 破裂子弾が敵を倒したときに、もう一度破裂できる残りの回数を返す（育つ戦車の試作の連鎖崩壊）。
+    int GetBurstRepeats() const
+    {
+        return burstRepeats_;
+    }
+
+    /// @brief 破裂子弾がもう一度破裂できる回数を設定する。0～2に制限する。
+    void SetBurstRepeats(int value)
+    {
+        burstRepeats_ = (std::clamp)(value, 0, 2);
+    }
+
     /// @brief 弾の衝突半径と軌跡幅の倍率を設定する。各入力は0.5～2に制限する。
+    /// @brief 弾と軌跡の色を上書きする（A が0なら上書きしない）。軌跡を付ける（BulletManager::Add）前に呼ぶ。
+    void SetColorOverride(const myEngine::Vector4& color)
+    {
+        colorOverride_ = color;
+    }
+
     void ConfigureVisualScale(float size, float trail)
     {
         radius_ = .5f * (std::clamp)(size, .5f, 2.0f);
@@ -227,12 +246,10 @@ public:
         return GetBulletColor();
     }
 
-    /// @brief ワールド座標を設定し、描画オブジェクトへ反映する。移動前の記録は更新しない。
+    /// @brief ワールド座標を設定する。移動前の記録は更新しない。
     void SetWorldPosition(const myEngine::Vector3& pos)
     {
         worldTransform_.translate = pos;
-        object_->SetTransform(worldTransform_);
-        object_->Update();
     }
 
     /// @brief 速度を設定する。
@@ -245,12 +262,6 @@ public:
     float GetRadius() const override
     {
         return radius_;
-    }
-
-    /// @brief 壁反射を許可する設定かを返す。残り反射回数は別に判定する。
-    bool IsReflectable() const
-    {
-        return isReflectable_;
     }
 
     /// @brief 所有者を返す。
@@ -306,24 +317,6 @@ public:
     /// @note 衝突走査後に呼ぶ。枠不足でも予約を消費する。子弾は再分裂せず、親の残り寿命と命中履歴を引き継ぐ。
     void AppendImpactChildren(std::vector<std::unique_ptr<Bullet>>& children, size_t availableSlots);
 
-    /// @brief 残りの壁反射回数を返す。-1は無制限。
-    int GetRemainingWallBounces() const
-    {
-        return remainingWallBounces_;
-    }
-
-    /// @brief アクターへ命中後も飛行を続けられる残り回数を返す。
-    int GetRemainingActorPierces() const
-    {
-        return remainingActorPierces_;
-    }
-
-    /// @brief 残り寿命（秒）を返す。
-    float GetRemainingLifetime() const
-    {
-        return deathTimer_;
-    }
-
     /// @brief 成長イベントの未処理分を取り出し、内部の保留分を消費済みにする。
     GrowthEvents ConsumeGrowthEvents()
     {
@@ -336,8 +329,6 @@ public:
     void Die();
 
 private:
-    /// @brief 表示設定を現在の状態へ適用する。
-    void ApplyVisualSettings();
     /// @brief 軌跡を更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateTrail(float deltaTime);
@@ -355,9 +346,9 @@ private:
     Player* sourcePlayer_ = nullptr;
     int sourceDroneIndex_ = -1;
     bool armorReflected_ = false, burstChild_ = false;
+    int burstRepeats_ = 0;
+    myEngine::Vector4 colorOverride_{0, 0, 0, 0};
     float visualTrailScale_ = 1;
-
-    std::unique_ptr<myEngine::Object3d> object_;
 
     // ワールドトランスフォーム
     myEngine::Transform worldTransform_;

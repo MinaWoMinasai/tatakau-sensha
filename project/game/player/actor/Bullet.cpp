@@ -7,9 +7,6 @@
 void Bullet::Initialize(const myEngine::Vector3& position, const myEngine::Vector3& velocity, uint32_t damage, BulletOwner owner,
                         bool reflectable, float bulletHp, float bulletPenetration)
 {
-    object_ = std::make_unique<myEngine::Object3d>();
-    object_->Initialize();
-
     // 再使用時に前の命中履歴・成長イベント・特殊能力・命中元を持ち越さないよう、戦闘状態を戻す。
     owner_ = owner;
     isDead_ = false;
@@ -31,30 +28,23 @@ void Bullet::Initialize(const myEngine::Vector3& position, const myEngine::Vecto
     sourcePlayer_ = nullptr;
     sourceDroneIndex_ = -1;
     armorReflected_ = burstChild_ = false;
+    burstRepeats_ = 0;
+    colorOverride_ = {0, 0, 0, 0};
     visualTrailScale_ = 1;
     isReflectable_ = reflectable;
     bulletHp_ = (std::max)(0.1f, bulletHp);
     bulletPenetration_ = (std::max)(0.1f, bulletPenetration);
 
-    // 所有者に合わせて表示色と衝突属性・マスクを設定する。敵対する経験値敵の弾はボスを対象にする。
+    // 所有者に合わせて衝突属性・マスクを設定する。敵対する経験値敵の弾はボスを対象にする。
+    // 弾は軌跡とネオンの描画で見せるので、3D モデル（Object3d）は持たない。生成のたびに GPU の資源を作らないため。
     if (owner_ == kPlayer) {
-        object_->SetModel("bullet.obj");
         SetCollisionAttribute(kCollisionAttributePlayerBullet);
         SetCollisionMask(kCollisionAttributeEnemy | kCollisionAttributeExpEnemy | kCollisionAttributeEnemyBullet);
-        if (isReflectable_) {
-            object_->SetColor(myEngine::Vector4(1.0f, 1.0f, 0.0f, 1.0f));
-        } else {
-            object_->SetColor(myEngine::Vector4(1.0f, 0.78f, 0.28f, 1.0f));
-        }
     } else if (owner_ == kEnemy) {
-        object_->SetModel("bullet.obj");
-        object_->SetColor(myEngine::Vector4(1.0f, 0.22f, 0.38f, 1.0f));
         SetCollisionAttribute(kCollisionAttributeEnemyBullet);
         SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerDrone | kCollisionAttributeExpEnemy |
                          kCollisionAttributePlayerBullet);
     } else if (owner_ == kExpEnemyHostile) {
-        object_->SetModel("bullet.obj");
-        object_->SetColor(myEngine::Vector4(1.0f, 0.16f, 0.08f, 1.0f));
         SetCollisionAttribute(kCollisionAttributeHostileExpEnemyBullet);
         SetCollisionMask(kCollisionAttributeEnemy);
     }
@@ -68,10 +58,6 @@ void Bullet::Initialize(const myEngine::Vector3& position, const myEngine::Vecto
     }
 
     SetDamage(damage);
-
-    object_->SetTransform(worldTransform_);
-    ApplyVisualSettings();
-    object_->Update();
 }
 
 void Bullet::Update(float deltaTime)
@@ -110,9 +96,6 @@ void Bullet::Update(float deltaTime)
         Die();
     }
 
-    object_->SetTransform(worldTransform_);
-    ApplyVisualSettings();
-    object_->Update();
     UpdateTrail(deltaTime);
 }
 
@@ -354,7 +337,6 @@ void Bullet::AttachTrail(myEngine::TrailManager* trailManager, BulletTrailSettin
 
     // 設定も軌跡も借用する。BulletManagerは弾の参照を外してから軌跡の実体を消去する。
     trailSettings_ = trailSettings;
-    ApplyVisualSettings();
     trail_ = trailManager->CreateInstance();
     trail_->SetIsPermanent(false);
     trail_->SetActive(true);
@@ -366,6 +348,9 @@ myEngine::Vector4 Bullet::GetBulletColor() const
     // 特殊状態の色を優先し、該当しなければ所有者・反射可否と借用設定から選ぶ。
     if (armorReflected_) {
         return {1.5f, .18f, 1.0f, 1};
+    }
+    if (colorOverride_.w > 0.0f) {
+        return colorOverride_;
     }
     if (shooter_.boomerang && returnFlight_.returning) {
         return {.55f, 1.6f, .85f, 1};
@@ -401,14 +386,6 @@ myEngine::Vector4 Bullet::GetBulletColor() const
         return {1.0f, 0.16f, 0.08f, 1.0f};
     }
     return {1.0f, 0.20f, 0.36f, 1.0f};
-}
-
-void Bullet::ApplyVisualSettings()
-{
-    if (!object_) {
-        return;
-    }
-    object_->SetColor(GetBulletColor());
 }
 
 myEngine::TrailConfig Bullet::MakeTrailConfig() const

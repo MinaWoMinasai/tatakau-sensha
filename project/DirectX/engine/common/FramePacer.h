@@ -72,12 +72,6 @@ public:
         return enabled_;
     }
 
-    /// @brief 高精度の待機タイマーを利用できているか判定する。
-    bool IsHighResolutionTimer() const
-    {
-        return highResolution_;
-    }
-
     /// @brief フレーム間隔・待機時間・待機超過の計測値をミリ秒で返す。
     const Stats& GetStats() const
     {

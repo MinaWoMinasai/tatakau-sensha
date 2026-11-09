@@ -2,6 +2,7 @@
 #include "IScene.h"
 #include <memory>
 #include <nlohmann/json.hpp>
+#include "game/session/RunMode.h"
 #include "game/session/TitleDemoStatus.h"
 
 namespace gameplay {
@@ -13,7 +14,7 @@ class GameScene : public IScene {
 public:
     using TitleDemoStatus = gameplay::TitleDemoStatus;
     /// @brief プレイするモードを設定する。
-    explicit GameScene(bool prototypeRun = false, bool expeditionRun = false);
+    explicit GameScene(gameplay::RunMode runMode = gameplay::RunMode::Classic);
     /// @brief ゲームセッションを終了する。
     ~GameScene() override;
     void Initialize() override;

@@ -8,7 +8,7 @@ namespace gameplay {
 
 void RunVisualSettings::InitializeTankRunVisuals()
 {
-    if (!world_.run.prototypeRun_) {
+    if (!world_.run.UsesPrototypeRules()) {
         return;
     }
     world_.presentation.stageSurface_.enabled = true;
@@ -95,7 +95,7 @@ void RunVisualSettings::InitializeTankRunVisuals()
     restoreEmitterBloom(world_.resources.bulletTrailPostEffect_.get(), 1.4f);
     restoreEmitterBloom(world_.resources.particlePostEffect_.get(), 1.65f);
     restoreEmitterBloom(world_.resources.neonGridPostEffect_.get(), 1.0f);
-    if (world_.run.expeditionRun_ && world_.resources.bulletManager_) {
+    if (world_.run.IsExpeditionRun() && world_.resources.bulletManager_) {
         // エミッターのBloomと敵弾は明るいままにし、プレイヤーの重なる軌跡だけを短く細くして、
         // 一斉射撃の中でも予兆表示が見えるようにする。
         auto trail = world_.resources.bulletManager_->GetTrailSettings();
@@ -111,7 +111,7 @@ void RunVisualSettings::InitializeTankRunVisuals()
     // 上のランの既定値は移行時の基準のまま。F3で明示的に保存した値はその既定値より優先され、
     // このエディタで一度も保存していない古い環境の見た目を変えずに、
     // 作成した内容が再起動後も残る。
-    if (world_.run.expeditionRun_) {
+    if (world_.run.IsExpeditionRun()) {
         auto authored = [](const char* path) {
             try {
                 std::ifstream file(path);

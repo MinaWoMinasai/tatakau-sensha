@@ -302,6 +302,20 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     recentDashTimer_ = (std::max)(0.0f, recentDashTimer_ - deltaTime);
 
     invincibleTimer_ -= deltaTime;
+    if (shieldConfig_.enabled && !isDead_) {
+        const float shieldMax = GetShieldMax();
+        if (shieldRegenWait_ > 0.0f) {
+            shieldRegenWait_ = (std::max)(0.0f, shieldRegenWait_ - deltaTime);
+        } else {
+            shield_ += shieldMax * shieldConfig_.regenPerSecond * deltaTime;
+        }
+        shield_ = (std::clamp)(shield_, 0.0f, shieldMax);
+        // 衝角シールド：今のシールドの割合に比例して、体当たりの威力を上げる（部品を持っているときだけ書き換える）。
+        if (partEffects_.ramShield > 0.0f) {
+            const float ratio = shieldMax > 0.0f ? shield_ / shieldMax : 0.0f;
+            SetDamage(static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bodyDamage * (1.0f + partEffects_.ramShield * ratio)))));
+        }
+    }
     if (damageFeedbackTimer_ > 0.0f) {
         damageFeedbackTimer_ = (std::max)(0.0f, damageFeedbackTimer_ - deltaTime);
     }
@@ -328,11 +342,18 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     // 次のフレームではなく即座に加速の向きを変えるため。
     inputDir_ = demoInputEnabled_ ? myEngine::Vector3{demoMove_.x, demoMove_.y, 0} : ReadMoveInput(input_);
     RotateToMouse(viewProjection);
-    if (!runRoomAwaitInputRelease_ &&
-        (demoInputEnabled_ ? demoDash_
-                           : input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1]))) {
+    // 試作では Shift でもダッシュでき、右クリックをため撃ちに使う形態では右クリックでダッシュしない。
+    const bool rightClickDash =
+        rightClickDashEnabled_ && !HasRailChargeForm() && input_->IsTrigger(input_->GetMouseState().rgbButtons[1], input_->GetPreMouseState().rgbButtons[1]);
+    const bool shiftDash = shiftDashEnabled_ && input_->IsTrigger(input_->GetKey()[DIK_LSHIFT], input_->GetPreKey()[DIK_LSHIFT]);
+    if (!runRoomAwaitInputRelease_ && (demoInputEnabled_ ? demoDash_ : rightClickDash || shiftDash)) {
         demoDash_ = false;
-        TryActivateSpecialAction();
+        // 試作の不動砲台はダッシュできない（押しても何もしない）。
+        if (partEffects_.noDash) {
+            ++dashBlocked_;
+        } else {
+            TryActivateSpecialAction();
+        }
     }
     if (saberCounterTimer_ > 0.0f) {
         saberCounterTimer_ = (std::max)(0.0f, saberCounterTimer_ - deltaTime);
@@ -405,10 +426,15 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
             {
                 MineDropEvent explosion{};
                 explosion.position = GetWorldPosition();
-                explosion.radius = synergy.explosionRadius;
+                // 試作の爆走は、衝撃波を大きく強くし、シールドを回復する（既定は倍率1・回復0で変わらない）。
+                explosion.radius = synergy.explosionRadius * partEffects_.dashBlastRadiusScale;
                 explosion.fuseTime = 0.06f;
                 explosion.lifeTime = 0.12f;
-                explosion.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * synergy.explosionDamageScale)));
+                explosion.damage = static_cast<uint32_t>(
+                    (std::max)(1.0f, std::round(stats_.bulletDamage * synergy.explosionDamageScale * partEffects_.dashBlastDamageScale)));
+                if (partEffects_.dashShieldRefill > 0.0f && shieldConfig_.enabled) {
+                    shield_ = (std::min)(GetShieldMax(), shield_ + GetShieldMax() * partEffects_.dashShieldRefill);
+                }
                 explosion.color = {1.8f, 0.65f, 0.14f, 1.0f};
                 pendingMineDrops_.push_back(explosion);
                 ++runDashExplosionsEmitted_;
@@ -720,8 +746,17 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
         }
     }
 
-    const uint32_t appliedDamage = runCheckpointEvolution_ ? runMaintenance_.MitigateDamage(amount) : amount;
+    uint32_t appliedDamage = runCheckpointEvolution_ ? runMaintenance_.MitigateDamage(amount) : amount;
     ++damageTakenCount_;
+    if (shieldConfig_.enabled) {
+        // シールドがHPより先に受ける。端数が残っていれば1点として受け止める。
+        shieldRegenWait_ = shieldConfig_.regenDelay;
+        const float incoming = static_cast<float>(appliedDamage);
+        const float absorbed = (std::min)(incoming, shield_);
+        shield_ -= absorbed;
+        shieldAbsorbed_ += absorbed;
+        appliedDamage -= static_cast<uint32_t>((std::min)(incoming, std::ceil(absorbed)));
+    }
     // 符号付きHPへ変換する前に残HPで制限し、極端な開発用ダメージでも整数変換を安全にする。
     hp_ -= static_cast<int>((std::min)(appliedDamage, static_cast<uint32_t>((std::max)(0, hp_))));
     if (hp_ < 0) {
@@ -729,10 +764,68 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
     }
 
     TriggerDamageFeedback();
-    invincibleTimer_ = invincibleTime;
+    invincibleTimer_ = invincibleTime * partEffects_.invincibleScale;
     if (hp_ <= 0) {
         Die();
     }
+}
+
+void Player::ConfigureSurvivorResources(const PlayerHeat::Config& heat, const ShieldConfig& shield)
+{
+    heat_.Configure(heat);
+    shieldConfig_ = shield;
+    shieldRegenWait_ = 0.0f;
+    shieldAbsorbed_ = 0.0f;
+    shield_ = GetShieldMax();
+}
+
+void Player::ApplySurvivorForm(const PlayerClassConfig& config, const SurvivorFormTuning& tuning)
+{
+    if (isDead_ || config.barrels.empty()) {
+        return;
+    }
+    // 遠征の進化と同じく、run 中の機体設定として持つ（GetCurrentClassConfig がこれを返す）。
+    runEvolutionConfig_ = config;
+    runEvolutionActive_ = true;
+    runAuthoredEvolutionActive_ = false;
+    runEvolutionPrepared_ = false;
+    formTuning_ = tuning;
+    bulletCoolTime = 0.0f;
+    shootBarrelIndex_ = 0;
+    shootGroupIndex_ = 0;
+    weaponGroupCooldowns_.clear();
+    railCharge_.Reset();
+    InitializeBarrels();
+    UpdateBarrelLayout();
+}
+
+bool Player::HasRailChargeForm() const
+{
+    const PlayerClassConfig* config = GetCurrentClassConfig();
+    return config && config->specialActionId == "rail_charge";
+}
+
+void Player::TriggerSurvivorBlast(float radius, float damageScale)
+{
+    MineDropEvent explosion{};
+    explosion.position = GetWorldPosition();
+    explosion.radius = radius;
+    explosion.fuseTime = 0.06f;
+    explosion.lifeTime = 0.2f;
+    explosion.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * damageScale)));
+    explosion.color = {1.9f, 0.35f, 0.16f, 1.0f};
+    pendingMineDrops_.push_back(explosion);
+}
+
+float Player::FireSurvivorHeatVent(float damagePerHeat)
+{
+    const float heat = heat_.GetHeat();
+    if (!runBulletManager_ || !playerWeapons_ || heat <= 0.0f) {
+        return 0.0f;
+    }
+    playerWeapons_->FireHeatVent(runBulletManager_, heat, damagePerHeat);
+    heat_.Reset();
+    return heat;
 }
 
 std::vector<Player::SpecialCombatEvent> Player::ConsumeSpecialCombatEvents()

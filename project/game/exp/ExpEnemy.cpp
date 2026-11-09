@@ -17,12 +17,40 @@ myEngine::Vector4 LerpColor(const myEngine::Vector4& a, const myEngine::Vector4&
     t = (std::clamp)(t, 0.0f, 1.0f);
     return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t};
 }
+
+// 倒れた敵の Object3d の置き場。湧くたびに定数バッファ（GPU の資源）を作ると、まとめて倒して湧き直す場面で重い。
+// フレームは同時に1つしか進まない（CPU は毎フレーム GPU の終わりを待つ）ので、次のフレームで使い回してよい。
+constexpr size_t kObjectPoolMax = 320;
+std::vector<std::unique_ptr<myEngine::Object3d>> gObjectPool;
+int gObjectPoolUsers = 0;
 } // namespace
+
+ExpEnemy::~ExpEnemy()
+{
+    if (object_ && gObjectPoolUsers > 0 && gObjectPool.size() < kObjectPoolMax) {
+        gObjectPool.push_back(std::move(object_));
+    }
+}
+
+void ExpEnemy::AcquireObjectPool()
+{
+    ++gObjectPoolUsers;
+}
+
+void ExpEnemy::ReleaseObjectPool()
+{
+    gObjectPoolUsers = (std::max)(0, gObjectPoolUsers - 1);
+    if (gObjectPoolUsers == 0) {
+        gObjectPool.clear();
+    }
+}
 
 ExpEnemy::BalanceConfig ExpEnemy::balanceConfig_{};
 ExpEnemy::EnemyInteractionConfig ExpEnemy::enemyInteractionConfig_{};
 std::function<void(uint32_t)> ExpEnemy::enemyKillCallback_{};
 std::function<void(const myEngine::Vector3&)> ExpEnemy::playerDefeatCallback_{};
+std::function<void(const ExpEnemy&, uint32_t)> ExpEnemy::playerExpDropCallback_{};
+std::function<void(const ExpEnemy&, uint32_t)> ExpEnemy::playerDamageCallback_{};
 bool ExpEnemy::shapeNeonBillboardEnabled_ = false;
 int ExpEnemy::shapeNeonRenderMode_ = 0;
 
@@ -50,6 +78,16 @@ void ExpEnemy::SetEnemyKillCallback(std::function<void(uint32_t)> callback)
 void ExpEnemy::SetPlayerDefeatCallback(std::function<void(const myEngine::Vector3&)> callback)
 {
     playerDefeatCallback_ = std::move(callback);
+}
+
+void ExpEnemy::SetPlayerExpDropCallback(std::function<void(const ExpEnemy&, uint32_t)> callback)
+{
+    playerExpDropCallback_ = std::move(callback);
+}
+
+void ExpEnemy::SetPlayerDamageCallback(std::function<void(const ExpEnemy&, uint32_t)> callback)
+{
+    playerDamageCallback_ = std::move(callback);
 }
 
 void ExpEnemy::SetShapeNeonBillboardEnabled(bool enabled)
@@ -87,8 +125,18 @@ void ExpEnemy::Initialize(const myEngine::Vector3& position, Player* player, Exp
     isDead_ = false;
     isRunResource_ = false;
     runResourceClaimCallback_ = {};
-    object_ = std::make_unique<myEngine::Object3d>();
-    object_->Initialize();
+    // 描画用の Object3d は、置き場にあれば材質を既定に戻して使い回す（モデルと色は ApplyTypeParams で決め直す）。
+    if (object_ && gObjectPoolUsers > 0 && gObjectPool.size() < kObjectPoolMax) {
+        gObjectPool.push_back(std::move(object_));
+    }
+    if (!gObjectPool.empty()) {
+        object_ = std::move(gObjectPool.back());
+        gObjectPool.pop_back();
+        object_->ResetMaterialToDefault();
+    } else {
+        object_ = std::make_unique<myEngine::Object3d>();
+        object_->Initialize();
+    }
 
     worldTransform_ = myEngine::InitWorldTransform();
     worldTransform_.translate = position;
@@ -367,6 +415,40 @@ void ExpEnemy::Update(Stage& stage, float deltaTime)
 
     // --- 慣性処理 ---
     velocity_ += (velocity_ * -1.0f) * 0.98f * deltaTime;
+    if (chaseAcceleration_ > 0.0f && type_ != ExpEnemyType::Shooter && player_ && !player_->IsDead()) {
+        // 寄ってくる図形は、自機の方向へ加速し、最高速度で頭打ちにする。velocity_ は60FPSの1ステップあたりの変位。
+        myEngine::Vector3 toPlayer = player_->GetWorldPosition() - GetWorldPosition();
+        toPlayer.z = 0.0f;
+        const float distance = myEngine::Length(toPlayer);
+        float acceleration = chaseAcceleration_;
+        float maxSpeed = chaseMaxSpeed_;
+        // 突進：周期の終わりの windup 秒は溜め（ほぼ止まる）、最後の duration 秒は速く迫る。
+        if (lungeInterval_ > 0.0f) {
+            lungeTimer_ += deltaTime;
+            const float cycle = std::fmod(lungeTimer_, lungeInterval_);
+            if (cycle >= lungeInterval_ - lungeDuration_) {
+                acceleration *= 6.0f;
+                maxSpeed = lungeSpeed_;
+            } else if (cycle >= lungeInterval_ - lungeDuration_ - lungeWindup_) {
+                acceleration = 0.0f;
+                maxSpeed = 0.4f;
+            }
+        }
+        if (distance > 0.001f) {
+            myEngine::Vector3 steer = toPlayer;
+            if (wobbleStrength_ > 0.0f) {
+                // 向きを左右へ揺らして、ばらばらな軌道にする。
+                wobbleTime_ += deltaTime * wobbleFrequency_;
+                steer += myEngine::Vector3{-toPlayer.y, toPlayer.x, 0.0f} * (wobbleStrength_ * std::sin(wobbleTime_));
+            }
+            velocity_ += steer * (acceleration * deltaTime / (distance * myEngine::kFixedStepsPerSecond));
+        }
+        const float maxStep = maxSpeed / myEngine::kFixedStepsPerSecond;
+        const float speed = myEngine::Length(velocity_);
+        if (speed > maxStep && speed > 0.0f) {
+            velocity_ = velocity_ * (maxStep / speed);
+        }
+    }
 
     float timeWeight = deltaTime * myEngine::kFixedStepsPerSecond;
 
@@ -1247,6 +1329,9 @@ bool ExpEnemy::ApplyDamage(uint32_t amount, bool playerOwned, bool reportOrdinar
     }
     hp_ -= static_cast<int>((std::min)(amount, static_cast<uint32_t>((std::max)(0, hp_))));
     TriggerDamageFeedback();
+    if (playerOwned && !isRunResource_ && playerDamageCallback_) {
+        playerDamageCallback_(*this, amount);
+    }
     if (hp_ <= 0) {
         // 通知先からの再入や同じフレームの後続ダメージに備え、撃破通知より先に死亡を確定する。
         isDead_ = true;
@@ -1262,7 +1347,9 @@ bool ExpEnemy::ApplyDamage(uint32_t amount, bool playerOwned, bool reportOrdinar
                 runResourceClaimCallback_(playerOwned);
             }
         } else if (playerOwned && !IsSummonedUnit()) {
-            if (player_) {
+            if (playerExpDropCallback_) {
+                playerExpDropCallback_(*this, expValue_);
+            } else if (player_) {
                 player_->AddExp(expValue_);
             }
             if (playerDefeatCallback_) {

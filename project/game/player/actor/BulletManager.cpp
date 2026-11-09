@@ -5,6 +5,7 @@
 #include "Player.h"
 #include "Enemy.h"
 #include "EnemyManager.h"
+#include "ParticleManager.h"
 #include <array>
 
 void BulletManager::Initialize(myEngine::DirectXCommon* dxCommon, myEngine::Object3dCommon* object3dCommon)
@@ -71,6 +72,7 @@ void BulletManager::FlushPendingSplits()
         shot->ConfigureGrowth(0, 0, 0);
         shot->SetArmorReflected(spec.reflection);
         shot->SetBurstChild(!spec.reflection);
+        shot->SetBurstRepeats(spec.burstRepeats);
         shot->SetCanClaimRunResource(!spec.reflection);
         if (spec.reflection) {
             shot->ConfigureSpecial(Bullet::SpecialKind::ArmorReflection, .42f, 2.0f);
@@ -293,39 +295,76 @@ bool BulletManager::DamageBuildTarget(Collider* target, uint32_t damage, const m
 
 void BulletManager::QueueKillBurst(const Bullet& bullet, const myEngine::Vector3& position)
 {
-    // 破裂子弾からは再発動しない。6発分をまとめて予約し、衝突中の管理配列を増やさない。
-    if (!bullet.GetShooterAbilities().killBurst || bullet.IsBurstChild() || pendingBuildShots_.size() > 42) {
+    // 破裂子弾は、再発動の残り回数を持つときだけもう一度破裂する（連鎖崩壊）。6発分をまとめて予約し、衝突中の管理配列を増やさない。
+    const bool repeat = bullet.IsBurstChild();
+    if ((repeat ? bullet.GetBurstRepeats() <= 0 : !bullet.GetShooterAbilities().killBurst) || pendingBuildShots_.size() > 42) {
         return;
     }
-    ++shooterStats_.burstTriggers;
-    const auto damage = tankshooter::Damage(bullet.GetDamage(), .35f, bullet.GetShooterAbilities().burstPower);
+    // 再発動の子弾は親の子弾と同じ威力。最初の破裂の子弾が、設定された回数だけ再発動できる。
+    uint32_t damage = bullet.GetDamage();
+    int repeats = bullet.GetBurstRepeats() - 1;
+    if (repeat) {
+        ++shooterStats_.burstRepeats;
+    } else {
+        ++shooterStats_.burstTriggers;
+        damage = tankshooter::Damage(bullet.GetDamage(), .35f, bullet.GetShooterAbilities().burstPower);
+        repeats = killBurstRepeats_;
+    }
+    // 再発動は向きを半分ずらし、最初の破裂と同じ線に重ならないようにする。
+    const float offset = repeat ? 3.14159265f / tankshooter::kBurstChildren : 0.0f;
     for (int i = 0; i < tankshooter::kBurstChildren; ++i) {
-        const float angle = static_cast<float>(i) * 6.2831853f / tankshooter::kBurstChildren;
+        const float angle = offset + static_cast<float>(i) * 6.2831853f / tankshooter::kBurstChildren;
         const myEngine::Vector3 direction{std::cos(angle), std::sin(angle), 0};
-        pendingBuildShots_.push_back({position + direction * .35f, direction * .30f, damage, false});
+        pendingBuildShots_.push_back({position + direction * .35f, direction * .30f, damage, false, repeats});
     }
     BuildEventAt(BuildEventKind::Burst, position, position);
 }
 
 void BulletManager::NotifyPlayerHit(Bullet& bullet, Collider& target, bool killed)
 {
-    if (bullet.GetOwner() != kPlayer || bullet.IsBurstChild() || bullet.GetSourceDroneIndex() >= 0) {
+    if (bullet.GetOwner() != kPlayer || bullet.GetSourceDroneIndex() >= 0) {
         return;
     }
     if (auto* ordinary = dynamic_cast<ExpEnemy*>(&target); ordinary && ordinary->IsRunResource()) {
+        return;
+    }
+    // 破裂・分裂の子弾は、連鎖崩壊の再発動だけを行う（残り回数が無ければ QueueKillBurst が何もしない）。
+    if (bullet.IsBurstChild()) {
+        if (killed) {
+            QueueKillBurst(bullet, target.GetWorldPosition());
+        }
         return;
     }
     const auto& ability = bullet.GetShooterAbilities();
     if (killed) {
         QueueKillBurst(bullet, target.GetWorldPosition());
     }
+    // 試作の榴弾砲：当たった場所で爆発し、まわりの敵にも当てる。
+    if (impactBlastRadius_ > 0.0f) {
+        const auto center = target.GetWorldPosition();
+        ++shooterStats_.impactBlasts;
+        BuildEventAt(BuildEventKind::Detonation, center, center, impactBlastRadius_);
+        myEngine::ParticleManager::GetInstance()->EmitNeonDeathEffect(center, impactBlastColor_, {1.6f, 1.1f, 0.4f, 0.0f}, 1.1f);
+        for (auto* candidate : LiveCombatTargets()) {
+            if (myEngine::Length(candidate->GetWorldPosition() - center) > impactBlastRadius_ + candidate->GetRadius() ||
+                !HasClearLink(center, candidate->GetWorldPosition())) {
+                continue;
+            }
+            const float scale = candidate == &target ? impactBlastCenter_ : impactBlastSplash_;
+            if (scale > 0.0f && DamageBuildTarget(candidate, tankshooter::Damage(bullet.GetDamage(), scale), center)) {
+                QueueKillBurst(bullet, candidate->GetWorldPosition());
+            }
+        }
+    }
     // 1回の連鎖内で同じ衝突IDを選び直さない。各段で生存対象を取り直し、前段の撃破を反映する。
     if (ability.chain) {
         myEngine::Vector3 from = target.GetWorldPosition();
-        std::array<uint64_t, 3> visited{target.GetCollisionId(), 0, 0};
-        for (int hop = 0; hop < tankshooter::kChainTargets; ++hop) {
+        // 届く数と距離は、雷鳴（SetChainBoost）で伸びる。
+        std::array<uint64_t, 1 + tankshooter::kChainTargets + 5> visited{target.GetCollisionId()};
+        const int hops = tankshooter::kChainTargets + chainExtraTargets_;
+        for (int hop = 0; hop < hops; ++hop) {
             Collider* nearest = nullptr;
-            float distance = tankshooter::kChainRadius;
+            float distance = tankshooter::kChainRadius * chainRadiusScale_;
             for (auto* candidate : LiveCombatTargets()) {
                 if (std::find(visited.begin(), visited.end(), candidate->GetCollisionId()) != visited.end()) {
                     continue;
@@ -350,11 +389,16 @@ void BulletManager::NotifyPlayerHit(Bullet& bullet, Collider& target, bool kille
             from = to;
         }
     }
-    // 起爆は命中の蓄積が条件を満たしたときだけ。中心・周囲・ボスの倍率を分け、撃破時の破裂も予約する。
-    if (ability.mark && !killed && marks_.Hit(target.GetCollisionId(), dynamic_cast<Enemy*>(&target) != nullptr)) {
+    // 起爆は命中の蓄積が条件を満たしたときだけ（試作の狙撃は、倒したときにも起爆する）。中心・周囲・ボスの倍率を分け、撃破時の破裂も予約する。
+    if (ability.mark && (killed ? markOnKill_
+                                : marks_.Hit(target.GetCollisionId(), dynamic_cast<Enemy*>(&target) != nullptr, markNeeded_, markNeededBoss_))) {
         const auto center = target.GetWorldPosition();
         ++shooterStats_.detonations;
         BuildEventAt(BuildEventKind::Detonation, center, center, 2.8f);
+        // 試作の狙撃（倒したときも起爆）は、よく起きるので、輪に加えて光の粒で爆発を見せる。
+        if (markOnKill_) {
+            myEngine::ParticleManager::GetInstance()->EmitNeonDeathEffect(center, {1.8f, 0.35f, 0.30f, 1.0f}, {1.6f, 1.1f, 0.4f, 0.0f}, 1.3f);
+        }
         for (auto* candidate : LiveCombatTargets()) {
             if (myEngine::Length(candidate->GetWorldPosition() - center) > 2.8f + candidate->GetRadius() ||
                 !HasClearLink(center, candidate->GetWorldPosition())) {

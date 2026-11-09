@@ -57,18 +57,6 @@ public:
         return hasRendered_;
     }
 
-    /// @brief 描画件数を返す。
-    uint64_t GetRenderCount() const
-    {
-        return renderCount_;
-    }
-
-    /// @brief 形状頂点件数を返す。
-    uint32_t GetGeometryVertexCount() const
-    {
-        return neon_ ? neon_->GetVertexCount() : 0;
-    }
-
 private:
     /// @brief 形状を組み立てる。
     void BuildGeometry();

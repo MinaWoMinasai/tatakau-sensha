@@ -49,12 +49,6 @@ public:
         return modelData_;
     }
 
-    /// @brief 頂点リソースを返す。
-    const Microsoft::WRL::ComPtr<ID3D12Resource>& GetVertexResource() const
-    {
-        return vertexResource;
-    }
-
     /// @brief 頂点バッファ視点を返す。
     const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() const
     {

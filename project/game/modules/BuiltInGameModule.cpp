@@ -19,7 +19,10 @@ bool BuiltInGameModule::RegisterScenes(SceneRegistry& registry) const
     bool success = true;
     success = registry.Register<TitleScene>("TITLE") && success;
     success = registry.Register("TANK_EXPEDITION", []() {
-        return std::make_unique<GameScene>(true, true);
+        return std::make_unique<GameScene>(gameplay::RunMode::Expedition);
+    }) && success;
+    success = registry.Register("TANK_SURVIVOR", []() {
+        return std::make_unique<GameScene>(gameplay::RunMode::Survivor);
     }) && success;
     return success;
 }

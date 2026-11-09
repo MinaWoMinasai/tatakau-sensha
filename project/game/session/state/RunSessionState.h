@@ -1,9 +1,42 @@
 #pragma once
 #include "game/session/GameplayTypes.h"
+#include "game/session/RunMode.h"
 
 namespace gameplay {
 /// @brief RunSessionStateに属する資源と実行状態を保持する。
 struct RunSessionState {
+    RunMode runMode_ = RunMode::Classic;
+
+    /// @brief 旧来の戦闘以外（試作の見た目と進行の規則を使う）かを返す。
+    bool UsesPrototypeRules() const
+    {
+        return runMode_ != RunMode::Classic;
+    }
+
+    /// @brief 遠征のプレイかを返す。
+    bool IsExpeditionRun() const
+    {
+        return runMode_ == RunMode::Expedition;
+    }
+
+    /// @brief 育つ戦車の試作のプレイかを返す。
+    bool IsSurvivorRun() const
+    {
+        return runMode_ == RunMode::Survivor;
+    }
+
+    /// @brief 旧来の戦闘かコア争奪戦かを返す。最初からボスがいて、自機の旧アリーナ用 HUD（図鑑・能力値）を使う。
+    bool IsLegacyArenaRun() const
+    {
+        return runMode_ == RunMode::Classic || runMode_ == RunMode::Arena;
+    }
+
+    /// @brief RunDirector（カード・資材・宿敵・選択画面）で進行するプレイかを返す。コア争奪戦と遠征。
+    bool UsesTankRunDirector() const
+    {
+        return runMode_ == RunMode::Arena || runMode_ == RunMode::Expedition;
+    }
+
     bool expeditionAuthoringHubOpen_ = false;
 
     nlohmann::json expeditionPostDraft_;
@@ -187,8 +220,6 @@ struct RunSessionState {
 
     std::unique_ptr<myEngine::TextLabel> tankExpeditionExpText_, tankExpeditionDetailsText_;
 
-    bool expeditionRun_ = false;
-
     tankexp::ExpeditionDirector tankExpedition_{};
 
     bool tankExpeditionRivalActive_ = false;
@@ -236,8 +267,6 @@ struct RunSessionState {
     std::unique_ptr<myEngine::TextLabel> tankExpeditionMaintenanceText_;
 
     std::unique_ptr<myEngine::Sprite> tankExpeditionMaintenanceButton_;
-
-    bool prototypeRun_ = false;
 
     tankrun::RunDirector tankRun_{};
 

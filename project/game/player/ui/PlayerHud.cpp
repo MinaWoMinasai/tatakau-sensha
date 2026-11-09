@@ -1136,8 +1136,8 @@ void PlayerHud::DrawUpgradeHudRectBatch(bool showUpgradeList, float expRatio, fl
     myEngine::DirectXCommon* dxCommon = myEngine::SpriteCommon::GetInstance()->GetDxCommon();
     ID3D12GraphicsCommandList* commandList = dxCommon->GetList().Get();
     myEngine::TextureManager::GetInstance()->PreDraw();
-    commandList->SetGraphicsRootSignature(dxCommon->GetPSOHudRect().root_.GetSignature().Get());
-    commandList->SetPipelineState(dxCommon->GetPSOHudRect().graphicsState_.Get());
+    commandList->SetGraphicsRootSignature(dxCommon->GetPipeline(myEngine::PipelineId::HudRect).root_.GetSignature().Get());
+    commandList->SetPipelineState(dxCommon->GetPipeline(myEngine::PipelineId::HudRect).graphicsState_.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &ui_.upgradeHudBatchVertexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, ui_.upgradeHudBatchMaterialResource_->GetGPUVirtualAddress());

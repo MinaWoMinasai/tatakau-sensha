@@ -1,0 +1,921 @@
+#include "game/run/session/SurvivorRunController.h"
+#include "game/editor/SurvivorTuningPanel.h"
+#include "game/run/session/SurvivorRunShared.h"
+#include "game/session/GameplaySystems.h"
+#include "game/player/TankRunModifiers.h"
+#include "game/render/settings/ArenaCameraProfile.h"
+#include "RuntimeProfiler.h"
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+
+// 育つ戦車の試作の進行の中心（初期化・毎フレームの更新・調整パネル・画面の上の表示）。
+// 湧き方は SurvivorRunSpawns.cpp、部品と3択は SurvivorRunLoadout.cpp、結果画面は SurvivorRunResult.cpp、
+// 自動確認は SurvivorRunAutoTest.cpp に分けてある。
+
+namespace gameplay {
+
+using namespace survivorrun;
+
+void SurvivorRunController::Initialize()
+{
+    // 遠征と同じ自機にする（遠征も ArenaRunController の初期化で改造の倍率を有効にしている）。
+    TankRunModifiers modifiers{};
+    modifiers.enabled = true;
+    modifiers.survivor = true;
+    world_.resources.player_->SetRunModifiers(modifiers);
+    world_.presentation.showPostProfileOverlay_ = false;
+    world_.presentation.showLevelAiEditorPreview_ = false;
+    world_.presentation.showGameDebugConsole_ = false;
+    world_.runVisualSettings->InitializeTankRunVisuals();
+
+    // 湧き方の設定と、敵戦車の性能（遠征と同じ制作カタログ）を読む。読めなければ既定値で続ける。
+    std::string error;
+    if (!survivor::LoadSpawnConfig(kConfigPath, config_, error)) {
+        OutputDebugStringA(("[Survivor] " + error + "\n").c_str());
+    }
+    fileExitOpenSeconds_ = config_.exitOpenSeconds;
+    fileRivalEnabled_ = config_.rival.enabled;
+    // MYENGINE_SURVIVOR_WEAPONS=0：武器の枠を使わず、これまでの育つ戦車の試作（3択・レベル・形態の進化）で遊ぶ。
+    wchar_t weaponsSwitch[4]{};
+    if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_WEAPONS", weaponsSwitch, 4) > 0) {
+        config_.weaponsEnabled = weaponsSwitch[0] != L'0';
+    }
+    // 武器の枠を使う遊び方では、ステージ1の宿敵は出さず、exitOpenSeconds 耐えたら出口を開く（計画書 p3 の G3）。
+    if (config_.weaponsEnabled) {
+        config_.rival.enabled = false;
+    }
+    tankcontent::Catalog content = tankcontent::DefaultCatalog();
+    if (tankcontent::LoadCatalog(kContentPath, content, error)) {
+        world_.resources.enemyManager_->SetExpeditionContent(content);
+    }
+
+    // レベルデータが置いた敵と出現領域を片付け、宿敵も出さない。
+    world_.resources.enemy_->SetRunEncounterEnabled(false);
+    world_.resources.enemyManager_->ClearRunActors();
+    world_.resources.bulletManager_->ClearAll();
+
+    // 試作用の広い部屋に差し替え、自機とカメラを中央に置く。カメラは CombatFramePipeline が自機を追い、
+    // 部屋の外枠（ArenaBounds）からはみ出さないように止める。
+    if (!world_.resources.stage_->LoadRunMap(kArenaMap)) {
+        OutputDebugStringA("[Survivor] arena map could not be loaded\n");
+    }
+    world_.presentation.stagePostCacheValid_ = false;
+    world_.resources.player_->ResetRunRoomState(kPlayerStart);
+    // 試作では熱とシールドを基本で持つ。シールドの上限は最大HPに合わせて変わる。
+    Player::ShieldConfig shield{};
+    // 武器の枠を使う遊び方では、全周のシールドの代わりにバリアとスタミナを使う（X3）。ダッシュもなくす（後でシールド枠の装備にする）。
+    shield.enabled = !config_.weaponsEnabled;
+    shield.maxHpRatio = config_.shieldMaxHpRatio;
+    shield.regenDelay = config_.shieldRegenDelay;
+    shield.regenPerSecond = config_.shieldRegenPerSecond;
+    world_.resources.player_->ConfigureSurvivorResources(config_.heat, shield);
+    world_.resources.player_->SetShiftDashEnabled(!config_.weaponsEnabled);
+    world_.resources.player_->SetRightClickDashEnabled(!config_.weaponsEnabled);
+    barrierStamina_ = config_.barrier.staminaMax;
+    world_.presentation.playerStaminaRatio_ = config_.weaponsEnabled ? 1.0f : -1.0f;
+    world_.presentation.playerStaminaExhausted_ = false;
+    world_.resources.camera->SetTranslate({kPlayerStart.x, kPlayerStart.y, world_.resources.camera->GetTranslate().z});
+    world_.resources.camera->Update();
+
+    // 自機が倒した敵は、経験値を直接渡さずに欠片を落とす。コールバックは衝突処理の途中から呼ばれるので、欠片の列に足すだけにする。
+    ConfigurePickups();
+    // 大五角は宝箱：倒すと、まだ持っていないレリックの2択を1つ貯める（D4）。全部持っていれば、軽い部品の出ない3択を1つ貯める。
+    ExpEnemy::SetPlayerExpDropCallback([this](const ExpEnemy& enemy, uint32_t value) {
+        pickups_.Drop(enemy.GetWorldPosition(), value, random_);
+        expDropped_ += static_cast<int>(value);
+        if (WeaponMode()) {
+            DropLoot(enemy);
+        }
+        if (!WeaponMode() && enemy.GetType() == ExpEnemyType::Pentagon && enemy.GetSizeScale() > 1.5f) {
+            const int owned = static_cast<int>(std::count(relics_.begin(), relics_.end(), true));
+            if (owned + pendingRelics_ < static_cast<int>(survivor::kRelicCount)) {
+                ++pendingRelics_;
+                return;
+            }
+            ++pendingChoices_;
+            ++pendingPremium_;
+            ++premiumTotal_;
+            premiumGained_ = true;
+            pendingSince_.push_back(elapsed_);
+        }
+    });
+
+    nextSwarm_ = config_.swarm.from;
+    nextTank_ = config_.tanks.from;
+    nextBigPentagon_ = config_.bigPentagon.from;
+
+    myEngine::TextStyle style{};
+    style.fontFamily = "Meiryo";
+    style.fontSize = 22;
+    style.color = {0.82f, 0.97f, 1.0f, 1.0f};
+    style.outlineThickness = 0;
+    style.padding = 4;
+    hudText_ = std::make_unique<myEngine::TextLabel>();
+    hudText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    hudText_->SetPosition({24.0f, 16.0f});
+    auto bar = [](const myEngine::Vector2& position, const myEngine::Vector2& size, const myEngine::Vector4& color) {
+        auto sprite = std::make_unique<myEngine::Sprite>();
+        sprite->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/white512x512.png");
+        sprite->SetPosition(position);
+        sprite->SetSize(size);
+        sprite->SetColor(color);
+        sprite->Update();
+        return sprite;
+    };
+    // 画面の上端の経験値のゲージ。
+    expTrack_ = bar({0.0f, 0.0f}, {static_cast<float>(myEngine::WinApp::kClientWidth), 8.0f}, {0.05f, 0.09f, 0.12f, 0.85f});
+    expFill_ = bar({0.0f, 0.0f}, {0.0f, 8.0f}, {0.35f, 1.0f, 0.78f, 1.0f});
+    style.fontSize = 26;
+    style.color = {1.0f, 0.86f, 0.36f, 1.0f};
+    exitText_ = std::make_unique<myEngine::TextLabel>();
+    exitText_->Initialize(myEngine::SpriteCommon::GetInstance(), "出口が開いた  ─  光る輪に入ると区画クリア", style);
+    exitText_->SetPosition({24.0f, 52.0f});
+    // Q の部品の状態（画面の下の中ほど）。
+    style.fontSize = 24;
+    style.color = {1.0f, 0.62f, 0.30f, 1.0f};
+    qText_ = std::make_unique<myEngine::TextLabel>();
+    qText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    qText_->SetPosition({520.0f, 676.0f});
+    // 持っているレリック（Q の表示の上）。宝箱で選んだとき（更新の中）だけ書き換える。
+    style.color = {0.86f, 0.62f, 1.0f, 1.0f};
+    relicText_ = std::make_unique<myEngine::TextLabel>();
+    relicText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    relicText_->SetPosition({520.0f, 646.0f});
+    // 出撃中の袋（左上の2行目）。武器の枠を使う遊び方だけで出す。
+    style.fontSize = 20;
+    style.color = {0.80f, 0.90f, 1.0f, 1.0f};
+    lootText_ = std::make_unique<myEngine::TextLabel>();
+    lootText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    lootText_->SetPosition({24.0f, 48.0f});
+    style.fontSize = 24;
+    style.color = {0.60f, 0.92f, 1.0f, 1.0f};
+    evolveText_ = std::make_unique<myEngine::TextLabel>();
+    evolveText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    evolveText_->SetPosition({520.0f, 616.0f});
+    RefreshEvolveText();
+    // 武器の輪と弾の数（右下）。
+    weaponHud_.Initialize();
+    itemScreen_.Initialize(ScreenIconPaths());
+    world_.presentation.playerSwapDissolve_ = 0.0f;
+    // 最小の案内。文字は案内ごとに作り、遊んでいる間は書き換えない（描画中の SetText は落ちる原因になるため）。
+    hintPanel_ = bar({190.0f, 548.0f}, {900.0f, 46.0f}, {0.01f, 0.03f, 0.05f, 0.80f});
+    style.fontSize = 21;
+    style.color = {0.92f, 0.98f, 1.0f, 1.0f};
+    // 選択の案内は、3択の間に止めるかスローにするか（choices.pause）で文を変える。2番目と3番目のどちらかを使う。
+    static constexpr std::array<const char*, static_cast<size_t>(Hint::Count) + 2> kHintTexts{
+        "WASD で移動　／　マウスで狙い、左クリックで撃つ　／　Shift でダッシュ",
+        "レベルが上がると部品を選べる。Tab で開く（開いている間はスロー）。貯めておいてもよい",
+        "レベルが上がると部品を選べる。Tab で開く（開いている間は止まる）。貯めておいてもよい",
+        "部品には重さがある。左下の積載を超える部品は、何かを外してから積む",
+        "撃ち続けると熱がたまる。上限を超えるとオーバーヒートで少しの間撃てない",
+        "画面の端の「！」の方向から、三角の群れが来る",
+        "赤い破線の円：まわりを三角に囲まれる。早めに円の外へ抜ける",
+        "Q で Q の部品を使う（状態は画面の下に出る）",
+        "宿敵を倒すと出口が開く",
+        "弾倉が空になると自動でリロード（その間は撃てない）。R で早めにも入れ直せる",
+        "WASD 移動 ／ 左クリック 撃つ ／ ホイール 武器 ／ 右クリック バリア ／ R リロード ／ E 持ち物"};
+    for (size_t i = 0; i < hintTexts_.size(); ++i) {
+        hintTexts_[i] = std::make_unique<myEngine::TextLabel>();
+        const size_t text = i == 0 ? (WeaponMode() ? kHintTexts.size() - 1 : 0) : i == 1 ? (config_.choicePause ? 2 : 1) : i + 1;
+        hintTexts_[i]->Initialize(myEngine::SpriteCommon::GetInstance(), kHintTexts[text], style);
+        hintTexts_[i]->SetAnchorPoint({0.5f, 0.5f});
+        hintTexts_[i]->SetPosition({640.0f, 571.0f});
+    }
+    // 演出の上下の黒い帯と題字。
+    cineBarTop_ = bar({0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.92f});
+    cineBarBottom_ = bar({0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 0.92f});
+    style.fontSize = 40;
+    style.color = {1.0f, 0.55f, 0.45f, 1.0f};
+    // 題字は文字ごとに1つ作り、遊んでいる間は文字を変えない。
+    auto title = [&](const char* text) {
+        auto label = std::make_unique<myEngine::TextLabel>();
+        label->Initialize(myEngine::SpriteCommon::GetInstance(), text, style);
+        label->SetAnchorPoint({0.5f, 0.5f});
+        label->SetPosition({static_cast<float>(myEngine::WinApp::kClientWidth) * 0.5f, static_cast<float>(myEngine::WinApp::kClientHeight) - 43.0f});
+        return label;
+    };
+    cineTitleIntro_ = title("宿敵　出現");
+    cineTitleDefeat_ = title("宿敵　撃破");
+    for (size_t i = 0; i < survivor::kFormCount; ++i) {
+        const auto& form = config_.forms[i];
+        cineTitleForms_[i] = title((std::string(form.stage >= 2 ? "進化　" : "形態　") + form.name).c_str());
+    }
+    // 群れの予告の「！」。
+    style.fontSize = 64;
+    style.color = {1.0f, 0.25f, 0.25f, 1.0f};
+    for (auto& warning : warningTexts_) {
+        warning = std::make_unique<myEngine::TextLabel>();
+        warning->Initialize(myEngine::SpriteCommon::GetInstance(), "！", style);
+    }
+    choiceHud_.Initialize();
+    choiceHud_.SetPending(0, false);
+    loadoutHud_.Initialize();
+    loadoutHud_.SetLoadout(config_.parts, partLevels_, Capacity());
+
+    // 結果画面：暗い板の上に、生き延びた時間・レベル・撃破数・形態・部品と、もう1回／タイトルへ。
+    resultPanel_ = bar({240.0f, 205.0f}, {800.0f, 500.0f}, {0.01f, 0.03f, 0.05f, 0.82f});
+    style.fontSize = 24;
+    style.color = {0.86f, 0.97f, 1.0f, 1.0f};
+    style.outlineThickness = 2;
+    resultText_ = std::make_unique<myEngine::TextLabel>();
+    resultText_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    resultText_->SetPosition({290.0f, 225.0f});
+    style.fontSize = 28;
+    style.color = {0.48f, 1.0f, 0.66f, 1.0f};
+    resultMenu_ = std::make_unique<myEngine::TextLabel>();
+    resultMenu_->Initialize(myEngine::SpriteCommon::GetInstance(), " ", style);
+    resultMenu_->SetPosition({290.0f, 612.0f});
+    fpsClock_ = std::chrono::steady_clock::now();
+    RefreshHud();
+    QueueHint(Hint::Move);
+
+    // ダメージの数字。命中の通知は衝突処理の途中から来るので、控えるだけにして、更新で位置を決める。
+    damageNumbers_.Initialize();
+    ApplyDamageNumberConfig();
+    ExpEnemy::SetPlayerDamageCallback([this](const ExpEnemy& enemy, uint32_t amount) {
+        damageNumbers_.Spawn(enemy.GetCollisionId(), enemy.GetWorldPosition(), amount,
+                             world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
+    });
+    Enemy::SetDamageCallback([this](const myEngine::Vector3& position, uint32_t amount) {
+        damageNumbers_.Spawn(0, position, amount, world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
+    });
+
+    wchar_t automatic[8]{};
+    const DWORD length = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_AUTOTEST", automatic, 8);
+    if (!world_.demo.titleDemo_ && length > 0) {
+        const std::wstring mode(automatic);
+        autoTest_ = mode == L"tour"   ? AutoTest::Tour
+                    : mode == L"perf" ? AutoTest::Perf
+                    : mode[0] == L'1' ? AutoTest::Sector
+                                      : AutoTest::None;
+    }
+    if (autoTest_ == AutoTest::Perf) {
+        // 図形を200体に保ち、敵戦車8体と大五角3体を最初から出す。形態の2択と出口は出さない。
+        config_.shapeTargetAlive = {{0.0f, 200.0f}};
+        config_.shapeOvertimePerMinute = 0.0f;
+        config_.maxSpawnsPerSecond = 100.0f;
+        config_.swarmCount = 0;
+        config_.tanks = {0.0f, 1.0f, 8};
+        config_.bigPentagon = {0.0f, 4.0f, 3};
+        config_.exitOpenSeconds = 9999.0f;
+        config_.choiceAutoOpen = false;
+        formStage_ = 2;
+    }
+    random_.seed(autoTest_ != AutoTest::None ? 20261028u : static_cast<uint32_t>(GetTickCount64()));
+    if (autoTest_ != AutoTest::None) {
+        world_.presentation.debugPlayerNoDamage_ = true;
+        world_.resources.player_->SetDebugNoDamage(true);
+        std::filesystem::create_directories(kAutoTestDirectory);
+        sampleStart_ = std::chrono::steady_clock::now();
+        // MYENGINE_SURVIVOR_TRAIT=standard：特性の2択で標準を選ぶ（既定は冷却炉）。
+        wchar_t traitName[24]{};
+        if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_TRAIT", traitName, 24) > 0 && std::wstring(traitName) == L"standard") {
+            autoTraitIndex_ = static_cast<size_t>(survivor::TraitId::Standard);
+        }
+        // MYENGINE_SURVIVOR_RELICS=fixedTurret,oneShot：指定したレリックを持った状態から始める（レリックごとの確認用）。
+        wchar_t relicNames[64]{};
+        if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_RELICS", relicNames, 64) > 0) {
+            const std::wstring names(relicNames);
+            relics_[static_cast<size_t>(survivor::RelicId::OneShot)] = names.find(L"oneShot") != std::wstring::npos;
+            relics_[static_cast<size_t>(survivor::RelicId::FixedTurret)] = names.find(L"fixedTurret") != std::wstring::npos;
+            relicText_->SetText("レリック：" + RelicNames());
+            ApplyParts();
+        }
+        wchar_t formName[16]{};
+        const DWORD formLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_FORM", formName, 16);
+        if (formLength > 0 && std::wstring(formName) == L"twin") {
+            autoFormIndex_ = static_cast<size_t>(survivor::FormId::Twin);
+        }
+        // MYENGINE_SURVIVOR_FORM2=triple など：進化（第2段）で選ぶ形態。形態の名前は英字だけなので、1文字ずつ char に移す。
+        wchar_t form2Name[24]{};
+        const DWORD form2Length = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_FORM2", form2Name, 24);
+        for (DWORD c = 0; c < form2Length && c < 24; ++c) {
+            autoForm2Key_.push_back(static_cast<char>(form2Name[c]));
+        }
+        // MYENGINE_SURVIVOR_SEPARATION=0：敵どうしの押し離しを止める（fps の比べ方の確認用）。
+        wchar_t separation[4]{};
+        if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_SEPARATION", separation, 4) > 0 && separation[0] == L'0') {
+            separationEnabled_ = false;
+        }
+        // 四隅の確認では、指定があれば最初から形態に変えて、止まった自機の形を写す。
+        autoTourForm_ = formLength > 0;
+        // MYENGINE_SURVIVOR_LIGHT3=1：軽い部品をすべて3段から始め、3段の変化をまとめて確かめる。
+        wchar_t light3[4]{};
+        if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LIGHT3", light3, 4) > 0 && light3[0] == L'1') {
+            for (size_t i = 0; i < survivor::kPartCount; ++i) {
+                if (config_.parts[i].light) {
+                    partLevels_[i] = survivor::kLightChangeLevel;
+                }
+            }
+            ApplyParts();
+        }
+        // MYENGINE_SURVIVOR_RIVAL_AT=秒：宿敵が現れる区画の時刻を早める（宿敵の演出の確認用）。
+        wchar_t rivalAt[16]{};
+        if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_RIVAL_AT", rivalAt, 16) > 0) {
+            config_.exitOpenSeconds = (std::max)(1.0f, static_cast<float>(_wtof(rivalAt)));
+        }
+        // MYENGINE_SURVIVOR_START_PARTS=heatVent=1,pierce=3：指定した部品を、その Lv で積んだ状態から始める（部品ごとの確認用）。
+        wchar_t startParts[256]{};
+        const DWORD startLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_START_PARTS", startParts, 256);
+        if (startLength > 0 && startLength < 256) {
+            autoKeepParts_ = true;
+            std::wstringstream list(startParts);
+            std::wstring item;
+            while (std::getline(list, item, L',')) {
+                const size_t equal = item.find(L'=');
+                // 部品の名前は英字だけなので、1文字ずつ char に移す。
+                std::string key;
+                for (size_t c = 0; c < (equal == std::wstring::npos ? item.size() : equal); ++c) {
+                    key.push_back(static_cast<char>(item[c]));
+                }
+                const int level = equal == std::wstring::npos ? 1 : _wtoi(item.c_str() + equal + 1);
+                for (size_t i = 0; i < survivor::kPartCount; ++i) {
+                    if (key == config_.parts[i].key) {
+                        partLevels_[i] = (std::clamp)(level, 0, config_.parts[i].maxLevel);
+                    }
+                }
+            }
+            ApplyParts();
+        }
+    }
+    // 武器の枠を使う遊び方：武器3つを持って始め、1つ目の枠の武器を構える。形態の選択と特性の2択は出さない。
+    if (WeaponMode()) {
+        formStage_ = 2;
+        // MYENGINE_SURVIVOR_START_WEAPONS=machineGun,grenade,cannon：自動確認で、枠に入れる武器を替える。
+        wchar_t startWeapons[96]{};
+        const DWORD startWeaponsLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_START_WEAPONS", startWeapons, 96);
+        if (autoTest_ != AutoTest::None && startWeaponsLength > 0 && startWeaponsLength < 96) {
+            std::wstringstream list(startWeapons);
+            std::wstring item;
+            for (size_t i = 0; i < config_.startWeapons.size() && std::getline(list, item, L','); ++i) {
+                std::string key;
+                for (wchar_t c : item) {
+                    key.push_back(static_cast<char>(c));
+                }
+                config_.startWeapons[i] = key;
+            }
+        }
+        // 拠点の持ち物を読み（無ければ新しく作り）、装備している武器3つを枠に入れる（W5）。
+        LoadBase();
+        // MYENGINE_SURVIVOR_FULL_RUN=1：自動確認で3ステージを通す（ステージ1・2は45秒で出口が開く）。
+        wchar_t fullRun[4]{};
+        if (autoTest_ == AutoTest::Sector && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_FULL_RUN", fullRun, 4) > 0 && fullRun[0] == L'1') {
+            autoFullRun_ = true;
+            config_.stages.exitSeconds[0] = 45.0f;
+            config_.stages.exitSeconds[1] = 45.0f;
+        }
+        // MYENGINE_SURVIVOR_LOOT_BOOST=20：自動確認で、チップ・武器・ボスの素材の落ちる確率を何倍かにする（全種類が落ちるかを短い時間で見る）。
+        wchar_t lootBoost[16]{};
+        const DWORD lootBoostLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOT_BOOST", lootBoost, 16);
+        if (autoTest_ != AutoTest::None && lootBoostLength > 0 && lootBoostLength < 16) {
+            const float boost = (std::max)(1.0f, static_cast<float>(_wtof(lootBoost)));
+            config_.loot.chipChance *= boost;
+            config_.loot.weaponChance *= boost;
+            config_.loot.bossMaterialChance = (std::min)(1.0f, config_.loot.bossMaterialChance * boost);
+            lootField_.SetConfig(config_.loot);
+        }
+        baseBulletDamage_ = world_.resources.player_->GetStats().bulletDamage;
+        ResetEliteTimers();
+        StartLoadout();
+        ApplyStageSettings(0);
+        // 出撃の前に、拠点の画面で持っていく武器を選ぶ。タイトルの見本と、四隅・fps の自動確認では出さない。
+        if (!world_.demo.titleDemo_ && autoTest_ != AutoTest::Tour && autoTest_ != AutoTest::Perf) {
+            OpenBaseScreen();
+        }
+        // 出口の案内は、袋の一行の下へずらす。
+        if (exitText_) {
+            exitText_->SetPosition({24.0f, 80.0f});
+        }
+        return;
+    }
+    // 区画の始めに特性の2択を出す（D3）。タイトルの見本と、四隅・fps の自動確認では出さない（標準のまま）。
+    if (!world_.demo.titleDemo_ && autoTest_ != AutoTest::Tour && autoTest_ != AutoTest::Perf) {
+        OpenTraitChoice();
+    }
+}
+
+void SurvivorRunController::Update(float dt)
+{
+    myEngine::RuntimeProfiler::CpuScope scope("Survivor Update");
+    if (world_.combat.phase_ != Phase::kMain) {
+        return;
+    }
+    if (autoTest_ == AutoTest::Tour) {
+        UpdateTourAutoTest(dt);
+        return;
+    }
+    UpdateTuningPanel();
+    UpdateCinematic(dt);
+    SampleFps();
+    if (restRoomOpen_) {
+        UpdateScreenInput();
+    } else if (traitChoiceOpen_) {
+        UpdateTraitChoiceInput();
+    } else if (relicChoiceOpen_) {
+        UpdateRelicChoiceInput();
+    } else if (formChoiceOpen_) {
+        UpdateFormChoiceInput();
+    } else if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
+        if (WeaponMode()) {
+            // 出撃前の拠点の画面。E で持ち物の画面を開け閉めする。開いている間は、武器の操作を受け付けない。
+            if (baseScreenOpen_) {
+                UpdateScreenInput();
+            } else if (world_.resources.input_->IsKeyTriggered(DIK_E)) {
+                inventoryOpen_ ? CloseInventory() : OpenInventory();
+            } else if (inventoryOpen_) {
+                UpdateScreenInput();
+            } else {
+                UpdateWeaponInput();
+            }
+        } else {
+            UpdateChoiceInput();
+        }
+    } else if (choiceOpen_) {
+        CloseChoices();
+    }
+    // 区画が終わったり倒れたりしたら、持ち物の画面は閉じる。
+    if (inventoryOpen_ && (world_.combat.combatFlow_.GetState() != GameFlowState::Playing || cleared_)) {
+        CloseInventory();
+    }
+    if (choiceOpen_) {
+        choiceOpenSeconds_ += dt;
+    }
+    // 区画の時計・湧き方・欠片は、3択を止めずに開いている間のスローに合わせて遅くし、選ぶ画面の間と調整パネルで止めた間は止める。
+    const float gameDt = IsPaused() ? 0.0f : dt * GetTimeScale();
+    if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
+        elapsed_ += gameDt;
+        if (WeaponMode()) {
+            UpdateWeaponTimers(gameDt);
+        }
+        const PlayerHeat& heat = world_.resources.player_->GetHeat();
+        if (heat.GetHeat() >= heat.GetMaxHeat() * 0.7f) {
+            heatHighSeconds_ += gameDt;
+        }
+        {
+            myEngine::RuntimeProfiler::CpuScope spawnScope("Survivor Spawns");
+            UpdateSpawns(gameDt);
+        }
+        myEngine::RuntimeProfiler::CpuScope shardScope("Survivor Shards / Q / Separation");
+        AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
+                                      survivor::CollectorMagnetScale(config_.parts, partLevels_),
+                                      survivor::HasChange(partLevels_, survivor::PartId::Collector)));
+        if (WeaponMode()) {
+            UpdateLoot(gameDt);
+        }
+        if (gameDt > 0.0f && survivor::HasChange(partLevels_, survivor::PartId::Ram)) {
+            UpdateSpikes();
+        }
+        // Q は3択を開いている間（スロー中）には使わない。
+        if (gameDt > 0.0f && !choiceOpen_) {
+            UpdateQ(gameDt);
+        }
+        RefreshMorale(dt);
+        // 合体の臨界点：オーバーヒートした瞬間に、周りへ大爆発。
+        const int overheats = heat.GetOverheatCount();
+        if (overheats > lastOverheats_ && survivor::LevelOf(partLevels_, survivor::PartId::CriticalPoint) > 0) {
+            world_.resources.player_->TriggerSurvivorBlast(config_.fusions.criticalRadius, config_.fusions.criticalDamage);
+            world_.presentation.cameraShakeDuration_ = 0.35f;
+            world_.combatFlow->SetEventCallout("臨界点", 0.6f);
+            ++criticalBlasts_;
+        }
+        lastOverheats_ = overheats;
+        // 案内のきっかけ：選択が貯まった・熱が7割を超えた。
+        if (pendingChoices_ > 0) {
+            QueueHint(Hint::Choice);
+        }
+        if (heat.GetHeat() >= heat.GetMaxHeat() * 0.7f) {
+            QueueHint(Hint::Heat);
+        }
+        UpdateHints(dt);
+        if (gameDt > 0.0f && separationEnabled_) {
+            const auto separationStart = std::chrono::steady_clock::now();
+            SeparateEnemies();
+            separationSeconds_ += std::chrono::duration<double>(std::chrono::steady_clock::now() - separationStart).count();
+            ++separationCalls_;
+        }
+        if (gameDt > 0.0f) {
+            UpdateElites(gameDt);
+        }
+        // 右クリックを押している間、バリアを張る（敵どうしの押し離しの後で押し返す）。
+        if (gameDt > 0.0f && WeaponMode() && !world_.demo.titleDemo_) {
+            const bool wanted = autoTest_ != AutoTest::None ? autoBarrierWanted_
+                                                            : world_.resources.input_->IsPress(world_.resources.input_->GetMouseState().rgbButtons[1]);
+            UpdateBarrier(gameDt, wanted);
+        }
+        // 宝箱のレリックは、ほかの選択を開いていないときに2択を出す（3択を開いていれば、閉じるまで待つ）。
+        if (pendingRelics_ > 0 && !relicChoiceOpen_ && !formChoiceOpen_ && !traitChoiceOpen_ && !choiceOpen_) {
+            OpenRelicChoice();
+        }
+        if (premiumGained_) {
+            premiumGained_ = false;
+            world_.combatFlow->SetEventCallout("宝箱：質の高い選択 +1", 0.9f);
+            choiceHud_.SetPending(pendingChoices_, choiceOpen_);
+        }
+        UpdateThreat();
+        // exitOpenSeconds で宿敵が現れ、倒すと出口が開く（OnRivalDefeated）。宿敵を使わない設定なら、時間で出口を開く。
+        if (!exitOpen_ && !rivalSpawned_ && elapsed_ >= config_.exitOpenSeconds) {
+            if (config_.rival.enabled) {
+                SpawnRival();
+            } else {
+                OpenExit();
+            }
+        }
+        if (exitOpen_) {
+            const myEngine::Vector3 offset = world_.resources.player_->GetWorldPosition() - exitPosition_;
+            if (myEngine::Length(myEngine::Vector3{offset.x, offset.y, 0.0f}) <= config_.exitRadius) {
+                // 更新の初めなので、衝突処理の途中ではない。敵と弾を片付けてから結果画面へ移る。
+                cleared_ = true;
+                world_.presentation.playerSwapDissolve_ = 0.0f;
+                CloseChoices();
+                pickups_.Clear();
+                lootField_.Clear();
+                damageNumbers_.Clear();
+                world_.resources.enemyManager_->ClearRunActors();
+                world_.resources.bulletManager_->ClearAll();
+                // 武器の枠を使う遊び方では、結果画面の前に休憩部屋を開く（W6）。「帰る」で結果画面へ。
+                if (WeaponMode() && !world_.demo.titleDemo_) {
+                    OpenRestRoom();
+                } else {
+                    world_.combatFlow->EnterResultState(true);
+                }
+            }
+        }
+    }
+    {
+        myEngine::RuntimeProfiler::CpuScope numbersScope("Survivor Damage Numbers");
+        if (WeaponMode()) {
+            // 弾の数は自機が撃って減らすので、毎フレーム控えてから表示する。
+            SyncAmmoFromPlayer();
+            SurvivorWeaponHud::State state{};
+            state.active = swapTarget_ >= 0 && !swapEquipped_ ? static_cast<size_t>(swapTarget_) : activeSlot_;
+            // 切り替えの前半は、もう替える先の武器の弾の数を出す（弾の種類の名前と合わせる）。
+            if (weaponSlots_[state.active] >= 0) {
+                const survivor::WeaponDefinition& weapon = SlotWeapon(state.active);
+                state.magazineMax = weapon.magazine;
+                state.magazine = weapon.magazine > 0 ? magazines_[state.active] : 0;
+                state.reserve = reserves_[static_cast<size_t>(weapon.ammo)];
+            }
+            state.reloadRatio = reloadTimer_ >= 0.0f ? 1.0f - reloadTimer_ / reloadDuration_ : -1.0f;
+            state.swapRatio = swapTarget_ >= 0 ? swapTimer_ / swapDuration_ : -1.0f;
+            const PlayerHeat& heat = world_.resources.player_->GetHeat();
+            for (size_t i = 0; i < weaponSlots_.size(); ++i) {
+                const PlayerHeat::Snapshot snapshot = i == activeSlot_ ? heat.Save() : weaponHeat_[i];
+                state.heat[i] = snapshot.overheatTimer > 0.0f ? 1.0f : snapshot.heat / (std::max)(1.0f, heat.GetMaxHeat());
+                state.overheated[i] = snapshot.overheatTimer > 0.0f;
+            }
+            weaponHud_.Update(dt, state);
+        }
+        damageNumbers_.Update(dt, [this](const myEngine::Vector3& world) {
+            return world_.gameplayHud->WorldToScreen(world);
+        });
+    }
+    hudRefresh_ -= dt;
+    if (hudRefresh_ <= 0.0f) {
+        hudRefresh_ = 0.1f;
+        myEngine::RuntimeProfiler::CpuScope hudScope("Survivor HUD");
+        RefreshHud();
+    }
+    // 結果画面：出た最初の更新で遊んだ記録を書く。R キーで、その場からもう1回。
+    if (IsResultVisible()) {
+        if (!runLogWritten_) {
+            runLogWritten_ = true;
+            CommitRunToBase();
+            WriteRunLog();
+            RefreshResult(world_.combat.resultSelection_);
+        }
+        if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(DIK_R)) {
+            world_.combat.resultSelection_ = 0;
+            world_.combatFlow->ConfirmResultSelection();
+            return;
+        }
+    }
+    myEngine::RuntimeProfiler::CpuScope autoTestScope("Survivor AutoTest");
+    if (autoTest_ == AutoTest::Sector) {
+        UpdateSectorAutoTest(dt);
+    } else if (autoTest_ == AutoTest::Perf) {
+        UpdatePerfAutoTest(dt);
+    }
+}
+
+void SurvivorRunController::ApplyDamageNumberConfig()
+{
+    SurvivorDamageNumbers::Config numbers;
+    numbers.enabled = config_.damageNumbers.enabled;
+    numbers.maxActive = config_.damageNumbers.maxActive;
+    numbers.lifeSeconds = config_.damageNumbers.lifeSeconds;
+    numbers.scale = config_.damageNumbers.scale;
+    numbers.bigRatio = config_.damageNumbers.bigRatio;
+    numbers.mergeSeconds = config_.damageNumbers.mergeSeconds;
+    damageNumbers_.SetConfig(numbers);
+}
+
+void SurvivorRunController::ConfigurePickups()
+{
+    SurvivorPickups::Config pickupConfig;
+    pickupConfig.magnetRadius = config_.magnetRadius;
+    pickupConfig.collectRadius = config_.collectRadius;
+    pickupConfig.valuePerShard = config_.valuePerShard;
+    pickupConfig.maxShards = static_cast<size_t>((std::max)(1, config_.maxShards));
+    pickups_.SetConfig(pickupConfig);
+    lootField_.SetConfig(config_.loot);
+}
+
+void SurvivorRunController::UpdateTuningPanel()
+{
+#if defined(USE_IMGUI)
+    if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(DIK_F2)) {
+        tuningOpen_ = !tuningOpen_;
+        tuningStatus_.clear();
+    }
+    if (!tuningOpen_) {
+        return;
+    }
+    const PlayerHeat& heat = world_.resources.player_->GetHeat();
+    survivor::TuningSnapshot snapshot;
+    snapshot.elapsed = elapsed_;
+    snapshot.level = level_;
+    snapshot.exp = exp_;
+    snapshot.alive = CountAlive().total;
+    snapshot.fps = fpsSamples_.empty() ? 0.0f : fpsSamples_.back();
+    snapshot.heat = heat.GetHeat();
+    snapshot.heatMax = heat.GetMaxHeat();
+    snapshot.overheats = heat.GetOverheatCount();
+    const survivor::TuningPanelResult result = survivor::DrawTuningPanel(config_, tuningOpen_, tuningPause_, tuningStatus_, snapshot);
+    if (result.reloadRequested) {
+        survivor::SpawnConfig loaded;
+        std::string error;
+        if (survivor::LoadSpawnConfig(kConfigPath, loaded, error)) {
+            // 武器の枠を使うかは起動の設定（環境変数）のままにする。
+            loaded.weaponsEnabled = config_.weaponsEnabled;
+            config_ = loaded;
+            fileExitOpenSeconds_ = config_.exitOpenSeconds;
+            fileRivalEnabled_ = config_.rival.enabled;
+            if (WeaponMode()) {
+                ApplyStageSettings(stage_);
+            }
+            tuningStatus_ = "再読込しました";
+        } else {
+            tuningStatus_ = error;
+        }
+    }
+    if (result.changed || result.reloadRequested) {
+        // 部品の倍率・熱・シールド・欠片を、今の値で作り直す。形態の数値は次に選んだときから効く。
+        ConfigurePickups();
+        ApplyDamageNumberConfig();
+        ApplyParts();
+        // 武器の値：構えている武器へ入れ直す（今の熱は控えて戻す）。出口の秒もステージの値を入れる。
+        if (WeaponMode() && weaponEquipped_) {
+            weaponHeat_[activeSlot_] = world_.resources.player_->GetHeat().Save();
+            RefreshSlotsAfterChange(survivor::kWeaponSlots);
+            ApplyStageSettings(stage_);
+        }
+        if (result.changed) {
+            tuningStatus_ = "変更あり（未保存）";
+        }
+    }
+    if (result.saveRequested) {
+        std::string error;
+        tuningStatus_ = survivor::SaveSpawnConfig(kConfigPath, ConfigForSaving(), error) ? std::string("保存しました") : error;
+    }
+#endif
+}
+
+void SurvivorRunController::OnEnemyDefeated(const myEngine::Vector3& position)
+{
+    world_.combat.screenEffectDirector_.TriggerEnemyDefeat(world_.gameplayQueries->WorldToScreenUv(position), 1.0f);
+    // 戦意：積んでいる間に倒した数を数える（倍率への反映は RefreshMorale がまとめて行う）。
+    if (survivor::LevelOf(survivor::EffectiveLevels(config_.parts, partLevels_), survivor::PartId::Morale) > 0) {
+        ++moraleKills_;
+    }
+}
+
+void SurvivorRunController::QueueWorldVisuals()
+{
+    if (cleared_ || !world_.resources.neonGridRenderer_) {
+        return;
+    }
+    // 欠片：カメラを向いた小さな菱形。画面の近くのものだけを積む。
+    const myEngine::Matrix4x4 cameraWorld = myEngine::Inverse(world_.resources.camera->GetViewMatrix());
+    const myEngine::Vector3 cameraRight = myEngine::Normalize({cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2]});
+    const myEngine::Vector3 cameraUp = myEngine::Normalize({cameraWorld.m[1][0], cameraWorld.m[1][1], cameraWorld.m[1][2]});
+    pickups_.Queue(*world_.resources.neonGridRenderer_, cameraRight, cameraUp, world_.resources.camera->GetTranslate(),
+                   arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f, arenacamera::HalfViewHeight() + 2.0f);
+    lootField_.Queue(*world_.resources.neonGridRenderer_, cameraRight, cameraUp, world_.resources.camera->GetTranslate(),
+                     arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f, arenacamera::HalfViewHeight() + 2.0f);
+    QueueBarrier(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
+    QueueEliteRings(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
+    // 予告：輪は自機のまわりに、群れは湧く場所に、赤い破線の円を描く。湧く時刻が近いほど速く点滅する。
+    for (const PendingWave& wave : pendingWaves_) {
+        const float left = (std::max)(0.0f, wave.at - elapsed_);
+        const float blink = 0.5f + 0.5f * std::sin(elapsed_ * (10.0f + 14.0f * (1.0f - left / (std::max)(0.1f, config_.telegraph.lead))));
+        const myEngine::Vector3 center = wave.ring ? world_.resources.player_->GetWorldPosition() : wave.center;
+        const float radius = wave.ring ? config_.threat.ringRadius : config_.swarmSpread + 1.5f;
+        const myEngine::Vector4 color{1.8f, 0.18f, 0.22f, 0.45f + 0.55f * blink};
+        constexpr int kDashes = 48;
+        for (int n = 0; n < kDashes; n += 2) {
+            const float a = 6.2831853f * static_cast<float>(n) / kDashes, b = 6.2831853f * static_cast<float>(n + 1) / kDashes;
+            world_.resources.neonGridRenderer_->QueueLine(center + myEngine::Vector3{std::cos(a) * radius, std::sin(a) * radius, -0.3f},
+                                                          center + myEngine::Vector3{std::cos(b) * radius, std::sin(b) * radius, -0.3f},
+                                                          0.16f, color);
+        }
+    }
+    // 進化の演出：自機から広がる2重の光の輪（形態の色）。
+    if (cineMode_ == CineMode::Evolve && formId_ != survivor::FormId::Count) {
+        myEngine::Vector4 color = config_.forms[static_cast<size_t>(formId_)].color;
+        if (color.w <= 0.0f) {
+            color = {0.5f, 1.4f, 1.8f, 1.0f};
+        }
+        const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition();
+        for (int ring = 0; ring < 2; ++ring) {
+            const float t = cineTime_ - 0.35f - 0.18f * static_cast<float>(ring);
+            if (t < 0.0f) {
+                continue;
+            }
+            const float radius = 0.8f + t * 10.0f;
+            const myEngine::Vector4 fade{color.x, color.y, color.z, (std::max)(0.0f, 1.0f - t / 1.2f)};
+            constexpr int kSides = 48;
+            for (int n = 0; n < kSides; ++n) {
+                const float a = 6.2831853f * static_cast<float>(n) / kSides, b = 6.2831853f * static_cast<float>(n + 1) / kSides;
+                world_.resources.neonGridRenderer_->QueueLine(center + myEngine::Vector3{std::cos(a) * radius, std::sin(a) * radius, -0.3f},
+                                                              center + myEngine::Vector3{std::cos(b) * radius, std::sin(b) * radius, -0.3f},
+                                                              0.2f, fade);
+            }
+        }
+    }
+    if (!exitOpen_) {
+        return;
+    }
+    // 出口：脈打つ2重の輪。輪の中に入ると区画クリア。
+    const float pulse = 0.5f + 0.5f * std::sin(elapsed_ * 5.0f);
+    auto circle = [&](float radius, float width, const myEngine::Vector4& color) {
+        constexpr int kSides = 40;
+        for (int n = 0; n < kSides; ++n) {
+            const float a = 6.2831853f * static_cast<float>(n) / kSides, b = 6.2831853f * static_cast<float>(n + 1) / kSides;
+            world_.resources.neonGridRenderer_->QueueLine(
+                exitPosition_ + myEngine::Vector3{std::cos(a) * radius, std::sin(a) * radius, -0.3f},
+                exitPosition_ + myEngine::Vector3{std::cos(b) * radius, std::sin(b) * radius, -0.3f}, width, color);
+        }
+    };
+    circle(config_.exitRadius, 0.22f, {1.6f, 1.25f, 0.35f, 1.0f});
+    circle(config_.exitRadius * (0.55f + 0.25f * pulse), 0.14f, {1.2f, 0.95f, 0.25f, 0.8f});
+}
+
+void SurvivorRunController::RefreshHud()
+{
+    if (!hudText_) {
+        return;
+    }
+    const AliveCounts alive = CountAlive();
+    std::ostringstream text;
+    if (!WeaponMode()) {
+        text << "Lv " << level_ << "   ";
+    } else {
+        // 3ステージの流れ（W8）：今のステージと難しさの段。
+        text << "ステージ " << stage_ + 1 << "/" << survivor::SpawnConfig::kStageCount << "（" << (IsBossStage() ? "ボス・" : "") << "段"
+             << config_.stages.tier << "）   ";
+    }
+    text << "区画  " << Clock(elapsed_) << "   脅威 Lv" << threatStage_;
+    if (IsRivalActive()) {
+        const auto& rival = *world_.resources.enemy_;
+        text << (WeaponMode() ? "   ボス " : "   宿敵 ") << (std::max)(0, rival.GetHp() * 100 / (std::max)(1, rival.GetMaxHp())) << "%";
+    } else if (!exitOpen_) {
+        text << (config_.rival.enabled ? (WeaponMode() ? "   ボスまで " : "   宿敵まで ") : "   出口まで ") << Clock(config_.exitOpenSeconds - elapsed_);
+    }
+    text << "   敵 " << alive.total;
+    hudText_->SetText(text.str());
+    if (qText_) {
+        const std::string q = DescribeQ();
+        qText_->SetText(q.empty() ? std::string(" ") : q);
+    }
+    if (expFill_) {
+        const float ratio = level_ >= config_.maxLevel
+                                ? 1.0f
+                                : (std::clamp)(static_cast<float>(exp_) / static_cast<float>(config_.ExpToNextLevel(level_)), 0.0f, 1.0f);
+        expFill_->SetSize({static_cast<float>(myEngine::WinApp::kClientWidth) * ratio, 8.0f});
+        expFill_->Update();
+    }
+}
+
+void SurvivorRunController::DrawUi()
+{
+    ++drawnFrames_;
+    if (IsResultVisible() && resultPanel_ && resultText_ && resultMenu_) {
+        myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+        resultPanel_->Draw();
+        resultText_->Draw();
+        resultMenu_->Draw();
+        return;
+    }
+    if (world_.combat.combatFlow_.GetState() != GameFlowState::Playing || !hudText_) {
+        // 自機が倒れた演出の間も、上下の黒い帯は描く。
+        DrawCinematic();
+        return;
+    }
+    myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+    // 持ち物の画面と拠点の画面を開いている間は、ほかの HUD を描かずにその画面だけを出す（暗幕から透けて読みにくくならないように）。
+    if (inventoryOpen_ || baseScreenOpen_ || restRoomOpen_) {
+        itemScreen_.Draw();
+        DrawCinematic();
+        return;
+    }
+    // ダメージの数字は、HUD の文字より下に描く。
+    damageNumbers_.Draw();
+    if (expTrack_ && expFill_ && !WeaponMode()) {
+        expTrack_->Draw();
+        expFill_->Draw();
+    }
+    hudText_->Draw();
+    if (WeaponMode()) {
+        if (lootText_) {
+            lootText_->Draw();
+        }
+    }
+    if (exitOpen_ && exitText_) {
+        exitText_->Draw();
+    }
+    if (qText_ && survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count) {
+        qText_->Draw();
+    }
+    // レリックは Q の部品が無くても出す。
+    if (relicText_) {
+        relicText_->Draw();
+    }
+    if (evolveText_) {
+        evolveText_->Draw();
+    }
+    // 予告の「！」：湧く群れの方向へ、画面の端（画面の中なら、その場所）に出す。
+    size_t warning = 0;
+    for (const PendingWave& wave : pendingWaves_) {
+        if (wave.ring || warning >= warningTexts_.size() || !warningTexts_[warning]) {
+            continue;
+        }
+        const myEngine::Vector2 screen = world_.gameplayHud->WorldToScreen(wave.center);
+        const float x = (std::clamp)(screen.x, 96.0f, static_cast<float>(myEngine::WinApp::kClientWidth) - 96.0f);
+        const float y = (std::clamp)(screen.y, 120.0f, static_cast<float>(myEngine::WinApp::kClientHeight) - 110.0f);
+        const float blink = 0.5f + 0.5f * std::sin(elapsed_ * 16.0f);
+        warningTexts_[warning]->SetPosition({x - 20.0f, y - 34.0f});
+        warningTexts_[warning]->SetAlpha(0.55f + 0.45f * blink);
+        warningTexts_[warning]->Draw();
+        ++warning;
+    }
+    // 外す画面は持っている部品を並べるので、左下の積載の表示は出さない。
+    if (removalOpen_ && choiceOpen_) {
+        loadoutHud_.DrawRemoval();
+        return;
+    }
+    // 武器の枠を使う遊び方では、積載と3択の代わりに武器の枠を出す。
+    if (WeaponMode()) {
+        weaponHud_.Draw();
+    } else {
+        loadoutHud_.DrawLoadout();
+    }
+    const bool cardChoice = formChoiceOpen_ || traitChoiceOpen_ || relicChoiceOpen_;
+    choiceHud_.Draw(choiceOpen_ || cardChoice, cardChoice ? 0 : pendingChoices_);
+    // 案内（3択を開いている間も、暗幕の上に出す）。
+    if (hintShowing_ >= 0 && hintPanel_) {
+        const float fade = (std::clamp)((std::min)(hintTimer_, kHintSeconds - hintTimer_) / 0.3f, 0.0f, 1.0f);
+        myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+        hintPanel_->SetColor({0.01f, 0.03f, 0.05f, 0.80f * fade});
+        hintPanel_->Update();
+        hintPanel_->Draw();
+        hintTexts_[static_cast<size_t>(hintShowing_)]->SetAlpha(fade);
+        hintTexts_[static_cast<size_t>(hintShowing_)]->Draw();
+    }
+    DrawCinematic();
+}
+
+void SurvivorRunController::QueueHint(Hint hint)
+{
+    const size_t index = static_cast<size_t>(hint);
+    if (hintQueued_[index]) {
+        return;
+    }
+    hintQueued_[index] = true;
+    hintQueue_.push_back(hint);
+}
+
+void SurvivorRunController::UpdateHints(float dt)
+{
+    // 特性を選んでいる間は、案内を始めない（最初の移動の案内を、選んだ後に出す）。
+    if (traitChoiceOpen_) {
+        return;
+    }
+    if (hintShowing_ >= 0) {
+        hintTimer_ += dt;
+        if (hintTimer_ < kHintSeconds) {
+            return;
+        }
+        hintShowing_ = -1;
+    }
+    if (!hintQueue_.empty()) {
+        hintShowing_ = static_cast<int>(hintQueue_.front());
+        hintQueue_.erase(hintQueue_.begin());
+        hintTimer_ = 0.0f;
+    }
+}
+
+} // namespace gameplay

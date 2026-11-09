@@ -5,6 +5,7 @@
 #include <Windows.h>
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <optional>
 #include "Object3d.h"
 #include "Sprite.h"
@@ -97,12 +98,6 @@ public:
     /// @brief startPosへボスの位置、targetPosへPlayerの位置を代入する。移動方向は計算しない。
     void ApproachToPlayer(myEngine::Vector3& startPos, myEngine::Vector3& targetPos);
 
-    /// @brief ボスが保持する姿勢への借用参照を返す。
-    const myEngine::Transform& GetWorldTransform() const
-    {
-        return worldTransform_;
-    }
-
     /// @brief ワールド座標での位置を返す。
     myEngine::Vector3 GetWorldPosition() const override;
 
@@ -131,6 +126,7 @@ public:
 
     // 発射間隔
     static inline const int32_t kFireInterval = 60;
+    static inline std::function<void(const myEngine::Vector3&, uint32_t)> damageCallback_{};
 
     /// @brief 成立済みの接触を受け、通常敵へのダメージ、自機・ドローンによる押し返し、弾によるHP減算を行う。
     /// @note otherは有効な相手が必要。遭遇戦が無効または死亡済みなら何もしない。致死ダメージは直ちに死亡を確定する。
@@ -140,12 +136,6 @@ public:
     float GetRadius() const override
     {
         return radius_;
-    }
-
-    /// @brief 死亡状態を返す。
-    bool GetIsDead() const
-    {
-        return isDead_;
     }
 
     /// @brief 死亡であるか判定する。
@@ -170,12 +160,6 @@ public:
 
     /// @brief AABBを返す。
     myEngine::AABB GetAABB();
-
-    /// @brief 直近の移動用方向を返す。ためらい中などは単位長とは限らない。
-    myEngine::Vector3 GetDir()
-    {
-        return dir_;
-    }
 
     /// @brief 照準方向を返す。
     myEngine::Vector3 GetAimDirection() const
@@ -250,6 +234,11 @@ public:
     /// @brief 有効な遭遇戦で未死亡かつamountが0でなければ、HPを減らして被弾演出を開始する。
     /// @note 致死ダメージではHPを0にし、その通知中に死亡を確定する。
     void TakeDamage(uint32_t amount);
+    /// @brief HPが減ったときに、位置と量を受け取る共有コールバックを設定する（試作のダメージの数字）。空の関数で解除する。
+    static void SetDamageCallback(std::function<void(const myEngine::Vector3&, uint32_t)> callback)
+    {
+        damageCallback_ = std::move(callback);
+    }
     /// @brief 有効な遭遇戦で未死亡なら、追加のノックバック速度を加算して長さを0.34以下に制限する。
     /// @param power 正の有限値を使い、0.95を上限に速度へ変換する。
     /// @note 位置はUpdateで進める。ゼロに近いdirectionは無視し、現在の攻撃状態は中断しない。

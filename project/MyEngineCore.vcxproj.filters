@@ -89,13 +89,13 @@
     <ClCompile Include="DirectX\engine\calc\Calculation.cpp">
       <Filter>DirectX\engine\calc</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\DirectXCommon.cpp">
+    <ClCompile Include="DirectX\engine\graphics\DirectXCommon.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\ShaderCompiler.cpp">
+    <ClCompile Include="DirectX\engine\graphics\ShaderCompiler.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\PipelineLibrary.cpp">
+    <ClCompile Include="DirectX\engine\graphics\PipelineLibrary.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\dumpClass\Dump.cpp">
@@ -131,7 +131,7 @@
     <ClCompile Include="DirectX\engine\2d\TextRenderer.cpp">
       <Filter>DirectX\engine\2d</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\InputDesc.cpp">
+    <ClCompile Include="DirectX\engine\graphics\InputDesc.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\common\LogWrite.cpp">
@@ -140,16 +140,16 @@
     <ClCompile Include="DirectX\engine\common\ResourcePaths.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\Resource.cpp">
+    <ClCompile Include="DirectX\engine\graphics\Resource.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\Root.cpp">
+    <ClCompile Include="DirectX\engine\graphics\Root.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\Texture.cpp">
+    <ClCompile Include="DirectX\engine\graphics\Texture.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\WinApp.cpp">
+    <ClCompile Include="DirectX\engine\platform\WinApp.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\debugCamera\DebugCamera.cpp">
@@ -185,7 +185,7 @@
     <ClCompile Include="DirectX\engine\debugCamera\Camera.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\SrvManager.cpp">
+    <ClCompile Include="DirectX\engine\graphics\SrvManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\scene\SceneManager.cpp">
@@ -224,13 +224,13 @@
     <ClCompile Include="DirectX\engine\postEffect\RenderTexture.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\RtvManager.cpp">
+    <ClCompile Include="DirectX\engine\graphics\RtvManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\particle\ParticleManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\ShadowMap.cpp">
+    <ClCompile Include="DirectX\engine\graphics\ShadowMap.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\postEffect\Bloom.cpp">
@@ -242,16 +242,16 @@
     <ClCompile Include="DirectX\engine\postEffect\Shadow.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\RingManager.cpp">
+    <ClCompile Include="DirectX\engine\trail\RingManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\3d\Skybox.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\TrailInstance.cpp">
+    <ClCompile Include="DirectX\engine\trail\TrailInstance.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\common\TrailManager.cpp">
+    <ClCompile Include="DirectX\engine\trail\TrailManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClInclude Include="externals\imgui\imconfig.h">
@@ -284,16 +284,16 @@
     <ClInclude Include="DirectX\engine\calc\Calculation.h">
       <Filter>DirectX\engine\calc</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\DirectXCommon.h">
+    <ClInclude Include="DirectX\engine\graphics\DirectXCommon.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\ShaderCompiler.h">
+    <ClInclude Include="DirectX\engine\graphics\ShaderCompiler.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\PipelineLibrary.h">
+    <ClInclude Include="DirectX\engine\graphics\PipelineLibrary.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\RenderTargetFormats.h">
+    <ClInclude Include="DirectX\engine\graphics\RenderTargetFormats.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\dumpClass\Dump.h">
@@ -329,7 +329,7 @@
     <ClInclude Include="DirectX\engine\2d\TextRenderer.h">
       <Filter>DirectX\engine\2d</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\InputDesc.h">
+    <ClInclude Include="DirectX\engine\graphics\InputDesc.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\common\LogWrite.h">
@@ -341,16 +341,16 @@
     <ClInclude Include="DirectX\engine\common\Utf8Path.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\Resource.h">
+    <ClInclude Include="DirectX\engine\graphics\Resource.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\Root.h">
+    <ClInclude Include="DirectX\engine\graphics\Root.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\Texture.h">
+    <ClInclude Include="DirectX\engine\graphics\Texture.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\WinApp.h">
+    <ClInclude Include="DirectX\engine\platform\WinApp.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\struct\Struct.h">
@@ -410,7 +410,7 @@
     <ClInclude Include="DirectX\engine\debugCamera\Camera.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\SrvManager.h">
+    <ClInclude Include="DirectX\engine\graphics\SrvManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\scene\SceneManager.h">
@@ -428,13 +428,13 @@
     <ClInclude Include="DirectX\engine\postEffect\RenderTexture.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\RtvManager.h">
+    <ClInclude Include="DirectX\engine\graphics\RtvManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\particle\ParticleManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\ShadowMap.h">
+    <ClInclude Include="DirectX\engine\graphics\ShadowMap.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\scene\IScene.h">
@@ -482,16 +482,16 @@
     <ClInclude Include="DirectX\engine\postEffect\Shadow.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\RingManager.h">
+    <ClInclude Include="DirectX\engine\trail\RingManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\3d\Skybox.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\TrailInstance.h">
+    <ClInclude Include="DirectX\engine\trail\TrailInstance.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\TrailManager.h">
+    <ClInclude Include="DirectX\engine\trail\TrailManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <Text Include="externals\imgui\LICENSE.txt">
@@ -501,9 +501,9 @@
     <ClInclude Include="DirectX\engine\common\RuntimeProfiler.h" />
     <ClInclude Include="DirectX\engine\common\FramePacer.h" />
     <ClInclude Include="DirectX\engine\common\FixedTimestep.h" />
-    <ClInclude Include="DirectX\engine\common\TrailStressFixture.h" />
+    <ClInclude Include="DirectX\engine\trail\TrailStressFixture.h" />
     <ClInclude Include="DirectX\engine\common\StartupTrace.h" />
-    <ClInclude Include="DirectX\engine\common\ShaderDiskCache.h" />
+    <ClInclude Include="DirectX\engine\graphics\ShaderDiskCache.h" />
     <ClInclude Include="DirectX\engine\2d\GeneratedTextureCache.h" />
     <ClCompile Include="externals\flecs\flecs.c">
       <Filter>flecs</Filter>

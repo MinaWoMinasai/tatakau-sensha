@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "comment": "育つ戦車の試作（TANK_SURVIVOR）の1区画の湧き方。時間は区画の開始からの秒。",
+  "exitOpenSeconds": 180,
+  "exitRadius": 3.0,
+  "spawnRing": { "minDistance": 26.0, "maxDistance": 36.0, "maxPerSecond": 10.0 },
+  "shapes": {
+    "comment": "生存数の目標（時間, 数）を直線でつなぐ。最後の点より後は overtimePerMinute ずつ増える。",
+    "targetAlive": [[0, 24], [60, 45], [120, 88], [180, 100], [240, 112]],
+    "overtimePerMinute": 24,
+    "weights": [
+      { "from": 0, "square": 6, "triangle": 3, "pentagon": 1 },
+      { "from": 120, "square": 5, "triangle": 3, "pentagon": 2 }
+    ]
+  },
+  "triangleSwarm": {
+    "comment": "三角の群れが周期的に寄ってくる。加速度と最高速度はワールド単位/秒。",
+    "from": 15, "interval": 10, "count": 12, "spread": 5.0,
+    "acceleration": 14.0, "maxSpeed": 9.0
+  },
+  "tanks": {
+    "comment": "敵戦車。同時にいる数は maxAlive まで。種類は expedition_content.json の id。",
+    "from": 30, "interval": 4, "maxAlive": 7, "types": ["Shooter", "Charger", "Sniper", "Charger"]
+  },
+  "threat": {
+    "comment": "脅威の段階。stageSeconds ごとに1段上がる（最大 maxStage）。1段ごとに、湧く敵のHP +enemyHpPerStage（割合）、三角の群れの数 +swarmCountPerStage・間隔 ×swarmIntervalScalePerStage・最高速度 +swarmSpeedPerStage、敵戦車の同時の上限 +tankMaxAlivePerStage。ringFromStage 段からは ringInterval 秒ごとに、自機を中心とした半径 ringRadius の輪に三角を ringCount 体並べて寄らせる。",
+    "stageSeconds": 60, "maxStage": 8,
+    "enemyHpPerStage": 0.25, "swarmCountPerStage": 3, "swarmIntervalScalePerStage": 0.9, "swarmSpeedPerStage": 0.6,
+    "tankMaxAlivePerStage": 1,
+    "ringFromStage": 3, "ringInterval": 30, "ringCount": 18, "ringRadius": 17.0
+  },
+  "telegraph": {
+    "comment": "予告。三角の群れと包囲の輪は lead 秒前に予告してから湧く（群れは画面の端に方向の「！」、輪は自機のまわりに破線の円）。寄ってくる敵（群れ・輪・重い四角・突進する五角）は maxChasers 体までにし、超える分は群れと輪を減らす。",
+    "lead": 1.5, "maxChasers": 70
+  },
+  "heavySquare": {
+    "comment": "重い四角。大きく（scale 倍）硬く（HP hpScale 倍）、ゆっくり迫る四角。脅威 fromStage 段から interval 秒ごとに count 体。",
+    "fromStage": 2, "interval": 14, "count": 2, "scale": 1.7, "hpScale": 5, "acceleration": 3, "maxSpeed": 2.6
+  },
+  "lungePentagon": {
+    "comment": "突進する五角。脅威 fromStage 段から、湧く五角の chance の割合が、ゆっくり寄りながら interval 秒ごとに windup 秒溜めて（ほぼ止まる）duration 秒だけ lungeSpeed で迫る。",
+    "fromStage": 2, "chance": 0.5, "acceleration": 4, "maxSpeed": 2, "lungeSpeed": 13, "interval": 3.5, "windup": 0.5, "duration": 0.5
+  },
+  "rival": {
+    "comment": "宿敵。exitOpenSeconds に出口の代わりに現れ、倒すと出口が開く。倒すと exp 分の欠片を落とし、宝箱の選択を1つ貯める。enabled が false なら時間で出口が開く。",
+    "enabled": true, "hp": 1500, "exp": 600
+  },
+  "experience": {
+    "comment": "経験値の欠片とレベル。次のレベルまでの経験値は base + growth × (レベル-1)^power。",
+    "magnetRadius": 5.0, "collectRadius": 1.2, "valuePerShard": 30, "maxShards": 600, "maxLevel": 45,
+    "levelCurve": { "base": 25, "growth": 30, "power": 1.7 }
+  },
+  "load": {
+    "comment": "積載量 = base + Lv / perLevels（3レベルごとに+1）。積んでいる部品の重さの合計がこれを超える部品は、何かを外さないと積めない。外した部品は Lv × refundPerLevel の経験値の欠片を落とす。",
+    "base": 6, "perLevels": 3, "refundPerLevel": 60
+  },
+  "choices": {
+    "comment": "毎レベルの3択。Tab で開き、pause が true なら開いている間はゲームを止める（遊んだ感想から。読む時間を取るため）。false なら slowTimeScale 倍のスローにする。autoOpen が true なら、レベルが上がったらすぐ開く。lightBias は1枚目に軽い部品が出やすくなる倍率。fusionBias は合体の札（元の2つが最大 Lv のとき）が出やすくなる倍率。",
+    "pause": true, "slowTimeScale": 0.25, "autoOpen": false, "lightBias": 2.0, "fusionBias": 3.0
+  },
+  "heat": {
+    "comment": "撃つたびに上がる熱。上限を超えると overheatSeconds 秒撃てない。最後に撃ってから coolDelay 秒で coolPerSecond に速く冷える。撃ち続けている間も coolPerSecondWhileFiring で冷える（基本の連射と釣り合わせる）。",
+    "max": 100, "perShot": 3, "coolDelay": 0.5, "coolPerSecond": 40, "coolPerSecondWhileFiring": 9, "overheatSeconds": 2
+  },
+  "shield": {
+    "comment": "シールドの上限は最大HP×maxHpRatio。被弾でHPより先に減り、regenDelay 秒被弾しないと、毎秒 上限×regenPerSecond ずつ戻る。",
+    "maxHpRatio": 0.2, "regenDelay": 3, "regenPerSecond": 0.25
+  },
+  "forms": {
+    "comment": "level に上がったら止めて形態を選ぶ（第1段：連装・長砲身）。stage2Level に上がったら、今の形態の子へ進化する（連装→三連・機関砲・雷砲［鍵：連鎖放電 Lv3］、長砲身→狙撃・反射砲・光線砲［鍵：貫通 Lv3］。鍵付きは鍵の部品が Lv3 のときだけ出る）。第2段の数値は、ここに無ければ既定値（保存すると書き出す）。倍率は基本砲に対する値（連装は砲2本なので、1発の威力を下げてある）。長砲身は右クリック長押しでため撃ち（熱 = railHeatBase + railHeatPerCharge × ためた秒数、最大1秒）。",
+    "level": 5,
+    "stage2Level": 12,
+    "twin": { "reloadScale": 0.9, "damageScale": 0.7, "speedScale": 1.0, "heatScale": 1.1, "barrelLength": 1.0 },
+    "longBarrel": { "reloadScale": 1.35, "damageScale": 1.8, "speedScale": 1.6, "heatScale": 1.2, "barrelLength": 1.7,
+                    "railPower": 1.0, "railHeatBase": 10, "railHeatPerCharge": 25 }
+  },
+  "weapons": {
+    "comment": "カスタマイズシューティング（計画書 p3）の武器。enabled が true なら、3択・レベル・形態の選択・特性・レリックを止め、start の武器3つを持って始める（1〜3キーで切り替え）。false ならこれまでの育つ戦車の試作。form は砲塔と固有の能力を借りる形態（basic は基本砲）。倍率は基本砲に対する値で、形態の倍率の代わりに使う。ammo は light・heavy・energy、rarity は common〜legendary。magazine は弾倉の弾の数（0 は弾倉なし＝予備から直接撃つ）、swapSeconds は切り替え（ホイールか1〜3キー、その間は撃てない）、spreadDeg は撃つ向きのばらつき（度）、reloadSeconds はリロード（弾倉が空になると自動で始まる。R で早めにも入れ直せる）、railCharge が true なら形態の右クリックのため撃ちを使い（既定は false で、右クリックは Shift と同じダッシュ）、railAmmoCost はため撃ち1発で使う弾。reserve は区画の始めの予備の弾。熱は武器ごと（heatScale は1発の熱の倍率、しまってある武器は冷えていく）。blastRadius があると当たった場所で爆発し、当たった敵に blastCenter、まわりに blastSplash の倍率で当てる。homingPower があると弾が近くの敵へ曲がる。starter が true の武器は、初めて遊ぶときに拠点にある（ほかは拾うか派生の木で手に入れる）。",
+    "enabled": true,
+    "start": ["cannon", "grenade", "beam"],
+    "reserve": { "light": 600, "heavy": 40, "energy": 300 },
+    "cannon": { "name": "単発の砲", "starter": true, "form": "basic", "ammo": "light", "rarity": "common", "magazine": 30, "swapSeconds": 0.8, "reloadSeconds": 1.4, "chipSlots": 0,
+                "damageScale": 1.4, "reloadScale": 0.5, "speedScale": 2.0, "heatScale": 0.6, "spreadDeg": 3.0 },
+    "machineGun": { "name": "機関砲", "starter": true, "form": "machineGun", "ammo": "light", "rarity": "common", "magazine": 40, "swapSeconds": 1.0, "reloadSeconds": 2.0, "chipSlots": 0,
+                    "damageScale": 0.45, "reloadScale": 0.55, "speedScale": 1.0, "heatScale": 0.35 },
+    "beam": { "name": "光線砲", "starter": true, "form": "beam", "ammo": "energy", "rarity": "common", "magazine": 0, "swapSeconds": 1.6, "railAmmoCost": 8, "chipSlots": 0,
+              "damageScale": 1.9, "reloadScale": 1.35, "speedScale": 1.8, "heatScale": 2.2 },
+    "grenade": { "name": "榴弾砲", "starter": true, "form": "basic", "ammo": "heavy", "rarity": "common", "magazine": 4, "swapSeconds": 1.4, "reloadSeconds": 2.2, "chipSlots": 0,
+                 "damageScale": 0.8, "reloadScale": 2.2, "speedScale": 0.7, "heatScale": 1.0, "blastRadius": 3.2, "blastCenter": 1.0, "blastSplash": 0.8,
+                 "heavyBarrel": true },
+    "shotgun": { "name": "散弾砲", "form": "triple", "ammo": "light", "rarity": "common", "magazine": 8, "swapSeconds": 1.0, "reloadSeconds": 1.8, "chipSlots": 0,
+                 "damageScale": 0.9, "reloadScale": 1.6, "speedScale": 1.2, "heatScale": 0.8, "spreadDeg": 4.0 },
+    "sniper": { "name": "狙撃砲", "form": "sniper", "ammo": "heavy", "rarity": "common", "magazine": 5, "swapSeconds": 1.4, "reloadSeconds": 2.4, "chipSlots": 0,
+                "damageScale": 5.0, "reloadScale": 2.6, "speedScale": 2.6, "heatScale": 1.0 },
+    "homing": { "name": "誘導砲", "form": "basic", "ammo": "light", "rarity": "common", "magazine": 24, "swapSeconds": 1.0, "reloadSeconds": 1.8, "chipSlots": 0,
+                "damageScale": 0.9, "reloadScale": 0.8, "speedScale": 0.9, "heatScale": 0.7, "homingPower": 2.5 },
+    "ricochet": { "name": "反射砲", "form": "ricochet", "ammo": "light", "rarity": "common", "magazine": 20, "swapSeconds": 1.0, "reloadSeconds": 1.6, "chipSlots": 0,
+                  "damageScale": 1.2, "reloadScale": 0.8, "speedScale": 1.6, "heatScale": 0.6 }
+  },
+  "loot": {
+    "comment": "敵が落とす物（計画書 p3 の W3）。欠片はお金になり（経験値 × moneyPerExp）、自動で拾う。落ちている物は magnetRadius まで近づくと寄ってきて、触れると拾う。弾は ammoChance の確率で ammoAmount ずつ、予備は reserveMax まで（上限の弾は残る）。素材（倒した形の素材を materialChance、敵戦車はボスの素材を bossMaterialChance）・チップ（今の部品、chipChance）・武器（weaponChance）は出撃中の袋へ入る。確率は敵1体ごとで、大きな敵（敵戦車・大五角・重い四角）は bigScale 倍。チップと武器のレア度は rarityWeights の重みで選ぶ。弾と素材は lifetime 秒で消える。休憩部屋で売る値段は weaponPrice・chipPrice（レア度ごと）と materialPrice（素材1つごと）。",
+    "moneyPerExp": 0.1, "materialChance": 0.15, "bossMaterialChance": 0.3,
+    "ammoChance": { "light": 0.1, "heavy": 0.05, "energy": 0.04 },
+    "ammoAmount": { "light": 30, "heavy": 4, "energy": 15 },
+    "reserveMax": { "light": 900, "heavy": 60, "energy": 450 },
+    "chipChance": 0.01, "weaponChance": 0.004, "bigScale": 5.0,
+    "rarityWeights": { "common": 60, "uncommon": 25, "rare": 10, "epic": 4, "legendary": 1 },
+    "weaponPrice": { "common": 30, "uncommon": 60, "rare": 120, "epic": 240, "legendary": 480 },
+    "chipPrice": { "common": 10, "uncommon": 20, "rare": 40, "epic": 80, "legendary": 160 },
+    "materialPrice": { "square": 2, "triangle": 2, "pentagon": 3, "boss": 20 },
+    "magnetRadius": 5.0, "lifetime": 45
+  },
+  "stages": {
+    "comment": "3ステージの流れ（計画書 p3 の W8）。武器の枠を使う遊び方だけ。ステージ1 → 休憩部屋 → ステージ2 → 休憩部屋 → ボスステージ。exitSeconds はステージ1・2では出口が開くまでの秒、ボスステージではボス（宿敵）が出るまでの秒。threatOffset はステージごとの脅威の段階の上乗せ、enemyHp は湧く敵のHPの倍率。swarmScale は寄ってくる三角の群れと包囲の数の倍率。ボスを倒すと出口が開き、ボスの素材 bossMaterials 個と武器を1つ落とす。休憩部屋で次へ進むと、HPが戻る。tier は難しさの段（今は段1の入口だけ）。",
+    "exitSeconds": [180, 180, 15], "threatOffset": [0, 1, 2], "enemyHp": [0.8, 0.96, 1.12], "swarmScale": 0.67, "bossMaterials": 5, "tier": 1
+  },
+  "barrier": {
+    "comment": "右クリックのバリアとスタミナ（計画書 p3 の X3）。武器の枠を使う遊び方だけ。押している間、自機の前に半径 radius・開き arcDegrees 度の扇を張り、敵の弾を消し、敵を縁まで押し返す。張っている間は毎秒 drainPerSecond、弾を止めると hitCost、敵に触れていると1体ごとに毎秒 contactPerSecond 減る（上限 staminaMax）。尽きると exhaustedSeconds 秒は張れない。放して regenDelay 秒たつと毎秒 regenPerSecond 戻る。",
+    "radius": 6.0, "arcDegrees": 110, "staminaMax": 100, "drainPerSecond": 15, "hitCost": 6, "contactPerSecond": 2, "regenPerSecond": 25, "regenDelay": 0.6, "exhaustedSeconds": 1.5
+  },
+  "elites": {
+    "comment": "ステージ fromStage（1から数える）から出る新しい敵（計画書 p3 の W9）。武器の枠を使う遊び方だけ。三角の群れと包囲の erraticRatio の割合が、ばらばらな軌道の水色の三角になる。緑の四角は healInterval 秒ごとに半径 healRadius の味方を最大HPの healRatio だけ回復する。紫の五角は warpInterval 秒ごとにディゾルブで消え、自機から warpDistance の所へ移る。橙の三角は layInterval 秒ごとに地雷（小さな赤い五角、HP mineHp）を置く。地雷は mineArmSeconds 秒たつと、自機が mineTriggerRadius に入るか mineLifeSeconds で爆発し、半径 mineBlastRadius に mineDamage を与える（バリアの中なら自機には届かない）。各敵はステージの始めから first 秒後、その後 interval 秒ごとに、同時に maxAlive 体まで湧く。hpScale はふつうの形のHPに掛ける。",
+    "fromStage": 2, "erraticRatio": 0.5, "erraticStrength": 1.6, "erraticFrequency": 5,
+    "healerFirst": 15, "healerInterval": 25, "healerMaxAlive": 2, "healerHpScale": 3, "healerSpeed": 2.5, "healInterval": 2.5, "healRadius": 9, "healRatio": 0.15,
+    "warperFirst": 8, "warperInterval": 14, "warperMaxAlive": 3, "warperHpScale": 2.5, "warpInterval": 4, "warpDistance": 9,
+    "mineLayerFirst": 22, "mineLayerInterval": 18, "mineLayerMaxAlive": 3, "mineLayerHpScale": 2, "layInterval": 3, "mineMaxAlive": 14, "mineHp": 1,
+    "mineArmSeconds": 1, "mineLifeSeconds": 14, "mineTriggerRadius": 2.2, "mineBlastRadius": 3.4, "mineDamage": 8
+  },
+  "crafting": {
+    "comment": "素材で作る・派生の木（計画書 p3 の W7）。拠点の画面で、recipes の素材とお金を払ってコモンの武器を作り、evolve でレア度を1段ずつ上げる（そのレア度へ上げるのに要る物に、武器の主な素材 main を main 個足す）。レア度ごとに威力 rarityDamage・弾倉 rarityMagazine の倍率がかかり、チップ枠も増える。branches は別の武器へ分かれる枝で、from の武器が minRarity 以上なら、要る物を払って to の武器へ変わる（レア度とチップはそのまま）。craftable が false のレシピは作れず、進化の主な素材だけを決める。",
+    "rarityDamage": { "common": 1.0, "uncommon": 1.1, "rare": 1.2, "epic": 1.35, "legendary": 1.5 },
+    "rarityMagazine": { "common": 1.0, "uncommon": 1.1, "rare": 1.2, "epic": 1.35, "legendary": 1.5 },
+    "recipes": {
+      "cannon": { "square": 10, "triangle": 5, "main": "square" },
+      "machineGun": { "triangle": 15, "main": "triangle" },
+      "grenade": { "square": 10, "pentagon": 3, "main": "square" },
+      "beam": { "triangle": 10, "pentagon": 5, "main": "pentagon" },
+      "shotgun": { "main": "triangle", "craftable": false },
+      "sniper": { "main": "pentagon", "craftable": false },
+      "homing": { "main": "triangle", "craftable": false },
+      "ricochet": { "main": "square", "craftable": false }
+    },
+    "branches": [
+      { "from": "cannon", "to": "ricochet", "minRarity": "uncommon", "square": 30, "money": 200 },
+      { "from": "cannon", "to": "sniper", "minRarity": "rare", "square": 40, "pentagon": 10, "money": 400 },
+      { "from": "machineGun", "to": "shotgun", "minRarity": "uncommon", "triangle": 30, "money": 200 },
+      { "from": "machineGun", "to": "homing", "minRarity": "rare", "triangle": 40, "pentagon": 10, "money": 400 }
+    ],
+    "evolve": {
+      "uncommon": { "money": 100, "main": 20 },
+      "rare": { "pentagon": 5, "money": 300, "main": 40 },
+      "epic": { "pentagon": 10, "boss": 3, "money": 800, "main": 60 },
+      "legendary": { "pentagon": 15, "boss": 10, "money": 2000, "main": 80 }
+    }
+  },
+  "traits": {
+    "comment": "特性。区画の始めに止めて、標準と冷却炉の2択を出す。冷却炉は熱の上限を furnaceHeatMax 倍、冷える速さ（撃っていない間と撃っている間の両方）を furnaceCool 倍にする。",
+    "furnaceHeatMax": 2, "furnaceCool": 0.7
+  },
+  "relics": {
+    "comment": "レリック。大五角の宝箱を倒すと、まだ持っていないレリックの2択が出る（1つしか残っていなければ、もう1枚は質の高い選択）。重さ0で積載を使わない。一発屋：主砲の威力 oneShotDamage 倍、1秒の発射数 oneShotFireRate 倍。不動砲台：移動の入力が無い間は主砲の威力 +turretDamage、ダッシュできない。",
+    "oneShotDamage": 3.5, "oneShotFireRate": 0.3, "turretDamage": 0.8
+  },
+  "fusions": {
+    "comment": "合体の部品の強さ（元の2つを最大 Lv にすると3択に出る。元の2つの効果も残る）。雷鳴（連鎖放電＋戦意）：放電の届く数 +thunderExtraTargets・届く距離 ×thunderRadiusScale。爆走（衝撃放電＋衝角シールド）：ダッシュの衝撃波の半径 ×rampageRadiusScale・威力 ×rampageDamageScale、ダッシュのたびにシールドを上限の rampageShieldRefill 回復。臨界点（重弾頭＋余熱）：オーバーヒートした瞬間に、半径 criticalRadius・威力 主砲1発 × criticalDamage の爆発。",
+    "thunderExtraTargets": 3, "thunderRadiusScale": 1.4, "rampageRadiusScale": 1.8, "rampageDamageScale": 2.0, "rampageShieldRefill": 0.5,
+    "criticalRadius": 9.0, "criticalDamage": 20.0
+  },
+  "damageNumbers": {
+    "comment": "敵に当てたときのダメージの数字（ネオン風）。同じ敵へ mergeSeconds 秒以内に続けて当てた分は1つにまとめて足す。同時に maxActive 個まで、lifeSeconds 秒で上へ動きながら消える。主砲1発の bigRatio 倍以上は金色で大きく出す。scale は文字の大きさの倍率。",
+    "enabled": true, "maxActive": 40, "lifeSeconds": 0.7, "scale": 1.0, "bigRatio": 2.5, "mergeSeconds": 0.15
+  },
+  "parts": {
+    "comment": "軽い部品（Lv1〜5）は1段ごとの上がり幅。0.12 なら +12%。装填機は1秒あたりの発射数、冷却器は冷える速さ（撃っている間も）を上げる。ほかの部品（Lv1〜3）は Lv2 から1段ごとに効果の強さへ足す量。weight は積載に使う重さ（Lv を上げても変わらない）。",
+    "armor": { "perLevel": 0.12, "weight": 1 },
+    "ram": { "perLevel": 0.20, "weight": 1 },
+    "warhead": { "perLevel": 0.10, "weight": 1 },
+    "loader": { "perLevel": 0.12, "weight": 1 },
+    "thruster": { "perLevel": 0.08, "weight": 1 },
+    "collector": { "perLevel": 0.25, "weight": 1 },
+    "cooler": { "perLevel": 0.20, "weight": 1 },
+    "shieldCapacity": { "perLevel": 0.25, "weight": 1 },
+    "pierce": { "perLevel": 0.5, "weight": 1 },
+    "chainLightning": { "perLevel": 0.5, "weight": 2 },
+    "killBurst": { "perLevel": 0.5, "weight": 2 },
+    "dashBurst": { "perLevel": 0.5, "weight": 1 },
+    "heavyWarhead": { "perLevel": 0.5, "weight": 1 },
+    "heatVent": { "perLevel": 0.5, "weight": 2 },
+    "residualHeat": { "perLevel": 0.5, "weight": 1 },
+    "ramShield": { "perLevel": 0.5, "weight": 2 },
+    "morale": { "perLevel": 0.5, "weight": 1 },
+    "emergencyPurge": { "perLevel": 0.5, "weight": 0 }
+  },
+  "partTuning": {
+    "comment": "部品の強さ（Lv1。Lv2・3 は効果の強さを掛ける）。余熱は熱0のときの主砲の威力の上がり幅（熱が上限に近いほど0）。衝角シールドはシールド満タンのときの体当たりの上がり幅。戦意は1体倒すごとの主砲の威力の上がり幅（区画の間ずっと。設計案は +1% だが、区画で千体以上倒すので +0.1% にした）。緊急放出（Q・使い切り）は一番重い部品を壊し、半径 purgeRadiusBase + 重さ × purgeRadiusPerWeight、威力 主砲1発 × 重さ × purgeDamagePerWeight の爆発。壊した部品はその区画の間、3択に出ない。",
+    "residualHeatBonus": 0.5, "ramShieldBonus": 1.5, "moralePerKill": 0.001,
+    "purgeRadiusBase": 6, "purgeRadiusPerWeight": 2, "purgeDamagePerWeight": 15
+  },
+  "heatVent": {
+    "comment": "排熱砲（Q）。Q で今の熱を全部0にし、熱に比例した威力の太い貫通弾を撃つ（オーバーヒート中も使え、解ける）。熱が minHeat 未満なら使えない。威力は 主砲1発 × 熱 × damagePerHeat × 効果の強さ（Lv1 で1）。使うと cooldown 秒待つ。",
+    "cooldown": 3, "minHeat": 15, "damagePerHeat": 0.12
+  },
+  "bigPentagon": {
+    "comment": "五角を大きく硬くしたもの。",
+    "from": 120, "interval": 18, "maxAlive": 3, "scale": 2.2, "hp": 140, "exp": 160
+  }
+}

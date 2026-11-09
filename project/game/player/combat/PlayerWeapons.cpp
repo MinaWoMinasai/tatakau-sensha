@@ -43,12 +43,40 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
     for (float& cooldown : player_.weaponGroupCooldowns_) {
         cooldown = (std::max)(0.0f, cooldown - deltaTime);
     }
+    player_.heat_.Update(deltaTime);
+    if (player_.partEffects_.loaderRamp) {
+        // 3秒撃ち続けると最大。撃つのをやめると0.5秒で戻る。
+        const bool firing = (player_.demoInputEnabled_ ? player_.demoShoot_ : player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[0])) &&
+                            player_.heat_.CanFire();
+        player_.loaderRamp_ = (std::clamp)(player_.loaderRamp_ + (firing ? deltaTime / 3.0f : -deltaTime * 2.0f), 0.0f, 1.0f);
+    }
 
     bool wantsPrimaryAttack =
         player_.demoInputEnabled_ ? player_.demoShoot_ : player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[0]);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     wantsPrimaryAttack = wantsPrimaryAttack || player_.debugAutoFireEnabled_;
 #endif
+    // 試作の長砲身：右クリックを押している間ためて、離すと貫通する弾を撃つ。熱を使い、ためている間は主砲を撃たない。
+    if (player_.HasRailChargeForm()) {
+        const bool held = player_.demoInputEnabled_ ? player_.demoSpecialHold_
+                                                    : player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[1]);
+        const float charge = player_.railCharge_.Step(held && !player_.ui_->upgradeHudMouseCaptured_, deltaTime,
+                                                      player_.heat_.CanFire() && bulletManager != nullptr &&
+                                                          player_.SurvivorAmmoReady(player_.survivorRailCost_));
+        if (charge >= 0.0f) {
+            const auto& tuning = player_.formTuning_;
+            FireRailShot(bulletManager, charge, tuning.railPower);
+            if (player_.survivorRounds_ >= 0) {
+                player_.survivorRounds_ -= player_.survivorRailCost_;
+            }
+            player_.heat_.AddHeat(tuning.railHeatBase +
+                                  tuning.railHeatPerCharge * (std::min)(charge, tankspecial::kRailMaxChargeSeconds));
+            return;
+        }
+        if (player_.railCharge_.held) {
+            return;
+        }
+    }
     if (player_.runModifiers_.railCannon && player_.expeditionCombatStyleSelected_ &&
         player_.expeditionCombatStyle_ == tankbuild::Style::Shooter) {
         AttackRailCannon(bulletManager, wantsPrimaryAttack && !player_.ui_->upgradeHudMouseCaptured_, deltaTime);
@@ -144,7 +172,20 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
                                      GetRunFireIntervalScale();
             myEngine::Vector3 recoilDir = myEngine::Normalize(player_.dir_) * -1.0f;
             float recoilPower = 0.01f;
+            // オーバーヒートの間は撃てない（熱が無効なモードでは常に撃てる）。
+            if (!player_.heat_.CanFire()) {
+                return;
+            }
+            // 試作の武器：切り替え・リロードの間と、弾が無いときは撃てない。
+            if (!player_.SurvivorAmmoReady(1)) {
+                return;
+            }
             if (FireConfiguredClass(*config, bulletManager, baseReload, recoilDir, recoilPower)) {
+                if (player_.survivorRounds_ > 0) {
+                    --player_.survivorRounds_;
+                }
+                player_.heat_.AddShot(player_.formTuning_.heatScale);
+                player_.heat_.AddHeat(player_.partEffects_.extraHeatPerShot);
                 // 遠征のドローン生成では射撃を記録しない。Player::Updateでドローン射撃による弾数増加を記録する。
                 if (!player_.runCheckpointEvolution_ || !config->usesDrone) {
                     player_.primaryAttackPerformedEvent_ = true;
@@ -376,7 +417,8 @@ void PlayerWeapons::ApplyRunProjectileRules(AttackParam& param, bool applyFan) c
     param.bulletCount = 1;
     param.impactSplitCount = 0;
     const TankRunTuning tuning = MakeTankRunTuning(player_.runModifiers_, player_.runGrowth_);
-    if (player_.expeditionCombatStyleSelected_ && player_.expeditionCombatStyle_ == tankbuild::Style::Shooter) {
+    if ((player_.expeditionCombatStyleSelected_ && player_.expeditionCombatStyle_ == tankbuild::Style::Shooter) ||
+        player_.runModifiers_.survivor) {
         param.shooterChain = player_.runModifiers_.chainLightning;
         param.shooterMark = player_.runModifiers_.markDetonation;
         param.shooterBoomerang = player_.runModifiers_.boomerangShell;
@@ -405,6 +447,19 @@ void PlayerWeapons::ApplyRunProjectileRules(AttackParam& param, bool applyFan) c
         }
         param.impactSplitCount = tuning.impactSplitCount;
         param.impactSplitDamageScale = 0.55f;
+    } else if (player_.runModifiers_.survivor) {
+        param.actorPierceCount = tuning.actorPierceCount;
+        // 反射砲：壁で跳ね返る弾にする（跳ね返りには反射の印も要る）。
+        if (player_.runModifiers_.survivorWallBounces > 0) {
+            param.maxWallBounces = player_.runModifiers_.survivorWallBounces;
+            param.reflect = true;
+        }
+        // 形態ごとの弾の色。
+        const auto& color = player_.formTuning_.bulletColor;
+        param.bulletColor[0] = color.x;
+        param.bulletColor[1] = color.y;
+        param.bulletColor[2] = color.z;
+        param.bulletColor[3] = color.w;
     }
 }
 
@@ -415,6 +470,10 @@ float PlayerWeapons::GetRunFireIntervalScale() const
         player_.runOverdriveTimer_ > 0.0f ? 1.0f / (1.0f + TankEffectPower(player_.runModifiers_, tankrun::CardId::Overdrive)) : 1.0f;
     if (player_.runModifiers_.core == TankRunCore::Assault && player_.runDashAttackTimer_ > 0.0f) {
         scale *= 0.65f;
+    }
+    // 試作の装填機の3段：撃ち続けるほど、連射が最大で +35% まで速くなる。
+    if (player_.partEffects_.loaderRamp) {
+        scale /= 1.0f + 0.35f * player_.loaderRamp_;
     }
     return scale;
 }
@@ -444,6 +503,39 @@ void PlayerWeapons::AttackRailCannon(BulletManager* bullets, bool pressed, float
     if (charge < 0) {
         return;
     }
+    FireRailShot(bullets, charge, TankEffectPower(player_.runModifiers_, tankrun::CardId::RailCannon));
+}
+
+void PlayerWeapons::FireHeatVent(BulletManager* bullets, float heat, float damagePerHeat)
+{
+    // 砲身の数によらず、車体の正面から1発だけ撃つ。見た目はため撃ちの弾（Rail）を、熱の量で太くして使う。
+    const auto* config = player_.GetCurrentClassConfig();
+    const myEngine::Vector3 aim = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1, 0, 0}, .001f);
+    const float fullness = (std::clamp)(heat / 100.0f, 0.0f, 1.5f);
+    AttackParam param{};
+    param.damage = static_cast<uint32_t>((std::max)(
+        1.0f, std::round(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * heat * (std::max)(0.0f, damagePerHeat))));
+    param.bulletSpeed = player_.stats_.bulletSpeed * (config ? config->bulletSpeedScale : 1.0f) * 1.5f;
+    param.penetrate = true;
+    ApplyRunProjectileRules(param);
+    param.actorPierceCount = (std::max)(6 + static_cast<int>(fullness * 10.0f), param.actorPierceCount);
+    param.bulletHp = (std::max)(4.0f + fullness * 8.0f, param.bulletHp);
+    const myEngine::Vector3 muzzle = player_.GetWorldPosition() + aim * 1.7f;
+    auto bullet = std::make_unique<Bullet>();
+    bullet->Initialize(muzzle, aim * param.bulletSpeed, param.damage, kPlayer, false, param.bulletHp, param.bulletPenetration);
+    bullet->ConfigureGrowth(0, param.actorPierceCount, 0);
+    bullet->ConfigureSpecial(Bullet::SpecialKind::Rail, .5f + .6f * (std::min)(fullness, 1.0f), 1.6f);
+    bullet->ConfigureShooterAbilities(param.shooterChain, param.shooterMark, param.shooterBoomerang, param.shooterKillBurst,
+                                      param.shooterChainPower, param.shooterMarkPower, param.shooterBoomerangPower, param.shooterKillBurstPower);
+    bullets->Add(std::move(bullet));
+    if (player_.pendingSpecialCombatEvents_.size() < 32) {
+        player_.pendingSpecialCombatEvents_.push_back({SpecialEventKind::RailShot, muzzle, aim, (std::min)(fullness, 1.0f)});
+    }
+    player_.velocity_ += aim * (-.08f - .08f * (std::min)(fullness, 1.0f));
+}
+
+void PlayerWeapons::FireRailShot(BulletManager* bullets, float charge, float power)
+{
     const auto* config = player_.GetCurrentClassConfig();
     const myEngine::Vector3 aim = myEngine::NormalizeOr(player_.dir_, myEngine::Vector3{1, 0, 0}, .001f);
     const myEngine::Vector3 side{-aim.y, aim.x, 0};
@@ -451,12 +543,13 @@ void PlayerWeapons::AttackRailCannon(BulletManager* bullets, bool pressed, float
     param.damage = static_cast<uint32_t>(
         (std::max)(1.0f,
                    std::round(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) *
-                              tankspecial::RailDamageScale(charge, TankEffectPower(player_.runModifiers_, tankrun::CardId::RailCannon)))));
+                              tankspecial::RailDamageScale(charge, power))));
     param.bulletSpeed = player_.stats_.bulletSpeed * (config ? config->bulletSpeedScale : 1.0f) * tankspecial::RailSpeedScale(charge);
     param.reflect = config && config->reflect;
     param.penetrate = true;
     ApplyRunProjectileRules(param);
-    param.actorPierceCount = (std::max)(3, param.actorPierceCount);
+    // 試作の光線砲は、ため撃ちが太く、多くの敵を貫く（既定は倍率1・足す数0で変わらない）。
+    param.actorPierceCount = (std::max)(3, param.actorPierceCount) + player_.formTuning_.railExtraPierce;
     param.bulletHp = (std::max)(2.0f + charge * 3.0f, param.bulletHp);
     const size_t barrelCount = config && !config->barrels.empty() ? (std::min)(config->barrels.size(), size_t{8}) : 1;
     const bool alternate = config && config->alternateBarrels && barrelCount > 1;
@@ -484,7 +577,8 @@ void PlayerWeapons::AttackRailCannon(BulletManager* bullets, bool pressed, float
                            static_cast<uint32_t>((std::max)(1.0f, std::round(static_cast<float>(param.damage) * damageScale))), kPlayer,
                            param.reflect, param.bulletHp, param.bulletPenetration);
         bullet->ConfigureGrowth(param.maxWallBounces, param.actorPierceCount, 0);
-        bullet->ConfigureSpecial(Bullet::SpecialKind::Rail, .35f + .30f * charge, 1.6f);
+        bullet->ConfigureSpecial(Bullet::SpecialKind::Rail, (.35f + .30f * charge) * player_.formTuning_.railWidthScale, 1.6f);
+        bullet->SetColorOverride(player_.formTuning_.bulletColor);
         bullet->ConfigureShooterAbilities(param.shooterChain, param.shooterMark, param.shooterBoomerang, param.shooterKillBurst,
                                           param.shooterChainPower, param.shooterMarkPower, param.shooterBoomerangPower,
                                           param.shooterKillBurstPower);
@@ -1119,6 +1213,27 @@ bool PlayerWeapons::FireConfiguredClass(const PlayerClassConfig& config, BulletM
             }
             mountParam.bulletCount = (std::min)(mountParam.bulletCount, static_cast<int>(240 - active));
             mountParam.bulletSpeed *= barrelConfig.projectileSpeedScale;
+            // 試作の弾頭の3段：ときどき威力2倍（会心）。会心の確率が0なら乱数を引かない。
+            if (player_.partEffects_.critChance > 0.0f && myEngine::Rand(0.0f, 1.0f) < player_.partEffects_.critChance) {
+                mountParam.damage *= 2;
+                ++player_.critShots_;
+            }
+            // 試作の余熱（熱が低いほど威力↑）と戦意（撃破で積み上がる倍率）。どちらも無ければ何もしない。
+            const auto& effects = player_.partEffects_;
+            float shotScale = effects.shotDamageScale;
+            if (effects.residualHeat > 0.0f) {
+                const float heatMax = (std::max)(1.0f, player_.heat_.GetMaxHeat());
+                shotScale *= 1.0f + effects.residualHeat * (1.0f - (std::clamp)(player_.heat_.GetHeat() / heatMax, 0.0f, 1.0f));
+            }
+            // 試作の不動砲台：移動の入力が無い間は威力が上がる。
+            if (effects.stillDamageBonus > 0.0f && myEngine::Length(player_.inputDir_) < 0.1f) {
+                shotScale *= 1.0f + effects.stillDamageBonus;
+                ++player_.stillShots_;
+            }
+            if (shotScale != 1.0f) {
+                mountParam.damage =
+                    static_cast<uint32_t>((std::max)(1.0f, std::round(static_cast<float>(mountParam.damage) * shotScale)));
+            }
             player_.attackController_.FireFromMuzzle(muzzle, fireDir, mountParam, BulletOwner::kPlayer);
             if (index < player_.barrels_.size()) {
                 player_.barrels_[index].muzzleFlashTimer = player_.kMuzzleFlashDuration;

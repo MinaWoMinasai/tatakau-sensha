@@ -74,6 +74,18 @@ bool TryGetExpEnemyType(const std::string& prefab, ExpEnemyType& type)
 
 } // namespace
 
+EnemyManager::EnemyManager()
+{
+    ExpEnemy::AcquireObjectPool();
+}
+
+EnemyManager::~EnemyManager()
+{
+    // 敵の Object3d を置き場へ返してから、置き場を使い終える（最後の利用者なら解放する）。
+    enemies_.clear();
+    ExpEnemy::ReleaseObjectPool();
+}
+
 void EnemyManager::Initialize(Player* player, BulletManager* bulletManager, Enemy* boss)
 {
     player_ = player;

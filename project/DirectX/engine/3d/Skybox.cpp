@@ -45,7 +45,7 @@ void Skybox::SetColor(const Vector4& color)
 void Skybox::Draw()
 {
     auto list = dxCommon_->GetList();
-    auto& pso = dxCommon_->GetPSOSkybox();
+    auto& pso = dxCommon_->GetPipeline(PipelineId::SkyboxHdr);
 
     // 1. Skybox専用のシグネチャとPSOをセット
     list->SetGraphicsRootSignature(pso.root_.GetSignature().Get());

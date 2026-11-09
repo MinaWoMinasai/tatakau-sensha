@@ -28,6 +28,7 @@
 #include "game/ui/NeonTextEffect.h"
 #include "game/player/TankRunModifiers.h"
 #include "game/player/PlayerDerivedStats.h"
+#include "game/player/combat/PlayerHeat.h"
 #include "game/player/TankSpecialCombat.h"
 #include "game/player/TankCombatStyleBalance.h"
 #include "game/player/TankExpeditionLoadout.h"
@@ -593,6 +594,177 @@ public:
         return debugNoDamage_;
     }
 
+    /// @brief 育つ戦車の試作のシールド。最大HPに比例した上限を持ち、被弾でHPより先に減る。
+    struct ShieldConfig {
+        bool enabled = false;
+        /// @brief シールドの上限の、最大HPに対する割合。
+        float maxHpRatio = 0.2f;
+        /// @brief 最後に被弾してから回復が始まるまでの秒数。
+        float regenDelay = 3.0f;
+        /// @brief 回復中に毎秒戻る量の、シールドの上限に対する割合。
+        float regenPerSecond = 0.25f;
+    };
+    /// @brief 熱とシールドを設定し、熱を0・シールドを満タンにする。既定ではどちらも無効。
+    void ConfigureSurvivorResources(const PlayerHeat::Config& heat, const ShieldConfig& shield);
+    const PlayerHeat& GetHeat() const
+    {
+        return heat_;
+    }
+    /// @brief 今のシールドの量。無効なら0。
+    float GetShield() const
+    {
+        return shieldConfig_.enabled ? shield_ : 0.0f;
+    }
+    /// @brief シールドの上限。無効なら0。
+    float GetShieldMax() const
+    {
+        return shieldConfig_.enabled ? stats_.maxHp * shieldConfig_.maxHpRatio : 0.0f;
+    }
+
+    /// @brief 育つ戦車の試作の形態の、撃ち方に関わる値。
+    struct SurvivorFormTuning {
+        /// @brief 主砲1発の熱の倍率。
+        float heatScale = 1.0f;
+        /// @brief 右クリックのため撃ち（specialActionId が rail_charge の形態）の威力の強さ。
+        float railPower = 1.0f;
+        /// @brief ため撃ち1発の熱。熱 = railHeatBase + railHeatPerCharge × ためた秒数（最大1秒）。
+        float railHeatBase = 10.0f;
+        float railHeatPerCharge = 25.0f;
+        /// @brief ため撃ちの弾の太さの倍率と、貫く数に足す数（光線砲）。
+        float railWidthScale = 1.0f;
+        int railExtraPierce = 0;
+        /// @brief 主砲とため撃ちの弾と軌跡の色（A が0なら変えない）。
+        myEngine::Vector4 bulletColor{0, 0, 0, 0};
+    };
+    /// @brief 育つ戦車の試作で、形態の装備に替える。HP・経験値・部品はそのまま。
+    void ApplySurvivorForm(const PlayerClassConfig& config, const SurvivorFormTuning& tuning);
+    /// @brief Shift でダッシュできるようにする（育つ戦車の試作。右クリックを形態の技に使うため）。
+    /// @brief 右クリックでのダッシュを許すか（育つ戦車の試作の武器の遊び方では、右クリックはバリア）。
+    void SetRightClickDashEnabled(bool enabled)
+    {
+        rightClickDashEnabled_ = enabled;
+    }
+    void SetShiftDashEnabled(bool enabled)
+    {
+        shiftDashEnabled_ = enabled;
+    }
+    /// @brief 自動操作で、右クリック（形態の技）を押し続けているかを渡す。
+    void SetDemoSpecialHold(bool held)
+    {
+        demoSpecialHold_ = held;
+    }
+    /// @brief 右クリックをため撃ちに使う形態か。
+    bool HasRailChargeForm() const;
+    /// @brief 育つ戦車の試作の武器の弾（計画書 p3 の W1）。rounds は撃てる残り（負なら数えない＝既定）、
+    /// railCost はため撃ち1発で使う数。主砲1回で1つ、ため撃ち1回で railCost 減る。
+    void SetSurvivorAmmo(int rounds, int railCost)
+    {
+        survivorRounds_ = rounds;
+        survivorRailCost_ = (std::max)(1, railCost);
+    }
+    /// @brief 撃てる残りを返す（数えていなければ負）。
+    int GetSurvivorRounds() const
+    {
+        return survivorRounds_;
+    }
+    /// @brief 武器の切り替えやリロードの間、主砲もため撃ちも撃てなくする（ためている分も捨てる）。
+    void SetSurvivorFireLocked(bool locked)
+    {
+        survivorFireLocked_ = locked;
+    }
+    /// @brief 今 cost 発ぶん撃てるか（止められておらず、弾が足りる）。
+    bool SurvivorAmmoReady(int cost) const
+    {
+        return !survivorFireLocked_ && (survivorRounds_ < 0 || survivorRounds_ >= cost);
+    }
+    /// @brief 排熱砲（育つ戦車の試作の Q）：今の熱を全部0にし、熱に比例した威力の太い貫通弾を、向いている方へ1発撃つ。
+    /// @param damagePerHeat 熱1あたりの威力の倍率（主砲1発の威力に対する）。熱100・0.12なら12倍。
+    /// @return 放った熱。弾を撃てなかったら（弾の管理が無いなど）0 で、熱も減らさない。
+    /// @note オーバーヒート中でも使え、熱を0に戻すので、オーバーヒートも解ける。
+    float FireSurvivorHeatVent(float damagePerHeat);
+    /// @brief 自機の位置で爆発を起こす（緊急放出）。威力は 主砲1発 × damageScale。衝撃放電と同じ爆発の仕組みを使う。
+    void TriggerSurvivorBlast(float radius, float damageScale);
+
+    /// @brief 育つ戦車の試作の部品による、撃ち方・守りの挙動の変化。既定では何も変えない。
+    struct SurvivorPartEffects {
+        /// @brief 主砲1発ごとに足す熱（重弾頭）。
+        float extraHeatPerShot = 0.0f;
+        /// @brief 会心（威力2倍）の確率（弾頭の3段）。
+        float critChance = 0.0f;
+        /// @brief 撃ち続けるほど連射が速くなる（装填機の3段）。
+        bool loaderRamp = false;
+        /// @brief 車体のトゲ（衝角の3段）。触れた小さなシェイプを壊すのは SurvivorRunController が行い、ここは見た目に使う。
+        bool spikes = false;
+        /// @brief 被弾後の無敵時間の倍率（装甲板の3段）。
+        float invincibleScale = 1.0f;
+        /// @brief 余熱：熱0のときの威力の上がり幅（0.5 なら +50%）。熱が上限に近いほど0に近づく。
+        float residualHeat = 0.0f;
+        /// @brief 主砲1発の威力に掛ける倍率（戦意の積み上げ）。
+        float shotDamageScale = 1.0f;
+        /// @brief 衝角シールド：シールドが満タンのときの、体当たりの威力の上がり幅（1.5 なら +150%）。
+        float ramShield = 0.0f;
+        /// @brief 不動砲台：移動の入力が無い間の、主砲の威力の上がり幅（0.8 なら +80%）。
+        float stillDamageBonus = 0.0f;
+        /// @brief 不動砲台：ダッシュ（Shift・右クリック）を使えない。
+        bool noDash = false;
+        /// @brief 爆走：ダッシュの衝撃波の半径と威力の倍率、ダッシュのたびに回復するシールドの割合（上限に対する）。
+        float dashBlastRadiusScale = 1.0f;
+        float dashBlastDamageScale = 1.0f;
+        float dashShieldRefill = 0.0f;
+    };
+    void SetSurvivorPartEffects(const SurvivorPartEffects& effects)
+    {
+        partEffects_ = effects;
+    }
+    bool HasSpikes() const
+    {
+        return partEffects_.spikes;
+    }
+    /// @brief 不動砲台で止められたダッシュの回数と、止まって撃った主砲の回数（自動確認用）。
+    uint32_t GetDashBlocked() const
+    {
+        return dashBlocked_;
+    }
+    uint32_t GetStillShots() const
+    {
+        return stillShots_;
+    }
+    /// @brief 会心が出た回数（自動確認用）。
+    uint32_t GetCritShots() const
+    {
+        return critShots_;
+    }
+    /// @brief 衝撃放電（ダッシュの爆発）を出した回数。
+    uint32_t GetDashExplosionCount() const
+    {
+        return runDashExplosionsEmitted_;
+    }
+    /// @brief 熱の設定だけを替える（今の熱は保つ）。冷却器で冷える速さや上限が変わるときに使う。
+    /// @brief 熱を控えた値に戻す（育つ戦車の試作で、武器を切り替えたとき）。
+    void RestoreHeat(const PlayerHeat::Snapshot& snapshot)
+    {
+        heat_.Restore(snapshot);
+    }
+    void SetHeatConfig(const PlayerHeat::Config& config)
+    {
+        heat_.Reconfigure(config);
+    }
+    /// @brief シールドの設定だけを替える（今のシールドは保ち、上限は次の更新で合わせる）。
+    void SetShieldConfig(const ShieldConfig& config)
+    {
+        shieldConfig_ = config;
+    }
+    /// @brief playerClasses.json から読んだ機体設定を借用して返す。無ければ nullptr。
+    const PlayerClassConfig* FindCatalogClassConfig(const std::string& classId) const
+    {
+        return GetClassConfig(classId);
+    }
+    /// @brief 今使っている機体設定（形態・遠征の進化を含む）を借用して返す。
+    const PlayerClassConfig* GetActiveClassConfig() const
+    {
+        return GetCurrentClassConfig();
+    }
+
     /// @brief 死亡状態にして死亡演出を開始する。既に死亡中なら何もしない。
     void Die();
 
@@ -621,22 +793,10 @@ public:
     /// @param deltaTime この処理で進める経過時間（秒）。
     void UpdateDefeatPresentation(float deltaTime);
 
-    /// @brief 地形衝突処理で設定された接地状態を返す。
-    bool IsOnGround() const
-    {
-        return isOnGround_;
-    }
-
     /// @brief 接地状態を設定する。
     void SetOnGround(bool onGround)
     {
         isOnGround_ = onGround;
-    }
-
-    /// @brief XY平面での照準角度（ラジアン）を返す。
-    float GetAngle() const
-    {
-        return angle_;
     }
 
     /// @brief 照準方向への読み取り専用参照を返す。
@@ -723,12 +883,6 @@ public:
     /// @brief 撃破報酬をレベルへ加算せず、マップ所有の財布へ渡す通貨として保留する方式を切り替える。
     /// @note 方式が変わると保留通貨を消去する。有効化時はレベル・経験値・強化ポイントを初期化し進化画面を閉じる。
     void SetRunCurrencyMode(bool enabled);
-
-    /// @brief 撃破報酬を通貨として保留する方式かを返す。
-    bool IsRunCurrencyMode() const
-    {
-        return runCurrencyMode_;
-    }
 
     /// @brief 未反映の獲得通貨を取り出し、取り出した分を消費済みにする。
     int TakeRunCurrencyEarned()
@@ -1002,6 +1156,26 @@ private:
     std::unique_ptr<myEngine::Sprite> hpFont;
     static constexpr uint32_t kDamageBlockDamage = 75;
     int hp_ = 10000;
+
+    // 育つ戦車の試作の熱とシールド。既定では無効。
+    PlayerHeat heat_;
+    ShieldConfig shieldConfig_{};
+    float shield_ = 0.0f;
+    float shieldRegenWait_ = 0.0f;
+    float shieldAbsorbed_ = 0.0f;
+    SurvivorFormTuning formTuning_{};
+    // 試作の武器の弾（負なら数えない）と、切り替え・リロードで撃てない間か。
+    int survivorRounds_ = -1;
+    int survivorRailCost_ = 1;
+    bool survivorFireLocked_ = false;
+    SurvivorPartEffects partEffects_{};
+    float loaderRamp_ = 0.0f;
+    uint32_t critShots_ = 0;
+    bool shiftDashEnabled_ = false;
+    bool rightClickDashEnabled_ = true;
+    uint32_t dashBlocked_ = 0;
+    uint32_t stillShots_ = 0;
+    bool demoSpecialHold_ = false;
 
     // 無敵時間
     float invincibleTimer_ = 0.0f;

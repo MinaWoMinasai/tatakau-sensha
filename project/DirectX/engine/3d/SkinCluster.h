@@ -93,12 +93,6 @@ public:
         return palette_;
     }
 
-    /// @brief 逆行列結合姿勢行列を返す。
-    const std::vector<Matrix4x4>& GetInverseBindPoseMatrices() const
-    {
-        return inverseBindPoseMatrices_;
-    }
-
     /// @brief ボーンの影響を割り当てた頂点の数を返す。
     uint32_t GetAssignedInfluenceCount() const
     {

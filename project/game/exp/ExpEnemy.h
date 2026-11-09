@@ -43,6 +43,14 @@ public:
 
     /// @brief 種類を設定して作る。
     ExpEnemy() : Collider(kColliderKind) {}
+    /// @brief 描画用の Object3d を、使い回しの置き場へ返す（置き場が有効な間だけ）。
+    ~ExpEnemy() override;
+
+    /// @brief Object3d の使い回しの置き場を使い始める（EnemyManager が作られたとき）。
+    /// @note 敵が湧くたびに GPU の資源を作るのを避ける。置き場は、使う EnemyManager がすべて無くなると空にする。
+    static void AcquireObjectPool();
+    /// @brief 置き場を使い終える。最後の利用者なら、置き場の Object3d を解放する。
+    static void ReleaseObjectPool();
 
     /// @brief 接触ダメージと射撃・索敵の共通設定を保持する。間隔は秒、弾速は60FPS基準の1フレーム当たりの距離。
     struct BalanceConfig {
@@ -70,6 +78,12 @@ public:
     /// @brief 自機側が通常の経験値敵を撃破したとき、その敵の位置を渡す共有コールバックを設定する。
     /// @note 自機自身の死亡通知ではない。資源・召喚個体は対象外で、空の関数で解除できる。
     static void SetPlayerDefeatCallback(std::function<void(const myEngine::Vector3&)> callback);
+    /// @brief 自機側の撃破で経験値を直接渡す代わりに、倒した敵と量を受け取る共有コールバックを設定する（試作の欠片）。
+    /// @note 設定中は Player::AddExp を呼ばない。空の関数で解除すると、従来どおり直接渡す。
+    static void SetPlayerExpDropCallback(std::function<void(const ExpEnemy&, uint32_t)> callback);
+    /// @brief 自機側の攻撃でHPが減ったときに、敵と量を受け取る共有コールバックを設定する（試作のダメージの数字）。資源には呼ばない。
+    /// @note 衝突処理の途中から呼ばれるので、受け取る側は控えるだけにする。空の関数で解除する。
+    static void SetPlayerDamageCallback(std::function<void(const ExpEnemy&, uint32_t)> callback);
     /// @brief 図形のネオン表示を切り替え、有効なら描画方式1、無効なら方式0にする。
     static void SetShapeNeonBillboardEnabled(bool enabled);
     /// @brief 図形のネオン描画方式を0〜3に制限して設定する。0以外では通常のモデル描画を省く。
@@ -115,10 +129,116 @@ public:
         return worldTransform_.translate;
     }
 
-    /// @brief 球の衝突半径を返す。資源は1.2、それ以外は0.8ワールド単位。
+    /// @brief 球の衝突半径を返す。資源は1.2、それ以外は0.8ワールド単位に、大きさの倍率（既定1）を掛ける。
     float GetRadius() const override
     {
-        return isRunResource_ ? 1.2f : 0.8f;
+        return (isRunResource_ ? 1.2f : 0.8f) * sizeScale_;
+    }
+
+    /// @brief 図形を自機へ寄せる。加速度と最高速度はワールド単位/秒。0以下で寄らない（既定）。
+    /// @note 図形（Square・Triangle・Pentagon）だけに効く。移動は既存の慣性・地形補正と同じ経路を通る。
+    void SetPlayerChase(float acceleration, float maxSpeed)
+    {
+        chaseAcceleration_ = acceleration;
+        chaseMaxSpeed_ = maxSpeed;
+    }
+
+    /// @brief 寄ってくる図形に突進を足す。interval 秒ごとに、windup 秒ほぼ止まって溜め、duration 秒だけ最高速度 lungeSpeed で迫る。
+    /// @param phase 周期の始まりをずらす秒（群れが一斉に突進しないように）。SetPlayerChase と一緒に使う。
+    void SetPlayerLunge(float interval, float windup, float duration, float lungeSpeed, float phase)
+    {
+        lungeInterval_ = interval;
+        lungeWindup_ = windup;
+        lungeDuration_ = duration;
+        lungeSpeed_ = lungeSpeed;
+        lungeTimer_ = phase;
+    }
+
+    /// @brief 自機へ寄ってくる図形か。
+    bool IsChasingPlayer() const
+    {
+        return chaseAcceleration_ > 0.0f;
+    }
+
+    /// @brief 育つ戦車の試作の新しい敵の役割（計画書 p3 の W9）。動きの中身は SurvivorRunController が持つ。
+    enum class SurvivorRole {
+        None,
+        Healer,
+        Warper,
+        MineLayer,
+        Mine
+    };
+    void SetSurvivorRole(SurvivorRole role)
+    {
+        survivorRole_ = role;
+    }
+    SurvivorRole GetSurvivorRole() const
+    {
+        return survivorRole_;
+    }
+    /// @brief 役割の時間を進めて返す。
+    float AdvanceRoleTimer(float dt)
+    {
+        roleTimer_ += dt;
+        return roleTimer_;
+    }
+    void SetRoleTimer(float seconds)
+    {
+        roleTimer_ = seconds;
+    }
+    /// @brief ワープのディゾルブの進み（0 なら何も変わらない）。
+    void SetWarpDissolve(float progress)
+    {
+        warpDissolve_ = progress;
+    }
+    float GetWarpDissolve() const
+    {
+        return warpDissolve_;
+    }
+    /// @brief 寄ってくる向きを左右へ揺らす。strength は横の強さ（前への強さに対する割合）、frequency は1秒あたりのラジアン。
+    void SetWobble(float strength, float frequency, float phase)
+    {
+        wobbleStrength_ = strength;
+        wobbleFrequency_ = frequency;
+        wobbleTime_ = phase;
+    }
+    /// @brief 元の色を替える（被弾の光はこの色から戻る）。
+    void SetBaseColor(const myEngine::Vector4& color)
+    {
+        baseColor_ = color;
+        visualColor_ = color;
+    }
+    /// @brief 最大HPまで回復する。実際に増えた量を返す。
+    int HealHp(int amount)
+    {
+        const int before = hp_;
+        hp_ = (std::min)(maxHp_, hp_ + (std::max)(0, amount));
+        return hp_ - before;
+    }
+    /// @brief 報酬なしで消す（爆発した地雷など）。
+    void DespawnWithoutReward()
+    {
+        isDead_ = true;
+    }
+
+    /// @brief SetSizeScale で付けた大きさの倍率を返す（既定1）。
+    float GetSizeScale() const
+    {
+        return sizeScale_;
+    }
+
+    /// @brief 表示と衝突半径を scale 倍にする（大五角など）。生成直後に1回だけ呼ぶ。
+    void SetSizeScale(float scale)
+    {
+        sizeScale_ = scale;
+        baseScale_ = baseScale_ * scale;
+        worldTransform_.scale = baseScale_;
+    }
+
+    /// @brief 撃破時の経験値量を上書きする。
+    void SetExpValue(uint32_t value)
+    {
+        expValue_ = value;
     }
 
     /// @brief 射撃で使うBulletManagerを借用する。発射時には有効な管理先が必要。
@@ -284,18 +404,6 @@ public:
     /// @return 正面の反射受付が成立した場合true。弾の生成・追加予約は呼び出し側が行う。
     bool TryReflectProjectile(const myEngine::Vector3& attackSource);
 
-    /// @brief 反射装甲の受付が成立した回数を返す。反射弾の登録成功数ではない。
-    uint32_t GetReflectionCount() const
-    {
-        return reflectionCount_;
-    }
-
-    /// @brief EMPパルスを発動した回数を返す。範囲外・遮蔽で自機に適用されない発動も含む。
-    uint32_t GetEmpPulseCount() const
-    {
-        return empPulseCount_;
-    }
-
     /// @brief 召喚要求の有無を返して保留フラグを消去する。複数の要求を件数として蓄積しない。
     bool ConsumeSummonRequest()
     {
@@ -345,12 +453,6 @@ public:
     const myEngine::Vector3& GetAimDirection() const
     {
         return aimDirection_;
-    }
-
-    /// @brief 地形で切り詰めた攻撃予告の終点を借用参照で返す。位置は更新時に変わる。
-    const myEngine::Vector3& GetTelegraphEnd() const
-    {
-        return telegraphEnd_;
     }
 
     /// @brief 生存中の移動戦闘役の輪郭・攻撃予告・残弾などを、シーンが使うネオン描画先へ予約する。
@@ -467,6 +569,8 @@ private:
     static EnemyInteractionConfig enemyInteractionConfig_;
     static std::function<void(uint32_t)> enemyKillCallback_;
     static std::function<void(const myEngine::Vector3&)> playerDefeatCallback_;
+    static std::function<void(const ExpEnemy&, uint32_t)> playerExpDropCallback_;
+    static std::function<void(const ExpEnemy&, uint32_t)> playerDamageCallback_;
     static bool shapeNeonBillboardEnabled_;
     static int shapeNeonRenderMode_;
 
@@ -496,6 +600,21 @@ private:
     std::function<void(bool playerOwned)> runResourceClaimCallback_;
 
     uint32_t expValue_ = 10;
+    float sizeScale_ = 1.0f;
+    float chaseAcceleration_ = 0.0f;
+    float chaseMaxSpeed_ = 0.0f;
+    SurvivorRole survivorRole_ = SurvivorRole::None;
+    float roleTimer_ = 0.0f;
+    float warpDissolve_ = 0.0f;
+    float wobbleStrength_ = 0.0f;
+    float wobbleFrequency_ = 0.0f;
+    float wobbleTime_ = 0.0f;
+    // 突進（SetPlayerLunge）。interval が0なら突進しない（既定）。
+    float lungeInterval_ = 0.0f;
+    float lungeWindup_ = 0.0f;
+    float lungeDuration_ = 0.0f;
+    float lungeSpeed_ = 0.0f;
+    float lungeTimer_ = 0.0f;
     ExpEnemyType type_ = ExpEnemyType::Square;
     bool hasAuthoredDefinition_ = false;
     uint32_t authoredContactDamage_ = 0, authoredBulletDamage_ = 1;

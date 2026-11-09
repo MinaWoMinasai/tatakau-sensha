@@ -11,7 +11,7 @@
 #include <thread>
 #include <type_traits>
 #include <vector>
-#include <objbase.h>
+#include "ScopedComApartment.h"
 
 namespace myEngine {
 // CPUだけで行うファイル読み込み・デコード処理。GPUリソース、ディスクリプタ、シーン状態、
@@ -73,7 +73,7 @@ private:
             const unsigned workerCount = (std::clamp)(cores > 1 ? cores - 1 : 2u, 2u, 4u);
             for (unsigned index = 0; index < workerCount; ++index) {
                 workers_.emplace_back([this] {
-                    const HRESULT com = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+                    const ScopedComApartment com;
                     for (;;) {
                         std::function<void()> job;
                         {
@@ -88,9 +88,6 @@ private:
                             jobs_.pop();
                         }
                         job(); // packaged_taskは例外をfutureへ伝える。
-                    }
-                    if (SUCCEEDED(com)) {
-                        CoUninitialize();
                     }
                 });
             }

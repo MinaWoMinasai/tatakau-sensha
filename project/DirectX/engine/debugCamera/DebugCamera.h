@@ -25,12 +25,6 @@ public:
         return viewMatrix_;
     }
 
-    /// @brief 距離を返す。
-    float GetDistance() const
-    {
-        return distance;
-    }
-
     /// @brief Eye位置を返す。
     Vector3 GetEyePosition()
     {

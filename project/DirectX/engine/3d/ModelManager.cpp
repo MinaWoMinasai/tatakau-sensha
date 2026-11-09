@@ -110,21 +110,6 @@ void ModelManager::LoadModel(const std::string& filePath)
     models.insert(std::make_pair(filePath, std::move(model)));
 }
 
-void ModelManager::CreatePlaneModel(const std::string& modelName, float width, float depth)
-{
-    CreateModelFromData(modelName, Model::CreatePlane(width, depth));
-}
-
-void ModelManager::CreateGridModel(const std::string& modelName, float width, float depth, uint32_t xSegments, uint32_t zSegments)
-{
-    CreateModelFromData(modelName, Model::CreateGrid(width, depth, xSegments, zSegments));
-}
-
-void ModelManager::CreateBoxModel(const std::string& modelName, const Vector3& size)
-{
-    CreateModelFromData(modelName, Model::CreateBox(size));
-}
-
 void ModelManager::CreateModelFromData(const std::string& modelName, const ModelData& data)
 {
     if (models.contains(modelName)) {
@@ -133,21 +118,6 @@ void ModelManager::CreateModelFromData(const std::string& modelName, const Model
     auto model = std::make_unique<Model>();
     model->InitializeFromModelData(dxCommon_, data);
     models.emplace(modelName, std::move(model));
-}
-
-void ModelManager::CreateFacetedCrystalModel(const std::string& modelName, float radius, float height, uint32_t sides)
-{
-    CreateModelFromData(modelName, Model::CreateFacetedCrystal(radius, height, sides));
-}
-
-void ModelManager::CreateCylinderModel(const std::string& modelName, float radius, float height, uint32_t segments)
-{
-    CreateModelFromData(modelName, Model::CreateCylinder(radius, height, segments));
-}
-
-void ModelManager::CreateUvSphereModel(const std::string& modelName, float radius, uint32_t latitudeSegments, uint32_t longitudeSegments)
-{
-    CreateModelFromData(modelName, Model::CreateUvSphere(radius, latitudeSegments, longitudeSegments));
 }
 
 Model* ModelManager::FindModel(const std::string& filePath)

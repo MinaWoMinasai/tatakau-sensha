@@ -26,6 +26,7 @@ class GameplayHud;
 class GameplayEditor;
 class TitleDemoController;
 class ArenaRunController;
+class SurvivorRunController;
 class RunVisualSettings;
 class ExpeditionController;
 class ExpeditionMapController;
@@ -45,7 +46,7 @@ class RouteReplay;
 /// @brief 1回のプレイが所有する共有資源と実行状態。処理は各担当クラスが行う。
 struct GameWorld {
     /// @brief 全担当を同じワールドへ接続する。
-    GameWorld(bool prototypeRun, bool expeditionRun);
+    explicit GameWorld(RunMode runMode);
     /// @brief 担当クラスと共有資源を解放する。
     ~GameWorld();
     GameWorld(const GameWorld&) = delete;
@@ -76,6 +77,7 @@ struct GameWorld {
     std::unique_ptr<GameplayEditor> gameplayEditor;
     std::unique_ptr<TitleDemoController> titleDemoController;
     std::unique_ptr<ArenaRunController> arenaRunController;
+    std::unique_ptr<SurvivorRunController> survivorRunController;
     std::unique_ptr<RunVisualSettings> runVisualSettings;
     std::unique_ptr<ExpeditionController> expeditionController;
     std::unique_ptr<ExpeditionMapController> expeditionMapController;

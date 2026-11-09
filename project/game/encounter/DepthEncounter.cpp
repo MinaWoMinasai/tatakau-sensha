@@ -61,7 +61,7 @@ bool DepthEncounter::IsNeonDepthEncounterActive() const
 
 void DepthEncounter::ConfigureNeonDepthEncounter([[maybe_unused]] bool completedFixtureRoomReset)
 {
-    if (!world_.resources.enemy_ || !world_.run.expeditionRun_ || world_.run.tankExpedition_.GetRoomKind() != tankexp::RoomKind::Boss) {
+    if (!world_.resources.enemy_ || !world_.run.IsExpeditionRun() || world_.run.tankExpedition_.GetRoomKind() != tankexp::RoomKind::Boss) {
         return;
     }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)

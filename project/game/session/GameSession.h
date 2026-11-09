@@ -2,6 +2,7 @@
 #include "IScene.h"
 #include <memory>
 #include <nlohmann/json.hpp>
+#include "game/session/RunMode.h"
 #include "game/session/TitleDemoStatus.h"
 
 namespace gameplay {
@@ -15,7 +16,7 @@ struct GameWorld;
 class GameSession {
 public:
     /// @brief 1回のプレイの状態と担当クラスを生成する。
-    GameSession(bool prototypeRun, bool expeditionRun);
+    explicit GameSession(RunMode runMode);
     /// @brief セッションが所有するワールドを破棄する。
     ~GameSession();
     void Initialize();
@@ -55,6 +56,8 @@ public:
     ScreenEffectState GetScreenEffectState() const;
     /// @brief ブルームの比較表示（[B]で切替）の設定を返す。
     IScene::BloomViewSettings GetBloomViewSettings() const;
+    /// @brief アリーナの見た目に、今のプレイだけの値を足す。育つ戦車の試作では、自機のゲージのまわりの残光を消す。
+    void ApplyArenaLookOverrides(IScene::ArenaLookSettings& look) const;
 
     bool IsNeonShowcaseActive() const;
 

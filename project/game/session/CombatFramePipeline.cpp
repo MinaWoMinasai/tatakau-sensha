@@ -139,7 +139,7 @@ void CombatFramePipeline::Update()
     if (world_.demo.titleDemo_) {
         world_.titleDemoController->UpdateTitleDemo(baseDeltaTime);
     }
-    if (world_.run.expeditionRun_ && !world_.demo.titleDemo_) {
+    if (world_.run.IsExpeditionRun() && !world_.demo.titleDemo_) {
         if (world_.run.expeditionMapEnabled_) {
             world_.expeditionAuthoring->UpdateExpeditionAuthoringHub();
         }
@@ -149,9 +149,13 @@ void CombatFramePipeline::Update()
             world_.expeditionMapController->UpdateExpeditionAuthoring();
         }
     }
-    if (world_.run.prototypeRun_) {
+    if (world_.run.UsesPrototypeRules()) {
         world_.arenaRunController->FinishTankRunCapture();
-        world_.arenaRunController->UpdateTankRun(baseDeltaTime);
+        if (world_.run.IsSurvivorRun()) {
+            world_.survivorRunController->Update(baseDeltaTime);
+        } else {
+            world_.arenaRunController->UpdateTankRun(baseDeltaTime);
+        }
     }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     world_.routeReplay->PrepareNormalRouteReplay();
@@ -177,7 +181,7 @@ void CombatFramePipeline::Update()
             world_.gameplayQueries->WorldToScreenUv(world_.resources.player_->GetWorldPosition()));
         ++world_.combat.justDodgeCount_;
         world_.combatFlow->SetEventCallout("ジャスト回避", 0.70f);
-        if (world_.run.expeditionRun_) {
+        if (world_.run.IsExpeditionRun()) {
             world_.run.tankExpeditionAudio_.Upgrade();
         } else {
             myEngine::Audio::GetInstance()->PlayAudioSE(L"bulletShoot", 0.25f);
@@ -197,6 +201,10 @@ void CombatFramePipeline::Update()
     if (world_.run.expeditionImpactHold_ > 0) {
         world_.run.expeditionImpactHold_ = (std::max)(0.0f, world_.run.expeditionImpactHold_ - baseDeltaTime);
         world_.combat.finalDeltaTime *= 0.08f;
+    }
+    // 育つ戦車の試作で3択を開いている間は、さらにスローにする（ジャスト回避の減速とは掛け合わせる）。
+    if (world_.run.IsSurvivorRun()) {
+        world_.combat.finalDeltaTime *= world_.survivorRunController->GetTimeScale();
     }
     // 時間倍率が基準時間の95%を超え、命中時の停止も終わったら基準時間へ戻す。
     bool restoreBaseTime = world_.combat.finalDeltaTime * myEngine::kFixedStepsPerSecond > 0.95f;
@@ -287,7 +295,7 @@ void CombatFramePipeline::Update()
         world_.resources.input_->IsTrigger(world_.resources.input_->GetKey()[DIK_F7], world_.resources.input_->GetPreKey()[DIK_F7])) {
         world_.presentation.showCollisionDebug_ = !world_.presentation.showCollisionDebug_;
     }
-    if (!world_.run.prototypeRun_ &&
+    if (!world_.run.UsesPrototypeRules() &&
         world_.resources.input_->IsTrigger(world_.resources.input_->GetKey()[DIK_F6], world_.resources.input_->GetPreKey()[DIK_F6])) {
         world_.resources.player_->AddExp(200);
     }
@@ -304,7 +312,7 @@ void CombatFramePipeline::Update()
     }
     if (!world_.demo.titleDemo_ &&
         world_.resources.input_->IsTrigger(world_.resources.input_->GetKey()[DIK_F10], world_.resources.input_->GetPreKey()[DIK_F10])) {
-        if (world_.run.prototypeRun_) {
+        if (world_.run.UsesPrototypeRules()) {
             world_.arenaRunController->RequestTankRunCapture("manual");
         } else {
             world_.levelRuntime->ReloadLevelData(true);
@@ -339,7 +347,7 @@ void CombatFramePipeline::Update()
         // 壁に囲まれたアリーナを固定のモニター映像のように収める。床の表示範囲は外壁を
         // 少し越える程度までにし、高い城壁が画面を埋めないようにする。表示専用。
         float arenaMinX = 0.0f, arenaMinY = 0.0f, arenaMaxX = 0.0f, arenaMaxY = 0.0f;
-        const bool framedArena = world_.run.prototypeRun_ && world_.resources.stage_ &&
+        const bool framedArena = world_.run.UsesPrototypeRules() && world_.resources.stage_ &&
                                  arenacamera::ArenaBounds(world_.resources.stage_->GetBlocks(), arenaMinX, arenaMinY, arenaMaxX, arenaMaxY);
         auto clampTarget = [&](myEngine::Vector3 target) {
             if (framedArena) {
@@ -372,9 +380,13 @@ void CombatFramePipeline::Update()
         }
         world_.resources.camera->SetTranslate(nextCameraPos);
     }
+    // 育つ戦車の試作の演出（宿敵の登場・戦闘・撃破、自機の撃破）は、追従カメラの後に演出のカメラで上書きする。
+    if (world_.run.IsSurvivorRun() && !world_.resources.neonDepthCameraScoped_) {
+        world_.survivorRunController->ApplyCinematicCamera();
+    }
 
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    if (world_.presentation.developerStageTilt_ && world_.run.prototypeRun_ && !world_.demo.titleDemo_ &&
+    if (world_.presentation.developerStageTilt_ && world_.run.UsesPrototypeRules() && !world_.demo.titleDemo_ &&
         !world_.resources.neonDepthCameraScoped_ && !myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()) {
         auto& presentation = world_.presentation;
         presentation.developerStageBaseCamera_ = world_.resources.camera->GetTranslate();
@@ -432,7 +444,7 @@ void CombatFramePipeline::Update()
             (world_.run.expeditionMapEnabled_ && world_.run.expeditionMapRun_.GetActiveNode() &&
              world_.run.expeditionMapRun_.GetActiveNode()->role == tankexp::NodeRole::TutorialCombat));
         // 誘導先は敵の位置の写し。これを設定してから自機・ドローンを更新し、弾の生成とレーザー・地雷・斬撃の予約を進める。
-        if (world_.run.prototypeRun_ && !world_.resources.player_->IsChangeMode()) {
+        if (world_.run.UsesPrototypeRules() && !world_.resources.player_->IsChangeMode()) {
             std::vector<myEngine::Vector3> targets;
             if ((world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead())) {
                 targets.push_back(world_.resources.enemy_->GetWorldPosition());
@@ -455,9 +467,9 @@ void CombatFramePipeline::Update()
 #if defined(USE_IMGUI) && !defined(NDEBUG)
         world_.presentation.upgradeHudAfterPlayerUpdate_ = world_.resources.player_->GetUpgradeHudDebugSnapshot();
 #endif
-        // prototypeRun_が有効なモードの進化画面は自機側で入力を受け付ける。閉じたフレームも戦闘の後半を再開しない。
-        // この条件はprototypeRun_に限り、通常モードは戦闘時間0で以下を呼ぶ。
-        if (!world_.run.prototypeRun_ || (!world_.resources.player_->IsChangeMode() && !evolutionUiWasOpenAtFrameStart)) {
+        // 試作の規則を使うモード（UsesPrototypeRules）の進化画面は自機側で入力を受け付ける。閉じたフレームも戦闘の後半を再開しない。
+        // この条件は試作の規則を使うモードに限り、通常モードは戦闘時間0で以下を呼ぶ。
+        if (!world_.run.UsesPrototypeRules() || (!world_.resources.player_->IsChangeMode() && !evolutionUiWasOpenAtFrameStart)) {
             world_.combatTutorial->UpdateTutorial(baseDeltaTime);
             // 自機が予約した攻撃をここで消費する。レーザーは受取時に命中を適用し、地雷・斬撃は状態を登録する。
             for (const Player::LaserShotEvent& event : world_.resources.player_->ConsumeLaserShotEvents()) {
@@ -487,7 +499,7 @@ void CombatFramePipeline::Update()
                 if (world_.gameplayQueries->IsRunRivalActive()) {
                     world_.resources.enemy_->Update(world_.combat.finalDeltaTime);
                 }
-                if (!world_.run.prototypeRun_) {
+                if (!world_.run.UsesPrototypeRules()) {
                     world_.gameplayEditor->UpdateLevelBossPhases();
                 }
                 world_.resources.enemyManager_->Update(*world_.resources.stage_, world_.combat.finalDeltaTime);
@@ -562,9 +574,11 @@ void CombatFramePipeline::Update()
     // 戦闘停止中も、残っている演出を進め、未消費の特殊戦闘イベントを受け取る。
     world_.playerAttackEffects->UpdateSpecialCombatPresentation(baseDeltaTime);
     // クリアしたボス部屋は開いているランメニューとして扱われる。フィナーレにはメニューの灰色の幕をかけない。
+    // 育つ戦車の試作で形態を選ぶ間と調整パネルで止めた間も、3択と同じく色を残す。
+    const bool survivorFormChoice = world_.run.IsSurvivorRun() && world_.survivorRunController->IsPaused();
     world_.combat.screenEffectDirector_.SetUpgradeMenuOpen(
         (world_.resources.player_->IsChangeMode() || world_.arenaRunController->IsTankRunMenuOpen()) &&
-        world_.combat.combatFlow_.GetState() != GameFlowState::BossDefeatSequence);
+        world_.combat.combatFlow_.GetState() != GameFlowState::BossDefeatSequence && !survivorFormChoice);
     world_.resources.playerPostEffect_->Update(world_.combat.finalDeltaTime);
     world_.resources.enemyPostEffect_->Update(world_.combat.finalDeltaTime);
     world_.resources.expEnemyPostEffect_->Update(world_.combat.finalDeltaTime);
@@ -580,7 +594,7 @@ void CombatFramePipeline::Update()
     ImGuiIO& io = ImGui::GetIO();
 
     // アプリ側のクリック処理を行う前にチェック
-    if (!io.WantCaptureMouse && !world_.run.prototypeRun_) {
+    if (!io.WantCaptureMouse && !world_.run.UsesPrototypeRules()) {
         // 左クリックしたらパーティクル追加
         if (world_.resources.input_->IsTrigger(world_.resources.input_->GetMouseState().rgbButtons[0],
                                                world_.resources.input_->GetPreMouseState().rgbButtons[0])) {
@@ -625,7 +639,8 @@ void CombatFramePipeline::Update()
 
         if (world_.combat.fade_->IsFinished()) {
             world_.combat.phase_ = Phase::kMain;
-            if (!world_.run.expeditionRun_ && !world_.combat.bossEntryTriggered_ && !world_.gameplayQueries->IsTutorialCombatSuppressed()) {
+            if (world_.run.IsLegacyArenaRun() && !world_.combat.bossEntryTriggered_ &&
+                !world_.gameplayQueries->IsTutorialCombatSuppressed()) {
                 world_.combat.bossEntryTriggered_ = true;
                 world_.combat.screenEffectDirector_.TriggerBossEntry();
                 world_.combatFlow->SetEventCallout("ボス出現", 1.20f);
@@ -633,7 +648,7 @@ void CombatFramePipeline::Update()
         }
         break;
     case Phase::kMain:
-        if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !world_.run.prototypeRun_ &&
+        if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !world_.run.UsesPrototypeRules() &&
             !evolutionUiWasOpenAtFrameStart &&
             world_.resources.input_->IsTrigger(world_.resources.input_->GetKey()[DIK_ESCAPE],
                                                world_.resources.input_->GetPreKey()[DIK_ESCAPE])) {

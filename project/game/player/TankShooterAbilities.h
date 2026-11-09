@@ -58,10 +58,10 @@ struct MarkLedger {
 
     /// @brief 対象の記録を探すか空き枠を使い、寿命を4秒へ戻して命中蓄積を1増やす。
     /// @param id Collider::GetCollisionIdで取得する非0のID。0は空き枠用であり、入力検査は行わない。
-    /// @param boss trueなら6回、falseなら4回の蓄積で起爆条件を満たす。
+    /// @param boss trueなら bossNeeded 回（既定6）、falseなら normalNeeded 回（既定4）の蓄積で起爆条件を満たす。
     /// @return 条件を満たして記録を消費した場合true。ダメージ適用や演出生成は呼び出し側が行う。
     /// @note falseでも蓄積数と寿命は変わり得る。新しい対象を記録する空き枠がなければ、記録を変更せずfalseを返す。
-    bool Hit(uint64_t id, bool boss)
+    bool Hit(uint64_t id, bool boss, int normalNeeded = 4, int bossNeeded = 6)
     {
         Mark* slot = nullptr;
         // 一致するIDを優先する。一致がなければ、走査中に見つけた最初の空き枠を使う。
@@ -81,7 +81,7 @@ struct MarkLedger {
             *slot = {id, 0, 4};
         }
         slot->remaining = 4;
-        if (++slot->stacks >= (boss ? 6 : 4)) {
+        if (++slot->stacks >= (boss ? bossNeeded : normalNeeded)) {
             // 起爆条件を満たした記録はここで消費する。次の命中は蓄積1から始まる。
             *slot = {};
             return true;

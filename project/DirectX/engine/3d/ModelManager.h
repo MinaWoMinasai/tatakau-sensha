@@ -28,30 +28,12 @@ public:
     void PumpPreloads();
     /// @brief 要求したOBJモデルの先読みがすべて完了したかを返す。
     bool ArePreloadsReady() const;
-    /// @brief 平面モデルを生成する。
-    void CreatePlaneModel(const std::string& modelName, float width = 1.0f, float depth = 1.0f);
-    /// @brief 格子モデルを生成する。
-    void CreateGridModel(const std::string& modelName, float width, float depth, uint32_t xSegments, uint32_t zSegments);
-    /// @brief 箱モデルを生成する。
-    void CreateBoxModel(const std::string& modelName, const Vector3& size = {1.0f, 1.0f, 1.0f});
     /// @brief 手続き生成した静的メッシュを名前で共有する。既存の名前は再生成しない。
+    /// 形状は Model::CreatePlane などで作って渡す。
     void CreateModelFromData(const std::string& modelName, const ModelData& data);
-    /// @brief Faceted結晶モデルを生成する。
-    void CreateFacetedCrystalModel(const std::string& modelName, float radius = 1.0f, float height = 3.0f, uint32_t sides = 8);
-    /// @brief Cylinderモデルを生成する。
-    void CreateCylinderModel(const std::string& modelName, float radius = 1.0f, float height = 2.0f, uint32_t segments = 64);
-    /// @brief UV球モデルを生成する。
-    void CreateUvSphereModel(const std::string& modelName, float radius = 1.0f, uint32_t latitudeSegments = 64,
-                             uint32_t longitudeSegments = 128);
 
     /// @brief モデルを検索する。
     Model* FindModel(const std::string& filePath);
-
-    /// @brief モデルを返す。
-    const std::map<std::string, std::unique_ptr<Model>>& GetModels() const
-    {
-        return models;
-    }
 
 private:
     ModelManager() = default;

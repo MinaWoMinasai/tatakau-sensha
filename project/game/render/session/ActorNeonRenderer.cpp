@@ -264,11 +264,27 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
         if (world_.resources.player_->IsDashing()) {
             color.w *= world_.presentation.playerDashCurrentAlpha_;
         }
+        // 武器の切り替えの間は、本体と砲の輪郭をディゾルブで消して（現して）いく。
+        BeginPlayerSwapDissolve(cameraRight, cameraUp);
         queueTankBillboard(world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f},
                            world_.resources.player_->GetDirection(), world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse),
                            world_.presentation.actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true,
                            world_.presentation.playerNeonEmission_);
-        if (drawBarrels && world_.combat.showFollowHpBars_ && (!world_.run.expeditionRun_ || world_.run.tankExpedition_.IsCombat())) {
+        world_.resources.neonGridRenderer_->EndLineDissolve();
+        if (world_.resources.player_->HasSpikes()) {
+            // 衝角の3段：車体のまわりに8本のトゲ。砲と重ならないよう、向きから半分ずらして車体と一緒に回す。
+            const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};
+            const myEngine::Vector3 facing = world_.resources.player_->GetDirection();
+            const float base = std::atan2(myEngine::Dot(facing, cameraUp), myEngine::Dot(facing, cameraRight));
+            const float radius = world_.presentation.playerNeonBillboardRadius_;
+            for (int i = 0; i < 8; ++i) {
+                const float angle = base + 3.14159265f / 8.0f + static_cast<float>(i) * 3.14159265f / 4.0f;
+                const myEngine::Vector3 radial = cameraRight * std::cos(angle) + cameraUp * std::sin(angle);
+                world_.resources.neonGridRenderer_->QueueLine(center + radial * (radius * 0.98f), center + radial * (radius * 1.34f),
+                                                              radius * 0.10f, color);
+            }
+        }
+        if (drawBarrels && world_.combat.showFollowHpBars_ && (!world_.run.IsExpeditionRun() || world_.run.tankExpedition_.IsCombat())) {
             // 浮かんだHP/スタミナバーの代わりに、本体に沿った分割ゲージを表示する。
             // HPは本体色の下側の弧、スタミナはそれより短い上側の弧。
             const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};
@@ -296,6 +312,44 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             hpColor = lerpColor({hpColor.x * 1.25f, hpColor.y * 1.25f, hpColor.z * 1.25f, 1.0f}, {1.9f, 0.35f, 0.25f, 1.0f},
                                 hpRatio < 0.3f ? 0.75f : 0.0f);
             queueSegmentedArc(radius * 1.55f, 0.0f, 2.05f, 12, hpRatio, hpColor, radius * 0.30f);
+            // シールドはHPの弧のすぐ外側に、細い水色の弧として重ねる（試作のモードだけ）。
+            const float shieldMax = world_.resources.player_->GetShieldMax();
+            if (shieldMax > 0.0f) {
+                queueSegmentedArc(radius * 1.82f, 0.0f, 2.05f, 12, world_.resources.player_->GetShield() / shieldMax,
+                                  {0.55f, 1.35f, 1.95f, 1.0f}, radius * 0.13f);
+            }
+            // スタミナはシールドと同じ場所に、細い黄緑の弧として出す（尽きて張れない間は赤）。
+            if (world_.run.IsSurvivorRun() && world_.presentation.playerStaminaRatio_ >= 0.0f) {
+                const myEngine::Vector4 staminaColor = world_.presentation.playerStaminaExhausted_ ? myEngine::Vector4{1.9f, 0.3f, 0.25f, 1.0f}
+                                                                                                    : myEngine::Vector4{0.85f, 1.8f, 0.55f, 1.0f};
+                queueSegmentedArc(radius * 1.82f, 0.0f, 2.05f, 12, world_.presentation.playerStaminaRatio_, staminaColor, radius * 0.13f);
+            }
+            // 熱は主砲のまわりの輪。真上から時計回りに、熱の割合だけ光る。オーバーヒートの間は赤く点滅する。
+            const PlayerHeat& heat = world_.resources.player_->GetHeat();
+            if (heat.IsEnabled() && (heat.IsOverheated() || heat.GetRatio() > 0.01f)) {
+                constexpr int kHeatSegments = 32;
+                const float ratio = (std::clamp)(heat.GetRatio(), 0.0f, 1.0f);
+                // 本体の白い輪（半径1倍）とHP・スタミナの弧（内側が約1.4倍）の間に置く。
+                const float ringRadius = radius * 1.27f;
+                myEngine::Vector4 lit = lerpColor({2.2f, 1.25f, 0.25f, 1.0f}, {2.4f, 0.35f, 0.18f, 1.0f}, ratio * ratio);
+                if (heat.IsOverheated()) {
+                    const float blink = 0.5f + 0.5f * std::sin(ratio * 40.0f);
+                    lit = {2.0f, 0.30f, 0.22f, 0.45f + 0.55f * blink};
+                }
+                const float step = 6.2831853f / static_cast<float>(kHeatSegments);
+                for (int i = 0; i < kHeatSegments; ++i) {
+                    const bool on = (static_cast<float>(i) + 0.5f) / static_cast<float>(kHeatSegments) < ratio;
+                    // 角度0を真上にし、時計回りに進める。
+                    const float angle = 3.14159265f - step * (static_cast<float>(i) + 0.5f);
+                    const myEngine::Vector3 radial = cameraRight * std::sin(angle) - cameraUp * std::cos(angle);
+                    const myEngine::Vector3 tangent = cameraRight * std::cos(angle) + cameraUp * std::sin(angle);
+                    const myEngine::Vector3 middle = center + radial * ringRadius;
+                    const float half = ringRadius * step * 0.40f;
+                    const myEngine::Vector4 color = on ? lit : myEngine::Vector4{0.55f, 0.34f, 0.12f, 0.40f};
+                    world_.resources.neonGridRenderer_->QueueLine(middle - tangent * half, middle + tangent * half,
+                                                                  on ? radius * 0.12f : radius * 0.06f, color);
+                }
+            }
             if (world_.combat.showPlayerStaminaBar_) {
                 const Player::PlayerStats& stats = world_.resources.player_->GetStats();
                 const float staminaRatio = stats.maxStamina > 0.0f ? stats.stamina / stats.maxStamina : 0.0f;
@@ -325,7 +379,7 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             world_.presentation.bossNeonBillboardRadius_ * (1.0f + impact * 0.07f), world_.presentation.actorNeonBillboardLineWidth_, color,
             &bossBody, &bossBarrels, false, false, world_.presentation.bossNeonEmission_);
     }
-    if (world_.run.prototypeRun_ && world_.resources.player_ && world_.presentation.playerNeonRenderMode_ == 1) {
+    if (world_.run.UsesPrototypeRules() && world_.resources.player_ && world_.presentation.playerNeonRenderMode_ == 1) {
         for (PlayerDrone* drone : world_.resources.player_->GetDronePtrs()) {
             if (!drone || !drone->IsVisualVisible()) {
                 continue;
@@ -355,6 +409,23 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             }
         }
     }
+}
+
+void ActorNeonRenderer::BeginPlayerSwapDissolve(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp)
+{
+    const float swapDissolve = world_.presentation.playerSwapDissolve_;
+    if (swapDissolve <= 0.0f || !world_.resources.player_) {
+        return;
+    }
+    const float radius = world_.presentation.playerNeonBillboardRadius_;
+    myEngine::NeonGridRenderer::LineDissolve dissolve{};
+    dissolve.origin = world_.resources.player_->GetWorldPosition();
+    dissolve.direction = myEngine::Normalize(cameraRight - cameraUp);
+    dissolve.extent = radius * 1.7f;
+    dissolve.progress = swapDissolve;
+    dissolve.pieceLength = radius * 0.16f;
+    dissolve.edgeColor = world_.presentation.playerSwapDissolveColor_;
+    world_.resources.neonGridRenderer_->BeginLineDissolve(dissolve);
 }
 
 void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet bodies)
@@ -476,6 +547,8 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
     if (drawRound && world_.presentation.playerNeonRenderMode_ == 1 && world_.resources.player_ && !world_.resources.player_->IsDead()) {
         const float feedback = world_.resources.player_->GetDamageFeedbackRatio();
         const float pulse = std::sin(feedback * 3.14159265f) * 0.10f;
+        // 中の機体（砲のブロックと本体の塗り）も、輪郭と同じディゾルブで消して（現して）いく。
+        BeginPlayerSwapDissolve(cameraRight, cameraUp);
         queueBarrelBlocks(world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.345f},
                           world_.resources.player_->GetDirection(), world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse),
                           world_.resources.player_->GetNeonBarrelLayouts(), world_.presentation.playerGridColor_);
@@ -483,6 +556,7 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
                       world_.resources.player_->GetDirection(),
                       world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse) * 0.96f * roundBodyScale,
                       world_.resources.player_->GetNeonBodyLayout(), world_.presentation.actorNeonBodyFillColor_);
+        world_.resources.neonGridRenderer_->EndLineDissolve();
     }
     if (drawRound && !world_.bossPresentation->UseNeonBossVisual() && world_.presentation.bossNeonRenderMode_ == 1 &&
         world_.resources.enemy_ && (world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead())) {
@@ -492,7 +566,7 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
                        world_.presentation.bossNeonBillboardRadius_ * (1.0f + impact * 0.07f) * 0.96f * roundBodyScale,
                        world_.presentation.enemyGridColor_);
     }
-    if (drawRound && world_.run.prototypeRun_ && world_.resources.player_ && world_.presentation.playerNeonRenderMode_ == 1) {
+    if (drawRound && world_.run.UsesPrototypeRules() && world_.resources.player_ && world_.presentation.playerNeonRenderMode_ == 1) {
         for (PlayerDrone* drone : world_.resources.player_->GetDronePtrs()) {
             if (!drone || !drone->IsVisualVisible()) {
                 continue;
@@ -531,9 +605,23 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
                 const float a = rotation + 6.28318530718f * i / sides;
                 points[i] = center + (cameraRight * std::cos(a) + cameraUp * std::sin(a)) * (size * scale * 0.96f);
             }
+            // 育つ戦車の試作のワープする敵は、塗りも線と同じディゾルブで消して（現して）いく。
+            if (enemy->GetWarpDissolve() > 0.0f) {
+                myEngine::NeonGridRenderer::LineDissolve dissolve{};
+                dissolve.origin = enemy->GetWorldPosition();
+                dissolve.direction = myEngine::Normalize(cameraRight - cameraUp);
+                dissolve.extent = (std::max)(0.5f, size * scale) * 1.4f;
+                dissolve.progress = enemy->GetWarpDissolve();
+                dissolve.pieceLength = (std::max)(0.05f, size * scale * 0.2f);
+                dissolve.edgeColor = {1.9f, 0.5f, 1.9f, 1.0f};
+                world_.resources.neonGridRenderer_->BeginLineDissolve(dissolve);
+            }
             world_.resources.neonGridRenderer_->QueueBeveledPolygonFill(points, sides, world_.presentation.actorNeonBodyFillColor_,
                                                                         enemy->GetVisualColor(),
                                                                         myEngine::Normalize(cameraUp - cameraRight * 0.5f));
+            if (enemy->GetWarpDissolve() > 0.0f) {
+                world_.resources.neonGridRenderer_->EndLineDissolve();
+            }
         }
     }
     world_.resources.neonGridRenderer_->SetBodyShadingEye(nullptr);

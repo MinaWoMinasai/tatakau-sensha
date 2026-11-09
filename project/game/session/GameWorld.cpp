@@ -1,7 +1,7 @@
 #include "game/session/GameplaySystems.h"
 
 namespace gameplay {
-GameWorld::GameWorld(bool prototypeRun, bool expeditionRun)
+GameWorld::GameWorld(RunMode runMode)
     : performanceMonitor(std::make_unique<PerformanceMonitor>(*this)), sessionBootstrap(std::make_unique<SessionBootstrap>(*this)),
       combatFramePipeline(std::make_unique<CombatFramePipeline>(*this)), combatTutorial(std::make_unique<CombatTutorial>(*this)),
       combatFlow(std::make_unique<CombatFlow>(*this)), classConfigWatcher(std::make_unique<ClassConfigWatcher>(*this)),
@@ -11,7 +11,8 @@ GameWorld::GameWorld(bool prototypeRun, bool expeditionRun)
       resourceNeonRenderer(std::make_unique<ResourceNeonRenderer>(*this)), levelRuntime(std::make_unique<LevelRuntime>(*this)),
       gameplaySettings(std::make_unique<GameplaySettings>(*this)), gameplayHud(std::make_unique<GameplayHud>(*this)),
       gameplayEditor(std::make_unique<GameplayEditor>(*this)), titleDemoController(std::make_unique<TitleDemoController>(*this)),
-      arenaRunController(std::make_unique<ArenaRunController>(*this)), runVisualSettings(std::make_unique<RunVisualSettings>(*this)),
+      arenaRunController(std::make_unique<ArenaRunController>(*this)),
+      survivorRunController(std::make_unique<SurvivorRunController>(*this)), runVisualSettings(std::make_unique<RunVisualSettings>(*this)),
       expeditionController(std::make_unique<ExpeditionController>(*this)),
       expeditionMapController(std::make_unique<ExpeditionMapController>(*this)),
       expeditionBuildSelection(std::make_unique<ExpeditionBuildSelection>(*this)),
@@ -23,8 +24,7 @@ GameWorld::GameWorld(bool prototypeRun, bool expeditionRun)
       gameplayScenarioRunner(std::make_unique<GameplayScenarioRunner>(*this)), depthValidation(std::make_unique<DepthValidation>(*this)),
       routeReplay(std::make_unique<RouteReplay>(*this))
 {
-    run.expeditionRun_ = expeditionRun;
-    run.prototypeRun_ = prototypeRun || expeditionRun;
+    run.runMode_ = runMode;
 }
 
 GameWorld::~GameWorld()
@@ -33,6 +33,9 @@ GameWorld::~GameWorld()
     run.tankExpeditionAudio_.Shutdown();
     ExpEnemy::SetEnemyKillCallback(nullptr);
     ExpEnemy::SetPlayerDefeatCallback(nullptr);
+    ExpEnemy::SetPlayerExpDropCallback(nullptr);
+    ExpEnemy::SetPlayerDamageCallback(nullptr);
+    Enemy::SetDamageCallback(nullptr);
     ExpEnemy::SetShapeNeonRenderMode(0);
 }
 } // namespace gameplay

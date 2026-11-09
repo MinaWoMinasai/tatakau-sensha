@@ -68,8 +68,6 @@ public:
         float totalMs = 0.0f;
     };
 
-    using ShaderType = PipelineLibrary::ShaderType;
-    using PostEffectType = PipelineLibrary::PostEffectType;
     using PSO = PipelineLibrary::PSO;
 
     void Initialize(WinApp* winApp, bool titleFirst = false);
@@ -166,12 +164,6 @@ public:
         return viewportRect_;
     }
 
-    /// @brief シザー矩形を返す。
-    D3D12_RECT GetScissorRect()
-    {
-        return scissorRect_;
-    };
-
     /// @brief スワップチェーンを返す。
     Microsoft::WRL::ComPtr<IDXGISwapChain4>& GetSwapChain()
     {
@@ -184,18 +176,6 @@ public:
         return swapChainDesc_;
     }
 
-    /// @brief RTVヒープを返す。
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetRtvHeap()
-    {
-        return rtvDescriptorHeap_;
-    };
-
-    /// @brief DSVヒープを返す。
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GetDsvHeap()
-    {
-        return dsvDescriptorHeap_;
-    };
-
     /// @brief フェンスを返す。
     Microsoft::WRL::ComPtr<ID3D12Fence> GetFence()
     {
@@ -206,18 +186,6 @@ public:
     Microsoft::WRL::ComPtr<ID3D12CommandQueue> GetQueue()
     {
         return queue_;
-    }
-
-    /// @brief コマンドアロケータを返す。
-    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> GetAllocator()
-    {
-        return allocator_;
-    }
-
-    /// @brief コマンドキューの記述を返す。
-    D3D12_COMMAND_QUEUE_DESC GetQueueDesc()
-    {
-        return queueDesc_;
     }
 
     /// @brief コマンドリストを返す。
@@ -232,22 +200,16 @@ public:
         return fenceValue_;
     }
 
-    /// @brief DXCのユーティリティを返す。
-    IDxcUtils* GetDxcUtils()
-    {
-        return shaderCompiler_.GetUtils();
-    }
-
-    /// @brief DXCのコンパイラを返す。
-    IDxcCompiler3* GetDxcCompiler()
-    {
-        return shaderCompiler_.GetCompiler();
-    }
-
     /// @brief シェーダーの #include を解決するハンドラーを返す。
     IDxcIncludeHandler* GetIncludeHandler()
     {
         return shaderCompiler_.GetIncludeHandler();
+    }
+
+    /// @brief 名前を指定してPSOを返す。
+    PSO& GetPipeline(PipelineId id)
+    {
+        return pipelines_.GetPipeline(id);
     }
 
     /// @brief ブレンドモードに対応する、バックバッファ（SDR）向けのPSOを返す。
@@ -268,78 +230,6 @@ public:
         return pipelines_.GetObjectScenePipeline(blendMode, currentHasDsv_);
     }
 
-    /// @brief パーティクル用のPSOを返す。
-    PSO& GetPSOParticle()
-    {
-        return pipelines_.GetPSOParticle();
-    }
-
-    /// @brief モデルパーティクル用のPSOを返す。
-    PSO& GetPSOModelParticle()
-    {
-        return pipelines_.GetPSOModelParticle();
-    }
-
-    /// @brief モデルパーティクルのシーン（HDR）用PSOを返す。
-    PSO& GetPSOModelParticleForScene()
-    {
-        return pipelines_.GetPSOModelParticleForScene();
-    }
-
-    /// @brief ガウシアンフィルター用のPSOを返す。
-    const PSO& GetGaussianFilterPSO() const
-    {
-        return pipelines_.GetGaussianFilterPSO();
-    }
-
-    /// @brief GPUパーティクルを更新するPSOを返す。
-    PSO& GetPSOComputeParticle()
-    {
-        return pipelines_.GetPSOComputeParticle();
-    }
-
-    /// @brief GPUパーティクルの詰め先を数えるPSOを返す。
-    PSO& GetPSOScanParticle()
-    {
-        return pipelines_.GetPSOScanParticle();
-    }
-
-    /// @brief GPUパーティクルを詰め直すPSOを返す。
-    PSO& GetPSOCompactParticle()
-    {
-        return pipelines_.GetPSOCompactParticle();
-    }
-
-    /// @brief GPUパーティクルを初期化するPSOを返す。
-    PSO& GetPSOInitializeParticle()
-    {
-        return pipelines_.GetPSOInitializeParticle();
-    }
-
-    /// @brief GPUパーティクルを発生させるPSOを返す。
-    PSO& GetPSOEmitParticle()
-    {
-        return pipelines_.GetPSOEmitParticle();
-    }
-
-    /// @brief GPUパーティクルをまとめて発生させるPSOを返す。
-    PSO& GetPSOEmitBatchParticle()
-    {
-        return pipelines_.GetPSOEmitBatchParticle();
-    }
-
-    /// @brief 軌跡用のPSOを返す。
-    PSO& GetPSOTrail()
-    {
-        return pipelines_.GetPSOTrail();
-    }
-
-    /// @brief 軌跡のシーン（HDR）用PSOを返す。
-    PSO& GetPSOTrailForScene()
-    {
-        return pipelines_.GetPSOTrailForScene();
-    }
-
     /// @brief 深度バッファなしでシーン（HDR）へ軌跡を描くパイプラインを作る。成功したらtrueを返す。
     bool InitializeTrailSceneNoDepthPipeline()
     {
@@ -350,48 +240,6 @@ public:
     ID3D12PipelineState* GetTrailSceneNoDepthPipeline() const
     {
         return pipelines_.GetTrailSceneNoDepthPipeline();
-    }
-
-    /// @brief HUDの矩形用のPSOを返す。
-    PSO& GetPSOHudRect()
-    {
-        return pipelines_.GetPSOHudRect();
-    }
-
-    /// @brief スカイボックス用のPSOを返す。
-    PSO& GetPSOSkybox()
-    {
-        return pipelines_.GetPSOSkybox();
-    }
-
-    /// @brief スキニング用のPSOを返す。
-    PSO& GetPSOSkinning()
-    {
-        return pipelines_.GetPSOSkinning();
-    }
-
-    /// @brief スキニングのシーン（HDR）用PSOを返す。
-    PSO& GetPSOSkinningForScene()
-    {
-        return pipelines_.GetPSOSkinningForScene();
-    }
-
-    /// @brief 両面を描くスキニング用のPSOを返す。
-    PSO& GetPSOSkinningDoubleSided()
-    {
-        return pipelines_.GetPSOSkinningDoubleSided();
-    }
-
-    /// @brief 両面を描くスキニングのシーン（HDR）用PSOを返す。
-    PSO& GetPSOSkinningDoubleSidedForScene()
-    {
-        return pipelines_.GetPSOSkinningDoubleSidedForScene();
-    }
-
-    /// @brief スキニングの影用のPSOを返す。
-    PSO& GetPSOSkinningShadow()
-    {
-        return pipelines_.GetPSOSkinningShadow();
     }
 
     /// @brief ヒープのindex番目のCPUハンドルを返す。

@@ -1,4 +1,7 @@
 #pragma once
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <span>
 #include "Struct.h"
 
@@ -32,6 +35,38 @@ inline NeonContourStyle ActorNeonContourStyle()
     style.haloIntensity = 0.50f;
     style.haloAlpha = 0.08f;
     return style;
+}
+
+/// @brief 線と塗りのディゾルブ（育つ戦車の試作の、自機の武器の切り替え）。ボスのネオンディソルブを線と塗りに置き換えたもの。
+/// @note 欠片（線は pieceLength ほどの長さ、塗りはそれほどの大きさの三角形）の中点を、走査の方向（direction）に origin から
+/// ±extent の範囲で 0〜1 にし、ノイズを混ぜた値が progress より小さい欠片は消し、progress + edgeWidth までの欠片は edgeColor で光らせる。
+/// progress が 0 なら何も変えず、1 + edgeWidth で全部消える。
+struct NeonLineDissolve {
+    Vector3 origin{};
+    Vector3 direction{0.70710678f, -0.70710678f, 0.0f};
+    float extent = 1.0f;
+    float progress = 0.0f;
+    float noise = 0.35f;
+    float edgeWidth = 0.12f;
+    float pieceLength = 0.15f;
+    Vector4 edgeColor{1.9f, 0.35f, 1.3f, 1.0f};
+};
+
+/// @brief 欠片の中点 point のディゾルブの値（0〜1）。
+inline float NeonDissolveValue(const NeonLineDissolve& dissolve, const Vector3& point)
+{
+    const float pieceLength = (std::max)(0.01f, dissolve.pieceLength);
+    const float extent = (std::max)(0.001f, dissolve.extent);
+    const float rx = point.x - dissolve.origin.x;
+    const float ry = point.y - dissolve.origin.y;
+    const float scan = (std::clamp)(((rx * dissolve.direction.x + ry * dissolve.direction.y) / extent + 1.0f) * 0.5f, 0.0f, 1.0f);
+    // 欠片のマスごとのノイズ（自機の中心からの位置で決めるので、切り替えの間は同じ欠片が同じ値になる）。
+    uint32_t hash = static_cast<uint32_t>(static_cast<int>(std::floor(rx / pieceLength))) * 73856093u ^
+                    static_cast<uint32_t>(static_cast<int>(std::floor(ry / pieceLength))) * 19349663u;
+    hash = (hash ^ (hash >> 13)) * 0x5bd1e995u;
+    hash ^= hash >> 15;
+    const float noise = static_cast<float>(hash & 0xffffu) / 65535.0f;
+    return scan * (1.0f - dissolve.noise) + noise * dissolve.noise;
 }
 
 /// @brief 借用した頂点配列へネオン格子・輪郭の形状を生成する。GPUの資源・描画を扱わない。
@@ -94,6 +129,9 @@ public:
                                  const Vector3& lightDirection);
     /// @brief 機体の立体陰影に使う視点を設定する。nullptrで従来の平面塗りへ戻す。
     void SetBodyShadingEye(const Vector3* eye);
+    /// @brief 陰影つきの塗り（QueueBeveledPolygonFill・QueueShadedBox）へディゾルブを掛ける。nullptr で外す。
+    /// @note 掛けている間は、塗りの三角形を pieceLength ほどの大きさまで割り、欠片ごとに消す・光らせる。
+    void SetFillDissolve(const NeonLineDissolve* dissolve);
     /// @brief 視点側へ伸びる黒い箱（砲身など）を陰影つきで予約する。立体陰影の視点が必要。
     void QueueShadedBox(const Vector3& base, const Vector3& tip, const Vector3& right, float halfWidth, float height,
                         const Vector4& baseColor, const Vector4& tint);
@@ -133,8 +171,14 @@ private:
     /// @brief 輪郭を視点側へ持ち上げた立体を積む。
     void QueueShadedBody(const Vector3* points, uint32_t count, const Vector4& baseColor, const Vector4& tint);
 
+    /// @brief ディゾルブを掛けた三角形を、欠片の大きさまで割ってから積む（depth は残りの分け方の回数）。
+    void PushDissolvedTriangle(const Vector3& a, const Vector3& b, const Vector3& c, const Vector4& ca, const Vector4& cb,
+                               const Vector4& cc, int depth);
+
     bool bodyShading_ = false;
     Vector3 bodyEye_{};
+    NeonLineDissolve fillDissolve_{};
+    bool fillDissolveActive_ = false;
 
     TrailVertex* vertexData_ = nullptr;
     uint32_t vertexCount_ = 0;

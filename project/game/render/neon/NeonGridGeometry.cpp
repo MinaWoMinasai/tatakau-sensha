@@ -476,6 +476,49 @@ void NeonGridGeometry::PushShadedTriangle(const Vector3& a, const Vector3& b, co
     if (Dot(normal, bodyEye_ - centroid) <= 0.0f) {
         return;
     }
+    if (fillDissolveActive_) {
+        PushDissolvedTriangle(a, b, c, ca, cb, cc, 4);
+        return;
+    }
+    PushVertex(a, ca, {0.5f, 0.5f});
+    PushVertex(b, cb, {0.5f, 0.5f});
+    PushVertex(c, cc, {0.5f, 0.5f});
+}
+
+void NeonGridGeometry::SetFillDissolve(const NeonLineDissolve* dissolve)
+{
+    fillDissolveActive_ = dissolve != nullptr && dissolve->progress > 0.0f;
+    if (dissolve) {
+        fillDissolve_ = *dissolve;
+    }
+}
+
+void NeonGridGeometry::PushDissolvedTriangle(const Vector3& a, const Vector3& b, const Vector3& c, const Vector4& ca,
+                                             const Vector4& cb, const Vector4& cc, int depth)
+{
+    const float longest = (std::max)({Length(b - a), Length(c - b), Length(a - c)});
+    if (depth > 0 && longest > fillDissolve_.pieceLength) {
+        // 辺の中点で4つに分ける。
+        const Vector3 ab = (a + b) * 0.5f, bc = (b + c) * 0.5f, ca2 = (c + a) * 0.5f;
+        const Vector4 cab = (ca + cb) * 0.5f, cbc = (cb + cc) * 0.5f, cca = (cc + ca) * 0.5f;
+        PushDissolvedTriangle(a, ab, ca2, ca, cab, cca, depth - 1);
+        PushDissolvedTriangle(ab, b, bc, cab, cb, cbc, depth - 1);
+        PushDissolvedTriangle(ca2, bc, c, cca, cbc, cc, depth - 1);
+        PushDissolvedTriangle(ab, bc, ca2, cab, cbc, cca, depth - 1);
+        return;
+    }
+    const float value = NeonDissolveValue(fillDissolve_, (a + b + c) / 3.0f);
+    if (value < fillDissolve_.progress || vertexCount_ + 3 > vertexCapacity_) {
+        return;
+    }
+    if (value < fillDissolve_.progress + fillDissolve_.edgeWidth) {
+        // 境目の欠片は、線と同じ色で光らせる（元の塗りの透明度を残す）。
+        const Vector4& e = fillDissolve_.edgeColor;
+        PushVertex(a, {e.x, e.y, e.z, e.w * ca.w}, {0.5f, 0.5f});
+        PushVertex(b, {e.x, e.y, e.z, e.w * cb.w}, {0.5f, 0.5f});
+        PushVertex(c, {e.x, e.y, e.z, e.w * cc.w}, {0.5f, 0.5f});
+        return;
+    }
     PushVertex(a, ca, {0.5f, 0.5f});
     PushVertex(b, cb, {0.5f, 0.5f});
     PushVertex(c, cc, {0.5f, 0.5f});

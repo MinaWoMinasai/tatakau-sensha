@@ -52,8 +52,8 @@ void RingManager::DrawAll(const Matrix4x4& viewProjection)
     *viewProjectionData_ = viewProjection;
 
     auto commandList = dxCommon_->GetList();
-    commandList->SetGraphicsRootSignature(dxCommon_->GetPSOTrailForScene().root_.GetSignature().Get());
-    commandList->SetPipelineState(dxCommon_->GetPSOTrailForScene().graphicsState_.Get());
+    commandList->SetGraphicsRootSignature(dxCommon_->GetPipeline(PipelineId::TrailHdr).root_.GetSignature().Get());
+    commandList->SetPipelineState(dxCommon_->GetPipeline(PipelineId::TrailHdr).graphicsState_.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());

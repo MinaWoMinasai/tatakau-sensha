@@ -47,7 +47,7 @@ IScene::ScreenEffectState GameplayQueries::GetScreenEffectState() const
     const bool evolutionUiOpen = world_.resources.player_ && world_.resources.player_->IsChangeMode();
     state.bloomScale = evolutionUiOpen ? 0.38f : 1.0f;
     state.suppressPostEffectDebugUi = evolutionUiOpen;
-    state.suppressOutlines = world_.run.prototypeRun_;
+    state.suppressOutlines = world_.run.UsesPrototypeRules();
     state.suppressTemporal = world_.resources.neonDepthCameraScoped_;
     state.active = world_.combat.screenEffectDirector_.IsActive();
     if (state.active) {
@@ -121,7 +121,7 @@ nlohmann::json GameplayQueries::MakeDeveloperGameCaptureMetadata(myEngine::Direc
         return nlohmann::json::array({value.x, value.y, value.z});
     };
     const auto& post = world_.presentation.developerCompositeParams_;
-    const bool surfaceTrail = world_.run.prototypeRun_ && world_.presentation.stageSurface_.enabled;
+    const bool surfaceTrail = world_.run.UsesPrototypeRules() && world_.presentation.stageSurface_.enabled;
     const auto counts = world_.resources.bulletManager_->GetBulletCounts();
     nlohmann::json metadata = {
         {"schemaVersion", 1},
@@ -286,6 +286,18 @@ float GameplayQueries::GetFinalDeltaTime() const
     if (IsNeonShowcaseActive()) {
         return myEngine::kFixedStepSeconds;
     }
+    // 育つ戦車の試作で3択を開いている間のスローは、色を残す（グレースケールはジャスト回避などの演出だけに使う）。
+    // 3択の倍率だけを割り戻すので、ジャスト回避の減速が重なっていれば、その分はグレースケールになる。
+    if (world_.run.IsSurvivorRun()) {
+        // 形態を選ぶ間と調整パネルでの停止も、スロー演出ではないので色を残す。
+        if (world_.survivorRunController->IsPaused()) {
+            return myEngine::kFixedStepSeconds;
+        }
+        const float choiceScale = world_.survivorRunController->GetTimeScale();
+        if (choiceScale < 1.0f) {
+            return world_.combat.finalDeltaTime / choiceScale;
+        }
+    }
     return world_.combat.finalDeltaTime;
 }
 
@@ -319,7 +331,7 @@ bool GameplayQueries::IsNeonShowcaseActive() const
 /// @brief 遠征以外、または遠征でライバルが有効な場合true。死亡判定は別に必要。
 bool GameplayQueries::IsRunRivalActive() const
 {
-    return !world_.run.expeditionRun_ || world_.run.tankExpeditionRivalActive_;
+    return world_.run.IsLegacyArenaRun() || world_.run.tankExpeditionRivalActive_;
 }
 
 /// @brief 通常チュートリアルが有効で、敵AI・特殊戦闘・通常衝突を抑制する場合true。

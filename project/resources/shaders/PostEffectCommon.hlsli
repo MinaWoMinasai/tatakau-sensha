@@ -140,6 +140,10 @@ cbuffer BloomParam : register(b0)
     float arenaVignette;
     float arenaScanlineIntensity;
     float arenaScanlineFrequency;
+    float arenaPersistenceMaskX;
+    float arenaPersistenceMaskY;
+    float arenaPersistenceMaskRadius;
+    float arenaPersistenceMaskAspect;
 };
 
 struct PSInput

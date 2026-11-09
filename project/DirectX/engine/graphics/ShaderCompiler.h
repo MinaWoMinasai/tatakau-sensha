@@ -18,18 +18,6 @@ public:
     /// @brief キャッシュとDXCのオブジェクトを手放す。
     void Release();
 
-    /// @brief DXCのユーティリティを返す。
-    IDxcUtils* GetUtils() const
-    {
-        return dxcUtils_.Get();
-    }
-
-    /// @brief DXCのコンパイラを返す。
-    IDxcCompiler3* GetCompiler() const
-    {
-        return dxcCompiler_.Get();
-    }
-
     /// @brief シェーダーの #include を解決するハンドラーを返す。
     IDxcIncludeHandler* GetIncludeHandler() const
     {

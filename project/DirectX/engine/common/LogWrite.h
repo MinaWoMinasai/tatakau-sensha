@@ -23,12 +23,6 @@ public:
 
     void Initialize();
 
-    /// @brief LogStreamを返す。
-    const std::ofstream& GetLogStream() const
-    {
-        return logStream_;
-    };
-
 private:
     std::ofstream logStream_;
 };

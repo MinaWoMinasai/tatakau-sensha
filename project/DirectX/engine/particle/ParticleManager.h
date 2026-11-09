@@ -251,12 +251,6 @@ public:
         neonTriangleEffectMode_ = mode;
     }
 
-    /// @brief ネオン三角形演出方式を返す。
-    NeonTriangleEffectMode GetNeonTriangleEffectMode() const
-    {
-        return neonTriangleEffectMode_;
-    }
-
     /// @brief 使用GPU更新であるか判定する。
     bool IsUseGpuUpdate() const
     {

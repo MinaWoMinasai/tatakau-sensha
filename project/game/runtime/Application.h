@@ -26,36 +26,6 @@ public:
     /// @brief 利用終了時の資源と状態を解放する。
     void Finalize();
 
-    /// @brief 有効プロジェクトを返す。
-    const GameProject& GetActiveProject() const
-    {
-        return activeProject_;
-    }
-
-    /// @brief 指定したプロジェクトが読めず、代わりのプロジェクトを使ったかを返す。
-    bool IsActiveProjectLoadedFromFallback() const
-    {
-        return activeProjectLoadedFromFallback_;
-    }
-
-    /// @brief 指定したゲームモジュールが見つからず、代わりのモジュールを使ったかを返す。
-    bool IsGameModuleUsingFallback() const
-    {
-        return gameModuleUsedFallback_;
-    }
-
-    /// @brief 指定した起動シーンが見つからず、代わりのシーンを使ったかを返す。
-    bool IsStartupSceneUsingFallback() const
-    {
-        return startupSceneUsedFallback_;
-    }
-
-    /// @brief Resolved起動時シーンを返す。
-    const std::string& GetResolvedStartupScene() const
-    {
-        return resolvedStartupScene_;
-    }
-
 private:
     /// @brief 有効プロジェクトを読み込む。
     void LoadActiveProject(const GameProjectCommandLineOptions& projectOptions);

@@ -104,12 +104,6 @@ public:
         return (std::clamp)(elapsed_ / Duration(), 0.0f, 1.0f);
     }
 
-    /// @brief 現在の突進設定が接近する弾への反応による回避かを返す。行動段階の判定とは別。
-    bool IsReactiveDash() const
-    {
-        return reactiveDash_;
-    }
-
     /// @brief 突進の行動時計上の継続時間（秒）を返す。
     float GetDashDuration() const
     {

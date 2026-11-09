@@ -240,7 +240,7 @@ void ExpeditionExperience::EnsureExpeditionPointers(size_t count)
 
 void ExpeditionExperience::QueueExpeditionImpact(const myEngine::Vector3& position, const myEngine::Vector3& direction, bool finisher)
 {
-    if (!world_.run.expeditionRun_) {
+    if (!world_.run.IsExpeditionRun()) {
         return;
     }
     myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(position, direction, {1.45f, 0.95f, 0.28f, 1}, finisher ? 16 : 10);
