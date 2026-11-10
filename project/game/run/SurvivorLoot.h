@@ -76,6 +76,13 @@ struct GlowConfig {
     float trailBloomGain = 1.9f;
     float trailBloomScatter = 0.72f;
     float trailBloomRadius = 1.5f;
+    /// @brief 弾の軌跡の尾。tailBrightness は先端に対する尾の明るさ（1 で先端と同じ色合い）、
+    /// fadeCurve は色と不透明さの薄れ方（1 で一定に薄れ、大きいほど尾の近くまで先端の色を保って最後に消える）、
+    /// tailWidth は先端に対する尾の太さ、seconds は軌跡が残る秒。
+    float trailTailBrightness = 1.0f;
+    float trailFadeCurve = 2.2f;
+    float trailTailWidth = 0.35f;
+    float trailSeconds = 0.24f;
     /// @brief 拾い物を囲む輪の半径と太さ（0 で輪を描かない）。敵と見分けるための印。
     float lootRingRadius = 0.5f;
     float lootRingWidth = 0.05f;

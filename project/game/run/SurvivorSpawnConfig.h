@@ -800,6 +800,10 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(glow, "trailBloomGain", out.trailBloomGain);
         number(glow, "trailBloomScatter", out.trailBloomScatter);
         number(glow, "trailBloomRadius", out.trailBloomRadius);
+        number(glow, "trailTailBrightness", out.trailTailBrightness);
+        number(glow, "trailFadeCurve", out.trailFadeCurve);
+        number(glow, "trailTailWidth", out.trailTailWidth);
+        number(glow, "trailSeconds", out.trailSeconds);
         number(glow, "lootRingRadius", out.lootRingRadius);
         number(glow, "lootRingWidth", out.lootRingWidth);
         number(glow, "lootTrailSeconds", out.lootTrailSeconds);
@@ -1246,6 +1250,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     glow["trailBloomGain"] = round(config.glow.trailBloomGain);
     glow["trailBloomScatter"] = round(config.glow.trailBloomScatter);
     glow["trailBloomRadius"] = round(config.glow.trailBloomRadius);
+    glow["trailTailBrightness"] = round(config.glow.trailTailBrightness);
+    glow["trailFadeCurve"] = round(config.glow.trailFadeCurve);
+    glow["trailTailWidth"] = round(config.glow.trailTailWidth);
+    glow["trailSeconds"] = round(config.glow.trailSeconds);
     glow["lootRingRadius"] = round(config.glow.lootRingRadius);
     glow["lootRingWidth"] = round(config.glow.lootRingWidth);
     glow["lootTrailSeconds"] = round(config.glow.lootTrailSeconds);

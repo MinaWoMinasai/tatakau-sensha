@@ -199,8 +199,9 @@
     }
   },
   "glow": {
-    "comment": "光り方（武器の枠を使う遊び方だけ）。trailBloom* は弾の軌跡のにじみ（強さ・明るさ・広がり 0〜0.9・半径 0.25〜2）。lootRing* は拾い物を囲む輪の半径と太さ（敵と見分ける印、0 で無し）。lootTrail* は吸い込まれる物の光の尾の秒と太さ。collectFlash* は拾ったところに広がる輪の秒と半径。",
+    "comment": "光り方（武器の枠を使う遊び方だけ）。trailBloom* は弾の軌跡のにじみ（強さ・明るさ・広がり 0〜0.9・半径 0.25〜2）。trailTailBrightness は先端に対する尾の明るさ（1 で同じ色合い）、trailFadeCurve は色の薄れ方（大きいほど尾の近くまで先端の色を保つ）、trailTailWidth は先端に対する尾の太さ、trailSeconds は軌跡が残る秒。lootRing* は拾い物を囲む輪の半径と太さ（敵と見分ける印、0 で無し）。lootTrail* は吸い込まれる物の光の尾の秒と太さ。collectFlash* は拾ったところに広がる輪の秒と半径。",
     "trailBloomIntensity": 2.4, "trailBloomGain": 1.9, "trailBloomScatter": 0.72, "trailBloomRadius": 1.5,
+    "trailTailBrightness": 1.0, "trailFadeCurve": 2.2, "trailTailWidth": 0.35, "trailSeconds": 0.24,
     "lootRingRadius": 0.5, "lootRingWidth": 0.05, "lootTrailSeconds": 0.14, "lootTrailWidth": 0.2, "collectFlashSeconds": 0.25, "collectFlashRadius": 1.3
   },
   "traits": {

@@ -479,6 +479,11 @@ bool DrawGlow(SpawnConfig& config)
     changed |= ImGui::DragFloat("明るさ", &glow.trailBloomGain, 0.02f, 0.0f, 4.0f, "%.2f");
     changed |= ImGui::DragFloat("広がり", &glow.trailBloomScatter, 0.01f, 0.0f, 0.9f, "%.2f");
     changed |= ImGui::DragFloat("半径", &glow.trailBloomRadius, 0.01f, 0.25f, 2.0f, "%.2f");
+    ImGui::SeparatorText("弾の軌跡の尾");
+    changed |= ImGui::DragFloat("尾の明るさ（先端に対して）", &glow.trailTailBrightness, 0.01f, 0.0f, 2.0f, "x%.2f");
+    changed |= ImGui::DragFloat("薄れ方（大きいほど尾まで色を保つ）", &glow.trailFadeCurve, 0.02f, 0.2f, 6.0f, "%.2f");
+    changed |= ImGui::DragFloat("尾の太さ（先端に対して）", &glow.trailTailWidth, 0.01f, 0.0f, 2.0f, "x%.2f");
+    changed |= ImGui::DragFloat("軌跡が残る秒", &glow.trailSeconds, 0.005f, 0.02f, 1.5f, "%.3f");
     ImGui::SeparatorText("拾い物");
     changed |= ImGui::DragFloat("輪の半径（0 で無し）", &glow.lootRingRadius, 0.01f, 0.0f, 2.0f, "%.2f");
     changed |= ImGui::DragFloat("輪の太さ", &glow.lootRingWidth, 0.005f, 0.0f, 0.5f, "%.3f");

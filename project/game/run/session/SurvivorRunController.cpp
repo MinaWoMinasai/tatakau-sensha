@@ -636,6 +636,15 @@ void SurvivorRunController::ConfigurePickups()
         trail.bloomScatter = (std::clamp)(config_.glow.trailBloomScatter, 0.0f, 0.9f);
         trail.bloomRadius = (std::clamp)(config_.glow.trailBloomRadius, 0.25f, 2.0f);
     }
+    // 弾の軌跡の尾：先端と同じ色合いのまま細くなり、最後で消える（にじみは太さに合わせて弱まる）。
+    if (config_.weaponsEnabled && world_.resources.bulletManager_) {
+        BulletTrailSettings trail = world_.resources.bulletManager_->GetTrailSettings();
+        trail.trailTailIntensity = trail.trailHeadIntensity * (std::max)(0.0f, config_.glow.trailTailBrightness);
+        trail.colorCurvePower = config_.glow.trailFadeCurve;
+        trail.tailWidthScale = trail.headWidthScale * (std::max)(0.0f, config_.glow.trailTailWidth);
+        trail.lifetime = config_.glow.trailSeconds;
+        world_.resources.bulletManager_->SetTrailSettings(trail);
+    }
 }
 
 void SurvivorRunController::UpdateTuningPanel()
