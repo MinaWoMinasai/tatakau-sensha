@@ -830,7 +830,8 @@ void SurvivorRunController::LoadAmmoToPlayer()
     if (!weapon) {
         return;
     }
-    const int rounds = weapon->magazine > 0 ? magazines_[activeSlot_] : reserves_[static_cast<size_t>(weapon->ammo)];
+    // 機体の主武器は弾を数えない（熱だけで撃つ、計画書 p4 の H4）。
+    const int rounds = HeroMode() ? -1 : weapon->magazine > 0 ? magazines_[activeSlot_] : reserves_[static_cast<size_t>(weapon->ammo)];
     world_.resources.player_->SetSurvivorAmmo(rounds, weapon->railAmmoCost);
 }
 

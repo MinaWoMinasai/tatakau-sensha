@@ -44,6 +44,13 @@ void SurvivorRunController::Initialize()
     if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_WEAPONS", weaponsSwitch, 4) > 0) {
         config_.weaponsEnabled = weaponsSwitch[0] != L'0';
     }
+    // MYENGINE_SURVIVOR_HEROES=0：機体を使わず、武器3つの枠の遊び方（計画書 p3）で遊ぶ。
+    wchar_t heroesSwitch[4]{};
+    if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_HEROES", heroesSwitch, 4) > 0) {
+        config_.heroes.enabled = heroesSwitch[0] != L'0';
+    }
+    world_.presentation.heroAbilityReady_.fill(-1.0f);
+    world_.presentation.heroUltimateRatio_ = -1.0f;
     // 武器の枠を使う遊び方では、ステージ1の宿敵は出さず、exitOpenSeconds 耐えたら出口を開く（計画書 p3 の G3）。
     if (config_.weaponsEnabled) {
         config_.rival.enabled = false;
@@ -87,7 +94,8 @@ void SurvivorRunController::Initialize()
     ExpEnemy::SetPlayerExpDropCallback([this](const ExpEnemy& enemy, uint32_t value) {
         pickups_.Drop(enemy.GetWorldPosition(), value, random_);
         expDropped_ += static_cast<int>(value);
-        if (WeaponMode()) {
+        // 機体の遊び方では、お金（欠片）のほかは落とさない（計画書 p4 の H7）。
+        if (WeaponMode() && !HeroMode()) {
             DropLoot(enemy);
         }
         if (!WeaponMode() && enemy.GetType() == ExpEnemyType::Pentagon && enemy.GetSizeScale() > 1.5f) {
@@ -236,12 +244,15 @@ void SurvivorRunController::Initialize()
     // ダメージの数字。命中の通知は衝突処理の途中から来るので、控えるだけにして、更新で位置を決める。
     damageNumbers_.Initialize();
     ApplyDamageNumberConfig();
+    // 与えたダメージは、機体の Q のゲージにもなる（H5）。
     ExpEnemy::SetPlayerDamageCallback([this](const ExpEnemy& enemy, uint32_t amount) {
         damageNumbers_.Spawn(enemy.GetCollisionId(), enemy.GetWorldPosition(), amount,
                              world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
+        AddUltimateCharge(static_cast<float>(amount));
     });
     Enemy::SetDamageCallback([this](const myEngine::Vector3& position, uint32_t amount) {
         damageNumbers_.Spawn(0, position, amount, world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
+        AddUltimateCharge(static_cast<float>(amount));
     });
 
     wchar_t automatic[8]{};
@@ -384,10 +395,17 @@ void SurvivorRunController::Initialize()
         if (!world_.demo.titleDemo_) {
             audio_.Initialize(config_.audio, autoTest_ != AutoTest::None);
         }
-        StartLoadout();
+        // 機体の遊び方（計画書 p4）なら、機体の主武器1つを枠に入れる。そうでなければ拠点の武器3つ。
+        StartHero();
+        if (HeroMode()) {
+            hintTexts_[static_cast<size_t>(Hint::Move)]->SetText(HeroControlsText());
+        } else {
+            StartLoadout();
+        }
         ApplyStageSettings(0);
         // 出撃の前に、拠点の画面で持っていく武器を選ぶ。タイトルの見本と、四隅・fps の自動確認では出さない。
-        if (!world_.demo.titleDemo_ && autoTest_ != AutoTest::Tour && autoTest_ != AutoTest::Perf) {
+        // 機体の遊び方では、機体を選ぶ画面ができるまで（K6）拠点の画面は出さない。
+        if (!HeroMode() && !world_.demo.titleDemo_ && autoTest_ != AutoTest::Tour && autoTest_ != AutoTest::Perf) {
             OpenBaseScreen();
         }
         // 出口の案内は、袋の一行の下へずらす。
@@ -425,13 +443,15 @@ void SurvivorRunController::Update(float dt)
         UpdateFormChoiceInput();
     } else if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
         if (WeaponMode()) {
-            // 出撃前の拠点の画面。E で持ち物の画面を開け閉めする。開いている間は、武器の操作を受け付けない。
+            // 出撃前の拠点の画面。E（機体の遊び方では Tab。E は技）で持ち物の画面を開け閉めする。開いている間は、武器の操作を受け付けない。
             if (baseScreenOpen_) {
                 UpdateScreenInput();
-            } else if (world_.resources.input_->IsKeyTriggered(DIK_E)) {
+            } else if (world_.resources.input_->IsKeyTriggered(HeroMode() ? DIK_TAB : DIK_E)) {
                 inventoryOpen_ ? CloseInventory() : OpenInventory();
             } else if (inventoryOpen_) {
                 UpdateScreenInput();
+            } else if (HeroMode()) {
+                UpdateHeroInput();
             } else {
                 UpdateWeaponInput();
             }
@@ -455,6 +475,9 @@ void SurvivorRunController::Update(float dt)
         if (WeaponMode()) {
             UpdateWeaponTimers(gameDt);
         }
+        if (HeroMode()) {
+            UpdateHeroAbilities(gameDt);
+        }
         const PlayerHeat& heat = world_.resources.player_->GetHeat();
         if (heat.GetHeat() >= heat.GetMaxHeat() * 0.7f) {
             heatHighSeconds_ += gameDt;
@@ -473,8 +496,8 @@ void SurvivorRunController::Update(float dt)
         if (gameDt > 0.0f && survivor::HasChange(partLevels_, survivor::PartId::Ram)) {
             UpdateSpikes();
         }
-        // Q は3択を開いている間（スロー中）には使わない。
-        if (gameDt > 0.0f && !choiceOpen_) {
+        // Q は3択を開いている間（スロー中）には使わない。機体の遊び方では、Q は機体のアルティメット（UpdateHeroInput）。
+        if (gameDt > 0.0f && !choiceOpen_ && !HeroMode()) {
             UpdateQ(gameDt);
         }
         RefreshMorale(dt);
@@ -506,8 +529,9 @@ void SurvivorRunController::Update(float dt)
         }
         // 右クリックを押している間、バリアを張る（敵どうしの押し離しの後で押し返す）。
         if (gameDt > 0.0f && WeaponMode() && !world_.demo.titleDemo_) {
-            const bool wanted = autoTest_ != AutoTest::None ? autoBarrierWanted_
-                                                            : world_.resources.input_->IsPress(world_.resources.input_->GetMouseState().rgbButtons[1]);
+            const bool wanted = HeroMode()                    ? HeroBarrierWanted()
+                                : autoTest_ != AutoTest::None ? autoBarrierWanted_
+                                                              : world_.resources.input_->IsPress(world_.resources.input_->GetMouseState().rgbButtons[1]);
             UpdateBarrier(gameDt, wanted);
         }
         // 宝箱のレリックは、ほかの選択を開いていないときに2択を出す（3択を開いていれば、閉じるまで待つ）。
@@ -811,7 +835,7 @@ void SurvivorRunController::RefreshHud()
     text << "   敵 " << alive.total;
     hudText_->SetText(text.str());
     if (qText_) {
-        const std::string q = DescribeQ();
+        const std::string q = HeroMode() ? DescribeHeroAbilities() : DescribeQ();
         qText_->SetText(q.empty() ? std::string(" ") : q);
     }
     if (expFill_) {
@@ -860,7 +884,7 @@ void SurvivorRunController::DrawUi()
     if (exitOpen_ && exitText_) {
         exitText_->Draw();
     }
-    if (qText_ && survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count) {
+    if (qText_ && (HeroMode() || survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count)) {
         qText_->Draw();
     }
     // レリックは Q の部品が無くても出す。
@@ -890,9 +914,11 @@ void SurvivorRunController::DrawUi()
         loadoutHud_.DrawRemoval();
         return;
     }
-    // 武器の枠を使う遊び方では、積載と3択の代わりに武器の枠を出す。
+    // 武器の枠を使う遊び方では、積載と3択の代わりに武器の枠を出す（機体の遊び方は枠が1つなので出さない。技は自機のまわりと画面の下）。
     if (WeaponMode()) {
-        weaponHud_.Draw();
+        if (!HeroMode()) {
+            weaponHud_.Draw();
+        }
     } else {
         loadoutHud_.DrawLoadout();
     }

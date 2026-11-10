@@ -648,6 +648,11 @@ public:
     {
         shiftDashEnabled_ = enabled;
     }
+    /// @brief 移動の速さに掛ける倍率（育つ戦車の試作の機体の「走る」）。既定は1。
+    void SetSurvivorMoveScale(float scale)
+    {
+        survivorMoveScale_ = (std::max)(0.0f, scale);
+    }
     /// @brief 自動操作で、右クリック（形態の技）を押し続けているかを渡す。
     void SetDemoSpecialHold(bool held)
     {
@@ -1168,6 +1173,8 @@ private:
     int survivorRounds_ = -1;
     int survivorRailCost_ = 1;
     bool survivorFireLocked_ = false;
+    // 機体の「走る」の間の、移動の速さの倍率。
+    float survivorMoveScale_ = 1.0f;
     SurvivorPartEffects partEffects_{};
     float loaderRamp_ = 0.0f;
     uint32_t critShots_ = 0;

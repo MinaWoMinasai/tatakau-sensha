@@ -63,6 +63,12 @@ void SurvivorRunController::StartNextStage()
     world_.resources.camera->Update();
     weaponEquipped_ = false;
     EquipWeapon(activeSlot_);
+    // 機体の技の待ち時間と走るは戻す（Q のゲージは持ち越す）。
+    if (HeroMode()) {
+        abilityCooldown_.fill(0.0f);
+        sprintTimer_ = 0.0f;
+        player.SetSurvivorMoveScale(1.0f);
+    }
     const std::string name = IsBossStage() ? std::string("ボスステージ") : "ステージ " + std::to_string(stage_ + 1);
     world_.combatFlow->SetEventCallout(name, 1.6f);
 }

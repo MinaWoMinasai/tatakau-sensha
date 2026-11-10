@@ -385,6 +385,7 @@
     <ClInclude Include="game\run\SurvivorForms.h" />
     <ClInclude Include="game\run\SurvivorParts.h" />
     <ClInclude Include="game\run\SurvivorWeapons.h" />
+    <ClInclude Include="game\run\SurvivorHeroes.h" />
     <ClInclude Include="game\run\SurvivorLoot.h" />
     <ClInclude Include="game\run\SurvivorSave.h" />
     <ClInclude Include="game\run\SurvivorCrafting.h" />
@@ -547,6 +548,7 @@
     <ClCompile Include="game\run\session\SurvivorRunBase.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunRest.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunBarrier.cpp" />
+    <ClCompile Include="game\run\session\SurvivorRunHero.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunScreens.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunElites.cpp" />
     <ClCompile Include="game\run\session\SurvivorAudio.cpp" />

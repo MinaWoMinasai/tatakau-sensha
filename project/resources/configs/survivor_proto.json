@@ -97,6 +97,16 @@
     "ricochet": { "name": "反射砲", "form": "ricochet", "ammo": "light", "rarity": "common", "magazine": 20, "swapSeconds": 1.0, "reloadSeconds": 1.6, "chipSlots": 0,
                   "damageScale": 1.2, "reloadScale": 0.8, "speedScale": 1.6, "heatScale": 0.6 }
   },
+  "heroes": {
+    "comment": "機体（計画書 p4）。enabled が true なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイール・リロード・拠点の画面・お金以外の落とし物を止める）。start は出撃する機体。機体ごとに、name は名前、primary は主武器（weapons のキー。弾は数えず熱だけで撃つ）、ultimateCharge は Q のゲージが満タンになるまでに要る量（与えたダメージ。K2 から回復した量も足す）。secondary（右クリック）・mobility（Shift）・skill（E）・ultimate（Q）は技の部品で、kind は種類（none・sprint 走る・barrier バリア）、name は画面の名前、cooldown は次に使えるまでの秒（Q はゲージ）、duration は効いている秒、power は種類ごとの強さ（走るなら速さの倍率）。バリアは押している間だけ張り、設定の barrier とスタミナを使う。",
+    "enabled": true,
+    "start": "prototype",
+    "prototype": { "name": "試作機", "primary": "cannon", "ultimateCharge": 600,
+                   "secondary": { "kind": "barrier", "name": "バリア", "cooldown": 0, "duration": 0, "power": 1 },
+                   "mobility": { "kind": "sprint", "name": "走る", "cooldown": 8, "duration": 3, "power": 1.5 },
+                   "skill": { "kind": "none", "name": "", "cooldown": 0, "duration": 0, "power": 1 },
+                   "ultimate": { "kind": "none", "name": "", "cooldown": 0, "duration": 0, "power": 1 } }
+  },
   "loot": {
     "comment": "敵が落とす物（計画書 p3 の W3）。欠片はお金になり（経験値 × moneyPerExp）、自動で拾う。落ちている物は magnetRadius まで近づくと寄ってきて、触れると拾う。弾は ammoChance の確率で ammoAmount ずつ、予備は reserveMax まで（上限の弾は残る）。素材（倒した形の素材を materialChance、敵戦車はボスの素材を bossMaterialChance）・チップ（今の部品、chipChance）・武器（weaponChance）は出撃中の袋へ入る。確率は敵1体ごとで、大きな敵（敵戦車・大五角・重い四角）は bigScale 倍。チップと武器のレア度は rarityWeights の重みで選ぶ。弾と素材は lifetime 秒で消える。休憩部屋で売る値段は weaponPrice・chipPrice（レア度ごと）と materialPrice（素材1つごと）。",
     "moneyPerExp": 0.1, "materialChance": 0.15, "bossMaterialChance": 0.3,
@@ -127,7 +137,7 @@
     "mineArmSeconds": 1, "mineLifeSeconds": 14, "mineTriggerRadius": 2.2, "mineBlastRadius": 3.4, "mineDamage": 8
   },
   "audio": {
-    "comment": "BGM と効果音（武器の枠を使う遊び方だけ）。file は resources/audio/ からの場所（wav か mp3、英数字の名前）。今は遠征版のために合成した仮の音を当ててある。集めた音源は resources/audio/survivor/ に置いて file を書き換え、resources/audio/CREDITS.md に出どころとクレジットを書く。music は場面の曲（base 拠点・stage1・stage2・boss・rest 休憩部屋）、cues は効果音（fire_武器の名前・hit・kill・explosion・player_hurt・reload・swap・barrier_on・barrier_block・stamina_out・pickup・pickup_rare・mine_explode・warp・heal・ui_click・ui_drop・sell・craft・evolve・sortie・stage_clear・boss_appear・boss_defeat。fire_ の無い武器は fire）。volume は音量、pitch は高さ、pitchJitter は鳴らすたびの揺れ、cooldown は次に鳴らせるまでの秒、voices は重ねて鳴らせる数。musicVolume・effectsVolume は全体の音量、fadeSeconds は曲を替える秒、duckRatio は持ち物の画面などで曲を下げる割合。",
+    "comment": "BGM と効果音（武器の枠を使う遊び方だけ）。file は resources/audio/ からの場所（wav か mp3、英数字の名前）。今は遠征版のために合成した仮の音を当ててある。集めた音源は resources/audio/survivor/ に置いて file を書き換え、resources/audio/CREDITS.md に出どころとクレジットを書く。music は場面の曲（base 拠点・stage1・stage2・boss・rest 休憩部屋）、cues は効果音（fire_武器の名前・hit・kill・explosion・player_hurt・reload・swap・barrier_on・barrier_block・stamina_out・pickup・pickup_rare・mine_explode・warp・heal・ui_click・ui_drop・sell・craft・evolve・sortie・stage_clear・boss_appear・boss_defeat・機体の技 ability_技の種類（無ければ ability）・Q のゲージが満タン ultimate_ready。fire_ の無い武器は fire）。volume は音量、pitch は高さ、pitchJitter は鳴らすたびの揺れ、cooldown は次に鳴らせるまでの秒、voices は重ねて鳴らせる数。musicVolume・effectsVolume は全体の音量、fadeSeconds は曲を替える秒、duckRatio は持ち物の画面などで曲を下げる割合。",
     "musicVolume": 0.5, "effectsVolume": 0.8, "fadeSeconds": 1.0, "duckRatio": 0.45,
     "music": {
       "base": {"cooldown": 0.0, "file": "tank_expedition/music_base.wav", "pitch": 1.0, "pitchJitter": 0.0, "voices": 1, "volume": 0.35},
@@ -137,6 +147,7 @@
       "stage2": {"cooldown": 0.0, "file": "tank_expedition/music_base.wav", "pitch": 1.0, "pitchJitter": 0.0, "voices": 1, "volume": 0.55}
     },
     "cues": {
+      "ability": {"cooldown": 0.1, "file": "tank_expedition/dash.wav", "pitch": 1.1, "pitchJitter": 0.05, "voices": 2, "volume": 0.4},
       "barrier_block": {"cooldown": 0.05, "file": "tank_expedition/hit.wav", "pitch": 0.7, "pitchJitter": 0.03, "voices": 3, "volume": 0.35},
       "barrier_on": {"cooldown": 0.2, "file": "tank_expedition/upgrade.wav", "pitch": 0.8, "pitchJitter": 0.03, "voices": 2, "volume": 0.25},
       "boss_appear": {"cooldown": 0.5, "file": "tank_expedition/warning.wav", "pitch": 0.7, "pitchJitter": 0.03, "voices": 1, "volume": 0.55},
@@ -168,6 +179,7 @@
       "swap": {"cooldown": 0.1, "file": "tank_expedition/dash.wav", "pitch": 0.9, "pitchJitter": 0.03, "voices": 2, "volume": 0.35},
       "ui_click": {"cooldown": 0.03, "file": "tank_expedition/hit.wav", "pitch": 1.8, "pitchJitter": 0.03, "voices": 2, "volume": 0.3},
       "ui_drop": {"cooldown": 0.05, "file": "tank_expedition/dash.wav", "pitch": 1.1, "pitchJitter": 0.03, "voices": 2, "volume": 0.35},
+      "ultimate_ready": {"cooldown": 0.5, "file": "tank_expedition/upgrade.wav", "pitch": 1.25, "pitchJitter": 0.0, "voices": 1, "volume": 0.5},
       "warp": {"cooldown": 0.1, "file": "tank_expedition/dash.wav", "pitch": 0.6, "pitchJitter": 0.03, "voices": 2, "volume": 0.3}
     }
   },

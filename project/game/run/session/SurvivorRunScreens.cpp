@@ -215,25 +215,40 @@ void SurvivorRunController::AddBagToGrid(SurvivorItemScreen::View& view, bool ac
 
 void SurvivorRunController::RefreshInventoryScreen()
 {
-    SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, true);
+    // 機体の遊び方は弾を数えないので、弾の数は出さない。
+    SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, !HeroMode());
     view.title = "持ち物";
     view.help = "マウスを合わせると説明が出る　／　E で閉じる　／　開いている間は止まる　／　付け替え・売るのは休憩部屋で";
     view.gridTitle = "出撃中の袋（倒れると全部失う）";
+    // 機体の遊び方（計画書 p4 の H3）：Tab で開く「今の組み立て」。技の段とパークは K4 で足す。
+    if (HeroMode()) {
+        view.title = "組み立て：" + Hero().name;
+        view.help = "Tab で閉じる　／　開いている間は止まる";
+        std::string skills;
+        for (size_t i = 0; i < survivor::kAbilitySlotCount; ++i) {
+            const survivor::AbilityDefinition& ability = Hero().abilities[i];
+            if (ability.kind != survivor::AbilityKind::None) {
+                skills += std::string(skills.empty() ? "" : "　／　") + survivor::AbilitySlotButton(static_cast<survivor::AbilitySlot>(i)) + " " + ability.name;
+            }
+        }
+        view.gridTitle = "技：" + skills;
+    }
     for (size_t i = 0; i < view.cards.size(); ++i) {
-        view.cards[i].name = std::to_string(i + 1) + "　（空き）";
+        // 機体の遊び方は主武器の枠だけ（空きの枠は名前も出さない）。
+        view.cards[i].name = HeroMode() ? std::string(" ") : std::to_string(i + 1) + "　（空き）";
         if (weaponSlots_[i] >= 0) {
-            FillWeaponCard(view.cards[i], i, runSlots_[i].weapon, SlotWeapon(i), magazines_[i], runSlots_[i].weapon.chips.size(), "", "");
+            FillWeaponCard(view.cards[i], i, runSlots_[i].weapon, SlotWeapon(i), HeroMode() ? -1 : magazines_[i], runSlots_[i].weapon.chips.size(), "", "");
             view.cards[i].active = i == activeSlot_;
         }
     }
     AddBagToGrid(view, false);
-    view.buttons.push_back({"閉じる（E）", 0, true});
+    view.buttons.push_back({HeroMode() ? "閉じる（Tab）" : "閉じる（E）", 0, true});
     itemScreen_.Show(view);
 }
 
 void SurvivorRunController::RefreshRestRoom()
 {
-    SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, true);
+    SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, !HeroMode());
     view.title = "休憩部屋";
     view.help = "マウスを合わせると説明が出る　／　ドラッグで付け替え・チップを付ける　／　右クリックで売る　／　Z で捨てる";
     view.gridTitle = "出撃中の袋";

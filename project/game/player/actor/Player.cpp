@@ -196,6 +196,7 @@ void Player::Initialize(myEngine::Object3d* object, const myEngine::Vector3& pos
     wchar_t startupCacheFlag[8]{};
     const bool baseline = GetEnvironmentVariableW(L"MYENGINE_STARTUP_CACHE", startupCacheFlag, 8) > 0 && startupCacheFlag[0] == L'0';
     ui_->arenaUiEnabled_ = arenaUi || baseline;
+    survivorMoveScale_ = 1.0f;
 
     object_ = object;
     baseVehicleColor_ = object_->GetColor();
@@ -377,7 +378,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     PlayerMovementInput movementInput{};
     movementInput.direction = inputDir_;
     movementInput.velocity = velocity_;
-    movementInput.moveSpeed = stats_.moveSpeed;
+    movementInput.moveSpeed = stats_.moveSpeed * survivorMoveScale_;
     movementInput.acceleration = accel_;
     movementInput.deceleration = decel_;
     movementInput.deltaTime = deltaTime;

@@ -333,6 +333,29 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     }
     // バリア：20秒のうち10秒押し続ける（途中でスタミナが尽きるかも見る）。弾を止めた瞬間の画面を1回保存する。
     autoBarrierWanted_ = WeaponMode() && std::fmod(autoTestTime_, 20.0f) < 10.0f;
+    // 機体（計画書 p4 の K0）：Shift と E は使えるたびに、Q はゲージが満タンになったら押す（次の更新で使う）。
+    // 走っている間とそうでない間の、実際の移動の速さの一番大きい値を控え、走っている間の画面を1回保存する。
+    if (HeroMode()) {
+        using survivor::AbilitySlot;
+        autoHeroPress_[static_cast<size_t>(AbilitySlot::Mobility)] = abilityCooldown_[static_cast<size_t>(AbilitySlot::Mobility)] <= 0.0f;
+        autoHeroPress_[static_cast<size_t>(AbilitySlot::Skill)] = abilityCooldown_[static_cast<size_t>(AbilitySlot::Skill)] <= 0.0f;
+        autoHeroPress_[static_cast<size_t>(AbilitySlot::Ultimate)] = ultimateCharge_ >= Hero().ultimateCharge;
+        // 動こうとしている間（目標が遠い）だけ、動いた距離を走っている間とそうでない間に分けて足す。
+        if (dt > 0.0f && autoTestTime_ > 1.0f && length > 2.0f) {
+            const float distance = myEngine::Length(myEngine::Vector3{position.x - autoLastPosition_.x, position.y - autoLastPosition_.y, 0.0f});
+            // 部屋を移ったときの飛びは数えない。
+            if (distance < dt * 100.0f) {
+                const size_t index = sprintTimer_ > 0.0f ? 1 : 0;
+                autoMoveDistance_[index] += distance;
+                autoMoveSeconds_[index] += dt;
+            }
+        }
+        autoLastPosition_ = position;
+        if (!autoHeroCaptured_ && sprintTimer_ > 1.0f && elapsed_ >= 10.0f && world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture("hero_sprint");
+            autoHeroCaptured_ = true;
+        }
+    }
     // 新しい敵：それぞれが自機の近くにいる画面を1回ずつ保存する（ワープする敵は消えている途中、ばらばらな三角は役割なしで見分ける）。
     if (ElitesActive() && world_.run.tankRunCapturePath_.empty()) {
         for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
@@ -799,7 +822,11 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             loaded.loot.weaponPrice == config_.loot.weaponPrice && loaded.stages.swarmScale == config_.stages.swarmScale &&
                             loaded.barrier.radius == config_.barrier.radius && loaded.elites.healRatio == config_.elites.healRatio &&
                             loaded.crafting.branches.size() == config_.crafting.branches.size() && loaded.exitOpenSeconds == fileExitOpenSeconds_ &&
-                            loaded.rival.enabled == fileRivalEnabled_;
+                            loaded.rival.enabled == fileRivalEnabled_ && loaded.heroes.start == config_.heroes.start &&
+                            loaded.heroes.heroes.size() == config_.heroes.heroes.size() && !config_.heroes.heroes.empty() &&
+                            loaded.heroes.heroes[0].abilities[1].cooldown == config_.heroes.heroes[0].abilities[1].cooldown &&
+                            loaded.heroes.heroes[0].abilities[1].kind == config_.heroes.heroes[0].abilities[1].kind &&
+                            loaded.heroes.heroes[0].ultimateCharge == config_.heroes.heroes[0].ultimateCharge;
             }
         }
         // 拠点：結果画面で持ち帰ってセーブした物を読み直し、同じになるかを見る。
@@ -889,6 +916,14 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"burstChildren\":" << autoBurstStats_[2] << ",\"repeatsWhileFused\":" << autoRepeatsWhileFused_
             << ",\"damageNumbers\":" << damageNumbers_.GetSpawnedCount() << ",\"fusedSeconds\":" << autoFusedSeconds_ << ",\"chainHits\":" << autoChainHits_ << ",\"criticalBlasts\":" << criticalBlasts_
             << ",\"partsAtEnd\":\"" << DescribeParts(99) << "\""
+            << ",\"hero\":{\"enabled\":" << (HeroMode() ? "true" : "false") << ",\"key\":\"" << (HeroMode() ? Hero().key : std::string())
+            << "\",\"primary\":\"" << formKey_ << "\",\"uses\":[" << abilityUses_[0] << "," << abilityUses_[1] << "," << abilityUses_[2] << ","
+            << abilityUses_[3] << "],\"cooldownSeen\":[" << abilityCooldownSeen_[0] << "," << abilityCooldownSeen_[1] << ","
+            << abilityCooldownSeen_[2] << "," << abilityCooldownSeen_[3] << "],\"sprintSeconds\":" << sprintSeconds_
+            << ",\"walkSpeed\":" << autoMoveDistance_[0] / (std::max)(0.001f, autoMoveSeconds_[0])
+            << ",\"sprintSpeed\":" << autoMoveDistance_[1] / (std::max)(0.001f, autoMoveSeconds_[1]) << ",\"ultimateCharge\":" << ultimateCharge_
+            << ",\"ultimateFullAt\":" << ultimateFullAt_ << ",\"ultimateFills\":" << ultimateFills_
+            << ",\"roundsCounted\":" << (player.GetSurvivorRounds() >= 0 ? "true" : "false") << "}"
             << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false") << ",\"weaponSwaps\":" << weaponSwaps_ << ",\"reloads\":" << reloads_ << ",\"lockedAttacks\":" << autoLockedAttacks_
             << ",\"lockedSeconds\":" << autoLockedSeconds_ << ",\"emptyAttacks\":" << autoEmptyAttacks_ << ",\"emptySeconds\":" << autoEmptySeconds_
             << ",\"reserves\":[" << reserves_[0] << "," << reserves_[1] << "," << reserves_[2] << "],\"swapMeasured\":[" << autoSwapMeasured_[0] << ","

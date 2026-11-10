@@ -31,6 +31,8 @@ SurvivorRunController::AudioCounters SurvivorRunController::ReadAudioCounters() 
     counters.cleared = cleared_;
     counters.bossSpawned = rivalSpawned_;
     counters.bossDefeated = rivalDefeated_;
+    counters.abilityUses = abilityUses_;
+    counters.ultimateFills = ultimateFills_;
     return counters;
 }
 
@@ -65,6 +67,18 @@ void SurvivorRunController::UpdateAudio(float dt)
         }
         if (now.swapping && !before.swapping) {
             audio_.Play("swap");
+        }
+        // 機体の技：技の種類ごとの音（ability_走る の種類の名前）が無ければ、共通の ability を鳴らす。
+        for (size_t i = 0; i < now.abilityUses.size() && HeroMode(); ++i) {
+            if (now.abilityUses[i] > before.abilityUses[i]) {
+                const survivor::AbilityKind kind = Hero().abilities[i].kind;
+                if (!audio_.Play(std::string("ability_") + survivor::AbilityKindKey(kind))) {
+                    audio_.Play("ability");
+                }
+            }
+        }
+        if (now.ultimateFills > before.ultimateFills) {
+            audio_.Play("ultimate_ready");
         }
         if (now.barrierOn && !before.barrierOn) {
             audio_.Play("barrier_on");

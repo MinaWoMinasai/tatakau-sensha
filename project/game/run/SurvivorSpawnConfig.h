@@ -8,6 +8,7 @@
 #include "game/run/SurvivorAudioConfig.h"
 #include "game/run/SurvivorCrafting.h"
 #include "game/run/SurvivorForms.h"
+#include "game/run/SurvivorHeroes.h"
 #include "game/run/SurvivorLoot.h"
 #include "game/run/SurvivorParts.h"
 #include "game/run/SurvivorWeapons.h"
@@ -224,6 +225,8 @@ struct SpawnConfig {
     std::array<std::string, kWeaponSlots> startWeapons{"cannon", "grenade", "beam"};
     /// @brief 区画の始めに持っている予備の弾（ライト・ヘビー・エネルギー）。
     std::array<int, kAmmoTypeCount> startReserve{600, 40, 300};
+    // 機体（計画書 p4）。heroes.enabled なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、右クリック・Shift・E・Q は機体の技）。
+    HeroesConfig heroes{true, "prototype", DefaultHeroes()};
     /// @brief 敵が落とす物（お金・素材・弾・チップ・武器）の確率と量（W3）。
     LootConfig loot{};
     /// @brief 素材で作る・進化させる（派生の木）と、レア度の効き（W7）。
@@ -729,6 +732,57 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             weapon.reloadScale = (std::max)(0.05f, weapon.reloadScale);
         }
     }
+    if (data.contains("heroes") && data.at("heroes").is_object()) {
+        // 機体（計画書 p4）。キーが機体の名前、値が主武器と4つの技。知らないキーの機体は足す。
+        const auto& heroes = data.at("heroes");
+        if (heroes.contains("enabled") && heroes.at("enabled").is_boolean()) {
+            config.heroes.enabled = heroes.at("enabled").get<bool>();
+        }
+        if (heroes.contains("start") && heroes.at("start").is_string()) {
+            config.heroes.start = heroes.at("start").get<std::string>();
+        }
+        for (const auto& item : heroes.items()) {
+            if (!item.value().is_object()) {
+                continue;
+            }
+            int index = FindHero(config.heroes.heroes, item.key());
+            if (index < 0) {
+                HeroDefinition added{};
+                added.key = item.key();
+                config.heroes.heroes.push_back(added);
+                index = static_cast<int>(config.heroes.heroes.size()) - 1;
+            }
+            auto& hero = config.heroes.heroes[static_cast<size_t>(index)];
+            const auto& value = item.value();
+            if (value.contains("name") && value.at("name").is_string()) {
+                hero.name = value.at("name").get<std::string>();
+            }
+            if (value.contains("primary") && value.at("primary").is_string()) {
+                hero.primary = value.at("primary").get<std::string>();
+            }
+            number(value, "ultimateCharge", hero.ultimateCharge);
+            hero.ultimateCharge = (std::max)(1.0f, hero.ultimateCharge);
+            for (size_t slot = 0; slot < kAbilitySlotCount; ++slot) {
+                const char* slotKey = AbilitySlotKey(static_cast<AbilitySlot>(slot));
+                if (!value.contains(slotKey) || !value.at(slotKey).is_object()) {
+                    continue;
+                }
+                const auto& abilityValue = value.at(slotKey);
+                auto& ability = hero.abilities[slot];
+                if (abilityValue.contains("kind") && abilityValue.at("kind").is_string()) {
+                    ability.kind = FindAbilityKind(abilityValue.at("kind").get<std::string>());
+                }
+                if (abilityValue.contains("name") && abilityValue.at("name").is_string()) {
+                    ability.name = abilityValue.at("name").get<std::string>();
+                }
+                number(abilityValue, "cooldown", ability.cooldown);
+                number(abilityValue, "duration", ability.duration);
+                number(abilityValue, "power", ability.power);
+                ability.cooldown = (std::max)(0.0f, ability.cooldown);
+                ability.duration = (std::max)(0.0f, ability.duration);
+            }
+        }
+    }
     if (data.contains("stages") && data.at("stages").is_object()) {
         const auto& stages = data.at("stages");
         auto readArray = [&](const char* key, auto& values) {
@@ -1167,6 +1221,24 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         }
         item["starter"] = weapon.starter;
     }
+    auto& heroes = section("heroes");
+    heroes["enabled"] = config.heroes.enabled;
+    heroes["start"] = config.heroes.start;
+    for (const auto& hero : config.heroes.heroes) {
+        auto& item = heroes[hero.key];
+        item["name"] = hero.name;
+        item["primary"] = hero.primary;
+        item["ultimateCharge"] = round(hero.ultimateCharge);
+        for (size_t slot = 0; slot < kAbilitySlotCount; ++slot) {
+            const auto& ability = hero.abilities[slot];
+            auto& abilityItem = item[AbilitySlotKey(static_cast<AbilitySlot>(slot))];
+            abilityItem["kind"] = AbilityKindKey(ability.kind);
+            abilityItem["name"] = ability.name;
+            abilityItem["cooldown"] = round(ability.cooldown);
+            abilityItem["duration"] = round(ability.duration);
+            abilityItem["power"] = round(ability.power);
+        }
+    }
     auto& parts = section("parts");
     for (const auto& part : config.parts) {
         parts[part.key]["perLevel"] = round(part.perLevel);
@@ -1362,10 +1434,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 35> kOrder{
+    static constexpr std::array<const char*, 36> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "weapons",       "loot",          "crafting",      "stages",        "barrier",       "elites",        "audio",         "glow",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
+        "heat",          "shield",    "forms",           "weapons",       "heroes",        "loot",          "crafting",      "stages",        "barrier",       "elites",        "audio",         "glow",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
         "partTuning",    "bigPentagon", "damageNumbers"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {

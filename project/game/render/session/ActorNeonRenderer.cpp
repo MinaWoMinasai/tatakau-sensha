@@ -324,6 +324,25 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                                                                                                     : myEngine::Vector4{0.85f, 1.8f, 0.55f, 1.0f};
                 queueSegmentedArc(radius * 1.82f, 0.0f, 2.05f, 12, world_.presentation.playerStaminaRatio_, staminaColor, radius * 0.13f);
             }
+            // 機体の技（計画書 p4 の K0）：本体の上側に、左から右クリック・Shift・E の短い弧（使えると水色で全部光る）と、
+            // その外側に Q のゲージの弧（満タンで金色に脈打つ）。
+            if (world_.run.IsSurvivorRun()) {
+                static constexpr std::array<float, 3> kAbilityAngles{3.14159265f + 0.78f, 3.14159265f, 3.14159265f - 0.78f};
+                for (size_t i = 0; i < kAbilityAngles.size(); ++i) {
+                    const float ready = world_.presentation.heroAbilityReady_[i];
+                    if (ready < 0.0f) {
+                        continue;
+                    }
+                    const myEngine::Vector4 lit = ready >= 1.0f ? myEngine::Vector4{0.45f, 1.55f, 2.0f, 1.0f} : myEngine::Vector4{0.95f, 0.95f, 1.05f, 0.85f};
+                    queueSegmentedArc(radius * 1.55f, kAbilityAngles[i], 0.62f, 4, ready, lit, radius * 0.22f);
+                }
+                const float ultimate = world_.presentation.heroUltimateRatio_;
+                if (ultimate >= 0.0f) {
+                    const float glow = ultimate >= 1.0f ? world_.presentation.heroUltimateGlow_ : 0.75f;
+                    const myEngine::Vector4 lit{2.2f * glow, 1.6f * glow, 0.35f * glow, 1.0f};
+                    queueSegmentedArc(radius * 1.82f, 3.14159265f, 2.05f, 16, ultimate, lit, radius * (ultimate >= 1.0f ? 0.18f : 0.13f));
+                }
+            }
             // 熱は主砲のまわりの輪。真上から時計回りに、熱の割合だけ光る。オーバーヒートの間は赤く点滅する。
             const PlayerHeat& heat = world_.resources.player_->GetHeat();
             if (heat.IsEnabled() && (heat.IsOverheated() || heat.GetRatio() > 0.01f)) {

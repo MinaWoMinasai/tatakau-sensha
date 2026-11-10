@@ -400,6 +400,61 @@ private:
     {
         return config_.weaponsEnabled;
     }
+
+    // 機体（計画書 p4 の K0）。SurvivorRunHero.cpp。武器の枠の遊び方の上で、枠を主武器1つにし、
+    // ホイール・リロード・拠点の画面・落とす物（お金以外）を止め、右クリック・Shift・E・Q を機体の技にする。
+    /// @brief 機体の遊び方か。
+    bool HeroMode() const
+    {
+        return config_.weaponsEnabled && config_.heroes.enabled && hero_ >= 0;
+    }
+    /// @brief 出撃する機体の定義（HeroMode のときだけ呼ぶ）。
+    const survivor::HeroDefinition& Hero() const
+    {
+        return config_.heroes.heroes[static_cast<size_t>(hero_)];
+    }
+    const survivor::AbilityDefinition& Ability(survivor::AbilitySlot slot) const
+    {
+        return Hero().abilities[static_cast<size_t>(slot)];
+    }
+    /// @brief 設定の start の機体を選び、主武器を1つ目の枠に入れて構える（弾は数えない）。見つからなければ機体を使わない。
+    void StartHero();
+    /// @brief 技の待ち時間・走る・Q のゲージを、区画の始め（ステージの始め）の状態にする。
+    void ResetHeroState();
+    /// @brief Shift・E・Q を押した瞬間で技を使う。右クリック（押している間の技）は UpdateHeroAbilities で見る。
+    void UpdateHeroInput();
+    /// @brief 待ち時間と効いている時間を進め、移動の速さと表示を渡す。dt は区画の時間。
+    void UpdateHeroAbilities(float dt);
+    /// @brief slot の技を使う。待ち時間中・空き・Q のゲージが足りないなら何もしない。使えたら真。
+    bool UseAbility(survivor::AbilitySlot slot);
+    /// @brief 与えたダメージ（と K2 からは回復した量）で Q のゲージを溜める。
+    void AddUltimateCharge(float amount);
+    /// @brief 右クリックの技がバリアで、バリアを張りたいか（自動確認ではボットの指示）。
+    bool HeroBarrierWanted() const;
+    /// @brief 操作の案内の一行（機体の技の名前から作る）。
+    std::string HeroControlsText() const;
+    /// @brief 画面の下の一行（技の名前と待ち時間、Q のゲージ）。
+    std::string DescribeHeroAbilities() const;
+    int hero_ = -1;
+    // 技の枠ごとの、次に使えるまでの残りの秒と、使った回数・見た一番長い待ち時間（自動確認と記録）。
+    std::array<float, survivor::kAbilitySlotCount> abilityCooldown_{};
+    std::array<int, survivor::kAbilitySlotCount> abilityUses_{};
+    std::array<float, survivor::kAbilitySlotCount> abilityCooldownSeen_{};
+    // 走るの残りの秒と、走った秒の合計。
+    float sprintTimer_ = 0.0f;
+    float sprintSeconds_ = 0.0f;
+    // Q のゲージ（0〜Hero().ultimateCharge）・初めて満タンになった区画の秒・満タンになった回数・満タンの間の脈の時間。
+    float ultimateCharge_ = 0.0f;
+    float ultimateFullAt_ = -1.0f;
+    int ultimateFills_ = 0;
+    float ultimatePulse_ = 0.0f;
+    // 自動確認のボットが、このフレームに押したことにする技の枠。
+    std::array<bool, survivor::kAbilitySlotCount> autoHeroPress_{};
+    // 走っている間の画面を保存したか。走っている間とそうでない間に動いた距離と秒（平均の速さを出す。ワールド単位）。
+    bool autoHeroCaptured_ = false;
+    std::array<float, 2> autoMoveDistance_{};
+    std::array<float, 2> autoMoveSeconds_{};
+    myEngine::Vector3 autoLastPosition_{};
     /// @brief slot 番目の枠の武器を自機に入れる（すぐに替わる。切り替えの演出と待ちは StartSwap）。今の武器の弾は控えてから替える。
     void EquipWeapon(size_t slot);
     /// @brief ホイール・1〜3キー・R を見る。押した瞬間（ホイールは回した量）で判定する。
@@ -621,6 +676,8 @@ private:
         bool cleared = false;
         bool bossSpawned = false;
         bool bossDefeated = false;
+        std::array<int, survivor::kAbilitySlotCount> abilityUses{};
+        int ultimateFills = 0;
     };
     AudioCounters ReadAudioCounters() const;
     /// @brief 回数の増え方から効果音を鳴らし、場面の曲を流す。dt は実時間（止めている間も曲を合わせる）。

@@ -363,6 +363,7 @@
     <ClInclude Include="game\run\SurvivorForms.h" />
     <ClInclude Include="game\run\SurvivorParts.h" />
     <ClInclude Include="game\run\SurvivorWeapons.h" />
+    <ClInclude Include="game\run\SurvivorHeroes.h" />
     <ClInclude Include="game\run\SurvivorLoot.h" />
     <ClInclude Include="game\run\SurvivorSave.h" />
     <ClInclude Include="game\run\SurvivorCrafting.h" />
@@ -591,6 +592,9 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\run\session\SurvivorRunBarrier.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunHero.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="game\run\session\SurvivorRunScreens.cpp">
