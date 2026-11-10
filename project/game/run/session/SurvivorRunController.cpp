@@ -627,6 +627,15 @@ void SurvivorRunController::ConfigurePickups()
     pickupConfig.maxShards = static_cast<size_t>((std::max)(1, config_.maxShards));
     pickups_.SetConfig(pickupConfig);
     lootField_.SetConfig(config_.loot);
+    lootField_.SetGlow(config_.glow);
+    // 弾の軌跡のにじみ：武器の枠を使う遊び方だけ、遠征の締めた値から強める（始めと、調整パネルで変えたとき）。
+    if (config_.weaponsEnabled && world_.resources.bulletTrailPostEffect_) {
+        myEngine::BloomParam& trail = world_.resources.bulletTrailPostEffect_->GetParam();
+        trail.intensity = config_.glow.trailBloomIntensity;
+        trail.bloomGain = config_.glow.trailBloomGain;
+        trail.bloomScatter = (std::clamp)(config_.glow.trailBloomScatter, 0.0f, 0.9f);
+        trail.bloomRadius = (std::clamp)(config_.glow.trailBloomRadius, 0.25f, 2.0f);
+    }
 }
 
 void SurvivorRunController::UpdateTuningPanel()

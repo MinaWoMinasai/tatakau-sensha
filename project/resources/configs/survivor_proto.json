@@ -198,6 +198,11 @@
       "legendary": { "pentagon": 15, "boss": 10, "money": 2000, "main": 80 }
     }
   },
+  "glow": {
+    "comment": "光り方（武器の枠を使う遊び方だけ）。trailBloom* は弾の軌跡のにじみ（強さ・明るさ・広がり 0〜0.9・半径 0.25〜2）。lootRing* は拾い物を囲む輪の半径と太さ（敵と見分ける印、0 で無し）。lootTrail* は吸い込まれる物の光の尾の秒と太さ。collectFlash* は拾ったところに広がる輪の秒と半径。",
+    "trailBloomIntensity": 2.4, "trailBloomGain": 1.9, "trailBloomScatter": 0.72, "trailBloomRadius": 1.5,
+    "lootRingRadius": 0.5, "lootRingWidth": 0.05, "lootTrailSeconds": 0.14, "lootTrailWidth": 0.2, "collectFlashSeconds": 0.25, "collectFlashRadius": 1.3
+  },
   "traits": {
     "comment": "特性。区画の始めに止めて、標準と冷却炉の2択を出す。冷却炉は熱の上限を furnaceHeatMax 倍、冷える速さ（撃っていない間と撃っている間の両方）を furnaceCool 倍にする。",
     "furnaceHeatMax": 2, "furnaceCool": 0.7

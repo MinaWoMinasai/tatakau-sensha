@@ -296,6 +296,8 @@ struct SpawnConfig {
     EliteConfig elites{};
     /// @brief BGM と効果音（武器の枠を使う遊び方だけ）。
     AudioConfig audio = DefaultAudioConfig();
+    /// @brief 光り方（武器の枠を使う遊び方だけ）。
+    GlowConfig glow{};
     static constexpr int kStageCount = 3;
 
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
@@ -791,6 +793,22 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         readCues("music", config.audio.music);
         readCues("cues", config.audio.cues);
     }
+    if (data.contains("glow") && data.at("glow").is_object()) {
+        const auto& glow = data.at("glow");
+        auto& out = config.glow;
+        number(glow, "trailBloomIntensity", out.trailBloomIntensity);
+        number(glow, "trailBloomGain", out.trailBloomGain);
+        number(glow, "trailBloomScatter", out.trailBloomScatter);
+        number(glow, "trailBloomRadius", out.trailBloomRadius);
+        number(glow, "lootRingRadius", out.lootRingRadius);
+        number(glow, "lootRingWidth", out.lootRingWidth);
+        number(glow, "lootTrailSeconds", out.lootTrailSeconds);
+        number(glow, "lootTrailWidth", out.lootTrailWidth);
+        number(glow, "collectFlashSeconds", out.collectFlashSeconds);
+        number(glow, "collectFlashRadius", out.collectFlashRadius);
+        out.trailBloomScatter = (std::clamp)(out.trailBloomScatter, 0.0f, 0.9f);
+        out.trailBloomRadius = (std::clamp)(out.trailBloomRadius, 0.25f, 2.0f);
+    }
     if (data.contains("elites") && data.at("elites").is_object()) {
         const auto& elites = data.at("elites");
         number(elites, "fromStage", config.elites.fromStage);
@@ -1223,6 +1241,17 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     };
     writeCues("music", config.audio.music);
     writeCues("cues", config.audio.cues);
+    auto& glow = section("glow");
+    glow["trailBloomIntensity"] = round(config.glow.trailBloomIntensity);
+    glow["trailBloomGain"] = round(config.glow.trailBloomGain);
+    glow["trailBloomScatter"] = round(config.glow.trailBloomScatter);
+    glow["trailBloomRadius"] = round(config.glow.trailBloomRadius);
+    glow["lootRingRadius"] = round(config.glow.lootRingRadius);
+    glow["lootRingWidth"] = round(config.glow.lootRingWidth);
+    glow["lootTrailSeconds"] = round(config.glow.lootTrailSeconds);
+    glow["lootTrailWidth"] = round(config.glow.lootTrailWidth);
+    glow["collectFlashSeconds"] = round(config.glow.collectFlashSeconds);
+    glow["collectFlashRadius"] = round(config.glow.collectFlashRadius);
     auto& elites = section("elites");
     elites["fromStage"] = config.elites.fromStage;
     elites["erraticRatio"] = round(config.elites.erraticRatio);
@@ -1325,10 +1354,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 34> kOrder{
+    static constexpr std::array<const char*, 35> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "weapons",       "loot",          "crafting",      "stages",        "barrier",       "elites",        "audio",         "traits",        "relics",    "fusions",    "parts",       "heatVent",
+        "heat",          "shield",    "forms",           "weapons",       "loot",          "crafting",      "stages",        "barrier",       "elites",        "audio",         "glow",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
         "partTuning",    "bigPentagon", "damageNumbers"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {

@@ -466,6 +466,29 @@ bool DrawStagesAndEnemies(SpawnConfig& config)
     return changed;
 }
 
+/// @brief 弾の軌跡のにじみと、拾い物の光り方。
+bool DrawGlow(SpawnConfig& config)
+{
+    bool changed = false;
+    if (!ImGui::CollapsingHeader("光り方")) {
+        return false;
+    }
+    auto& glow = config.glow;
+    ImGui::SeparatorText("弾の軌跡のにじみ");
+    changed |= ImGui::DragFloat("強さ", &glow.trailBloomIntensity, 0.02f, 0.0f, 8.0f, "%.2f");
+    changed |= ImGui::DragFloat("明るさ", &glow.trailBloomGain, 0.02f, 0.0f, 4.0f, "%.2f");
+    changed |= ImGui::DragFloat("広がり", &glow.trailBloomScatter, 0.01f, 0.0f, 0.9f, "%.2f");
+    changed |= ImGui::DragFloat("半径", &glow.trailBloomRadius, 0.01f, 0.25f, 2.0f, "%.2f");
+    ImGui::SeparatorText("拾い物");
+    changed |= ImGui::DragFloat("輪の半径（0 で無し）", &glow.lootRingRadius, 0.01f, 0.0f, 2.0f, "%.2f");
+    changed |= ImGui::DragFloat("輪の太さ", &glow.lootRingWidth, 0.005f, 0.0f, 0.5f, "%.3f");
+    changed |= ImGui::DragFloat("光の尾の秒（0 で無し）", &glow.lootTrailSeconds, 0.005f, 0.0f, 1.0f, "%.3f");
+    changed |= ImGui::DragFloat("光の尾の太さ", &glow.lootTrailWidth, 0.005f, 0.0f, 1.0f, "%.3f");
+    changed |= ImGui::DragFloat("拾った光の秒（0 で無し）", &glow.collectFlashSeconds, 0.005f, 0.0f, 2.0f, "%.3f");
+    changed |= ImGui::DragFloat("拾った光の半径", &glow.collectFlashRadius, 0.02f, 0.0f, 6.0f, "%.2f");
+    return changed;
+}
+
 /// @brief ステージ2からの新しい敵。
 bool DrawElites(SpawnConfig& config)
 {
@@ -547,6 +570,7 @@ TuningPanelResult DrawTuningPanel(SpawnConfig& config, bool& open, bool& pauseWh
         result.changed |= DrawCrafting(config);
         result.changed |= DrawStagesAndEnemies(config);
         result.changed |= DrawElites(config);
+        result.changed |= DrawGlow(config);
         ImGui::SeparatorText("ここから下は、これまでの遊び方と共通の値");
     }
     result.changed |= DrawHeatAndShield(config);

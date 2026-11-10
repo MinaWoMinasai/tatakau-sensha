@@ -21,6 +21,11 @@ public:
         config_ = config;
     }
 
+    void SetGlow(const survivor::GlowConfig& glow)
+    {
+        glow_ = glow;
+    }
+
     /// @brief item を position の周りに落とす（少し散らばる）。
     void Drop(const myEngine::Vector3& position, const survivor::LootItem& item, std::mt19937& random);
     /// @brief 物を動かし、触れた物を拾って返す。
@@ -36,6 +41,7 @@ public:
     void Clear()
     {
         items_.clear();
+        flashes_.clear();
     }
 
     size_t GetCount() const
@@ -44,6 +50,9 @@ public:
     }
 
 private:
+    /// @brief 光の尾の点の数（古い順に詰める）。
+    static constexpr size_t kTrailPoints = 8;
+
     struct Item {
         survivor::LootItem loot{};
         myEngine::Vector3 position{};
@@ -51,9 +60,24 @@ private:
         float age = 0.0f;
         bool attracted = false;
         bool taken = false;
+        /// @brief 吸い込まれている間の、少し前の位置（光の尾）。
+        std::array<myEngine::Vector3, kTrailPoints> trail{};
+        size_t trailCount = 0;
+        float trailTimer = 0.0f;
     };
 
+    /// @brief 拾ったところに広がる光の輪。
+    struct Flash {
+        myEngine::Vector3 position{};
+        myEngine::Vector4 color{};
+        float age = 0.0f;
+    };
+
+    static myEngine::Vector4 ItemColor(const survivor::LootItem& loot);
+
     survivor::LootConfig config_;
+    survivor::GlowConfig glow_;
     std::vector<Item> items_;
+    std::vector<Flash> flashes_;
 };
 } // namespace gameplay
