@@ -764,13 +764,8 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(value, "primaryHeatScale", hero.primaryHeatScale);
             hero.primaryHeatScale = (std::max)(0.0f, hero.primaryHeatScale);
             hero.ultimateCharge = (std::max)(1.0f, hero.ultimateCharge);
-            for (size_t slot = 0; slot < kAbilitySlotCount; ++slot) {
-                const char* slotKey = AbilitySlotKey(static_cast<AbilitySlot>(slot));
-                if (!value.contains(slotKey) || !value.at(slotKey).is_object()) {
-                    continue;
-                }
-                const auto& abilityValue = value.at(slotKey);
-                auto& ability = hero.abilities[slot];
+            // 技を1つ読む（主武器の部品 primaryAbility と、4つの枠で同じ書き方）。
+            auto readAbility = [&](const nlohmann::json& abilityValue, AbilityDefinition& ability) {
                 if (abilityValue.contains("kind") && abilityValue.at("kind").is_string()) {
                     ability.kind = FindAbilityKind(abilityValue.at("kind").get<std::string>());
                 }
@@ -782,8 +777,21 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
                 number(abilityValue, "power", ability.power);
                 number(abilityValue, "radius", ability.radius);
                 number(abilityValue, "rate", ability.rate);
+                number(abilityValue, "size", ability.size);
+                number(abilityValue, "gain", ability.gain);
                 ability.cooldown = (std::max)(0.0f, ability.cooldown);
                 ability.duration = (std::max)(0.0f, ability.duration);
+                ability.size = (std::max)(0.0f, ability.size);
+                ability.gain = (std::max)(0.0f, ability.gain);
+            };
+            if (value.contains("primaryAbility") && value.at("primaryAbility").is_object()) {
+                readAbility(value.at("primaryAbility"), hero.primaryAbility);
+            }
+            for (size_t slot = 0; slot < kAbilitySlotCount; ++slot) {
+                const char* slotKey = AbilitySlotKey(static_cast<AbilitySlot>(slot));
+                if (value.contains(slotKey) && value.at(slotKey).is_object()) {
+                    readAbility(value.at(slotKey), hero.abilities[slot]);
+                }
             }
         }
     }
@@ -1234,9 +1242,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         item["primary"] = hero.primary;
         item["ultimateCharge"] = round(hero.ultimateCharge);
         item["primaryHeatScale"] = round(hero.primaryHeatScale);
-        for (size_t slot = 0; slot < kAbilitySlotCount; ++slot) {
-            const auto& ability = hero.abilities[slot];
-            auto& abilityItem = item[AbilitySlotKey(static_cast<AbilitySlot>(slot))];
+        auto writeAbility = [&](const AbilityDefinition& ability, nlohmann::json& abilityItem) {
             abilityItem["kind"] = AbilityKindKey(ability.kind);
             abilityItem["name"] = ability.name;
             abilityItem["cooldown"] = round(ability.cooldown);
@@ -1244,6 +1250,14 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
             abilityItem["power"] = round(ability.power);
             abilityItem["radius"] = round(ability.radius);
             abilityItem["rate"] = round(ability.rate);
+            abilityItem["size"] = round(ability.size);
+            abilityItem["gain"] = round(ability.gain);
+        };
+        if (hero.primaryAbility.kind != AbilityKind::None || item.contains("primaryAbility")) {
+            writeAbility(hero.primaryAbility, item["primaryAbility"]);
+        }
+        for (size_t slot = 0; slot < kAbilitySlotCount; ++slot) {
+            writeAbility(hero.abilities[slot], item[AbilitySlotKey(static_cast<AbilitySlot>(slot))]);
         }
     }
     auto& parts = section("parts");

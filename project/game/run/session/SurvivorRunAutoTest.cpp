@@ -348,6 +348,30 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             autoHeroPress_[static_cast<size_t>(AbilitySlot::Skill)] && player.GetHp() == player.GetMaxHp()) {
             player.SpendRunHealth(player.GetMaxHp() / 2);
         }
+        // 自分を回復（モイラ型）：吸収ゲージがほぼ満タンで HP も満タンなら HP を半分にし（自動確認は無敵なので）、
+        // HP が減っていてゲージがあれば押し続ける。
+        if (const survivor::AbilityDefinition* heal = FindAbility(survivor::AbilityKind::SelfHeal)) {
+            if (absorb_ >= heal->duration * 0.95f && player.GetHp() == player.GetMaxHp()) {
+                player.SpendRunHealth(player.GetMaxHp() / 2);
+            }
+            autoSecondaryHold_ = absorb_ > 0.0f && player.GetHp() < player.GetMaxHp();
+        }
+        // 技の画面（モイラ型）：吸い付いた光線・跳ねる球・太い光線・消える移動を、それぞれ1回ずつ保存する。
+        if (world_.run.tankRunCapturePath_.empty() && HeroBeamPrimary()) {
+            if (!autoBeamCaptured_ && beamTarget_ != 0 && elapsed_ >= 6.0f) {
+                RequestCapture("hero_beam");
+                autoBeamCaptured_ = true;
+            } else if (!autoOrbCaptured_ && orbTimer_ > 0.0f && orbTimer_ < 2.5f) {
+                RequestCapture("hero_orb");
+                autoOrbCaptured_ = true;
+            } else if (!autoLanceCaptured_ && lanceTimer_ > 0.0f && lanceTimer_ < 2.5f) {
+                RequestCapture("hero_lance");
+                autoLanceCaptured_ = true;
+            } else if (!autoPhaseCaptured_ && phaseTimer_ > 0.3f && elapsed_ >= 10.0f) {
+                RequestCapture("hero_phase");
+                autoPhaseCaptured_ = true;
+            }
+        }
         // 技の画面：回復の場と弾幕を、それぞれ効いている途中で1回ずつ保存する。
         if (world_.run.tankRunCapturePath_.empty()) {
             if (!autoHealCaptured_ && healZoneTimer_ > 0.0f && healZoneTimer_ < 3.5f) {
@@ -947,7 +971,13 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"ultimateFullAt\":" << ultimateFullAt_ << ",\"ultimateFills\":" << ultimateFills_ << ",\"rocketBlasts\":" << rocketBlasts_
             << ",\"rocketKills\":" << rocketKills_ << ",\"healed\":" << healedByZone_ << ",\"healInsideSeconds\":" << healZoneInsideSeconds_
             << ",\"barrageShots\":" << barrageShots_ << ",\"barrageSeconds\":" << barrageSeconds_ << ",\"overheats\":" << player.GetHeat().GetOverheatCount()
-            << ",\"roundsCounted\":" << (player.GetSurvivorRounds() >= 0 ? "true" : "false") << "}"
+            << ",\"roundsCounted\":" << (player.GetSurvivorRounds() >= 0 ? "true" : "false")
+            << ",\"bulletDamage\":" << player.GetStats().bulletDamage << ",\"drainDamage\":" << drainDamage_
+            << ",\"beamLockedSeconds\":" << beamLockedSeconds_ << ",\"absorbGained\":" << absorbGained_ << ",\"absorb\":" << absorb_
+            << ",\"selfHealed\":" << selfHealed_ << ",\"selfHealSeconds\":" << selfHealSeconds_
+            << ",\"phaseAvoided\":" << player.GetSurvivorPhaseAvoided() << ",\"orbDamage\":" << orbDamage_
+            << ",\"orbBounces\":" << orbBounces_ << ",\"lanceDamage\":" << lanceDamage_ << ",\"lanceMaxHits\":" << lanceMaxHits_
+            << ",\"primaryShots\":" << player.GetPrimaryAttackCount() << "}"
             << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false") << ",\"weaponSwaps\":" << weaponSwaps_ << ",\"reloads\":" << reloads_ << ",\"lockedAttacks\":" << autoLockedAttacks_
             << ",\"lockedSeconds\":" << autoLockedSeconds_ << ",\"emptyAttacks\":" << autoEmptyAttacks_ << ",\"emptySeconds\":" << autoEmptySeconds_
             << ",\"reserves\":[" << reserves_[0] << "," << reserves_[1] << "," << reserves_[2] << "],\"swapMeasured\":[" << autoSwapMeasured_[0] << ","

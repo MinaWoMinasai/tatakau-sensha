@@ -653,6 +653,25 @@ public:
     {
         survivorMoveScale_ = (std::max)(0.0f, scale);
     }
+
+    /// @brief 機体の「消える移動」：seconds 秒、敵・敵の弾・床の危険に触れても押されず、傷つかない。
+    void StartSurvivorPhase(float seconds)
+    {
+        survivorPhaseTimer_ = (std::max)(survivorPhaseTimer_, seconds);
+        survivorPhaseTouched_.clear();
+    }
+
+    bool IsSurvivorPhased() const
+    {
+        return survivorPhaseTimer_ > 0.0f;
+    }
+
+    /// @brief 消える移動の間に、すり抜けた敵・敵の弾・床の危険の数（同じ相手は1回の移動で1回だけ数える）。
+    uint32_t GetSurvivorPhaseAvoided() const
+    {
+        return survivorPhaseAvoided_;
+    }
+
     /// @brief 自動操作で、右クリック（形態の技）を押し続けているかを渡す。
     void SetDemoSpecialHold(bool held)
     {
@@ -1192,6 +1211,12 @@ private:
     bool survivorFireLocked_ = false;
     // 機体の「走る」の間の、移動の速さの倍率。
     float survivorMoveScale_ = 1.0f;
+    // 機体の「消える移動」の残りの秒・すり抜けた数・今の移動ですり抜けた相手。
+    float survivorPhaseTimer_ = 0.0f;
+    uint32_t survivorPhaseAvoided_ = 0;
+    std::vector<uint64_t> survivorPhaseTouched_;
+    /// @brief 消える移動の間なら、すり抜けた相手を数えて真を返す（id 0 は床の危険）。
+    bool AvoidBySurvivorPhase(uint64_t id);
     SurvivorPartEffects partEffects_{};
     float loaderRamp_ = 0.0f;
     uint32_t critShots_ = 0;

@@ -197,6 +197,9 @@ void Player::Initialize(myEngine::Object3d* object, const myEngine::Vector3& pos
     const bool baseline = GetEnvironmentVariableW(L"MYENGINE_STARTUP_CACHE", startupCacheFlag, 8) > 0 && startupCacheFlag[0] == L'0';
     ui_->arenaUiEnabled_ = arenaUi || baseline;
     survivorMoveScale_ = 1.0f;
+    survivorPhaseTimer_ = 0.0f;
+    survivorPhaseAvoided_ = 0;
+    survivorPhaseTouched_.clear();
 
     object_ = object;
     baseVehicleColor_ = object_->GetColor();
@@ -303,6 +306,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     recentDashTimer_ = (std::max)(0.0f, recentDashTimer_ - deltaTime);
 
     invincibleTimer_ -= deltaTime;
+    survivorPhaseTimer_ = (std::max)(0.0f, survivorPhaseTimer_ - deltaTime);
     if (shieldConfig_.enabled && !isDead_) {
         const float shieldMax = GetShieldMax();
         if (shieldRegenWait_ > 0.0f) {
@@ -607,6 +611,13 @@ void Player::OnCollision(Collider* other)
         stealthTimer_ = 0.0f;
     }
 
+    // 機体の消える移動の間は、押されもせず傷つきもしない（すり抜ける）。
+    if ((other->GetCollisionAttribute() == kCollisionAttributeEnemy || other->GetCollisionAttribute() == kCollisionAttributeExpEnemy ||
+         other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) &&
+        AvoidBySurvivorPhase(other->GetCollisionId())) {
+        return;
+    }
+
     if ((invincibleTimer_ > 0.0f && !isDashing_) || isJustEvaded_ || isSmash_) {
         // 無敵中に敵の弾を受けてもノックバックしない
         if (other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
@@ -646,6 +657,9 @@ uint32_t Player::ReceiveHostileHazard(uint32_t amount, bool dodgeable)
     if (isDead_ || amount == 0) {
         return 0;
     }
+    if (AvoidBySurvivorPhase(0)) {
+        return 0;
+    }
     if (currentClass_ == ClassType::Assassin) {
         isStealth_ = false;
         stealthTimer_ = 0.0f;
@@ -659,6 +673,18 @@ uint32_t Player::ReceiveHostileHazard(uint32_t amount, bool dodgeable)
     const int before = hp_;
     TakeDamage(amount, 0.45f);
     return static_cast<uint32_t>((std::max)(0, before - hp_));
+}
+
+bool Player::AvoidBySurvivorPhase(uint64_t id)
+{
+    if (survivorPhaseTimer_ <= 0.0f) {
+        return false;
+    }
+    if (std::find(survivorPhaseTouched_.begin(), survivorPhaseTouched_.end(), id) == survivorPhaseTouched_.end()) {
+        survivorPhaseTouched_.push_back(id);
+        ++survivorPhaseAvoided_;
+    }
+    return true;
 }
 
 bool Player::TryDashImpact(Collider* target)
@@ -735,7 +761,8 @@ void Player::Damage(uint32_t amount)
 
 void Player::TakeDamage(uint32_t amount, float invincibleTime)
 {
-    if (isDead_ || amount == 0 || invincibleTimer_ > 0.0f || debugNoDamage_) {
+    // 機体の消える移動の間は、どこから来た攻撃も受けない（数えるのは OnCollision と ReceiveHostileHazard）。
+    if (isDead_ || amount == 0 || invincibleTimer_ > 0.0f || debugNoDamage_ || survivorPhaseTimer_ > 0.0f) {
         return;
     }
     if (saberCounterTimer_ > 0.0f) {

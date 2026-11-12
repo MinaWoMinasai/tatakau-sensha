@@ -67,6 +67,10 @@ void SurvivorRunController::StartNextStage()
     if (HeroMode()) {
         abilityCooldown_.fill(0.0f);
         sprintTimer_ = 0.0f;
+        phaseTimer_ = 0.0f;
+        orbTimer_ = 0.0f;
+        lanceTimer_ = 0.0f;
+        beamTarget_ = 0;
         player.SetSurvivorMoveScale(1.0f);
     }
     const std::string name = IsBossStage() ? std::string("ボスステージ") : "ステージ " + std::to_string(stage_ + 1);

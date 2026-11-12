@@ -807,7 +807,8 @@ void SurvivorRunController::UpdateWeaponTimers(float dt)
             StartReload();
         }
     }
-    player.SetSurvivorFireLocked(swapTarget_ >= 0 || reloadTimer_ >= 0.0f);
+    // 主武器が吸い付く光線の機体は、主武器の弾を撃たない（光線は UpdateDrainBeam が出す）。
+    player.SetSurvivorFireLocked(swapTarget_ >= 0 || reloadTimer_ >= 0.0f || HeroBeamPrimary());
 }
 
 void SurvivorRunController::SyncAmmoFromPlayer()

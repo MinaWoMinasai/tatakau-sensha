@@ -449,7 +449,7 @@ private:
     int ultimateFills_ = 0;
     float ultimatePulse_ = 0.0f;
     /// @brief 回復の場の輪と、弾幕の間の自機のまわりの輪を積む。
-    void QueueHeroVisuals(myEngine::NeonGridRenderer& renderer) const;
+    void QueueHeroVisuals(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraForward) const;
     /// @brief 弾幕：狙う範囲の中の近い敵を順に選んで、決まった間隔で撃つ。dt は区画の時間。
     void UpdateBarrage(float dt, const survivor::AbilityDefinition& ability);
     /// @brief 回復の場：中にいる間、最大HPの割合ずつ回復する。dt は区画の時間。
@@ -473,8 +473,74 @@ private:
     float healZoneInsideSeconds_ = 0.0f;
     int barrageShots_ = 0;
     float barrageSeconds_ = 0.0f;
+
+    // モイラ型（計画書 p4 の K2）：吸い付く光線・吸収ゲージで回復・消える移動・跳ねる球・太い光線。
+    /// @brief 主武器が技の部品（吸い付く光線）か。真なら主武器の弾は撃たない。
+    bool HeroBeamPrimary() const
+    {
+        return HeroMode() && Hero().primaryAbility.kind == survivor::AbilityKind::DrainBeam;
+    }
+
+    /// @brief Q（アルティメット）が効いている間か。間は Q のゲージを溜めない。
+    bool UltimateActive() const
+    {
+        return barrageTimer_ > 0.0f || lanceTimer_ > 0.0f;
+    }
+
+    /// @brief 主砲1発の威力に倍率を掛けた、機体の技の威力（毎秒の威力にも使う）。
+    float HeroDamageUnit(float scale) const;
+    /// @brief 機体の技で、敵（ExpEnemy か宿敵）に直接ダメージを与える。与えた量を返す（倒れていれば0）。
+    uint32_t DealHeroDamage(Collider* target, bool rival, uint32_t amount, const myEngine::Vector3& from);
+    /// @brief 吸収ゲージを amount 秒ぶん溜める（上限は自分を回復の duration）。
+    void AddAbsorb(float amount);
+    void UpdateDrainBeam(float dt, const survivor::AbilityDefinition& ability);
+    void UpdateSelfHeal(float dt, const survivor::AbilityDefinition& ability);
+    void UpdateBounceOrb(float dt, const survivor::AbilityDefinition& ability);
+    void UpdateLance(float dt, const survivor::AbilityDefinition& ability);
+    // 左クリック・右クリックを押しているか（押している間の技。UpdateHeroInput で見る）。
+    bool primaryHeld_ = false;
+    bool secondaryHeld_ = false;
+    // 吸収ゲージ（秒）。吸い付く光線：吸い付いている敵の id（0 は無し、宿敵は ~0）、次に与えるまでの秒、光線の先の位置。
+    float absorb_ = 0.0f;
+    uint64_t beamTarget_ = 0;
+    float beamTick_ = 0.0f;
+    bool beamOn_ = false;
+    myEngine::Vector3 beamEnd_{};
+    float beamAge_ = 0.0f;
+    // 自分を回復：端数の回復と、効いているか（表示）。
+    float selfHealRemainder_ = 0.0f;
+    bool selfHealOn_ = false;
+    // 消える移動の残りの秒。
+    float phaseTimer_ = 0.0f;
+    // 跳ねる球：残りの秒・位置・速さ（ワールド単位/秒）・次に与えるまでの秒・最後に跳ねた敵の id。
+    float orbTimer_ = 0.0f;
+    myEngine::Vector3 orbPosition_{};
+    myEngine::Vector3 orbVelocity_{};
+    float orbTick_ = 0.0f;
+    uint64_t orbLastBounce_ = 0;
+    // 太い光線：残りの秒・次に与えるまでの秒・効いていた秒。
+    float lanceTimer_ = 0.0f;
+    float lanceTick_ = 0.0f;
+    float lanceAge_ = 0.0f;
+    // モイラ型の記録：光線・球・太い光線で与えた量、溜めた吸収ゲージ（秒）、自分を回復した量と押していた秒、球が跳ねた回数、
+    // 太い光線が一度に当てた一番多い数、光線が吸い付いていた秒。
+    uint64_t drainDamage_ = 0;
+    uint64_t orbDamage_ = 0;
+    uint64_t lanceDamage_ = 0;
+    float absorbGained_ = 0.0f;
+    int selfHealed_ = 0;
+    float selfHealSeconds_ = 0.0f;
+    int orbBounces_ = 0;
+    int lanceMaxHits_ = 0;
+    float beamLockedSeconds_ = 0.0f;
     // 自動確認のボットが、このフレームに押したことにする技の枠。
     std::array<bool, survivor::kAbilitySlotCount> autoHeroPress_{};
+    // 自動確認のボットが、右クリック（押している間の技）を押し続けているか。
+    bool autoSecondaryHold_ = false;
+    bool autoOrbCaptured_ = false;
+    bool autoLanceCaptured_ = false;
+    bool autoBeamCaptured_ = false;
+    bool autoPhaseCaptured_ = false;
     // 走っている間の画面を保存したか。走っている間とそうでない間に動いた距離と秒（平均の速さを出す。ワールド単位）。
     bool autoHeroCaptured_ = false;
     bool autoHealCaptured_ = false;

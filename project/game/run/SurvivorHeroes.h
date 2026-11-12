@@ -16,12 +16,20 @@ inline constexpr size_t kAbilitySlotCount = static_cast<size_t>(AbilitySlot::Cou
 
 /// @brief 技の部品の種類（計画書 p4 の4章）。
 enum class AbilityKind {
-    None,     // 何もしない（空きの枠）
-    Sprint,   // 走る：duration 秒、移動の速さを power 倍にする
-    Barrier,  // バリア：押している間、扇のバリアを張る（設定の barrier とスタミナを使う）。待ち時間は使わない
-    Rocket,   // 爆発する弾：照準の方へ1発。威力は主砲1発の power 倍、当たると半径 radius で爆発する
-    HealZone, // 回復の場：使った場所に半径 radius の場を duration 秒置き、中にいる間は毎秒 最大HPの power 倍を回復する
-    Barrage,  // 自動で狙う弾幕：duration 秒、半径 radius の中の敵へ毎秒 rate 発、主砲1発の power 倍の弾を撃つ（熱は使わない）
+    None,      // 何もしない（空きの枠）
+    Sprint,    // 走る：duration 秒、移動の速さを power 倍にする
+    Barrier,   // バリア：押している間、扇のバリアを張る（設定の barrier とスタミナを使う）。待ち時間は使わない
+    Rocket,    // 爆発する弾：照準の方へ1発。威力は主砲1発の power 倍、当たると半径 radius で爆発する
+    HealZone,  // 回復の場：使った場所に半径 radius の場を duration 秒置き、中にいる間は毎秒 最大HPの power 倍を回復する
+    Barrage,   // 自動で狙う弾幕：duration 秒、半径 radius の中の敵へ毎秒 rate 発、主砲1発の power 倍の弾を撃つ（熱は使わない）
+    DrainBeam, // 吸い付く光線（主武器）：押している間、照準の近くで届く距離 radius の中の敵1体に吸い付き、毎秒 主砲1発の power 倍を与える。
+               // 与えた威力1ごとに吸収ゲージを gain 秒ぶん溜める。size は光線の太さ
+    SelfHeal, // 吸収ゲージで自分を回復：押している間、ゲージを毎秒1秒ぶん使い、毎秒 最大HPの power 倍を回復する。ゲージの上限は duration 秒
+    Phase,    // 消える移動：duration 秒、無敵で敵をすり抜け、移動の速さを power 倍にする
+    BounceOrb, // 跳ねる球：duration 秒、毎秒 rate の速さで進み、敵に触れると次の近い敵へ跳ねる。触れている敵に毎秒 主砲1発の power 倍。
+               // size は球の半径
+    Lance,     // 太い光線（Q）：duration 秒、向いている方へ長さ radius・太さ size の光線を出し、触れた敵すべてに毎秒 主砲1発の power 倍。
+               // 与えた威力1ごとに吸収ゲージを gain 秒ぶん溜める
     Count
 };
 
@@ -42,8 +50,8 @@ inline const char* AbilitySlotButton(AbilitySlot slot)
 /// @brief 技の種類の設定での名前。
 inline const char* AbilityKindKey(AbilityKind kind)
 {
-    static constexpr std::array<const char*, static_cast<size_t>(AbilityKind::Count)> kKeys{"none",   "sprint",   "barrier",
-                                                                                            "rocket", "healZone", "barrage"};
+    static constexpr std::array<const char*, static_cast<size_t>(AbilityKind::Count)> kKeys{
+        "none", "sprint", "barrier", "rocket", "healZone", "barrage", "drainBeam", "selfHeal", "phase", "bounceOrb", "lance"};
     return kKeys[static_cast<size_t>(kind)];
 }
 
@@ -61,7 +69,7 @@ inline AbilityKind FindAbilityKind(const std::string& key)
 /// @brief 押している間だけ効く種類か（待ち時間ではなく資源を使う）。
 inline bool IsHeldAbility(AbilityKind kind)
 {
-    return kind == AbilityKind::Barrier;
+    return kind == AbilityKind::Barrier || kind == AbilityKind::SelfHeal || kind == AbilityKind::DrainBeam;
 }
 
 /// @brief 1つの技（部品＋数値）。どの値を使うかは種類で決まる。
@@ -77,8 +85,12 @@ struct AbilityDefinition {
     float power = 1.0f;
     /// @brief 種類ごとの半径（爆発・回復の場・弾幕の狙う範囲。ワールド単位）。
     float radius = 0.0f;
-    /// @brief 1秒あたりの発射数（弾幕）。
+    /// @brief 1秒あたりの発射数（弾幕）・速さ（跳ねる球）。
     float rate = 0.0f;
+    /// @brief 太さ・大きさ（光線の太さ・跳ねる球の半径。ワールド単位）。
+    float size = 0.0f;
+    /// @brief 与えた威力1ごとに溜まる吸収ゲージの秒（吸い付く光線・太い光線）。
+    float gain = 0.0f;
 };
 
 /// @brief 機体（ヒーロー）。主武器は weapons のキーで指し、技は4つの枠に部品を入れる（計画書 p4 の4章）。
@@ -89,6 +101,9 @@ struct HeroDefinition {
     std::string primary = "cannon";
     /// @brief 主武器の1発の熱の倍率の上書き（0 なら武器の値のまま）。弾を数えないので、撃ち続けられる長さはこれで決まる。
     float primaryHeatScale = 0.0f;
+    /// @brief 主武器を技の部品にする（吸い付く光線）。kind が None なら primary の武器で撃つ。
+    /// 部品のときも primary の武器は車体と砲塔の見た目に使い、弾は撃たない。
+    AbilityDefinition primaryAbility{};
     std::array<AbilityDefinition, kAbilitySlotCount> abilities{};
     /// @brief Q のゲージが満タンになるまでに要る量（与えたダメージ＋回復した量）。
     float ultimateCharge = 600.0f;
@@ -102,7 +117,7 @@ struct HeroesConfig {
     std::vector<HeroDefinition> heroes;
 };
 
-/// @brief 設定ファイルが無いときの機体。K0 の仮の機体（試作機）と、ソルジャー型（K1）。
+/// @brief 設定ファイルが無いときの機体。K0 の仮の機体（試作機）と、ソルジャー型（K1）・モイラ型（K2）。
 inline std::vector<HeroDefinition> DefaultHeroes()
 {
     HeroDefinition prototype;
@@ -124,7 +139,21 @@ inline std::vector<HeroDefinition> DefaultHeroes()
     soldier.abilities[static_cast<size_t>(AbilitySlot::Skill)] = {AbilityKind::HealZone, "回復の場", 15.0f, 5.0f, 0.04f, 4.0f};
     soldier.abilities[static_cast<size_t>(AbilitySlot::Ultimate)] = {AbilityKind::Barrage, "弾幕", 0.0f, 5.0f, 0.8f, 18.0f, 14.0f};
     soldier.ultimateCharge = 2000.0f;
-    return {prototype, soldier};
+
+    // モイラ型（計画書 p4 の3章）：近づいて吸い取る。攻める → 吸収ゲージが溜まる → 生き残る。
+    // 群れへの答えは跳ねる球、硬い敵への答えは吸い付く光線。
+    HeroDefinition moira;
+    moira.key = "moira";
+    moira.name = "モイラ型";
+    moira.primary = "beam";
+    moira.primaryAbility = {AbilityKind::DrainBeam, "吸収ビーム", 0.0f, 0.0f, 2.2f, 8.0f, 0.0f, 0.22f, 0.012f};
+    moira.abilities[static_cast<size_t>(AbilitySlot::Secondary)] = {AbilityKind::SelfHeal, "自分を回復", 0.0f, 6.0f, 0.06f};
+    moira.abilities[static_cast<size_t>(AbilitySlot::Mobility)] = {AbilityKind::Phase, "消える移動", 6.0f, 0.8f, 1.6f};
+    moira.abilities[static_cast<size_t>(AbilitySlot::Skill)] = {AbilityKind::BounceOrb, "跳ねる球", 10.0f, 4.0f, 2.0f, 12.0f, 9.0f, 1.1f};
+    moira.abilities[static_cast<size_t>(AbilitySlot::Ultimate)] = {
+        AbilityKind::Lance, "太い光線", 0.0f, 4.0f, 4.0f, 20.0f, 0.0f, 1.4f, 0.006f};
+    moira.ultimateCharge = 1800.0f;
+    return {prototype, soldier, moira};
 }
 
 /// @brief キーから機体の番号を探す。無ければ -1。

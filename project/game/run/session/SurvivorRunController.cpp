@@ -49,6 +49,14 @@ void SurvivorRunController::Initialize()
     if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_HEROES", heroesSwitch, 4) > 0) {
         config_.heroes.enabled = heroesSwitch[0] != L'0';
     }
+    // MYENGINE_SURVIVOR_HERO=キー：出撃する機体を設定の start から替える（K6 で拠点の選ぶ画面にするまでの確認用）。
+    wchar_t heroKey[32]{};
+    if (const DWORD heroLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_HERO", heroKey, 32); heroLength > 0 && heroLength < 32) {
+        config_.heroes.start.clear();
+        for (DWORD i = 0; i < heroLength; ++i) {
+            config_.heroes.start.push_back(static_cast<char>(heroKey[i]));
+        }
+    }
     world_.presentation.heroAbilityReady_.fill(-1.0f);
     world_.presentation.heroUltimateRatio_ = -1.0f;
     // 武器の枠を使う遊び方では、ステージ1の宿敵は出さず、exitOpenSeconds 耐えたら出口を開く（計画書 p3 の G3）。
@@ -757,7 +765,7 @@ void SurvivorRunController::QueueWorldVisuals()
                      arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f, arenacamera::HalfViewHeight() + 2.0f);
     QueueBarrier(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
     QueueEliteRings(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
-    QueueHeroVisuals(*world_.resources.neonGridRenderer_);
+    QueueHeroVisuals(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
     // 予告：輪は自機のまわりに、群れは湧く場所に、赤い破線の円を描く。湧く時刻が近いほど速く点滅する。
     for (const PendingWave& wave : pendingWaves_) {
         const float left = (std::max)(0.0f, wave.at - elapsed_);
