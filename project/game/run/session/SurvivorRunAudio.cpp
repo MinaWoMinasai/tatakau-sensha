@@ -33,6 +33,8 @@ SurvivorRunController::AudioCounters SurvivorRunController::ReadAudioCounters() 
     counters.bossDefeated = rivalDefeated_;
     counters.abilityUses = abilityUses_;
     counters.ultimateFills = ultimateFills_;
+    counters.barrageShots = barrageShots_;
+    counters.rocketBlasts = rocketBlasts_;
     return counters;
 }
 
@@ -76,6 +78,13 @@ void SurvivorRunController::UpdateAudio(float dt)
                     audio_.Play("ability");
                 }
             }
+        }
+        // 弾幕の発射（無ければふつうの発射の音）とロケットの爆発。
+        if (now.barrageShots > before.barrageShots && !audio_.Play("fire_barrage")) {
+            audio_.Play("fire");
+        }
+        if (now.rocketBlasts > before.rocketBlasts) {
+            audio_.Play("explosion");
         }
         if (now.ultimateFills > before.ultimateFills) {
             audio_.Play("ultimate_ready");

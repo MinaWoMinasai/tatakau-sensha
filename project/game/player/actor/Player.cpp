@@ -829,6 +829,15 @@ float Player::FireSurvivorHeatVent(float damagePerHeat)
     return heat;
 }
 
+bool Player::FireSurvivorShot(const SurvivorShot& shot)
+{
+    if (!runBulletManager_ || !playerWeapons_ || isDead_) {
+        return false;
+    }
+    playerWeapons_->FireSurvivorShot(runBulletManager_, shot);
+    return true;
+}
+
 std::vector<Player::SpecialCombatEvent> Player::ConsumeSpecialCombatEvents()
 {
     auto events = std::move(pendingSpecialCombatEvents_);

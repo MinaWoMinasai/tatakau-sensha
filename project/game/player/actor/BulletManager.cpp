@@ -339,20 +339,29 @@ void BulletManager::NotifyPlayerHit(Bullet& bullet, Collider& target, bool kille
     if (killed) {
         QueueKillBurst(bullet, target.GetWorldPosition());
     }
-    // 試作の榴弾砲：当たった場所で爆発し、まわりの敵にも当てる。
-    if (impactBlastRadius_ > 0.0f) {
+    // 試作の榴弾砲：当たった場所で爆発し、まわりの敵にも当てる。弾ごとの爆発（機体のロケット）があれば、そちらを使う。
+    const bool ownBlast = bullet.GetBlastRadius() > 0.0f;
+    const float blastRadius = ownBlast ? bullet.GetBlastRadius() : impactBlastRadius_;
+    if (ownBlast && killed) {
+        ++shooterStats_.bulletBlastKills;
+    }
+    if (blastRadius > 0.0f) {
         const auto center = target.GetWorldPosition();
-        ++shooterStats_.impactBlasts;
-        BuildEventAt(BuildEventKind::Detonation, center, center, impactBlastRadius_);
+        ++(ownBlast ? shooterStats_.bulletBlasts : shooterStats_.impactBlasts);
+        BuildEventAt(BuildEventKind::Detonation, center, center, blastRadius);
         myEngine::ParticleManager::GetInstance()->EmitNeonDeathEffect(center, impactBlastColor_, {1.6f, 1.1f, 0.4f, 0.0f}, 1.1f);
         for (auto* candidate : LiveCombatTargets()) {
-            if (myEngine::Length(candidate->GetWorldPosition() - center) > impactBlastRadius_ + candidate->GetRadius() ||
+            if (myEngine::Length(candidate->GetWorldPosition() - center) > blastRadius + candidate->GetRadius() ||
                 !HasClearLink(center, candidate->GetWorldPosition())) {
                 continue;
             }
-            const float scale = candidate == &target ? impactBlastCenter_ : impactBlastSplash_;
+            const float scale = candidate == &target ? (ownBlast ? bullet.GetBlastCenter() : impactBlastCenter_)
+                                                     : (ownBlast ? bullet.GetBlastSplash() : impactBlastSplash_);
             if (scale > 0.0f && DamageBuildTarget(candidate, tankshooter::Damage(bullet.GetDamage(), scale), center)) {
                 QueueKillBurst(bullet, candidate->GetWorldPosition());
+                if (ownBlast) {
+                    ++shooterStats_.bulletBlastKills;
+                }
             }
         }
     }

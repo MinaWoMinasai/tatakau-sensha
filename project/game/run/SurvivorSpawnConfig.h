@@ -226,7 +226,7 @@ struct SpawnConfig {
     /// @brief 区画の始めに持っている予備の弾（ライト・ヘビー・エネルギー）。
     std::array<int, kAmmoTypeCount> startReserve{600, 40, 300};
     // 機体（計画書 p4）。heroes.enabled なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、右クリック・Shift・E・Q は機体の技）。
-    HeroesConfig heroes{true, "prototype", DefaultHeroes()};
+    HeroesConfig heroes{true, "soldier", DefaultHeroes()};
     /// @brief 敵が落とす物（お金・素材・弾・チップ・武器）の確率と量（W3）。
     LootConfig loot{};
     /// @brief 素材で作る・進化させる（派生の木）と、レア度の効き（W7）。
@@ -761,6 +761,8 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
                 hero.primary = value.at("primary").get<std::string>();
             }
             number(value, "ultimateCharge", hero.ultimateCharge);
+            number(value, "primaryHeatScale", hero.primaryHeatScale);
+            hero.primaryHeatScale = (std::max)(0.0f, hero.primaryHeatScale);
             hero.ultimateCharge = (std::max)(1.0f, hero.ultimateCharge);
             for (size_t slot = 0; slot < kAbilitySlotCount; ++slot) {
                 const char* slotKey = AbilitySlotKey(static_cast<AbilitySlot>(slot));
@@ -778,6 +780,8 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
                 number(abilityValue, "cooldown", ability.cooldown);
                 number(abilityValue, "duration", ability.duration);
                 number(abilityValue, "power", ability.power);
+                number(abilityValue, "radius", ability.radius);
+                number(abilityValue, "rate", ability.rate);
                 ability.cooldown = (std::max)(0.0f, ability.cooldown);
                 ability.duration = (std::max)(0.0f, ability.duration);
             }
@@ -1229,6 +1233,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         item["name"] = hero.name;
         item["primary"] = hero.primary;
         item["ultimateCharge"] = round(hero.ultimateCharge);
+        item["primaryHeatScale"] = round(hero.primaryHeatScale);
         for (size_t slot = 0; slot < kAbilitySlotCount; ++slot) {
             const auto& ability = hero.abilities[slot];
             auto& abilityItem = item[AbilitySlotKey(static_cast<AbilitySlot>(slot))];
@@ -1237,6 +1242,8 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
             abilityItem["cooldown"] = round(ability.cooldown);
             abilityItem["duration"] = round(ability.duration);
             abilityItem["power"] = round(ability.power);
+            abilityItem["radius"] = round(ability.radius);
+            abilityItem["rate"] = round(ability.rate);
         }
     }
     auto& parts = section("parts");

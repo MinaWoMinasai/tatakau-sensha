@@ -534,6 +534,29 @@ void PlayerWeapons::FireHeatVent(BulletManager* bullets, float heat, float damag
     player_.velocity_ += aim * (-.08f - .08f * (std::min)(fullness, 1.0f));
 }
 
+void PlayerWeapons::FireSurvivorShot(BulletManager* bullets, const Player::SurvivorShot& shot)
+{
+    // 砲身の数によらず、車体の中心から1発だけ撃つ。威力と弾速は今の主砲を基準にする。
+    const auto* config = player_.GetCurrentClassConfig();
+    const myEngine::Vector3 aim = myEngine::NormalizeOr(shot.direction, myEngine::Vector3{1, 0, 0}, .001f);
+    AttackParam param{};
+    param.damage = static_cast<uint32_t>(
+        (std::max)(1.0f, std::round(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * (std::max)(0.0f, shot.damageScale))));
+    param.bulletSpeed = player_.stats_.bulletSpeed * (std::max)(0.05f, shot.speedScale);
+    ApplyRunProjectileRules(param);
+    param.actorPierceCount = (std::max)(shot.pierce, param.actorPierceCount);
+    const myEngine::Vector3 muzzle = player_.GetWorldPosition() + aim * 1.2f;
+    auto bullet = std::make_unique<Bullet>();
+    bullet->Initialize(muzzle, aim * param.bulletSpeed, param.damage, kPlayer, false, param.bulletHp, param.bulletPenetration);
+    bullet->ConfigureGrowth(0, param.actorPierceCount, 0);
+    bullet->ConfigureShooterAbilities(param.shooterChain, param.shooterMark, param.shooterBoomerang, param.shooterKillBurst,
+                                      param.shooterChainPower, param.shooterMarkPower, param.shooterBoomerangPower, param.shooterKillBurstPower);
+    bullet->ConfigureVisualScale(shot.size, shot.size);
+    bullet->ConfigureBlast(shot.blastRadius, shot.blastCenter, shot.blastSplash);
+    bullet->SetColorOverride(shot.color);
+    bullets->Add(std::move(bullet));
+}
+
 void PlayerWeapons::FireRailShot(BulletManager* bullets, float charge, float power)
 {
     const auto* config = player_.GetCurrentClassConfig();

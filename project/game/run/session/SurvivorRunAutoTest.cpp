@@ -340,6 +340,24 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         autoHeroPress_[static_cast<size_t>(AbilitySlot::Mobility)] = abilityCooldown_[static_cast<size_t>(AbilitySlot::Mobility)] <= 0.0f;
         autoHeroPress_[static_cast<size_t>(AbilitySlot::Skill)] = abilityCooldown_[static_cast<size_t>(AbilitySlot::Skill)] <= 0.0f;
         autoHeroPress_[static_cast<size_t>(AbilitySlot::Ultimate)] = ultimateCharge_ >= Hero().ultimateCharge;
+        // 右クリック（押した瞬間の技）：使えて、近くに敵がいれば撃つ。
+        autoHeroPress_[static_cast<size_t>(AbilitySlot::Secondary)] = abilityCooldown_[static_cast<size_t>(AbilitySlot::Secondary)] <= 0.0f &&
+                                                                       world_.resources.enemyManager_->FindNearestEnemy(position, 15.0f) != nullptr;
+        // 回復の場の確認：初めて置く前に HP を半分にする（自動確認は無敵なので、そのままでは回復する分が無い）。
+        if (FindAbility(survivor::AbilityKind::HealZone) && abilityUses_[static_cast<size_t>(AbilitySlot::Skill)] == 0 &&
+            autoHeroPress_[static_cast<size_t>(AbilitySlot::Skill)] && player.GetHp() == player.GetMaxHp()) {
+            player.SpendRunHealth(player.GetMaxHp() / 2);
+        }
+        // 技の画面：回復の場と弾幕を、それぞれ効いている途中で1回ずつ保存する。
+        if (world_.run.tankRunCapturePath_.empty()) {
+            if (!autoHealCaptured_ && healZoneTimer_ > 0.0f && healZoneTimer_ < 3.5f) {
+                RequestCapture("hero_heal");
+                autoHealCaptured_ = true;
+            } else if (!autoBarrageCaptured_ && barrageTimer_ > 0.0f && barrageTimer_ < 3.0f) {
+                RequestCapture("hero_barrage");
+                autoBarrageCaptured_ = true;
+            }
+        }
         // 動こうとしている間（目標が遠い）だけ、動いた距離を走っている間とそうでない間に分けて足す。
         if (dt > 0.0f && autoTestTime_ > 1.0f && length > 2.0f) {
             const float distance = myEngine::Length(myEngine::Vector3{position.x - autoLastPosition_.x, position.y - autoLastPosition_.y, 0.0f});
@@ -383,7 +401,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
     }
     // 不動砲台を持っていれば、6秒のうち2秒は止まって撃つ（止まっている間の威力の確認）。
-    const bool standStill = relics_[static_cast<size_t>(survivor::RelicId::FixedTurret)] && std::fmod(autoTestTime_, 6.0f) < 2.0f;
+    // 機体の回復の場を置いている間も、場の中で止まって撃つ（回復の確認）。
+    const bool standStill = (relics_[static_cast<size_t>(survivor::RelicId::FixedTurret)] && std::fmod(autoTestTime_, 6.0f) < 2.0f) ||
+                            (HeroMode() && healZoneTimer_ > 0.0f && !exitOpen_);
     player.SetDemoInput(true, standStill ? myEngine::Vector2{} : myEngine::Vector2{move.x, move.y}, aim, true, dash);
     autoMaxHeat_ = (std::max)(autoMaxHeat_, player.GetHeat().GetHeat());
 
@@ -826,7 +846,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             loaded.heroes.heroes.size() == config_.heroes.heroes.size() && !config_.heroes.heroes.empty() &&
                             loaded.heroes.heroes[0].abilities[1].cooldown == config_.heroes.heroes[0].abilities[1].cooldown &&
                             loaded.heroes.heroes[0].abilities[1].kind == config_.heroes.heroes[0].abilities[1].kind &&
-                            loaded.heroes.heroes[0].ultimateCharge == config_.heroes.heroes[0].ultimateCharge;
+                            loaded.heroes.heroes[0].ultimateCharge == config_.heroes.heroes[0].ultimateCharge &&
+                            loaded.heroes.heroes.back().abilities[3].rate == config_.heroes.heroes.back().abilities[3].rate &&
+                            loaded.heroes.heroes.back().abilities[2].radius == config_.heroes.heroes.back().abilities[2].radius;
             }
         }
         // 拠点：結果画面で持ち帰ってセーブした物を読み直し、同じになるかを見る。
@@ -922,7 +944,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << abilityCooldownSeen_[2] << "," << abilityCooldownSeen_[3] << "],\"sprintSeconds\":" << sprintSeconds_
             << ",\"walkSpeed\":" << autoMoveDistance_[0] / (std::max)(0.001f, autoMoveSeconds_[0])
             << ",\"sprintSpeed\":" << autoMoveDistance_[1] / (std::max)(0.001f, autoMoveSeconds_[1]) << ",\"ultimateCharge\":" << ultimateCharge_
-            << ",\"ultimateFullAt\":" << ultimateFullAt_ << ",\"ultimateFills\":" << ultimateFills_
+            << ",\"ultimateFullAt\":" << ultimateFullAt_ << ",\"ultimateFills\":" << ultimateFills_ << ",\"rocketBlasts\":" << rocketBlasts_
+            << ",\"rocketKills\":" << rocketKills_ << ",\"healed\":" << healedByZone_ << ",\"healInsideSeconds\":" << healZoneInsideSeconds_
+            << ",\"barrageShots\":" << barrageShots_ << ",\"barrageSeconds\":" << barrageSeconds_ << ",\"overheats\":" << player.GetHeat().GetOverheatCount()
             << ",\"roundsCounted\":" << (player.GetSurvivorRounds() >= 0 ? "true" : "false") << "}"
             << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false") << ",\"weaponSwaps\":" << weaponSwaps_ << ",\"reloads\":" << reloads_ << ",\"lockedAttacks\":" << autoLockedAttacks_
             << ",\"lockedSeconds\":" << autoLockedSeconds_ << ",\"emptyAttacks\":" << autoEmptyAttacks_ << ",\"emptySeconds\":" << autoEmptySeconds_

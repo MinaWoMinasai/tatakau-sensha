@@ -448,10 +448,37 @@ private:
     float ultimateFullAt_ = -1.0f;
     int ultimateFills_ = 0;
     float ultimatePulse_ = 0.0f;
+    /// @brief 回復の場の輪と、弾幕の間の自機のまわりの輪を積む。
+    void QueueHeroVisuals(myEngine::NeonGridRenderer& renderer) const;
+    /// @brief 弾幕：狙う範囲の中の近い敵を順に選んで、決まった間隔で撃つ。dt は区画の時間。
+    void UpdateBarrage(float dt, const survivor::AbilityDefinition& ability);
+    /// @brief 回復の場：中にいる間、最大HPの割合ずつ回復する。dt は区画の時間。
+    void UpdateHealZone(float dt, const survivor::AbilityDefinition& ability);
+    /// @brief kind の技を入れている枠の定義（無ければ nullptr）。
+    const survivor::AbilityDefinition* FindAbility(survivor::AbilityKind kind) const;
+    // 回復の場：置いた位置・残りの秒・端数の回復。弾幕：残りの秒・次の発射までの秒・狙う順番。
+    myEngine::Vector3 healZonePosition_{};
+    float healZoneTimer_ = 0.0f;
+    float healZoneRemainder_ = 0.0f;
+    float healZoneAge_ = 0.0f;
+    float barrageTimer_ = 0.0f;
+    float barrageShotTimer_ = 0.0f;
+    size_t barrageTarget_ = 0;
+    // 技の記録（自動確認と遊んだ記録）：ロケットの爆発と倒した数、回復した量と場の中にいた秒、弾幕の発射数と秒。
+    uint64_t rocketBlasts_ = 0;
+    uint64_t rocketKills_ = 0;
+    uint64_t lastBulletBlasts_ = 0;
+    uint64_t lastBulletBlastKills_ = 0;
+    int healedByZone_ = 0;
+    float healZoneInsideSeconds_ = 0.0f;
+    int barrageShots_ = 0;
+    float barrageSeconds_ = 0.0f;
     // 自動確認のボットが、このフレームに押したことにする技の枠。
     std::array<bool, survivor::kAbilitySlotCount> autoHeroPress_{};
     // 走っている間の画面を保存したか。走っている間とそうでない間に動いた距離と秒（平均の速さを出す。ワールド単位）。
     bool autoHeroCaptured_ = false;
+    bool autoHealCaptured_ = false;
+    bool autoBarrageCaptured_ = false;
     std::array<float, 2> autoMoveDistance_{};
     std::array<float, 2> autoMoveSeconds_{};
     myEngine::Vector3 autoLastPosition_{};
@@ -678,6 +705,8 @@ private:
         bool bossDefeated = false;
         std::array<int, survivor::kAbilitySlotCount> abilityUses{};
         int ultimateFills = 0;
+        int barrageShots = 0;
+        uint64_t rocketBlasts = 0;
     };
     AudioCounters ReadAudioCounters() const;
     /// @brief 回数の増え方から効果音を鳴らし、場面の曲を流す。dt は実時間（止めている間も曲を合わせる）。

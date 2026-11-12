@@ -92,6 +92,10 @@ void SurvivorRunController::SyncSlotWeapons()
                                                                   config_.crafting)
                                             : survivor::WeaponDefinition{};
     }
+    // 機体の主武器は、機体の熱の倍率で上書きする（弾を数えないので、撃ち続けられる長さをここで決める）。
+    if (HeroMode() && weaponSlots_[0] >= 0 && Hero().primaryHeatScale > 0.0f) {
+        slotDefs_[0].heatScale = Hero().primaryHeatScale;
+    }
 }
 
 void SurvivorRunController::OpenBaseScreen()

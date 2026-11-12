@@ -687,6 +687,23 @@ public:
     /// @return 放った熱。弾を撃てなかったら（弾の管理が無いなど）0 で、熱も減らさない。
     /// @note オーバーヒート中でも使え、熱を0に戻すので、オーバーヒートも解ける。
     float FireSurvivorHeatVent(float damagePerHeat);
+    /// @brief 機体の技の弾（ロケット・弾幕）。威力と弾速は今の主砲1発に対する倍率。
+    struct SurvivorShot {
+        myEngine::Vector3 direction{1.0f, 0.0f, 0.0f};
+        float damageScale = 1.0f;
+        float speedScale = 1.0f;
+        /// @brief 弾の大きさと軌跡の太さの倍率（0.5〜2）。
+        float size = 1.0f;
+        /// @brief 当たった場所の爆発（半径0なら無し）と、当たった敵・まわりの敵への倍率。
+        float blastRadius = 0.0f;
+        float blastCenter = 1.0f;
+        float blastSplash = 0.8f;
+        int pierce = 0;
+        /// @brief 弾と軌跡の色（A が0なら今の主砲の色）。
+        myEngine::Vector4 color{0.0f, 0.0f, 0.0f, 0.0f};
+    };
+    /// @brief 機体の技の弾を1発撃つ。熱は使わない。撃てたら真（弾の管理先が無ければ偽）。
+    bool FireSurvivorShot(const SurvivorShot& shot);
     /// @brief 自機の位置で爆発を起こす（緊急放出）。威力は 主砲1発 × damageScale。衝撃放電と同じ爆発の仕組みを使う。
     void TriggerSurvivorBlast(float radius, float damageScale);
 

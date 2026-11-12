@@ -399,6 +399,8 @@ void SurvivorRunController::Initialize()
         StartHero();
         if (HeroMode()) {
             hintTexts_[static_cast<size_t>(Hint::Move)]->SetText(HeroControlsText());
+            // 技の状態の一行は、画面の左下から出す（右端からはみ出さないように）。
+            qText_->SetPosition({24.0f, 676.0f});
         } else {
             StartLoadout();
         }
@@ -755,6 +757,7 @@ void SurvivorRunController::QueueWorldVisuals()
                      arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f, arenacamera::HalfViewHeight() + 2.0f);
     QueueBarrier(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
     QueueEliteRings(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
+    QueueHeroVisuals(*world_.resources.neonGridRenderer_);
     // 予告：輪は自機のまわりに、群れは湧く場所に、赤い破線の円を描く。湧く時刻が近いほど速く点滅する。
     for (const PendingWave& wave : pendingWaves_) {
         const float left = (std::max)(0.0f, wave.at - elapsed_);
