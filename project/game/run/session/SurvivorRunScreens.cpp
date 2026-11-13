@@ -248,22 +248,9 @@ void SurvivorRunController::RefreshInventoryScreen()
 
 void SurvivorRunController::RefreshRestRoom()
 {
-    // 機体の遊び方：波の間の画面（K4 でショップにする）。今は修理と次の波へだけ。
+    // 機体の遊び方：波の間のショップ（K4）。
     if (HeroMode()) {
-        const auto& player = *world_.resources.player_;
-        SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, false);
-        view.title = "波 " + std::to_string(stage_ + 1) + "/" + std::to_string(config_.waves.count) + " おわり";
-        view.help = "HP " + std::to_string(player.GetHp()) + "/" + std::to_string(player.GetMaxHp()) + "（傷 " +
-                    std::to_string(player.GetSurvivorWound()) + "）　／　レベルポイント " + std::to_string(bag_.money) +
-                    "　／　HP は波の間に戻らない。修理で傷を全部と HP を治す";
-        view.gridTitle = "";
-        view.showEmptyCells = false;
-        const bool hurt = player.GetSurvivorWound() > 0 || player.GetHp() < player.GetMaxHp();
-        view.buttons.push_back({"出撃を終える（結果へ）", 0, true});
-        view.buttons.push_back({"次へ：" + (stage_ + 2 == StageCount() ? std::string("ボスの波") : "波 " + std::to_string(stage_ + 2)), 1, true});
-        view.buttons.push_back({"修理 " + std::to_string(config_.health.repairCost) + "：傷を治し HP+" + std::to_string(config_.health.repairHeal), 2,
-                                hurt && bag_.money >= config_.health.repairCost});
-        itemScreen_.Show(view);
+        RefreshShop();
         return;
     }
     SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, !HeroMode());
@@ -474,8 +461,19 @@ void SurvivorRunController::HandleScreenEvent(const SurvivorItemScreen::Event& e
                 if (RepairHero()) {
                     RefreshRestRoom();
                 }
+            } else if (event.source.index == 3) {
+                if (RerollShop()) {
+                    RefreshRestRoom();
+                }
             } else {
                 StartNextStage();
+            }
+            return;
+        }
+        // 機体の遊び方のショップ：並んでいる物をクリックで買う。
+        if (HeroMode()) {
+            if (event.type == EventType::Click && kind == ScreenItem::ShopOffer && BuyOffer(static_cast<size_t>(id))) {
+                RefreshRestRoom();
             }
             return;
         }
@@ -548,6 +546,77 @@ void SurvivorRunController::OpenInventory()
 void SurvivorRunController::CloseInventory()
 {
     inventoryOpen_ = false;
+}
+
+void SurvivorRunController::RefreshShop()
+{
+    const auto& player = *world_.resources.player_;
+    SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, false);
+    // 右の上の列は、レベルポイントだけ（素材は使わない）。
+    view.header.resize(1);
+    view.header[0].title = "レベルポイント";
+    view.header[0].body = "敵を倒すと入る。ショップで技の強化・パーク・修理・引き直しに使う。";
+    view.title = "波 " + std::to_string(stage_ + 1) + "/" + std::to_string(config_.waves.count) + " おわり　─　ショップ";
+    view.help = "HP " + std::to_string(player.GetHp()) + "/" + std::to_string(player.GetMaxHp()) + "（傷 " +
+                std::to_string(player.GetSurvivorWound()) + "）　／　クリックで買う　／　HP は波の間に戻らない。修理で傷を全部と HP を治す";
+    view.gridTitle = "並んでいる物";
+    view.showEmptyCells = false;
+    // 左の3枚：今の組み立て（技の段とパーク）。
+    static constexpr std::array<const char*, 3> kCardTitles{"主武器・右クリック", "Shift・E", "Q・パーク"};
+    for (size_t c = 0; c < view.cards.size(); ++c) {
+        auto& card = view.cards[c];
+        card.empty = false;
+        card.name = kCardTitles[c];
+        card.item.icon = c == 0 ? WeaponIcon(Hero().primary) : Icon(c == 1 ? "chip_thruster" : "chip_morale");
+        card.item.color = {0.7f, 0.95f, 1.0f, 1.0f};
+        card.item.title = Hero().name;
+        auto line = [&](int target) {
+            const survivor::AbilityDefinition& ability = UpgradeAbility(target);
+            const std::string name = target == 0 && ability.kind == survivor::AbilityKind::None ? std::string("主武器") : ability.name;
+            return name + "　段" + std::to_string(UpgradeTier(target));
+        };
+        if (c == 0) {
+            card.stats = line(0) + "\n" + line(1);
+        } else if (c == 1) {
+            card.stats = line(2) + "\n" + line(3);
+        } else {
+            // パークは3つごとに改行する（札の右端からはみ出さないように）。
+            std::string perks;
+            int owned = 0;
+            for (size_t i = 0; i < survivor::kPerkCount; ++i) {
+                if (perks_[i]) {
+                    perks += (owned == 0 ? "" : owned % 3 == 0 ? "\n" : "・") + std::string(survivor::GetPerkInfo(static_cast<survivor::PerkId>(i)).name);
+                    ++owned;
+                }
+            }
+            card.stats = line(4) + "\n" + (perks.empty() ? std::string("パークなし") : perks);
+        }
+        card.item.body = card.stats;
+    }
+    static constexpr std::array<const char*, survivor::kUpgradeTargets> kUpgradeIcons{"chip_warhead", "chip_heavyWarhead", "chip_thruster",
+                                                                                      "chip_collector", "chip_chainLightning"};
+    for (size_t i = 0; i < shopOffers_.size(); ++i) {
+        const ShopOffer& offer = shopOffers_[i];
+        const int price = OfferPrice(offer);
+        Item item;
+        item.icon = Icon(offer.upgrade ? kUpgradeIcons[static_cast<size_t>(offer.index)] : "chip_default");
+        item.color = offer.upgrade ? myEngine::Vector4{0.55f, 0.95f, 1.0f, 1.0f} : myEngine::Vector4{1.0f, 0.75f, 0.35f, 1.0f};
+        item.count = price;
+        item.dim = bag_.money < price;
+        item.kind = static_cast<int>(ScreenItem::ShopOffer);
+        item.id = static_cast<int>(i);
+        item.title = OfferName(offer) + "　" + std::to_string(price);
+        item.body = OfferText(offer);
+        item.actions = bag_.money >= price ? "クリック：買う" : "レベルポイントが足りない";
+        view.grid.push_back(item);
+    }
+    const bool hurt = player.GetSurvivorWound() > 0 || player.GetHp() < player.GetMaxHp();
+    view.buttons.push_back({"出撃を終える（結果へ）", 0, true});
+    view.buttons.push_back({"次へ：" + (stage_ + 2 == StageCount() ? std::string("ボスの波") : "波 " + std::to_string(stage_ + 2)), 1, true});
+    view.buttons.push_back({"修理 " + std::to_string(config_.health.repairCost) + "：傷を治し HP+" + std::to_string(config_.health.repairHeal), 2,
+                            hurt && bag_.money >= config_.health.repairCost});
+    view.buttons.push_back({"引き直す " + std::to_string(RerollPrice()), 3, bag_.money >= RerollPrice()});
+    itemScreen_.Show(view);
 }
 
 } // namespace gameplay

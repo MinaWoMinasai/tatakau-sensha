@@ -96,6 +96,18 @@ void SurvivorRunController::SyncSlotWeapons()
     if (HeroMode() && weaponSlots_[0] >= 0 && Hero().primaryHeatScale > 0.0f) {
         slotDefs_[0].heatScale = Hero().primaryHeatScale;
     }
+    // ショップの強化とパーク（K4）：主武器の威力、3段目の小さな爆発、冷却材の熱。
+    if (HeroMode() && weaponSlots_[0] >= 0) {
+        slotDefs_[0].damageScale *= heroPrimaryDamage_;
+        if (heroPrimaryBlast_ > 0.0f && slotDefs_[0].blastRadius <= 0.0f) {
+            slotDefs_[0].blastRadius = heroPrimaryBlast_;
+            slotDefs_[0].blastCenter = 1.0f;
+            slotDefs_[0].blastSplash = 0.5f;
+        }
+        if (HasPerk(survivor::PerkId::Coolant)) {
+            slotDefs_[0].heatScale *= PerkValue(survivor::PerkId::Coolant);
+        }
+    }
 }
 
 void SurvivorRunController::OpenBaseScreen()

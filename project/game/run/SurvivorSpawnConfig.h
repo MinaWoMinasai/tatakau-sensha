@@ -9,6 +9,7 @@
 #include "game/run/SurvivorCrafting.h"
 #include "game/run/SurvivorForms.h"
 #include "game/run/SurvivorHeroes.h"
+#include "game/run/SurvivorShop.h"
 #include "game/run/SurvivorLoot.h"
 #include "game/run/SurvivorParts.h"
 #include "game/run/SurvivorWeapons.h"
@@ -277,6 +278,8 @@ struct SpawnConfig {
         int repairHeal = 30;
     };
     HealthConfig health{};
+    /// @brief 波の間のショップ（計画書 p4 の K4）。
+    ShopConfig shop{};
 
     /// @brief 右クリックのバリアとスタミナ（計画書 p3 の X3）。武器の枠を使う遊び方だけ。
     /// @note radius と arcDegrees は扇の半径と開き。張っている間は drainPerSecond ずつ減り、弾を止めると hitCost、敵に触れていると1体ごとに
@@ -888,6 +891,32 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             config.waves.enemyHp.push_back(1.0f);
         }
     }
+    if (data.contains("shop") && data.at("shop").is_object()) {
+        const auto& shop = data.at("shop");
+        number(shop, "offerCount", config.shop.offerCount);
+        number(shop, "rerollCost", config.shop.rerollCost);
+        number(shop, "rerollStep", config.shop.rerollStep);
+        if (shop.contains("upgradePrices") && shop.at("upgradePrices").is_array()) {
+            for (size_t i = 0; i < config.shop.upgradePrices.size() && i < shop.at("upgradePrices").size(); ++i) {
+                if (shop.at("upgradePrices")[i].is_number()) {
+                    config.shop.upgradePrices[i] = (std::max)(0, shop.at("upgradePrices")[i].get<int>());
+                }
+            }
+        }
+        if (shop.contains("perks") && shop.at("perks").is_object()) {
+            for (const auto& item : shop.at("perks").items()) {
+                const PerkId perk = FindPerk(item.key());
+                if (perk == PerkId::Count || !item.value().is_object()) {
+                    continue;
+                }
+                number(item.value(), "price", config.shop.perkPrices[static_cast<size_t>(perk)]);
+                number(item.value(), "value", config.shop.perkValues[static_cast<size_t>(perk)]);
+            }
+        }
+        config.shop.offerCount = (std::clamp)(config.shop.offerCount, 1, 8);
+        config.shop.rerollCost = (std::max)(0, config.shop.rerollCost);
+        config.shop.rerollStep = (std::max)(0, config.shop.rerollStep);
+    }
     if (data.contains("health") && data.at("health").is_object()) {
         const auto& health = data.at("health");
         number(health, "maxHitRatio", config.health.maxHitRatio);
@@ -1429,6 +1458,19 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     health["woundRatio"] = round(config.health.woundRatio);
     health["repairCost"] = config.health.repairCost;
     health["repairHeal"] = config.health.repairHeal;
+    auto& shop = section("shop");
+    shop["offerCount"] = config.shop.offerCount;
+    shop["rerollCost"] = config.shop.rerollCost;
+    shop["rerollStep"] = config.shop.rerollStep;
+    shop["upgradePrices"] = nlohmann::json::array();
+    for (int price : config.shop.upgradePrices) {
+        shop["upgradePrices"].push_back(price);
+    }
+    for (size_t i = 0; i < kPerkCount; ++i) {
+        auto& perk = shop["perks"][GetPerkInfo(static_cast<PerkId>(i)).key];
+        perk["price"] = config.shop.perkPrices[i];
+        perk["value"] = round(config.shop.perkValues[i]);
+    }
     auto& barrier = section("barrier");
     barrier["radius"] = round(config.barrier.radius);
     barrier["arcDegrees"] = round(config.barrier.arcDegrees);
@@ -1570,10 +1612,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 38> kOrder{
+    static constexpr std::array<const char*, 39> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "weapons",       "heroes",        "loot",          "crafting",      "stages",        "waves",         "health",        "barrier",       "elites",        "audio",         "glow",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
+        "heat",          "shield",    "forms",           "weapons",       "heroes",        "loot",          "crafting",      "stages",        "waves",         "health",        "shop",        "barrier",       "elites",        "audio",         "glow",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
         "partTuning",    "bigPentagon", "damageNumbers"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {

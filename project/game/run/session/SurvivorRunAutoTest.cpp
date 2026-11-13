@@ -176,12 +176,36 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         if (autoRestState_ == 0) {
             RequestCapture(HeroMode() ? "wave_break" : "rest_room");
             autoRestState_ = 1;
-        } else if (autoRestState_ == 1 && HeroMode()) {
-            // 機体の遊び方の波の間：修理を押せれば押し（体力の決まりの確認で傷が付いている）、画面を保存する。
-            const myEngine::Vector2 repair = itemScreen_.CenterOf({SurvivorItemScreen::Zone::Button, 2});
-            DriveScreenPointer(repair, false, false, 0);
-            DriveScreenPointer(repair, true, false, 0);
-            DriveScreenPointer(repair, false, false, 0);
+        } else if ((autoRestState_ == 1 || autoRestState_ == 4) && HeroMode()) {
+            // 機体の遊び方の波の間（ショップ）：修理を押せれば押し（体力の決まりの確認で傷が付いている）、
+            // 買える物を安い順に買い、残りが多ければ3回まで引き直してまた買う。画面を保存する（波の間ごとに毎回）。
+            auto click = [this](const SurvivorItemScreen::Hit& hit) {
+                const myEngine::Vector2 at = itemScreen_.CenterOf(hit);
+                DriveScreenPointer(at, false, false, 0);
+                DriveScreenPointer(at, true, false, 0);
+                DriveScreenPointer(at, false, false, 0);
+            };
+            click({SurvivorItemScreen::Zone::Button, 2});
+            auto buyAll = [&] {
+                for (int guard = 0; guard < 12; ++guard) {
+                    int cheapest = -1;
+                    for (size_t i = 0; i < shopOffers_.size(); ++i) {
+                        const int price = OfferPrice(shopOffers_[i]);
+                        if (price <= bag_.money && (cheapest < 0 || price < OfferPrice(shopOffers_[static_cast<size_t>(cheapest)]))) {
+                            cheapest = static_cast<int>(i);
+                        }
+                    }
+                    if (cheapest < 0) {
+                        return;
+                    }
+                    click({SurvivorItemScreen::Zone::Grid, cheapest});
+                }
+            };
+            buyAll();
+            for (int reroll = 0; reroll < 3 && bag_.money >= RerollPrice() + 150; ++reroll) {
+                click({SurvivorItemScreen::Zone::Button, 3});
+                buyAll();
+            }
             RequestCapture("wave_break_after");
             autoRestState_ = 2;
         } else if (autoRestState_ == 1) {
@@ -1023,6 +1047,22 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                    }
                    return records.str();
                }() << "]}"
+            << ",\"shop\":{\"spent\":" << shopSpent_ << ",\"rerolls\":" << shopRerollsTotal_ << ",\"tiers\":[" << upgradeTiers_[0] << ","
+            << upgradeTiers_[1] << "," << upgradeTiers_[2] << "," << upgradeTiers_[3] << "," << upgradeTiers_[4] << "],\"perks\":\"" << [&] {
+                   std::string names;
+                   for (size_t i = 0; i < survivor::kPerkCount; ++i) {
+                       if (perks_[i]) {
+                           names += std::string(names.empty() ? "" : " ") + survivor::GetPerkInfo(static_cast<survivor::PerkId>(i)).key;
+                       }
+                   }
+                   return names;
+               }() << "\",\"bought\":[" << [&] {
+                   std::ostringstream bought;
+                   for (size_t i = 0; i < shopLog_.size(); ++i) {
+                       bought << (i ? "," : "") << "\"" << shopLog_[i] << "\"";
+                   }
+                   return bought.str();
+               }() << "],\"maxHp\":" << player.GetMaxHp() << "}"
             << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false") << ",\"weaponSwaps\":" << weaponSwaps_ << ",\"reloads\":" << reloads_ << ",\"lockedAttacks\":" << autoLockedAttacks_
             << ",\"lockedSeconds\":" << autoLockedSeconds_ << ",\"emptyAttacks\":" << autoEmptyAttacks_ << ",\"emptySeconds\":" << autoEmptySeconds_
             << ",\"reserves\":[" << reserves_[0] << "," << reserves_[1] << "," << reserves_[2] << "],\"swapMeasured\":[" << autoSwapMeasured_[0] << ","

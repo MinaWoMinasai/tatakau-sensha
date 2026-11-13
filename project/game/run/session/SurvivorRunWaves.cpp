@@ -69,6 +69,9 @@ void SurvivorRunController::FinishWave()
         world_.combatFlow->EnterResultState(true);
         return;
     }
+    // ショップの並ぶ物は波ごとに引き直す（引き直しの値段も戻す）。
+    shopRerolls_ = 0;
+    RollShop();
     OpenRestRoom();
     world_.combatFlow->SetEventCallout("波 " + std::to_string(stage_ + 1) + " をしのいだ", 1.4f);
 }

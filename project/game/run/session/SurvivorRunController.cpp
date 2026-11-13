@@ -103,6 +103,12 @@ void SurvivorRunController::Initialize()
         // 機体の遊び方では、欠片の量は倒した敵の種類ごとのレベルポイント（H2）。
         if (HeroMode()) {
             value = static_cast<uint32_t>((std::max)(0, WavePoints(enemy)));
+            // パーク「連鎖の冷却」：倒すたびに、技の待ち時間を縮める。
+            if (HasPerk(survivor::PerkId::KillCooldown)) {
+                for (float& cooldown : abilityCooldown_) {
+                    cooldown = (std::max)(0.0f, cooldown - PerkValue(survivor::PerkId::KillCooldown));
+                }
+            }
         }
         pickups_.Drop(enemy.GetWorldPosition(), value, random_);
         expDropped_ += static_cast<int>(value);
@@ -261,6 +267,15 @@ void SurvivorRunController::Initialize()
         damageNumbers_.Spawn(enemy.GetCollisionId(), enemy.GetWorldPosition(), amount,
                              world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
         AddUltimateCharge(static_cast<float>(amount));
+        // パーク「吸い取る装甲」：与えたダメージの一部で回復する（端数は貯める。衝突処理の途中なので HP を足すだけ）。
+        if (HasPerk(survivor::PerkId::Lifesteal)) {
+            lifestealRemainder_ += static_cast<float>(amount) * PerkValue(survivor::PerkId::Lifesteal);
+            const int heal = static_cast<int>(lifestealRemainder_);
+            if (heal > 0) {
+                lifestealRemainder_ -= static_cast<float>(heal);
+                world_.resources.player_->HealRunPlayer(heal);
+            }
+        }
     });
     Enemy::SetDamageCallback([this](const myEngine::Vector3& position, uint32_t amount) {
         damageNumbers_.Spawn(0, position, amount, world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
@@ -502,7 +517,8 @@ void SurvivorRunController::Update(float dt)
         }
         myEngine::RuntimeProfiler::CpuScope shardScope("Survivor Shards / Q / Separation");
         AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
-                                      survivor::CollectorMagnetScale(config_.parts, partLevels_),
+                                      survivor::CollectorMagnetScale(config_.parts, partLevels_) *
+                                          (HasPerk(survivor::PerkId::Magnet) ? 1.0f + PerkValue(survivor::PerkId::Magnet) : 1.0f),
                                       survivor::HasChange(partLevels_, survivor::PartId::Collector)));
         if (WeaponMode()) {
             UpdateLoot(gameDt);

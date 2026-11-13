@@ -194,10 +194,10 @@ void SurvivorItemScreen::Initialize(const std::vector<std::string>& icons)
     }
     for (size_t i = 0; i < buttonPanels_.size(); ++i) {
         const float width = (kRightWidth - 36.0f - 12.0f) / 2.0f;
-        const float x = kGridLeft + static_cast<float>(i) * (width + 12.0f);
-        const float y = kButtonTop + (i == 2 ? kButtonHeight + 6.0f : 0.0f);
-        buttonPanels_[i] = Panel({i == 2 ? kGridLeft : x, y}, {width, kButtonHeight}, {0.08f, 0.26f, 0.30f, 0.95f});
-        buttonLabels_[i] = Label({(i == 2 ? kGridLeft : x) + width * 0.5f, y + kButtonHeight * 0.5f}, 18.0f, true, {1.0f, 1.0f, 1.0f, 1.0f});
+        const float x = kGridLeft + static_cast<float>(i % 2) * (width + 12.0f);
+        const float y = kButtonTop + static_cast<float>(i / 2) * (kButtonHeight + 6.0f);
+        buttonPanels_[i] = Panel({x, y}, {width, kButtonHeight}, {0.08f, 0.26f, 0.30f, 0.95f});
+        buttonLabels_[i] = Label({x + width * 0.5f, y + kButtonHeight * 0.5f}, 18.0f, true, {1.0f, 1.0f, 1.0f, 1.0f});
         buttonLabels_[i]->SetAnchorPoint({0.5f, 0.5f});
     }
     hoverMark_ = Panel({0.0f, 0.0f}, {kCell, kCell}, {0.5f, 1.0f, 0.95f, 0.28f});

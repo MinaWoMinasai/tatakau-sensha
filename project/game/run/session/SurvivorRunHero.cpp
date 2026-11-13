@@ -28,6 +28,9 @@ void SurvivorRunController::StartHero()
         return;
     }
     hero_ = static_cast<int>(index);
+    heroDef_ = config_.heroes.heroes[index];
+    upgradeTiers_.fill(0);
+    perks_.fill(false);
     // 枠は1つ目だけを使う（コモン・チップなし）。弾は数えない（LoadAmmoToPlayer）。
     for (size_t i = 0; i < weaponSlots_.size(); ++i) {
         runSlots_[i] = {};
@@ -44,7 +47,7 @@ void SurvivorRunController::StartHero()
     RefreshWeaponSlots();
     ResetHeroState();
     // 機体の最大HP（満タンにする）と、体力の決まり（H6・H7）。
-    world_.resources.player_->SetSurvivorMaxHp(Hero().maxHp);
+    RebuildHero(true);
     ApplyHeroHealthRules();
 }
 
@@ -124,6 +127,10 @@ bool SurvivorRunController::UseAbility(AbilitySlot slot)
     switch (ability.kind) {
     case AbilityKind::Sprint:
         sprintTimer_ = ability.duration;
+        // 強化の3段目：走り出すと熱が0に戻る。
+        if (UpgradeTier(static_cast<int>(index) + 1) >= 3) {
+            player.RestoreHeat({});
+        }
         break;
     case AbilityKind::Rocket: {
         // 照準の方へ、大きく遅めの橙の弾を1発。当たると爆発する。
@@ -136,7 +143,18 @@ bool SurvivorRunController::UseAbility(AbilitySlot slot)
         shot.blastCenter = 1.0f;
         shot.blastSplash = 0.8f;
         shot.color = {2.2f, 0.95f, 0.25f, 1.0f};
-        if (!player.FireSurvivorShot(shot)) {
+        // 強化の3段目：2発を少し開いて撃つ。
+        if (UpgradeTier(static_cast<int>(index) + 1) >= 3) {
+            const myEngine::Vector3 aim = myEngine::NormalizeOr(player.GetDirection(), myEngine::Vector3{1.0f, 0.0f, 0.0f}, 0.001f);
+            bool fired = false;
+            for (float angle : {-0.14f, 0.14f}) {
+                shot.direction = {aim.x * std::cos(angle) - aim.y * std::sin(angle), aim.x * std::sin(angle) + aim.y * std::cos(angle), 0.0f};
+                fired = player.FireSurvivorShot(shot) || fired;
+            }
+            if (!fired) {
+                return false;
+            }
+        } else if (!player.FireSurvivorShot(shot)) {
             return false;
         }
         break;
@@ -154,6 +172,10 @@ bool SurvivorRunController::UseAbility(AbilitySlot slot)
     case AbilityKind::Phase:
         phaseTimer_ = ability.duration;
         player.StartSurvivorPhase(ability.duration);
+        // 強化の3段目：使うと吸収ゲージが溜まる。
+        if (UpgradeTier(static_cast<int>(index) + 1) >= 3) {
+            AddAbsorb(1.5f);
+        }
         break;
     case AbilityKind::BounceOrb: {
         // 照準の方へ球を出す。敵に触れるたびに、次の近い敵へ跳ねる。
@@ -163,6 +185,7 @@ bool SurvivorRunController::UseAbility(AbilitySlot slot)
         orbVelocity_ = aim * ability.rate;
         orbTick_ = 0.0f;
         orbLastBounce_ = 0;
+        orbScale_ = 1.0f;
         break;
     }
     case AbilityKind::Lance:
@@ -195,6 +218,15 @@ void SurvivorRunController::UpdateHeroAbilities(float dt)
         if (const survivor::AbilityDefinition* phase = FindAbility(AbilityKind::Phase); phase && phaseTimer_ > 0.0f) {
             moveScale = (std::max)(moveScale, phase->power);
         }
+        // パーク「消える癒し」：消える移動の終わりに回復する。
+        if (phaseTimer_ <= 0.0f && HasPerk(survivor::PerkId::PhaseHeal)) {
+            auto& player = *world_.resources.player_;
+            player.HealRunPlayer(static_cast<int>(std::round(static_cast<float>(player.GetMaxHp()) * PerkValue(survivor::PerkId::PhaseHeal))));
+        }
+    }
+    // Q の太い光線の強化の3段目：効いている間は速く動ける。
+    if (lanceTimer_ > 0.0f && UpgradeTier(4) >= 3) {
+        moveScale = (std::max)(moveScale, 1.3f);
     }
     if (sprintTimer_ > 0.0f) {
         sprintTimer_ = (std::max)(0.0f, sprintTimer_ - dt);
@@ -205,6 +237,10 @@ void SurvivorRunController::UpdateHeroAbilities(float dt)
         if (sprintTimer_ <= 0.0f) {
             moveScale = phaseTimer_ > 0.0f ? moveScale : 1.0f;
         }
+    }
+    // パーク「軽い足回り」：いつも少し速い。
+    if (HasPerk(survivor::PerkId::Speed)) {
+        moveScale *= 1.0f + PerkValue(survivor::PerkId::Speed);
     }
     world_.resources.player_->SetSurvivorMoveScale(moveScale);
     if (const survivor::AbilityDefinition* zone = FindAbility(AbilityKind::HealZone)) {
@@ -234,6 +270,12 @@ void SurvivorRunController::UpdateHeroAbilities(float dt)
     lastBulletBlastKills_ = (std::min)(lastBulletBlastKills_, shooter.bulletBlastKills);
     rocketBlasts_ += shooter.bulletBlasts - lastBulletBlasts_;
     rocketKills_ += shooter.bulletBlastKills - lastBulletBlastKills_;
+    // パーク「ロケットの再装填」：爆発で倒した数だけ、ロケットの待ち時間を縮める。
+    if (HasPerk(survivor::PerkId::RocketRefund) && shooter.bulletBlastKills > lastBulletBlastKills_) {
+        float& cooldown = abilityCooldown_[static_cast<size_t>(AbilitySlot::Secondary)];
+        cooldown = (std::max)(0.0f, cooldown - PerkValue(survivor::PerkId::RocketRefund) *
+                                                   static_cast<float>(shooter.bulletBlastKills - lastBulletBlastKills_));
+    }
     lastBulletBlasts_ = shooter.bulletBlasts;
     lastBulletBlastKills_ = shooter.bulletBlastKills;
     if (ultimateCharge_ >= Hero().ultimateCharge) {
@@ -267,6 +309,10 @@ void SurvivorRunController::AddUltimateCharge(float amount)
     }
     const float full = Hero().ultimateCharge;
     const bool wasFull = ultimateCharge_ >= full;
+    // パーク「見せ場の予感」：溜まり方が増える。
+    if (HasPerk(survivor::PerkId::UltCharge)) {
+        amount *= 1.0f + PerkValue(survivor::PerkId::UltCharge);
+    }
     ultimateCharge_ = (std::min)(full, ultimateCharge_ + amount);
     if (!wasFull && ultimateCharge_ >= full) {
         ++ultimateFills_;
@@ -296,7 +342,11 @@ void SurvivorRunController::UpdateHealZone(float dt, const survivor::AbilityDefi
     healZoneAge_ += dt;
     auto& player = *world_.resources.player_;
     const myEngine::Vector3 offset = player.GetWorldPosition() - healZonePosition_;
-    if (myEngine::Length(myEngine::Vector3{offset.x, offset.y, 0.0f}) > ability.radius || player.IsDead()) {
+    // 強化の3段目：回復の場が自機について来る。
+    if (const survivor::AbilityDefinition* zone = FindAbility(AbilityKind::HealZone); zone == &ability && UpgradeTier(3) >= 3) {
+        healZonePosition_ = player.GetWorldPosition();
+    }
+    if (myEngine::Length(myEngine::Vector3{offset.x, offset.y, 0.0f}) > ability.radius && UpgradeTier(3) < 3 || player.IsDead()) {
         return;
     }
     healZoneInsideSeconds_ += dt;
@@ -311,6 +361,10 @@ void SurvivorRunController::UpdateHealZone(float dt, const survivor::AbilityDefi
     player.HealRunPlayer(amount);
     const int healed = player.GetHp() - before;
     healedByZone_ += healed;
+    // パーク「野戦の手当て」：回復した量の一部だけ、傷も治る。
+    if (HasPerk(survivor::PerkId::FieldMedic)) {
+        player.ReduceSurvivorWound(static_cast<float>(healed) * PerkValue(survivor::PerkId::FieldMedic));
+    }
     // 回復した量も Q のゲージになる（H5）。
     AddUltimateCharge(static_cast<float>(healed));
 }
@@ -371,6 +425,8 @@ void SurvivorRunController::UpdateBarrage(float dt, const survivor::AbilityDefin
         shot.speedScale = 1.8f;
         shot.size = 0.8f;
         shot.color = {2.2f, 1.7f, 0.35f, 1.0f};
+        // 強化の3段目：弾幕の弾が2体を貫く。
+        shot.pierce = UpgradeTier(4) >= 3 ? 2 : 0;
         if (player.FireSurvivorShot(shot)) {
             ++barrageShots_;
         }
@@ -414,6 +470,9 @@ void SurvivorRunController::QueueHeroVisuals(myEngine::NeonGridRenderer& rendere
         // 太い線は平らな四角だと見る向きで割れて見えるので、カメラを向いた輪郭の線（芯・肩・にじみ）で描く。
         if (beamTarget_ != 0) {
             renderer.QueueContourLine(start, end, width * wobble, {1.5f, 0.55f, 2.0f, 0.95f}, cameraForward);
+            if (beamChainOn_) {
+                renderer.QueueContourLine(end, beamChainEnd_ + lift, width * 0.6f, {1.3f, 0.5f, 1.8f, 0.8f}, cameraForward);
+            }
         } else {
             renderer.QueueContourLine(start, end, width * 0.5f, {0.8f, 0.35f, 1.1f, 0.4f}, cameraForward);
         }
@@ -429,7 +488,7 @@ void SurvivorRunController::QueueHeroVisuals(myEngine::NeonGridRenderer& rendere
     }
     // 跳ねる球：紫の玉（輪を重ねる）。
     if (const survivor::AbilityDefinition* orb = FindAbility(AbilityKind::BounceOrb); orb && orbTimer_ > 0.0f) {
-        const float radius = (std::max)(0.2f, orb->size);
+        const float radius = (std::max)(0.2f, orb->size) * orbScale_;
         circle(orbPosition_, radius, 0.18f, {1.6f, 0.45f, 2.3f, 0.95f}, orbTimer_ * 6.0f);
         circle(orbPosition_, radius * 0.55f, 0.22f, {2.0f, 0.9f, 2.4f, 0.9f}, -orbTimer_ * 9.0f);
     }
@@ -554,6 +613,34 @@ void SurvivorRunController::UpdateDrainBeam(float dt, const survivor::AbilityDef
         const uint32_t dealt = DealHeroDamage(best, bestId == kRivalTarget, amount, origin);
         drainDamage_ += dealt;
         AddAbsorb(static_cast<float>(dealt) * ability.gain);
+        // パーク「吸い尽くす」：吸収ビームで倒すと、吸収ゲージが溜まる。
+        if (dealt > 0 && bestId != kRivalTarget && static_cast<ExpEnemy*>(best)->IsDead() && HasPerk(survivor::PerkId::BeamKill)) {
+            AddAbsorb(PerkValue(survivor::PerkId::BeamKill));
+        }
+        // 強化の3段目：先から近くのもう1体へ跳ね、半分の威力を与える。
+        beamChainOn_ = false;
+        if (UpgradeTier(0) >= 3) {
+            const myEngine::Vector3 from = best->GetWorldPosition();
+            ExpEnemy* chained = nullptr;
+            float nearest = 4.0f;
+            for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+                if (!enemy || enemy->IsDead() || enemy->IsRunResource() || enemy == best) {
+                    continue;
+                }
+                const float distance = PlanarDistance(from, enemy->GetWorldPosition());
+                if (distance < nearest) {
+                    nearest = distance;
+                    chained = enemy;
+                }
+            }
+            if (chained) {
+                beamChainOn_ = true;
+                beamChainEnd_ = chained->GetWorldPosition();
+                const uint32_t extra = DealHeroDamage(chained, false, (std::max)(1u, amount / 2), from);
+                drainDamage_ += extra;
+                AddAbsorb(static_cast<float>(extra) * ability.gain);
+            }
+        }
         if (dealt == 0) {
             beamTarget_ = 0;
             beamTick_ = 0.0f;
@@ -583,6 +670,10 @@ void SurvivorRunController::UpdateSelfHeal(float dt, const survivor::AbilityDefi
     player.HealRunPlayer(amount);
     const int healed = player.GetHp() - before;
     selfHealed_ += healed;
+    // 強化の3段目：回復した量の半分だけ、傷も治る。
+    if (UpgradeTier(1) >= 3) {
+        player.ReduceSurvivorWound(static_cast<float>(healed) * 0.5f);
+    }
     // 回復した量も Q のゲージになる（H5）。
     AddUltimateCharge(static_cast<float>(healed));
 }
@@ -602,7 +693,7 @@ void SurvivorRunController::UpdateBounceOrb(float dt, const survivor::AbilityDef
         orbVelocity_ = back * ability.rate;
         orbLastBounce_ = 0;
     }
-    const float radius = (std::max)(0.2f, ability.size);
+    const float radius = (std::max)(0.2f, ability.size) * orbScale_;
     orbTick_ -= dt;
     const bool tick = orbTick_ <= 0.0f;
     if (tick) {
@@ -623,7 +714,12 @@ void SurvivorRunController::UpdateBounceOrb(float dt, const survivor::AbilityDef
             bouncedId = id;
             amount += touchDamage;
         }
-        orbDamage_ += DealHeroDamage(target, rival, amount, orbPosition_);
+        const uint32_t dealt = DealHeroDamage(target, rival, amount, orbPosition_);
+        orbDamage_ += dealt;
+        // パーク「跳ねる吸収」：球の威力でも吸収ゲージが溜まる（吸収ビームの溜まり方の value 倍）。
+        if (HasPerk(survivor::PerkId::OrbAbsorb)) {
+            AddAbsorb(static_cast<float>(dealt) * Hero().primaryAbility.gain * PerkValue(survivor::PerkId::OrbAbsorb));
+        }
     };
     for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
         if (enemy && !enemy->IsDead() && !enemy->IsRunResource()) {
@@ -638,6 +734,10 @@ void SurvivorRunController::UpdateBounceOrb(float dt, const survivor::AbilityDef
     }
     // 次に近い敵（今跳ねた敵の他）へ向きを変える。いなければ跳ね返る。
     ++orbBounces_;
+    // 強化の3段目：跳ねるたびに球が大きくなる（2倍まで）。
+    if (UpgradeTier(3) >= 3) {
+        orbScale_ = (std::min)(2.0f, orbScale_ * 1.08f);
+    }
     orbLastBounce_ = bouncedId;
     const myEngine::Vector3 from = bounced->GetWorldPosition();
     float nearest = 10.0f;

@@ -1365,10 +1365,10 @@ uint32_t Player::LimitSurvivorDamage(uint32_t amount)
     return amount;
 }
 
-void Player::SetSurvivorMaxHp(int hp)
+void Player::SetSurvivorMaxHp(int hp, bool heal)
 {
     survivorMaxHp_ = (std::max)(0, hp);
-    RecalculateStatsFromBase(true);
+    RecalculateStatsFromBase(heal);
 }
 
 bool Player::SpendRunHealth(int amount)

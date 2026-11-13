@@ -698,8 +698,13 @@ public:
     {
         return survivorSameSourceBlocked_;
     }
-    /// @brief 最大HPを hp にして満タンにする（機体の最大HP。0 なら元の値に戻す）。
-    void SetSurvivorMaxHp(int hp);
+    /// @brief 最大HPを hp にする（機体の最大HP。0 なら元の値に戻す）。heal なら満タンにし、そうでなければ今の HP を保つ。
+    void SetSurvivorMaxHp(int hp, bool heal = true);
+    /// @brief 傷を amount だけ治す（回復の場のパークや、自分を回復の3段目）。
+    void ReduceSurvivorWound(float amount)
+    {
+        survivorWound_ = (std::max)(0.0f, survivorWound_ - amount);
+    }
     /// @brief 機体の「消える移動」：seconds 秒、敵・敵の弾・床の危険に触れても押されず、傷つかない。
     void StartSurvivorPhase(float seconds)
     {

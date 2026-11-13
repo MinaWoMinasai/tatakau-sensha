@@ -408,11 +408,12 @@ private:
     {
         return config_.weaponsEnabled && config_.heroes.enabled && hero_ >= 0;
     }
-    /// @brief 出撃する機体の定義（HeroMode のときだけ呼ぶ）。
+    /// @brief 出撃する機体の定義（HeroMode のときだけ呼ぶ）。ショップの技の強化とパークを効かせた後の値（RebuildHero）。
     const survivor::HeroDefinition& Hero() const
     {
-        return config_.heroes.heroes[static_cast<size_t>(hero_)];
+        return heroDef_;
     }
+    survivor::HeroDefinition heroDef_{};
     const survivor::AbilityDefinition& Ability(survivor::AbilitySlot slot) const
     {
         return Hero().abilities[static_cast<size_t>(slot)];
@@ -642,7 +643,8 @@ private:
         Material,
         Recipe,
         TreeNode,
-        TreeBranch
+        TreeBranch,
+        ShopOffer
     };
     /// @brief 読み込んでおくアイコンの画像の場所。
     std::vector<std::string> ScreenIconPaths() const;
@@ -780,6 +782,58 @@ private:
     uint64_t waveCappedStart_ = 0;
     int repairs_ = 0;
     int repairSpent_ = 0;
+
+    // 波の間のショップ（計画書 p4 の K4）。SurvivorRunShop.cpp。
+    /// @brief 並んでいる物1つ。upgrade なら index は強化の対象（0 主武器、1〜4 技の枠）、そうでなければ survivor::PerkId。
+    struct ShopOffer {
+        bool upgrade = false;
+        int index = 0;
+    };
+    /// @brief 設定の機体に、技の強化の段とパークを効かせて Hero() を作り直し、主武器・最大HPに入れ直す。heal なら HP を満タンにする。
+    void RebuildHero(bool heal);
+    /// @brief 並ぶ物を引き直す（買えない物は並べない）。
+    void RollShop();
+    /// @brief 並んでいる offer 番目を買う。お金が足りなければ何もしない。買えたら真。
+    bool BuyOffer(size_t offer);
+    /// @brief 引き直す（値段は引くたびに上がる）。お金が足りなければ何もしない。引けたら真。
+    bool RerollShop();
+    int RerollPrice() const;
+    int OfferPrice(const ShopOffer& offer) const;
+    std::string OfferName(const ShopOffer& offer) const;
+    std::string OfferText(const ShopOffer& offer) const;
+    /// @brief 強化の対象の名前（主武器・右クリック…）と、技の部品。
+    const survivor::AbilityDefinition& UpgradeAbility(int target) const;
+    /// @brief 強化の段（0〜3）。
+    int UpgradeTier(int target) const
+    {
+        return upgradeTiers_[static_cast<size_t>(target)];
+    }
+    bool HasPerk(survivor::PerkId perk) const
+    {
+        return HeroMode() && perks_[static_cast<size_t>(perk)];
+    }
+    float PerkValue(survivor::PerkId perk) const
+    {
+        return config_.shop.perkValues[static_cast<size_t>(perk)];
+    }
+    /// @brief 波の間のショップの画面を作る。
+    void RefreshShop();
+    std::array<int, survivor::kUpgradeTargets> upgradeTiers_{};
+    std::array<bool, survivor::kPerkCount> perks_{};
+    std::vector<ShopOffer> shopOffers_;
+    int shopRerolls_ = 0;
+    // ショップの記録：買った物（波:名前:値段）・引き直した回数・使ったポイント。
+    std::vector<std::string> shopLog_;
+    int shopRerollsTotal_ = 0;
+    int shopSpent_ = 0;
+    // パークの端数（吸い取る装甲の回復）と、主武器の威力の倍率（強化）・弾の爆発（強化の3段目）。
+    float lifestealRemainder_ = 0.0f;
+    float heroPrimaryDamage_ = 1.0f;
+    float heroPrimaryBlast_ = 0.0f;
+    // 吸収ビームの3段目：先から跳ねた2体目の位置（無ければ beamChainOn_ が偽）。跳ねる球の3段目：球の大きさの倍率。
+    bool beamChainOn_ = false;
+    myEngine::Vector3 beamChainEnd_{};
+    float orbScale_ = 1.0f;
 
     // BGM と効果音。SurvivorRunAudio.cpp。毎フレームの回数の増え方から鳴らし、場面で曲を替える。
     struct AudioCounters {
