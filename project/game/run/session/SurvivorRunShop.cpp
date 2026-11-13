@@ -37,6 +37,14 @@ std::string TierThreeText(AbilityKind kind)
         return "跳ねるたびに球が大きくなる";
     case AbilityKind::Lance:
         return "太い光線の間、移動が速くなる";
+    case AbilityKind::Barrier:
+        return "バリアで弾を止めると Q のゲージが溜まる";
+    case AbilityKind::Charge:
+        return "突進の間は無敵になり、敵や弾をすり抜ける";
+    case AbilityKind::Shockwave:
+        return "衝撃波が敵の弾も消す";
+    case AbilityKind::Fortress:
+        return "大きな盾の間、HP が少しずつ戻る";
     default:
         return "挙動が変わる";
     }

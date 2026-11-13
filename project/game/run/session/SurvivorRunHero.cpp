@@ -88,6 +88,9 @@ void SurvivorRunController::ResetHeroState()
     phaseTimer_ = 0.0f;
     orbTimer_ = 0.0f;
     lanceTimer_ = 0.0f;
+    chargeTimer_ = 0.0f;
+    fortressTimer_ = 0.0f;
+    shockAge_ = 10.0f;
     world_.resources.player_->SetSurvivorMoveScale(1.0f);
 }
 
@@ -202,6 +205,34 @@ bool SurvivorRunController::UseAbility(AbilitySlot slot)
         lanceTick_ = 0.0f;
         lanceAge_ = 0.0f;
         break;
+    case AbilityKind::Charge:
+        chargeTimer_ = ability.duration;
+        chargeHit_.clear();
+        // 強化の3段目：突進の間は無敵（敵や弾をすり抜ける）。
+        if (UpgradeTier(static_cast<int>(index) + 1) >= 3) {
+            player.StartSurvivorPhase(ability.duration);
+        }
+        break;
+    case AbilityKind::Shockwave: {
+        // 強化の3段目：衝撃波が敵の弾も消す。
+        const int pushed = TriggerShockwave(player.GetWorldPosition(), ability.radius, HeroDamageUnit(ability.power), ability.rate,
+                                            UpgradeTier(static_cast<int>(index) + 1) >= 3);
+        shockwavePushes_ += pushed;
+        // パーク「地鳴り」：押し返した数だけ、次の衝撃波までが縮む（待ち時間は下で入れるので、入れた後に縮める）。
+        if (HasPerk(survivor::PerkId::Quake)) {
+            abilityCooldown_[index] = ability.cooldown;
+            abilityCooldown_[index] = (std::max)(0.0f, abilityCooldown_[index] - PerkValue(survivor::PerkId::Quake) * static_cast<float>(pushed));
+            abilityCooldownSeen_[index] = (std::max)(abilityCooldownSeen_[index], ability.cooldown);
+            ++abilityUses_[index];
+            return true;
+        }
+        break;
+    }
+    case AbilityKind::Fortress:
+        fortressTimer_ = ability.duration;
+        fortressBlockedNow_ = 0;
+        fortressAge_ = 0.0f;
+        break;
     default:
         return false;
     }
@@ -231,6 +262,12 @@ void SurvivorRunController::UpdateHeroAbilities(float dt)
         if (phaseTimer_ <= 0.0f && HasPerk(survivor::PerkId::PhaseHeal)) {
             auto& player = *world_.resources.player_;
             player.HealRunPlayer(static_cast<int>(std::round(static_cast<float>(player.GetMaxHp()) * PerkValue(survivor::PerkId::PhaseHeal))));
+        }
+    }
+    // 突進：効いている間は速い。
+    if (chargeTimer_ > 0.0f) {
+        if (const survivor::AbilityDefinition* charge = FindAbility(AbilityKind::Charge)) {
+            moveScale = (std::max)(moveScale, charge->power);
         }
     }
     // Q の太い光線の強化の3段目：効いている間は速く動ける。
@@ -270,6 +307,13 @@ void SurvivorRunController::UpdateHeroAbilities(float dt)
     if (const survivor::AbilityDefinition* lance = FindAbility(AbilityKind::Lance)) {
         UpdateLance(dt, *lance);
     }
+    if (const survivor::AbilityDefinition* charge = FindAbility(AbilityKind::Charge)) {
+        UpdateCharge(dt, *charge);
+    }
+    if (const survivor::AbilityDefinition* fortress = FindAbility(AbilityKind::Fortress)) {
+        UpdateFortress(dt, *fortress);
+    }
+    shockAge_ += dt;
     // 押している間の入力は、次に UpdateHeroInput が見るまで離したことにする（持ち物の画面を開いている間など）。
     primaryHeld_ = false;
     secondaryHeld_ = false;
@@ -500,6 +544,19 @@ void SurvivorRunController::QueueHeroVisuals(myEngine::NeonGridRenderer& rendere
         const float radius = (std::max)(0.2f, orb->size) * orbScale_;
         circle(orbPosition_, radius, 0.18f, {1.6f, 0.45f, 2.3f, 0.95f}, orbTimer_ * 6.0f);
         circle(orbPosition_, radius * 0.55f, 0.22f, {2.0f, 0.9f, 2.4f, 0.9f}, -orbTimer_ * 9.0f);
+    }
+    // 突進：自機のまわりの橙の輪。衝撃波：広がって薄れる輪。大きな盾：自機のまわりの全周の輪（残りが少ないと点滅）。
+    if (chargeTimer_ > 0.0f) {
+        circle(self, 1.6f, 0.2f, {2.2f, 1.1f, 0.3f, 0.9f}, chargeTimer_ * 20.0f);
+    }
+    if (shockAge_ < 0.45f) {
+        const float t = shockAge_ / 0.45f;
+        circle(shockCenter_, shockRadius_ * (0.3f + 0.7f * t), 0.3f * (1.0f - t) + 0.05f, {1.8f, 1.5f, 0.6f, 1.0f - t}, 0.0f);
+    }
+    if (const survivor::AbilityDefinition* fortress = FindAbility(AbilityKind::Fortress); fortress && fortressTimer_ > 0.0f) {
+        const float blink = fortressTimer_ < 1.0f ? 0.5f + 0.5f * std::sin(fortressAge_ * 30.0f) : 1.0f;
+        circle(self, fortress->radius, 0.22f, {0.55f, 1.6f, 1.9f, 0.9f * blink}, fortressAge_ * 0.8f);
+        circle(self, fortress->radius * 0.94f, 0.08f, {0.4f, 1.2f, 1.5f, 0.5f * blink}, -fortressAge_ * 1.3f);
     }
     // 太い光線：向いている方へ、太い線と外側のにじみ。
     if (const survivor::AbilityDefinition* lance = FindAbility(AbilityKind::Lance); lance && lanceTimer_ > 0.0f) {
@@ -804,6 +861,135 @@ void SurvivorRunController::UpdateLance(float dt, const survivor::AbilityDefinit
         hit(world_.resources.enemy_.get(), true);
     }
     lanceMaxHits_ = (std::max)(lanceMaxHits_, hits);
+}
+
+int SurvivorRunController::TriggerShockwave(const myEngine::Vector3& origin, float radius, float damage, float strength, bool clearBullets)
+{
+    shockCenter_ = origin;
+    shockRadius_ = radius;
+    shockAge_ = 0.0f;
+    int pushed = 0;
+    const auto amount = static_cast<uint32_t>((std::max)(1.0f, std::round(damage)));
+    for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+        if (!enemy || enemy->IsDead() || enemy->IsRunResource()) {
+            continue;
+        }
+        const myEngine::Vector3 position = enemy->GetWorldPosition();
+        const myEngine::Vector3 away{position.x - origin.x, position.y - origin.y, 0.0f};
+        if (myEngine::Length(away) > radius + enemy->GetRadius()) {
+            continue;
+        }
+        enemy->ApplyKnockback(myEngine::Length(away) > 0.001f ? away : myEngine::Vector3{1.0f, 0.0f, 0.0f}, strength);
+        DealHeroDamage(enemy, false, amount, origin);
+        ++pushed;
+    }
+    if (IsRivalActive()) {
+        Enemy& rival = *world_.resources.enemy_;
+        const myEngine::Vector3 position = rival.GetWorldPosition();
+        const myEngine::Vector3 away{position.x - origin.x, position.y - origin.y, 0.0f};
+        if (myEngine::Length(away) <= radius + rival.GetRadius()) {
+            rival.ApplyKnockback(myEngine::Length(away) > 0.001f ? away : myEngine::Vector3{1.0f, 0.0f, 0.0f}, strength * 0.5f);
+            DealHeroDamage(&rival, true, amount, origin);
+            ++pushed;
+        }
+    }
+    if (clearBullets) {
+        for (Bullet* bullet : world_.resources.bulletManager_->GetBulletPtrs()) {
+            if (bullet && !bullet->IsDead() && bullet->GetOwner() != kPlayer &&
+                myEngine::Length(myEngine::Vector3{bullet->GetWorldPosition().x - origin.x, bullet->GetWorldPosition().y - origin.y, 0.0f}) <= radius) {
+                bullet->ApplyBulletDurabilityDamage(1000000.0f);
+            }
+        }
+    }
+    return pushed;
+}
+
+void SurvivorRunController::UpdateCharge(float dt, const survivor::AbilityDefinition& ability)
+{
+    if (chargeTimer_ <= 0.0f || dt <= 0.0f) {
+        return;
+    }
+    chargeTimer_ = (std::max)(0.0f, chargeTimer_ - dt);
+    auto& player = *world_.resources.player_;
+    const myEngine::Vector3 self = player.GetWorldPosition();
+    const auto amount = static_cast<uint32_t>((std::max)(1.0f, std::round(HeroDamageUnit(ability.size))));
+    // 触れた敵は、1回の突進で1回だけ押し飛ばして傷つける。
+    for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+        if (!enemy || enemy->IsDead() || enemy->IsRunResource()) {
+            continue;
+        }
+        const myEngine::Vector3 position = enemy->GetWorldPosition();
+        const myEngine::Vector3 away{position.x - self.x, position.y - self.y, 0.0f};
+        if (myEngine::Length(away) > player.GetRadius() + enemy->GetRadius() + 0.8f ||
+            std::find(chargeHit_.begin(), chargeHit_.end(), enemy->GetCollisionId()) != chargeHit_.end()) {
+            continue;
+        }
+        chargeHit_.push_back(enemy->GetCollisionId());
+        enemy->ApplyKnockback(myEngine::Length(away) > 0.001f ? away : player.GetDirection(), ability.rate);
+        DealHeroDamage(enemy, false, amount, self);
+        ++chargePushes_;
+    }
+    // パーク「突進の衝撃」：突進の終わりに小さな衝撃波。
+    if (chargeTimer_ <= 0.0f && HasPerk(survivor::PerkId::ChargeShock)) {
+        chargePushes_ += TriggerShockwave(self, PerkValue(survivor::PerkId::ChargeShock), HeroDamageUnit(ability.size), ability.rate, false);
+    }
+}
+
+void SurvivorRunController::UpdateFortress(float dt, const survivor::AbilityDefinition& ability)
+{
+    if (fortressTimer_ <= 0.0f || dt <= 0.0f) {
+        return;
+    }
+    fortressTimer_ = (std::max)(0.0f, fortressTimer_ - dt);
+    fortressAge_ += dt;
+    auto& player = *world_.resources.player_;
+    const myEngine::Vector3 center = player.GetWorldPosition();
+    // 全周のバリア：入ってきた敵の弾を消して数え、敵は縁まで押し出す。
+    for (Bullet* bullet : world_.resources.bulletManager_->GetBulletPtrs()) {
+        if (!bullet || bullet->IsDead() || bullet->GetOwner() == kPlayer) {
+            continue;
+        }
+        const myEngine::Vector3 position = bullet->GetWorldPosition();
+        if (myEngine::Length(myEngine::Vector3{position.x - center.x, position.y - center.y, 0.0f}) > ability.radius + bullet->GetRadius()) {
+            continue;
+        }
+        bullet->ApplyBulletDurabilityDamage(1000000.0f);
+        ++fortressBlockedNow_;
+        ++fortressBlocked_;
+    }
+    for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+        if (!enemy || enemy->IsDead() || enemy->IsRunResource()) {
+            continue;
+        }
+        const myEngine::Vector3 position = enemy->GetWorldPosition();
+        myEngine::Vector3 away{position.x - center.x, position.y - center.y, 0.0f};
+        const float distance = myEngine::Length(away);
+        if (distance > ability.radius + enemy->GetRadius()) {
+            continue;
+        }
+        away = distance > 0.001f ? away / distance : player.GetDirection();
+        const myEngine::Vector3 pushed = center + away * (ability.radius + enemy->GetRadius());
+        if (!world_.resources.stage_->IsCollisionWithAnyBlock(pushed, enemy->GetRadius())) {
+            enemy->SetWorldPosition({pushed.x, pushed.y, position.z});
+        }
+    }
+    // 強化の3段目：効いている間、毎秒 最大HPの3% 戻る。
+    if (UpgradeTier(4) >= 3) {
+        fortressHealRemainder_ += static_cast<float>(player.GetMaxHp()) * 0.03f * dt;
+        const int heal = static_cast<int>(fortressHealRemainder_);
+        if (heal > 0) {
+            fortressHealRemainder_ -= static_cast<float>(heal);
+            player.HealRunPlayer(heal);
+        }
+    }
+    // 終わりに、止めた弾の数だけ強く爆発する。
+    if (fortressTimer_ <= 0.0f) {
+        const float damage = HeroDamageUnit(ability.power + ability.rate * static_cast<float>(fortressBlockedNow_));
+        const uint64_t before = fortressDamage_;
+        TriggerShockwave(center, ability.radius * 1.6f, damage, 0.6f, false);
+        fortressDamage_ = before + static_cast<uint64_t>(damage);
+        ++fortressBlasts_;
+    }
 }
 
 bool SurvivorRunController::HeroBarrierWanted() const

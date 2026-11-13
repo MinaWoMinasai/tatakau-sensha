@@ -449,6 +449,19 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             }
             autoSecondaryHold_ = absorb_ > 0.0f && player.GetHp() < player.GetMaxHp();
         }
+        // 技の画面（タンク型）：突進・衝撃波・大きな盾を、それぞれ1回ずつ保存する。
+        if (world_.run.tankRunCapturePath_.empty() && FindAbility(survivor::AbilityKind::Fortress)) {
+            if (!autoChargeCaptured_ && chargeTimer_ > 0.1f && elapsed_ >= 10.0f) {
+                RequestCapture("hero_charge");
+                autoChargeCaptured_ = true;
+            } else if (!autoShockCaptured_ && shockAge_ > 0.05f && shockAge_ < 0.25f && elapsed_ >= 10.0f) {
+                RequestCapture("hero_shockwave");
+                autoShockCaptured_ = true;
+            } else if (!autoFortressCaptured_ && fortressTimer_ > 1.0f && fortressTimer_ < 4.0f) {
+                RequestCapture("hero_fortress");
+                autoFortressCaptured_ = true;
+            }
+        }
         // 技の画面（モイラ型）：吸い付いた光線・跳ねる球・太い光線・消える移動を、それぞれ1回ずつ保存する。
         if (world_.run.tankRunCapturePath_.empty() && HeroBeamPrimary()) {
             if (!autoBeamCaptured_ && beamTarget_ != 0 && elapsed_ >= 6.0f) {
@@ -1075,7 +1088,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"selfHealed\":" << selfHealed_ << ",\"selfHealSeconds\":" << selfHealSeconds_
             << ",\"phaseAvoided\":" << player.GetSurvivorPhaseAvoided() << ",\"orbDamage\":" << orbDamage_
             << ",\"orbBounces\":" << orbBounces_ << ",\"lanceDamage\":" << lanceDamage_ << ",\"lanceMaxHits\":" << lanceMaxHits_
-            << ",\"primaryShots\":" << player.GetPrimaryAttackCount() << "}"
+            << ",\"primaryShots\":" << player.GetPrimaryAttackCount() << ",\"barrierBlocked\":" << barrierBlocked_
+            << ",\"barrierPushes\":" << barrierPushes_ << ",\"chargePushes\":" << chargePushes_ << ",\"shockwavePushes\":" << shockwavePushes_
+            << ",\"fortressBlocked\":" << fortressBlocked_ << ",\"fortressBlasts\":" << fortressBlasts_ << ",\"fortressDamage\":" << fortressDamage_
+            << "}"
             << ",\"waves\":{\"count\":" << config_.waves.count << ",\"seconds\":" << config_.waves.seconds << ",\"maxHp\":" << player.GetMaxHp()
             << ",\"damageTaken\":" << player.GetSurvivorDamageTaken() << ",\"damageCapped\":" << player.GetSurvivorDamageCapped()
             << ",\"hits\":" << player.GetSurvivorHits() << ",\"sameSourceBlocked\":" << player.GetSurvivorSameSourceBlocked()

@@ -17,6 +17,9 @@ enum class PerkId {
     BeamKill,     // モイラ型：吸収ビームで倒すたびに、吸収ゲージを value 秒ぶん溜める
     PhaseHeal,    // モイラ型：消える移動の終わりに、最大HPの value 倍を回復する
     OrbAbsorb,    // モイラ型：跳ねる球の与えた威力でも、吸収ビームの value 倍だけ吸収ゲージが溜まる
+    ChargeShock,  // タンク型：突進の終わりに、半径 value の小さな衝撃波を出す
+    BarrierHeal,  // タンク型：バリアで弾を止めるたびに、HP を value 回復する
+    Quake,        // タンク型：衝撃波で押し返した数だけ、衝撃波の待ち時間を value 秒縮める
     Count
 };
 inline constexpr size_t kPerkCount = static_cast<size_t>(PerkId::Count);
@@ -46,6 +49,9 @@ inline const PerkInfo& GetPerkInfo(PerkId id)
         {"beamKill", "吸い尽くす", "吸収ビームで倒すと、吸収ゲージが溜まる", "moira", 300, 0.5f},
         {"phaseHeal", "消える癒し", "消える移動の終わりに回復する", "moira", 300, 0.08f},
         {"orbAbsorb", "跳ねる吸収", "跳ねる球の威力でも吸収ゲージが溜まる", "moira", 300, 0.5f},
+        {"chargeShock", "突進の衝撃", "突進の終わりに、小さな衝撃波を出す", "tank", 300, 3.5f},
+        {"barrierHeal", "盾の手当て", "バリアで弾を止めるたびに、HP が少し戻る", "tank", 300, 1.0f},
+        {"quake", "地鳴り", "衝撃波で押し返した数だけ、衝撃波の待ち時間が縮む", "tank", 300, 0.3f},
     }};
     return kPerks[static_cast<size_t>(id)];
 }

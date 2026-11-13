@@ -116,9 +116,12 @@ void SurvivorRunController::UpdateBarrier(float dt, bool wanted)
     }
     barrierOn_ = wanted && !barrierAwaitRelease_ && barrierExhausted_ <= 0.0f && barrierStamina_ > 0.0f;
 
+    // 機体の技の強化（K7）：バリアの強さ（power）でスタミナの減り方を割る。3段目は弾を止めると Q のゲージが溜まる。
+    const survivor::AbilityDefinition* heroBarrier = HeroMode() ? FindAbility(survivor::AbilityKind::Barrier) : nullptr;
+    const float staminaScale = heroBarrier ? 1.0f / (std::max)(0.1f, heroBarrier->power) : 1.0f;
     if (barrierOn_) {
         barrierRegenWait_ = barrier.regenDelay;
-        barrierStamina_ -= barrier.drainPerSecond * dt;
+        barrierStamina_ -= barrier.drainPerSecond * staminaScale * dt;
         barrierSeconds_ += dt;
         auto& player = *world_.resources.player_;
         const myEngine::Vector3 center = player.GetWorldPosition();
@@ -128,9 +131,16 @@ void SurvivorRunController::UpdateBarrier(float dt, bool wanted)
                 continue;
             }
             bullet->ApplyBulletDurabilityDamage(1000000.0f);
-            barrierStamina_ -= barrier.hitCost;
+            barrierStamina_ -= barrier.hitCost * staminaScale;
             barrierFlash_ = 1.0f;
             ++barrierBlocked_;
+            if (heroBarrier && UpgradeTier(1) >= 3) {
+                AddUltimateCharge(HeroDamageUnit(3.0f));
+            }
+            // パーク「盾の手当て」：弾を止めるたびに少し回復する。
+            if (HasPerk(survivor::PerkId::BarrierHeal)) {
+                player.HealRunPlayer(static_cast<int>(PerkValue(survivor::PerkId::BarrierHeal)));
+            }
         }
         // 敵：バリアの外の縁まで押し返す。触れている数だけ、スタミナが少しずつ減る。
         for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {

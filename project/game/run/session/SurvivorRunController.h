@@ -486,7 +486,7 @@ private:
     /// @brief Q（アルティメット）が効いている間か。間は Q のゲージを溜めない。
     bool UltimateActive() const
     {
-        return barrageTimer_ > 0.0f || lanceTimer_ > 0.0f;
+        return barrageTimer_ > 0.0f || lanceTimer_ > 0.0f || fortressTimer_ > 0.0f;
     }
 
     /// @brief 主砲1発の威力に倍率を掛けた、機体の技の威力（毎秒の威力にも使う）。
@@ -499,6 +499,30 @@ private:
     void UpdateSelfHeal(float dt, const survivor::AbilityDefinition& ability);
     void UpdateBounceOrb(float dt, const survivor::AbilityDefinition& ability);
     void UpdateLance(float dt, const survivor::AbilityDefinition& ability);
+    // タンク型（計画書 p4 の K7）：突進・衝撃波・大きな盾。
+    void UpdateCharge(float dt, const survivor::AbilityDefinition& ability);
+    void UpdateFortress(float dt, const survivor::AbilityDefinition& ability);
+    /// @brief origin のまわり半径 radius の敵を strength の強さで押し返し、damage を与える。clearBullets なら敵の弾も消す。押し返した数を返す。
+    int TriggerShockwave(const myEngine::Vector3& origin, float radius, float damage, float strength, bool clearBullets);
+    // 突進：残りの秒・今の突進で当てた敵。衝撃波の見た目：中心・半径・経った秒。大きな盾：残りの秒・止めた弾の数。
+    float chargeTimer_ = 0.0f;
+    std::vector<uint64_t> chargeHit_;
+    myEngine::Vector3 shockCenter_{};
+    float shockRadius_ = 0.0f;
+    float shockAge_ = 10.0f;
+    float fortressTimer_ = 0.0f;
+    int fortressBlockedNow_ = 0;
+    float fortressAge_ = 0.0f;
+    float fortressHealRemainder_ = 0.0f;
+    // タンク型の記録：突進・衝撃波で押し返した数、大きな盾で止めた弾と爆発の回数・威力。
+    int chargePushes_ = 0;
+    int shockwavePushes_ = 0;
+    int fortressBlocked_ = 0;
+    int fortressBlasts_ = 0;
+    uint64_t fortressDamage_ = 0;
+    bool autoChargeCaptured_ = false;
+    bool autoShockCaptured_ = false;
+    bool autoFortressCaptured_ = false;
     // 左クリック・右クリックを押しているか（押している間の技。UpdateHeroInput で見る）。
     bool primaryHeld_ = false;
     bool secondaryHeld_ = false;

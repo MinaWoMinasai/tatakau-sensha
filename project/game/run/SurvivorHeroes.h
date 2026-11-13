@@ -28,6 +28,10 @@ enum class AbilityKind {
     Phase,    // 消える移動：duration 秒、無敵で敵をすり抜け、移動の速さを power 倍にする
     BounceOrb, // 跳ねる球：duration 秒、毎秒 rate の速さで進み、敵に触れると次の近い敵へ跳ねる。触れている敵に毎秒 主砲1発の power 倍。
                // size は球の半径
+    Charge,    // 突進：duration 秒、移動の速さを power 倍にし、触れた敵を rate の強さで押し飛ばして 主砲1発の size 倍を与える
+    Shockwave, // 衝撃波：自機のまわり半径 radius の敵を rate の強さで押し返し、主砲1発の power 倍を与える
+    Fortress,  // 大きな盾（Q）：duration 秒、自機のまわり半径 radius に全周のバリア（敵の弾を消し、敵を縁まで押し出す）。
+               // 終わりに半径 radius×1.6 で爆発し、主砲1発の power 倍 ＋ 止めた弾1つごとに rate 倍を与える
     Lance,     // 太い光線（Q）：duration 秒、向いている方へ長さ radius・太さ size の光線を出し、触れた敵すべてに毎秒 主砲1発の power 倍。
                // 与えた威力1ごとに吸収ゲージを gain 秒ぶん溜める
     Count
@@ -51,7 +55,7 @@ inline const char* AbilitySlotButton(AbilitySlot slot)
 inline const char* AbilityKindKey(AbilityKind kind)
 {
     static constexpr std::array<const char*, static_cast<size_t>(AbilityKind::Count)> kKeys{
-        "none", "sprint", "barrier", "rocket", "healZone", "barrage", "drainBeam", "selfHeal", "phase", "bounceOrb", "lance"};
+        "none", "sprint", "barrier", "rocket", "healZone", "barrage", "drainBeam", "selfHeal", "phase", "bounceOrb", "charge", "shockwave", "fortress", "lance"};
     return kKeys[static_cast<size_t>(kind)];
 }
 
@@ -123,20 +127,9 @@ struct HeroesConfig {
     std::vector<HeroDefinition> heroes;
 };
 
-/// @brief 設定ファイルが無いときの機体。K0 の仮の機体（試作機）と、ソルジャー型（K1）・モイラ型（K2）。
+/// @brief 設定ファイルが無いときの機体。ソルジャー型（K1）・モイラ型（K2）・タンク型（K7。最初に解放する）。
 inline std::vector<HeroDefinition> DefaultHeroes()
 {
-    HeroDefinition prototype;
-    prototype.key = "prototype";
-    prototype.name = "試作機";
-    prototype.primary = "cannon";
-    prototype.abilities[static_cast<size_t>(AbilitySlot::Secondary)] = {AbilityKind::Barrier, "バリア"};
-    prototype.abilities[static_cast<size_t>(AbilitySlot::Mobility)] = {AbilityKind::Sprint, "走る", 8.0f, 3.0f, 1.5f};
-    prototype.ultimateCharge = 600.0f;
-    // K7 でタンク型ができるまで、最初に解放する機体の代わりにする。
-    prototype.unlockCost = 1500;
-    prototype.maxHp = 100;
-    prototype.unlockFirst = true;
 
     // ソルジャー型（計画書 p4 の3章）：連射砲は熱だけで撃つ。群れへの答えはロケット、硬い敵への答えは連射砲。
     HeroDefinition soldier;
@@ -165,7 +158,22 @@ inline std::vector<HeroDefinition> DefaultHeroes()
         AbilityKind::Lance, "太い光線", 0.0f, 4.0f, 4.0f, 20.0f, 0.0f, 1.4f, 0.006f};
     moira.ultimateCharge = 1800.0f;
     moira.maxHp = 90;
-    return {prototype, soldier, moira};
+
+    // タンク型（計画書 p4 の3章、K7）：受け止めて押し返す。最初に解放する機体。
+    // 群れへの答えは衝撃波、硬い敵への答えは重い砲。
+    HeroDefinition tank;
+    tank.key = "tank";
+    tank.name = "タンク型";
+    tank.primary = "cannon";
+    tank.abilities[static_cast<size_t>(AbilitySlot::Secondary)] = {AbilityKind::Barrier, "バリア"};
+    tank.abilities[static_cast<size_t>(AbilitySlot::Mobility)] = {AbilityKind::Charge, "突進", 7.0f, 0.35f, 3.0f, 0.0f, 0.7f, 2.0f};
+    tank.abilities[static_cast<size_t>(AbilitySlot::Skill)] = {AbilityKind::Shockwave, "衝撃波", 10.0f, 0.0f, 3.0f, 6.0f, 0.8f};
+    tank.abilities[static_cast<size_t>(AbilitySlot::Ultimate)] = {AbilityKind::Fortress, "大きな盾", 0.0f, 6.0f, 4.0f, 5.0f, 0.6f};
+    tank.ultimateCharge = 1800.0f;
+    tank.maxHp = 150;
+    tank.unlockCost = 1500;
+    tank.unlockFirst = true;
+    return {soldier, moira, tank};
 }
 
 /// @brief キーから機体の番号を探す。無ければ -1。

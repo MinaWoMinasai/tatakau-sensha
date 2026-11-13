@@ -98,14 +98,9 @@
                   "damageScale": 1.2, "reloadScale": 0.8, "speedScale": 1.6, "heatScale": 0.6 }
   },
   "heroes": {
-    "comment": "機体（計画書 p4）。enabled が true なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイール・リロード・拠点の画面・お金以外の落とし物を止める）。start は出撃する機体。機体ごとに、name は名前、primary は主武器（weapons のキー。弾は数えず熱だけで撃つ）、primaryHeatScale は主武器の1発の熱の倍率の上書き（0 なら武器の値。撃ち続けられる長さが決まる）、ultimateCharge は Q のゲージが満タンになるまでに要る量（与えたダメージ＋回復した量）。maxHp は最大HP（0 なら自機の値のまま）。unlockCost は解放に要る解放ポイント（0 なら最初から使える）、unlockFirst は最初に解放する機体（まだなら次に解放できるのはその機体だけ。それ以外は2〜3体から選ぶ）。primaryAbility を書くと、主武器は弾ではなく技の部品になる（primary の武器は見た目だけ）。secondary（右クリック）・mobility（Shift）・skill（E）・ultimate（Q）は技の部品で、kind は種類（none・sprint 走る・barrier バリア・rocket 爆発する弾・healZone 回復の場・barrage 自動で狙う弾幕・drainBeam 吸い付く光線・selfHeal 吸収ゲージで自分を回復・phase 無敵ですり抜ける移動・bounceOrb 敵の間を跳ねる球・lance 太い光線）、name は画面の名前、cooldown は次に使えるまでの秒（Q はゲージ）、duration は効いている秒（selfHeal は吸収ゲージの上限の秒）、power は種類ごとの強さ（sprint・phase は速さの倍率、rocket・barrage は主砲1発に対する威力の倍率、drainBeam・bounceOrb・lance は毎秒の威力の主砲1発に対する倍率、healZone・selfHeal は毎秒の回復の最大HPに対する割合）、radius は半径や長さ（rocket は爆発、healZone は場、barrage は狙う範囲、drainBeam は届く距離、lance は光線の長さ）、rate は弾幕の毎秒の発射数・跳ねる球の速さ、size は光線の太さ・跳ねる球の半径、gain は与えた威力1ごとに溜まる吸収ゲージの秒。バリアと selfHeal は押している間だけ効く（バリアは設定の barrier とスタミナを使う）。",
+    "comment": "機体（計画書 p4）。enabled が true なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイール・リロード・拠点の画面・お金以外の落とし物を止める）。start は出撃する機体。機体ごとに、name は名前、primary は主武器（weapons のキー。弾は数えず熱だけで撃つ）、primaryHeatScale は主武器の1発の熱の倍率の上書き（0 なら武器の値。撃ち続けられる長さが決まる）、ultimateCharge は Q のゲージが満タンになるまでに要る量（与えたダメージ＋回復した量）。maxHp は最大HP（0 なら自機の値のまま）。unlockCost は解放に要る解放ポイント（0 なら最初から使える）、unlockFirst は最初に解放する機体（まだなら次に解放できるのはその機体だけ。それ以外は2〜3体から選ぶ）。primaryAbility を書くと、主武器は弾ではなく技の部品になる（primary の武器は見た目だけ）。secondary（右クリック）・mobility（Shift）・skill（E）・ultimate（Q）は技の部品で、kind は種類（none・sprint 走る・barrier バリア・rocket 爆発する弾・healZone 回復の場・barrage 自動で狙う弾幕・drainBeam 吸い付く光線・selfHeal 吸収ゲージで自分を回復・phase 無敵ですり抜ける移動・bounceOrb 敵の間を跳ねる球・charge 突進・shockwave 衝撃波・fortress 全周のバリア・lance 太い光線）、name は画面の名前、cooldown は次に使えるまでの秒（Q はゲージ）、duration は効いている秒（selfHeal は吸収ゲージの上限の秒）、power は種類ごとの強さ（sprint・phase は速さの倍率、rocket・barrage は主砲1発に対する威力の倍率、drainBeam・bounceOrb・lance は毎秒の威力の主砲1発に対する倍率、healZone・selfHeal は毎秒の回復の最大HPに対する割合）、radius は半径や長さ（rocket は爆発、healZone は場、barrage は狙う範囲、drainBeam は届く距離、lance は光線の長さ）、rate は弾幕の毎秒の発射数・跳ねる球の速さ、size は光線の太さ・跳ねる球の半径、gain は与えた威力1ごとに溜まる吸収ゲージの秒。charge は duration 秒・速さ power 倍で、触れた敵を rate の強さで押し飛ばし主砲1発の size 倍を与える。shockwave は半径 radius の敵を rate の強さで押し返し主砲1発の power 倍を与える。fortress は duration 秒、半径 radius の全周のバリアで、終わりに半径 radius×1.6 で爆発し主砲1発の power 倍＋止めた弾1つごとに rate 倍を与える。バリアと selfHeal は押している間だけ効く（バリアは設定の barrier とスタミナを使う）。",
     "enabled": true,
     "start": "moira",
-    "prototype": { "name": "試作機", "primary": "cannon", "ultimateCharge": 600, "unlockCost": 1500, "unlockFirst": true, "maxHp": 100,
-                   "secondary": { "kind": "barrier", "name": "バリア", "cooldown": 0, "duration": 0, "power": 1 },
-                   "mobility": { "kind": "sprint", "name": "走る", "cooldown": 8, "duration": 3, "power": 1.5 },
-                   "skill": { "kind": "none", "name": "", "cooldown": 0, "duration": 0, "power": 1 },
-                   "ultimate": { "kind": "none", "name": "", "cooldown": 0, "duration": 0, "power": 1 } },
     "soldier": { "name": "ソルジャー型", "primary": "machineGun", "primaryHeatScale": 1.0, "ultimateCharge": 2000, "maxHp": 100,
                  "secondary": { "kind": "rocket", "name": "小型ロケット", "cooldown": 6, "duration": 0, "power": 6, "radius": 3, "rate": 0 },
                  "mobility": { "kind": "sprint", "name": "全力で走る", "cooldown": 8, "duration": 3, "power": 1.5, "radius": 0, "rate": 0 },
@@ -116,7 +111,12 @@
                "secondary": { "kind": "selfHeal", "name": "自分を回復", "cooldown": 0, "duration": 6, "power": 0.06 },
                "mobility": { "kind": "phase", "name": "消える移動", "cooldown": 6, "duration": 0.8, "power": 1.6 },
                "skill": { "kind": "bounceOrb", "name": "跳ねる球", "cooldown": 10, "duration": 4, "power": 2.0, "radius": 12, "rate": 9, "size": 1.1 },
-               "ultimate": { "kind": "lance", "name": "太い光線", "cooldown": 0, "duration": 4, "power": 4.0, "radius": 20, "size": 1.4, "gain": 0.006 } }
+               "ultimate": { "kind": "lance", "name": "太い光線", "cooldown": 0, "duration": 4, "power": 4.0, "radius": 20, "size": 1.4, "gain": 0.006 } },
+    "tank": { "name": "タンク型", "primary": "cannon", "ultimateCharge": 1800, "maxHp": 150, "unlockCost": 1500, "unlockFirst": true,
+              "secondary": { "kind": "barrier", "name": "バリア", "cooldown": 0, "duration": 0, "power": 1 },
+              "mobility": { "kind": "charge", "name": "突進", "cooldown": 7, "duration": 0.35, "power": 3.0, "rate": 0.7, "size": 2.0 },
+              "skill": { "kind": "shockwave", "name": "衝撃波", "cooldown": 10, "duration": 0, "power": 3.0, "radius": 6, "rate": 0.8 },
+              "ultimate": { "kind": "fortress", "name": "大きな盾", "cooldown": 0, "duration": 6, "power": 4.0, "radius": 5, "rate": 0.6 } }
   },
   "loot": {
     "comment": "敵が落とす物（計画書 p3 の W3）。欠片はお金になり（経験値 × moneyPerExp）、自動で拾う。落ちている物は magnetRadius まで近づくと寄ってきて、触れると拾う。弾は ammoChance の確率で ammoAmount ずつ、予備は reserveMax まで（上限の弾は残る）。素材（倒した形の素材を materialChance、敵戦車はボスの素材を bossMaterialChance）・チップ（今の部品、chipChance）・武器（weaponChance）は出撃中の袋へ入る。確率は敵1体ごとで、大きな敵（敵戦車・大五角・重い四角）は bigScale 倍。チップと武器のレア度は rarityWeights の重みで選ぶ。弾と素材は lifetime 秒で消える。休憩部屋で売る値段は weaponPrice・chipPrice（レア度ごと）と materialPrice（素材1つごと）。",
@@ -147,13 +147,14 @@
     "maxHitRatio": 0.2, "maxPerSecondRatio": 0.3, "sameSourceSeconds": 0.5, "woundRatio": 0.3, "repairCost": 150, "repairHeal": 30
   },
   "shop": {
-    "comment": "波の間のショップ（計画書 p4 の K4）。offerCount 個がランダムに並ぶ（修理はいつも別のボタン）。引き直しは rerollCost で、引くたびに rerollStep 高くなる（波ごとに戻る）。技の強化（主武器・右クリック・Shift・E・Q）は3段で、値段は upgradePrices（段ごと）。1段目は威力 ×1.25（武器の主武器は ×1.15）、2段目は待ち時間 ×0.8（待ち時間の無い技は効く時間 ×1.25）、3段目で挙動が変わる。perks はパークごとの値段 price と強さ value：lifesteal 与えたダメージの value 倍を回復、killCooldown 倒すたびに技の待ち時間 -value 秒、armor 最大HP +value、speed 移動 +value 倍、magnet 欠片を引き寄せる範囲 +value 倍、ultCharge Q のゲージの溜まり方 +value 倍、coolant（ソルジャー）主武器の熱 ×value、rocketRefund（ソルジャー）爆発で倒すたびにロケットの待ち時間 -value 秒、fieldMedic（ソルジャー）回復の場で回復した量の value 倍だけ傷も治る、beamKill（モイラ）光線で倒すと吸収ゲージ +value 秒、phaseHeal（モイラ）消える移動の終わりに最大HPの value 倍を回復、orbAbsorb（モイラ）跳ねる球の威力でも吸収ゲージが溜まる（光線の value 倍）。",
+    "comment": "波の間のショップ（計画書 p4 の K4）。offerCount 個がランダムに並ぶ（修理はいつも別のボタン）。引き直しは rerollCost で、引くたびに rerollStep 高くなる（波ごとに戻る）。技の強化（主武器・右クリック・Shift・E・Q）は3段で、値段は upgradePrices（段ごと）。1段目は威力 ×1.25（武器の主武器は ×1.15）、2段目は待ち時間 ×0.8（待ち時間の無い技は効く時間 ×1.25）、3段目で挙動が変わる。perks はパークごとの値段 price と強さ value：lifesteal 与えたダメージの value 倍を回復、killCooldown 倒すたびに技の待ち時間 -value 秒、armor 最大HP +value、speed 移動 +value 倍、magnet 欠片を引き寄せる範囲 +value 倍、ultCharge Q のゲージの溜まり方 +value 倍、coolant（ソルジャー）主武器の熱 ×value、rocketRefund（ソルジャー）爆発で倒すたびにロケットの待ち時間 -value 秒、fieldMedic（ソルジャー）回復の場で回復した量の value 倍だけ傷も治る、beamKill（モイラ）光線で倒すと吸収ゲージ +value 秒、phaseHeal（モイラ）消える移動の終わりに最大HPの value 倍を回復、orbAbsorb（モイラ）跳ねる球の威力でも吸収ゲージが溜まる（光線の value 倍）、chargeShock（タンク）突進の終わりに半径 value の小さな衝撃波、barrierHeal（タンク）バリアで弾を止めるたびに HP +value、quake（タンク）衝撃波で押し返した数だけ衝撃波の待ち時間 -value 秒。",
     "offerCount": 5, "rerollCost": 50, "rerollStep": 25, "upgradePrices": [120, 250, 400],
     "perks": {
       "lifesteal": { "price": 250, "value": 0.02 }, "killCooldown": { "price": 200, "value": 0.25 }, "armor": { "price": 150, "value": 20 },
       "speed": { "price": 150, "value": 0.12 }, "magnet": { "price": 150, "value": 1.0 }, "ultCharge": { "price": 200, "value": 0.25 },
       "coolant": { "price": 300, "value": 0.75 }, "rocketRefund": { "price": 300, "value": 1.0 }, "fieldMedic": { "price": 300, "value": 0.5 },
-      "beamKill": { "price": 300, "value": 0.5 }, "phaseHeal": { "price": 300, "value": 0.08 }, "orbAbsorb": { "price": 300, "value": 0.5 }
+      "beamKill": { "price": 300, "value": 0.5 }, "phaseHeal": { "price": 300, "value": 0.08 }, "orbAbsorb": { "price": 300, "value": 0.5 },
+      "chargeShock": { "price": 300, "value": 3.5 }, "barrierHeal": { "price": 300, "value": 1 }, "quake": { "price": 300, "value": 0.3 }
     }
   },
   "barrier": {
