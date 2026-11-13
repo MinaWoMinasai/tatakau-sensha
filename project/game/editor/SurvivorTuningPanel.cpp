@@ -306,6 +306,107 @@ bool DrawCost(CraftCost& cost)
     return changed;
 }
 
+/// @brief 技1つの値（計画書 p4 の K8）。種類ごとに使う値だけ意味がある（設定の heroes の説明を参照）。
+bool DrawAbility(const char* label, AbilityDefinition& ability)
+{
+    if (ability.kind == AbilityKind::None) {
+        return false;
+    }
+    bool changed = false;
+    ImGui::PushID(label);
+    if (ImGui::TreeNode((std::string(label) + "：" + ability.name + "（" + AbilityKindKey(ability.kind) + "）").c_str())) {
+        changed |= ImGui::DragFloat("待ち時間（秒）", &ability.cooldown, 0.05f, 0.0f, 60.0f, "%.2f");
+        changed |= ImGui::DragFloat("効く時間（秒）", &ability.duration, 0.02f, 0.0f, 30.0f, "%.2f");
+        changed |= ImGui::DragFloat("強さ（power）", &ability.power, 0.01f, 0.0f, 50.0f, "%.3f");
+        changed |= ImGui::DragFloat("半径・長さ（radius）", &ability.radius, 0.05f, 0.0f, 40.0f, "%.2f");
+        changed |= ImGui::DragFloat("毎秒・速さ・押す強さ（rate）", &ability.rate, 0.01f, 0.0f, 60.0f, "%.2f");
+        changed |= ImGui::DragFloat("太さ・大きさ（size）", &ability.size, 0.01f, 0.0f, 10.0f, "%.2f");
+        changed |= ImGui::DragFloat("吸収ゲージの溜まり方（gain）", &ability.gain, 0.0005f, 0.0f, 1.0f, "%.4f");
+        ImGui::TreePop();
+    }
+    ImGui::PopID();
+    return changed;
+}
+
+/// @brief 機体の値（計画書 p4 の K8）。変えるとすぐ今の機体に入れ直す（ショップの強化は掛け直す）。
+bool DrawHeroes(SpawnConfig& config)
+{
+    bool changed = false;
+    if (!config.heroes.enabled || !ImGui::CollapsingHeader("機体", ImGuiTreeNodeFlags_DefaultOpen)) {
+        return false;
+    }
+    ImGui::TextDisabled("出撃している機体にすぐ効く。最大HPは満タンに戻さない。");
+    static constexpr std::array<const char*, kAbilitySlotCount> kSlots{"右クリック", "Shift", "E", "Q"};
+    for (auto& hero : config.heroes.heroes) {
+        ImGui::PushID(hero.key.c_str());
+        if (ImGui::TreeNode(hero.name.c_str())) {
+            changed |= ImGui::DragInt("最大HP（0は自機の値）", &hero.maxHp, 0.5f, 0, 1000);
+            changed |= ImGui::DragFloat("Q のゲージの量", &hero.ultimateCharge, 5.0f, 1.0f, 20000.0f, "%.0f");
+            changed |= ImGui::DragFloat("主武器の熱の倍率（0は武器の値）", &hero.primaryHeatScale, 0.01f, 0.0f, 8.0f, "%.2f");
+            changed |= ImGui::DragInt("解放の値段（0は最初から）", &hero.unlockCost, 10.0f, 0, 100000);
+            changed |= DrawAbility("左クリック", hero.primaryAbility);
+            for (size_t i = 0; i < kAbilitySlotCount; ++i) {
+                changed |= DrawAbility(kSlots[i], hero.abilities[i]);
+            }
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+    }
+    return changed;
+}
+
+/// @brief 波・稼ぎ・体力の決まり・ショップの値（計画書 p4 の K8）。
+bool DrawWavesAndShop(SpawnConfig& config)
+{
+    bool changed = false;
+    if (!config.heroes.enabled || !ImGui::CollapsingHeader("波・稼ぎ・体力・ショップ")) {
+        return false;
+    }
+    ImGui::SeparatorText("波");
+    changed |= ImGui::DragInt("波の数", &config.waves.count, 0.05f, 1, 20);
+    changed |= ImGui::DragFloat("1つの波（秒）", &config.waves.seconds, 0.5f, 5.0f, 600.0f, "%.0f");
+    changed |= ImGui::DragFloat("ボスが出るまで（秒）", &config.waves.bossDelay, 0.5f, 0.0f, 120.0f, "%.0f");
+    ImGui::SeparatorText("倒した敵のレベルポイント");
+    changed |= ImGui::DragInt("三角", &config.waves.triangle, 0.1f, 0, 1000);
+    changed |= ImGui::DragInt("四角", &config.waves.square, 0.1f, 0, 1000);
+    changed |= ImGui::DragInt("五角", &config.waves.pentagon, 0.1f, 0, 1000);
+    changed |= ImGui::DragInt("重い四角", &config.waves.heavySquare, 0.2f, 0, 1000);
+    changed |= ImGui::DragInt("大五角", &config.waves.bigPentagon, 0.2f, 0, 1000);
+    changed |= ImGui::DragInt("敵戦車", &config.waves.tank, 0.2f, 0, 1000);
+    changed |= ImGui::DragInt("ボス", &config.waves.boss, 1.0f, 0, 10000);
+    ImGui::SeparatorText("スコア（解放ポイント）");
+    changed |= ImGui::DragFloat("進んだ波1つ", &config.waves.scorePerWave, 1.0f, 0.0f, 10000.0f, "%.0f");
+    changed |= ImGui::DragFloat("稼いだポイント1", &config.waves.scorePerPoint, 0.01f, 0.0f, 10.0f, "%.2f");
+    changed |= ImGui::DragFloat("ボス撃破", &config.waves.scoreBoss, 1.0f, 0.0f, 10000.0f, "%.0f");
+    changed |= ImGui::DragFloat("初クリア", &config.waves.scoreFirstClear, 1.0f, 0.0f, 10000.0f, "%.0f");
+    ImGui::SeparatorText("体力の決まり");
+    changed |= ImGui::DragFloat("1回の被弾の上限（最大HPの割合）", &config.health.maxHitRatio, 0.005f, 0.01f, 1.0f, "%.3f");
+    changed |= ImGui::DragFloat("1秒の上限（最大HPの割合）", &config.health.maxPerSecondRatio, 0.005f, 0.01f, 1.0f, "%.3f");
+    changed |= ImGui::DragFloat("同じ相手の間隔（秒）", &config.health.sameSourceSeconds, 0.01f, 0.0f, 5.0f, "%.2f");
+    changed |= ImGui::DragFloat("傷になる割合", &config.health.woundRatio, 0.01f, 0.0f, 1.0f, "%.2f");
+    changed |= ImGui::DragInt("修理の値段", &config.health.repairCost, 1.0f, 0, 10000);
+    changed |= ImGui::DragInt("修理で戻る HP", &config.health.repairHeal, 0.5f, 0, 1000);
+    ImGui::SeparatorText("ショップ");
+    changed |= ImGui::DragInt("並ぶ数", &config.shop.offerCount, 0.05f, 1, 8);
+    changed |= ImGui::DragInt("引き直し", &config.shop.rerollCost, 1.0f, 0, 10000);
+    changed |= ImGui::DragInt("引き直しの上がり幅", &config.shop.rerollStep, 1.0f, 0, 10000);
+    for (size_t i = 0; i < config.shop.upgradePrices.size(); ++i) {
+        changed |= ImGui::DragInt(("強化 " + std::to_string(i + 1) + " 段目").c_str(), &config.shop.upgradePrices[i], 1.0f, 0, 10000);
+    }
+    if (ImGui::TreeNode("パーク")) {
+        for (size_t i = 0; i < kPerkCount; ++i) {
+            const PerkInfo& info = GetPerkInfo(static_cast<PerkId>(i));
+            ImGui::PushID(info.key);
+            ImGui::TextUnformatted((std::string(info.name) + (info.hero[0] != '\0' ? std::string("（") + info.hero + "）" : std::string())).c_str());
+            changed |= ImGui::DragInt("値段", &config.shop.perkPrices[i], 1.0f, 0, 10000);
+            changed |= ImGui::DragFloat("強さ", &config.shop.perkValues[i], 0.01f, 0.0f, 100.0f, "%.3f");
+            ImGui::PopID();
+        }
+        ImGui::TreePop();
+    }
+    return changed;
+}
+
 /// @brief 武器の値（カスタマイズシューティング、計画書 p3 の W11）。
 bool DrawWeapons(SpawnConfig& config)
 {
@@ -570,6 +671,8 @@ TuningPanelResult DrawTuningPanel(SpawnConfig& config, bool& open, bool& pauseWh
         ImGui::TextUnformatted(status.c_str());
     }
     if (config.weaponsEnabled) {
+        result.changed |= DrawHeroes(config);
+        result.changed |= DrawWavesAndShop(config);
         result.changed |= DrawWeapons(config);
         result.changed |= DrawLoot(config);
         result.changed |= DrawCrafting(config);

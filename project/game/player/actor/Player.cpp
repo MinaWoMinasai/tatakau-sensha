@@ -202,6 +202,7 @@ void Player::Initialize(myEngine::Object3d* object, const myEngine::Vector3& pos
     survivorPhaseTouched_.clear();
     survivorDamageRules_ = {};
     survivorLastHit_.clear();
+    survivorHealed_ = 0;
     survivorWound_ = 0.0f;
     survivorRecentSources_.clear();
     survivorRecentDamage_.clear();
@@ -1344,7 +1345,11 @@ void Player::HealRunPlayer(int amount)
             return;
         }
     }
+    const int before = hp_;
     playerProgression_->HealRunPlayer(amount);
+    if (survivorDamageRules_.enabled) {
+        survivorHealed_ += static_cast<uint64_t>((std::max)(0, hp_ - before));
+    }
 }
 
 void Player::ConfigureSurvivorDamageRules(const SurvivorDamageRules& rules)

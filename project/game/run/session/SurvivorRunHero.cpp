@@ -880,7 +880,7 @@ int SurvivorRunController::TriggerShockwave(const myEngine::Vector3& origin, flo
             continue;
         }
         enemy->ApplyKnockback(myEngine::Length(away) > 0.001f ? away : myEngine::Vector3{1.0f, 0.0f, 0.0f}, strength);
-        DealHeroDamage(enemy, false, amount, origin);
+        shockwaveDamage_ += DealHeroDamage(enemy, false, amount, origin);
         ++pushed;
     }
     if (IsRivalActive()) {
@@ -889,7 +889,7 @@ int SurvivorRunController::TriggerShockwave(const myEngine::Vector3& origin, flo
         const myEngine::Vector3 away{position.x - origin.x, position.y - origin.y, 0.0f};
         if (myEngine::Length(away) <= radius + rival.GetRadius()) {
             rival.ApplyKnockback(myEngine::Length(away) > 0.001f ? away : myEngine::Vector3{1.0f, 0.0f, 0.0f}, strength * 0.5f);
-            DealHeroDamage(&rival, true, amount, origin);
+            shockwaveDamage_ += DealHeroDamage(&rival, true, amount, origin);
             ++pushed;
         }
     }
@@ -926,7 +926,7 @@ void SurvivorRunController::UpdateCharge(float dt, const survivor::AbilityDefini
         }
         chargeHit_.push_back(enemy->GetCollisionId());
         enemy->ApplyKnockback(myEngine::Length(away) > 0.001f ? away : player.GetDirection(), ability.rate);
-        DealHeroDamage(enemy, false, amount, self);
+        chargeDamage_ += DealHeroDamage(enemy, false, amount, self);
         ++chargePushes_;
     }
     // パーク「突進の衝撃」：突進の終わりに小さな衝撃波。

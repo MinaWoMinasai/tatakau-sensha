@@ -520,6 +520,8 @@ private:
     int fortressBlocked_ = 0;
     int fortressBlasts_ = 0;
     uint64_t fortressDamage_ = 0;
+    uint64_t shockwaveDamage_ = 0;
+    uint64_t chargeDamage_ = 0;
     bool autoChargeCaptured_ = false;
     bool autoShockCaptured_ = false;
     bool autoFortressCaptured_ = false;
@@ -833,6 +835,9 @@ private:
     int wavePoints_ = 0;
     // 出撃で稼いだレベルポイントの合計（使った分も含む。スコアに使う）。
     int pointsEarned_ = 0;
+    // 遊んだ記録（K8）：与えたダメージの合計と、出撃で戦っていた秒（波の間の画面は数えない）。
+    uint64_t damageDealt_ = 0;
+    float runSeconds_ = 0.0f;
     uint64_t waveDamageStart_ = 0;
     uint64_t waveCappedStart_ = 0;
     int repairs_ = 0;

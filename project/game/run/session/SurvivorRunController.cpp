@@ -268,6 +268,7 @@ void SurvivorRunController::Initialize()
         damageNumbers_.Spawn(enemy.GetCollisionId(), enemy.GetWorldPosition(), amount,
                              world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
         AddUltimateCharge(static_cast<float>(amount));
+        damageDealt_ += amount;
         // パーク「吸い取る装甲」：与えたダメージの一部で回復する（端数は貯める。衝突処理の途中なので HP を足すだけ）。
         if (HasPerk(survivor::PerkId::Lifesteal)) {
             lifestealRemainder_ += static_cast<float>(amount) * PerkValue(survivor::PerkId::Lifesteal);
@@ -281,6 +282,7 @@ void SurvivorRunController::Initialize()
     Enemy::SetDamageCallback([this](const myEngine::Vector3& position, uint32_t amount) {
         damageNumbers_.Spawn(0, position, amount, world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
         AddUltimateCharge(static_cast<float>(amount));
+        damageDealt_ += amount;
     });
 
     wchar_t automatic[8]{};
@@ -304,7 +306,13 @@ void SurvivorRunController::Initialize()
         config_.choiceAutoOpen = false;
         formStage_ = 2;
     }
-    random_.seed(autoTest_ != AutoTest::None ? 20261028u : static_cast<uint32_t>(GetTickCount64()));
+    // 自動確認は決まった種で同じ出撃にする。MYENGINE_SURVIVOR_SEED=数 なら、その種にする（機体ごとに何回か通して比べる。K8）。
+    uint32_t seed = autoTest_ != AutoTest::None ? 20261028u : static_cast<uint32_t>(GetTickCount64());
+    wchar_t seedText[16]{};
+    if (autoTest_ != AutoTest::None && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_SEED", seedText, 16) > 0) {
+        seed = static_cast<uint32_t>(_wtoi(seedText));
+    }
+    random_.seed(seed);
     if (autoTest_ != AutoTest::None) {
         world_.presentation.debugPlayerNoDamage_ = true;
         world_.resources.player_->SetDebugNoDamage(true);
@@ -512,6 +520,7 @@ void SurvivorRunController::Update(float dt)
         }
         if (HeroMode()) {
             UpdateHeroAbilities(gameDt);
+            runSeconds_ += gameDt;
         }
         const PlayerHeat& heat = world_.resources.player_->GetHeat();
         if (heat.GetHeat() >= heat.GetMaxHeat() * 0.7f) {
@@ -750,6 +759,10 @@ void SurvivorRunController::UpdateTuningPanel()
         }
     }
     if (result.changed || result.reloadRequested) {
+        // 機体の値（技・最大HP・ショップの強化）を、今の設定から作り直す（K8）。
+        if (HeroMode()) {
+            RebuildHero(false);
+        }
         // 部品の倍率・熱・シールド・欠片を、今の値で作り直す。形態の数値は次に選んだときから効く。
         ConfigurePickups();
         ApplyDamageNumberConfig();

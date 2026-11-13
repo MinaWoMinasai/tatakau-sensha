@@ -150,10 +150,10 @@ inline std::vector<HeroDefinition> DefaultHeroes()
     moira.key = "moira";
     moira.name = "モイラ型";
     moira.primary = "beam";
-    moira.primaryAbility = {AbilityKind::DrainBeam, "吸収ビーム", 0.0f, 0.0f, 2.2f, 8.0f, 0.0f, 0.22f, 0.012f};
+    moira.primaryAbility = {AbilityKind::DrainBeam, "吸収ビーム", 0.0f, 0.0f, 2.6f, 8.0f, 0.0f, 0.22f, 0.012f};
     moira.abilities[static_cast<size_t>(AbilitySlot::Secondary)] = {AbilityKind::SelfHeal, "自分を回復", 0.0f, 6.0f, 0.06f};
     moira.abilities[static_cast<size_t>(AbilitySlot::Mobility)] = {AbilityKind::Phase, "消える移動", 6.0f, 0.8f, 1.6f};
-    moira.abilities[static_cast<size_t>(AbilitySlot::Skill)] = {AbilityKind::BounceOrb, "跳ねる球", 10.0f, 4.0f, 2.0f, 12.0f, 9.0f, 1.1f};
+    moira.abilities[static_cast<size_t>(AbilitySlot::Skill)] = {AbilityKind::BounceOrb, "跳ねる球", 10.0f, 4.0f, 1.4f, 12.0f, 9.0f, 1.1f};
     moira.abilities[static_cast<size_t>(AbilitySlot::Ultimate)] = {
         AbilityKind::Lance, "太い光線", 0.0f, 4.0f, 4.0f, 20.0f, 0.0f, 1.4f, 0.006f};
     moira.ultimateCharge = 1800.0f;

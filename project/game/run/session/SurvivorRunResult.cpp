@@ -159,7 +159,15 @@ void SurvivorRunController::WriteRunLog()
     const std::string directory = std::string(kAutoTestDirectory) + "/runs";
     std::error_code ignored;
     std::filesystem::create_directories(directory, ignored);
+    // MYENGINE_SURVIVOR_RUN_LOG=名前：自動確認でも別の名前で残す（機体ごとに何回か通して比べる。K8）。
     std::string name = "autotest";
+    wchar_t logName[64]{};
+    if (const DWORD length = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_RUN_LOG", logName, 64); autoTest_ != AutoTest::None && length > 0 && length < 64) {
+        name.clear();
+        for (DWORD i = 0; i < length; ++i) {
+            name.push_back(static_cast<char>(logName[i]));
+        }
+    }
     if (autoTest_ == AutoTest::None) {
         SYSTEMTIME time{};
         GetLocalTime(&time);
@@ -203,7 +211,36 @@ void SurvivorRunController::WriteRunLog()
            << ",\"heat\":{\"overheats\":" << player.GetHeat().GetOverheatCount() << ",\"secondsAbove70\":" << heatHighSeconds_
            << ",\"railShots\":" << player.GetSpecialCombatStats().railShots << "},\"fps\":{\"min\":" << fpsMin << ",\"avg\":"
            << (fpsSamples_.empty() ? 0.0f : fpsSum / static_cast<float>(fpsSamples_.size())) << ",\"samples\":"
-           << fpsSamples_.size() << "}}\n";
+           << fpsSamples_.size() << "}";
+    // 機体の遊び方の記録（計画書 p4 の K8）：進んだ波・生き延びた秒・毎秒のダメージ・受けたダメージ・回復した量・死因・買った物・Q の回数。
+    if (HeroMode()) {
+        const HeroScore score = ComputeHeroScore();
+        output << ",\"hero\":{\"key\":\"" << Hero().key << "\",\"wave\":" << stage_ + 1 << ",\"wavesCleared\":" << score.waves
+               << ",\"waveCount\":" << config_.waves.count << ",\"boss\":" << (score.boss ? "true" : "false")
+               << ",\"dead\":" << (player.IsDead() ? "true" : "false") << ",\"runSeconds\":" << runSeconds_
+               << ",\"damageDealt\":" << damageDealt_ << ",\"dps\":" << (runSeconds_ > 0.0f ? static_cast<float>(damageDealt_) / runSeconds_ : 0.0f)
+               << ",\"damageTaken\":" << player.GetSurvivorDamageTaken() << ",\"healed\":" << player.GetSurvivorHealed()
+               << ",\"deathCause\":\"" << (player.IsDead() ? player.GetSurvivorLastHit() : std::string()) << "\",\"ultimates\":" << abilityUses_[3]
+               << ",\"abilityUses\":[" << abilityUses_[0] << "," << abilityUses_[1] << "," << abilityUses_[2] << "," << abilityUses_[3] << "]"
+               << ",\"pointsEarned\":" << pointsEarned_ << ",\"score\":" << score.total << ",\"repairs\":" << repairs_
+               << ",\"damageBy\":{\"drain\":" << drainDamage_ << ",\"orb\":" << orbDamage_ << ",\"lance\":" << lanceDamage_
+               << ",\"shockwave\":" << shockwaveDamage_ << ",\"charge\":" << chargeDamage_ << ",\"fortress\":" << fortressDamage_
+               << ",\"rocketKills\":" << rocketKills_ << ",\"barrageShots\":" << barrageShots_ << ",\"primaryShots\":" << player.GetPrimaryAttackCount() << "}"
+               << ",\"bossAt\":" << (score.boss ? rivalDefeatedAt_ : -1.0f) << ",\"kills\":" << world_.combat.defeatedEnemies_
+               << ",\"repairSpent\":" << repairSpent_ << ",\"shopSpent\":" << shopSpent_ << ",\"tiers\":[" << upgradeTiers_[0] << "," << upgradeTiers_[1]
+               << "," << upgradeTiers_[2] << "," << upgradeTiers_[3] << "," << upgradeTiers_[4] << "],\"bought\":[";
+        for (size_t i = 0; i < shopLog_.size(); ++i) {
+            output << (i ? "," : "") << "\"" << shopLog_[i] << "\"";
+        }
+        output << "],\"waves\":[";
+        for (size_t i = 0; i < waveRecords_.size(); ++i) {
+            const WaveRecord& r = waveRecords_[i];
+            output << (i ? "," : "") << "{\"wave\":" << r.wave << ",\"points\":" << r.points << ",\"damage\":" << r.damage << ",\"wound\":" << r.wound
+                   << ",\"hp\":" << r.hp << ",\"maxHp\":" << r.maxHp << "}";
+        }
+        output << "]}";
+    }
+    output << "}\n";
 }
 
 } // namespace gameplay

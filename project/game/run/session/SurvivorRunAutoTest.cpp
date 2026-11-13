@@ -417,7 +417,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                                                                        world_.resources.enemyManager_->FindNearestEnemy(position, 15.0f) != nullptr;
         // 回復の場の確認：初めて置く前に HP を半分にする（自動確認は無敵なので、そのままでは回復する分が無い）。
         if (FindAbility(survivor::AbilityKind::HealZone) && abilityUses_[static_cast<size_t>(AbilitySlot::Skill)] == 0 &&
-            autoHeroPress_[static_cast<size_t>(AbilitySlot::Skill)] && player.GetHp() == player.GetMaxHp()) {
+            autoHeroPress_[static_cast<size_t>(AbilitySlot::Skill)] && player.GetHp() == player.GetMaxHp() && player.IsDebugNoDamage()) {
             player.SpendRunHealth(player.GetMaxHp() / 2);
         }
         // 体力の決まり（H6・H7）：5秒で一度だけ無敵を外し、同じ相手から2回・別の相手から2回当てて、1回の上限・同じ相手の間隔・
@@ -444,7 +444,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         // 自分を回復（モイラ型）：吸収ゲージがほぼ満タンで HP も満タンなら HP を半分にし（自動確認は無敵なので）、
         // HP が減っていてゲージがあれば押し続ける。
         if (const survivor::AbilityDefinition* heal = FindAbility(survivor::AbilityKind::SelfHeal)) {
-            if (absorb_ >= heal->duration * 0.95f && player.GetHp() == player.GetMaxHp()) {
+            if (absorb_ >= heal->duration * 0.95f && player.GetHp() == player.GetMaxHp() && player.IsDebugNoDamage()) {
                 player.SpendRunHealth(player.GetMaxHp() / 2);
             }
             autoSecondaryHold_ = absorb_ > 0.0f && player.GetHp() < player.GetMaxHp();
