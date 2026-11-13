@@ -201,6 +201,7 @@ void Player::Initialize(myEngine::Object3d* object, const myEngine::Vector3& pos
     survivorPhaseAvoided_ = 0;
     survivorPhaseTouched_.clear();
     survivorDamageRules_ = {};
+    survivorLastHit_.clear();
     survivorWound_ = 0.0f;
     survivorRecentSources_.clear();
     survivorRecentDamage_.clear();
@@ -654,6 +655,38 @@ void Player::OnCollision(Collider* other)
 
     if (other->GetCollisionAttribute() == kCollisionAttributeEnemy || other->GetCollisionAttribute() == kCollisionAttributeExpEnemy ||
         other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
+        // 死因の名前（機体の遊び方の結果画面）。
+        if (survivorDamageRules_.enabled) {
+            if (other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
+                survivorPendingHit_ = "敵の弾";
+            } else if (const auto* shape = dynamic_cast<const ExpEnemy*>(other)) {
+                switch (shape->GetSurvivorRole()) {
+                case ExpEnemy::SurvivorRole::Healer:
+                    survivorPendingHit_ = "回復する四角";
+                    break;
+                case ExpEnemy::SurvivorRole::Warper:
+                    survivorPendingHit_ = "ワープする五角";
+                    break;
+                case ExpEnemy::SurvivorRole::MineLayer:
+                    survivorPendingHit_ = "地雷をまく三角";
+                    break;
+                case ExpEnemy::SurvivorRole::Mine:
+                    survivorPendingHit_ = "地雷";
+                    break;
+                default:
+                    survivorPendingHit_ = shape->GetType() == ExpEnemyType::Triangle ? "三角"
+                                          : shape->GetType() == ExpEnemyType::Square
+                                              ? (shape->GetSizeScale() > 1.4f ? "重い四角" : "四角")
+                                          : shape->GetType() == ExpEnemyType::Pentagon ? (shape->GetSizeScale() > 1.4f ? "大五角" : "五角")
+                                                                                        : "敵戦車";
+                    break;
+                }
+            } else if (dynamic_cast<const Enemy*>(other)) {
+                survivorPendingHit_ = "ボス";
+            } else {
+                survivorPendingHit_ = "敵";
+            }
+        }
         TakeSurvivorHit(other->GetCollisionId(), other->GetDamage());
     }
 }
@@ -678,6 +711,7 @@ uint32_t Player::ReceiveHostileHazard(uint32_t amount, bool dodgeable)
     }
     const int before = hp_;
     // 床の危険は、まとめて1つの相手として間隔を見る。
+    survivorPendingHit_ = "床の危険";
     TakeSurvivorHit(~0ull, amount);
     return static_cast<uint32_t>((std::max)(0, before - hp_));
 }
@@ -782,6 +816,7 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
         invincibleTime = 0.0f;
         survivorDamageTaken_ += amount;
         ++survivorHits_;
+        survivorLastHit_ = survivorPendingHit_.empty() ? std::string("爆発など") : survivorPendingHit_;
     }
     if (debugNoDamage_) {
         return;
@@ -1325,6 +1360,7 @@ void Player::TakeSurvivorHit(uint64_t source, uint32_t amount)
     survivorDamageSource_ = source;
     TakeDamage(amount, 0.45f);
     survivorDamageSource_ = 0;
+    survivorPendingHit_.clear();
 }
 
 uint32_t Player::LimitSurvivorDamage(uint32_t amount)

@@ -2,6 +2,7 @@
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
 #include <algorithm>
+#include <cmath>
 
 // 育つ戦車の試作の機体の遊び方の出撃の流れ（計画書 p4 の K3）：seconds 秒の波を count 回、そのあとボスの波。
 // 波が終わると、欠片を拾ったことにして敵と弾を片付け、波の間の画面（K4 でショップ）を開く。HP は波の間に戻らない（H8）。
@@ -74,6 +75,19 @@ void SurvivorRunController::FinishWave()
     RollShop();
     OpenRestRoom();
     world_.combatFlow->SetEventCallout("波 " + std::to_string(stage_ + 1) + " をしのいだ", 1.4f);
+}
+
+SurvivorRunController::HeroScore SurvivorRunController::ComputeHeroScore() const
+{
+    // 進んだ波は、終えた波の数（ボスの波を倒せば、それも1つ）。生き延びた時間だけでは数えない（計画書 p4 の2章）。
+    HeroScore score;
+    score.waves = static_cast<int>(waveRecords_.size());
+    score.points = pointsEarned_;
+    score.boss = IsBossStage() && rivalDefeated_;
+    score.total = static_cast<int>(std::lround(static_cast<float>(score.waves) * config_.waves.scorePerWave +
+                                               static_cast<float>(score.points) * config_.waves.scorePerPoint +
+                                               (score.boss ? config_.waves.scoreBoss : 0.0f)));
+    return score;
 }
 
 bool SurvivorRunController::RepairHero()

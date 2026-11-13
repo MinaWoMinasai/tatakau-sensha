@@ -21,6 +21,7 @@ void SurvivorRunController::AddExperience(int amount)
     if (HeroMode()) {
         bag_.money += amount;
         wavePoints_ += amount;
+        pointsEarned_ += amount;
         return;
     }
     // 武器の枠を使う遊び方では、レベルを上げず、欠片はお金になる（W3）。

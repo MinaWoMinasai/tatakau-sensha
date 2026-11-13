@@ -134,6 +134,11 @@ std::string SurvivorRunController::DescribeChips(const survivor::BaseWeapon& own
 std::string SurvivorRunController::DescribeBag() const
 {
     std::ostringstream text;
+    // 機体の遊び方では、お金はレベルポイントで、素材・チップ・武器は落ちない。
+    if (HeroMode()) {
+        text << "レベルポイント " << bag_.money;
+        return text.str();
+    }
     text << "お金 " << bag_.money << "　　素材 四角 " << bag_.materials[0] << "・三角 " << bag_.materials[1] << "・五角 " << bag_.materials[2]
          << "・ボス " << bag_.materials[3] << "　　チップ " << bag_.chips.size() << "　　武器 " << bag_.weapons.size();
     return text.str();

@@ -71,6 +71,42 @@ void SurvivorRunController::RefreshResult(int selection)
     }
     const auto& player = *world_.resources.player_;
     std::ostringstream text;
+    // 機体の遊び方（計画書 p4 の K5）：機体・進んだ波・死因・組み立て・スコアの内訳。
+    if (HeroMode()) {
+        const HeroScore score = ComputeHeroScore();
+        auto fixed = [](float value) {
+            std::ostringstream out;
+            out << value;
+            return out.str();
+        };
+        text << "機体　　　　　" << Hero().name << "\n"
+             << "進んだ所　　　" << (IsBossStage() ? std::string("ボスの波") : "波 " + std::to_string(stage_ + 1) + "/" + std::to_string(config_.waves.count))
+             << (score.boss ? "　ボス撃破" : "") << "　　時間 " << Clock(elapsed_) << "\n"
+             << (cleared_ ? std::string() : "死因　　　　　" + (player.GetSurvivorLastHit().empty() ? std::string("不明") : player.GetSurvivorLastHit()) + "\n")
+             << "撃破　　　　　" << world_.combat.defeatedEnemies_ << "　　受けたダメージ " << player.GetSurvivorDamageTaken() << "　　修理 " << repairs_ << " 回\n"
+             << "強化の段　　　主武器 " << UpgradeTier(0) << "・右クリック " << UpgradeTier(1) << "・Shift " << UpgradeTier(2) << "・E " << UpgradeTier(3)
+             << "・Q " << UpgradeTier(4) << "\n"
+             << "パーク　　　　" << [&] {
+                    std::string names;
+                    int owned = 0;
+                    for (size_t i = 0; i < survivor::kPerkCount; ++i) {
+                        if (perks_[i]) {
+                            names += (owned == 0 ? "" : owned % 4 == 0 ? "\n　　　　　　　" : "・") +
+                                     std::string(survivor::GetPerkInfo(static_cast<survivor::PerkId>(i)).name);
+                            ++owned;
+                        }
+                    }
+                    return owned > 0 ? names : std::string("なし");
+                }() << "\n"
+             << "スコア　　　　進んだ波 " << score.waves << " × " << fixed(config_.waves.scorePerWave) << "　＋　稼いだポイント " << score.points
+             << " × " << fixed(config_.waves.scorePerPoint) << "　＋　ボス " << (score.boss ? fixed(config_.waves.scoreBoss) : std::string("0")) << "\n"
+             << "　　　　　　　＝ " << score.total;
+        resultText_->SetText(text.str());
+        std::ostringstream menu;
+        menu << (selection == 0 ? "> " : "   ") << "もう1回（R）\n" << (selection == 1 ? "> " : "   ") << "タイトルへ";
+        resultMenu_->SetText(menu.str());
+        return;
+    }
     // 見出し（区画クリア・撃破された）は、上の帯の文字（CombatFlow）が出す。
     text << (cleared_ ?"区画の時間　　" : "生き延びた時間　") << Clock(elapsed_) << "\n"
          << (WeaponMode() ? std::string() : "レベル　　　　" + std::to_string(level_) + "\n")

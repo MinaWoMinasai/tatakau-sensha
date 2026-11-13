@@ -263,6 +263,10 @@ struct SpawnConfig {
         int bigPentagon = 80;
         int tank = 80;
         int boss = 500;
+        /// @brief 結果画面のスコア（K6 で解放ポイントにする。計画書 p4 の2章）：進んだ波1つごと・稼いだポイント1ごと・ボス撃破。
+        float scorePerWave = 100.0f;
+        float scorePerPoint = 0.2f;
+        float scoreBoss = 300.0f;
     };
     WaveConfig waves{};
 
@@ -881,6 +885,12 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(points, "tank", config.waves.tank);
             number(points, "boss", config.waves.boss);
         }
+        if (waves.contains("score") && waves.at("score").is_object()) {
+            const auto& score = waves.at("score");
+            number(score, "perWave", config.waves.scorePerWave);
+            number(score, "perPoint", config.waves.scorePerPoint);
+            number(score, "boss", config.waves.scoreBoss);
+        }
         config.waves.count = (std::clamp)(config.waves.count, 1, 20);
         config.waves.seconds = (std::max)(5.0f, config.waves.seconds);
         config.waves.bossDelay = (std::max)(0.0f, config.waves.bossDelay);
@@ -1451,6 +1461,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     points["bigPentagon"] = config.waves.bigPentagon;
     points["tank"] = config.waves.tank;
     points["boss"] = config.waves.boss;
+    auto& score = waves["score"];
+    score["perWave"] = round(config.waves.scorePerWave);
+    score["perPoint"] = round(config.waves.scorePerPoint);
+    score["boss"] = round(config.waves.scoreBoss);
     auto& health = section("health");
     health["maxHitRatio"] = round(config.health.maxHitRatio);
     health["maxPerSecondRatio"] = round(config.health.maxPerSecondRatio);

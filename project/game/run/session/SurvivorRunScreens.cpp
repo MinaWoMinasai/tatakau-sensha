@@ -215,34 +215,29 @@ void SurvivorRunController::AddBagToGrid(SurvivorItemScreen::View& view, bool ac
 
 void SurvivorRunController::RefreshInventoryScreen()
 {
-    // 機体の遊び方は弾を数えないので、弾の数は出さない。
-    SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, !HeroMode());
+    // 機体の遊び方（計画書 p4 の H3）：Tab で開く「今の組み立て」（技の段とパーク）。ショップと同じ左側を使う。
+    if (HeroMode()) {
+        SurvivorItemScreen::View build = HeroBuildView();
+        build.title = "組み立て：" + Hero().name;
+        build.help = "Tab で閉じる　／　開いている間は止まる　／　技の強化とパークは波の間のショップで買う";
+        build.gridTitle = " ";
+        build.buttons.push_back({"閉じる（Tab）", 0, true});
+        itemScreen_.Show(build);
+        return;
+    }
+    SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, true);
     view.title = "持ち物";
     view.help = "マウスを合わせると説明が出る　／　E で閉じる　／　開いている間は止まる　／　付け替え・売るのは休憩部屋で";
     view.gridTitle = "出撃中の袋（倒れると全部失う）";
-    // 機体の遊び方（計画書 p4 の H3）：Tab で開く「今の組み立て」。技の段とパークは K4 で足す。
-    if (HeroMode()) {
-        view.title = "組み立て：" + Hero().name;
-        view.help = "Tab で閉じる　／　開いている間は止まる";
-        std::string skills;
-        for (size_t i = 0; i < survivor::kAbilitySlotCount; ++i) {
-            const survivor::AbilityDefinition& ability = Hero().abilities[i];
-            if (ability.kind != survivor::AbilityKind::None) {
-                skills += std::string(skills.empty() ? "" : "　／　") + survivor::AbilitySlotButton(static_cast<survivor::AbilitySlot>(i)) + " " + ability.name;
-            }
-        }
-        view.gridTitle = "技：" + skills;
-    }
     for (size_t i = 0; i < view.cards.size(); ++i) {
-        // 機体の遊び方は主武器の枠だけ（空きの枠は名前も出さない）。
-        view.cards[i].name = HeroMode() ? std::string(" ") : std::to_string(i + 1) + "　（空き）";
+        view.cards[i].name = std::to_string(i + 1) + "　（空き）";
         if (weaponSlots_[i] >= 0) {
-            FillWeaponCard(view.cards[i], i, runSlots_[i].weapon, SlotWeapon(i), HeroMode() ? -1 : magazines_[i], runSlots_[i].weapon.chips.size(), "", "");
+            FillWeaponCard(view.cards[i], i, runSlots_[i].weapon, SlotWeapon(i), magazines_[i], runSlots_[i].weapon.chips.size(), "", "");
             view.cards[i].active = i == activeSlot_;
         }
     }
     AddBagToGrid(view, false);
-    view.buttons.push_back({HeroMode() ? "閉じる（Tab）" : "閉じる（E）", 0, true});
+    view.buttons.push_back({"閉じる（E）", 0, true});
     itemScreen_.Show(view);
 }
 
@@ -548,18 +543,13 @@ void SurvivorRunController::CloseInventory()
     inventoryOpen_ = false;
 }
 
-void SurvivorRunController::RefreshShop()
+SurvivorItemScreen::View SurvivorRunController::HeroBuildView() const
 {
-    const auto& player = *world_.resources.player_;
     SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, false);
     // 右の上の列は、レベルポイントだけ（素材は使わない）。
     view.header.resize(1);
     view.header[0].title = "レベルポイント";
     view.header[0].body = "敵を倒すと入る。ショップで技の強化・パーク・修理・引き直しに使う。";
-    view.title = "波 " + std::to_string(stage_ + 1) + "/" + std::to_string(config_.waves.count) + " おわり　─　ショップ";
-    view.help = "HP " + std::to_string(player.GetHp()) + "/" + std::to_string(player.GetMaxHp()) + "（傷 " +
-                std::to_string(player.GetSurvivorWound()) + "）　／　クリックで買う　／　HP は波の間に戻らない。修理で傷を全部と HP を治す";
-    view.gridTitle = "並んでいる物";
     view.showEmptyCells = false;
     // 左の3枚：今の組み立て（技の段とパーク）。
     static constexpr std::array<const char*, 3> kCardTitles{"主武器・右クリック", "Shift・E", "Q・パーク"};
@@ -593,6 +583,28 @@ void SurvivorRunController::RefreshShop()
         }
         card.item.body = card.stats;
     }
+    // 左下の2つ：HP と傷、Q のゲージ（武器の遊び方のバリアと補助の枠を使う）。
+    const auto& player = *world_.resources.player_;
+    view.shield.icon = Icon("chip_armor");
+    view.shield.color = player.GetSurvivorWound() > 0 ? myEngine::Vector4{1.0f, 0.75f, 0.6f, 1.0f} : myEngine::Vector4{0.6f, 1.0f, 0.7f, 1.0f};
+    view.shield.title = "HP " + std::to_string(player.GetHp()) + "/" + std::to_string(player.GetMaxHp()) + "　傷 " + std::to_string(player.GetSurvivorWound());
+    view.shield.body = "傷は治すまで HP がそこまでしか戻らない。波の間に HP は戻らず、修理で傷を全部と HP を治す。";
+    view.support.icon = Icon("chip_morale");
+    view.support.color = {1.0f, 0.85f, 0.35f, 1.0f};
+    view.support.dim = false;
+    view.support.title = "Q " + std::to_string(static_cast<int>((std::min)(1.0f, ultimateCharge_ / Hero().ultimateCharge) * 100.0f)) + "%";
+    view.support.body = "Q のゲージは、与えたダメージと回復した量で溜まる。満タンで " + Hero().abilities[3].name + " を使える。";
+    return view;
+}
+
+void SurvivorRunController::RefreshShop()
+{
+    const auto& player = *world_.resources.player_;
+    SurvivorItemScreen::View view = HeroBuildView();
+    view.title = "波 " + std::to_string(stage_ + 1) + "/" + std::to_string(config_.waves.count) + " おわり　─　ショップ";
+    view.help = "HP " + std::to_string(player.GetHp()) + "/" + std::to_string(player.GetMaxHp()) + "（傷 " +
+                std::to_string(player.GetSurvivorWound()) + "）　／　クリックで買う　／　HP は波の間に戻らない。修理で傷を全部と HP を治す";
+    view.gridTitle = "並んでいる物";
     static constexpr std::array<const char*, survivor::kUpgradeTargets> kUpgradeIcons{"chip_warhead", "chip_heavyWarhead", "chip_thruster",
                                                                                       "chip_collector", "chip_chainLightning"};
     for (size_t i = 0; i < shopOffers_.size(); ++i) {

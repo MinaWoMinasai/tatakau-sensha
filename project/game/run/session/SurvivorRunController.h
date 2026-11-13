@@ -778,6 +778,8 @@ private:
     };
     std::vector<WaveRecord> waveRecords_;
     int wavePoints_ = 0;
+    // 出撃で稼いだレベルポイントの合計（使った分も含む。スコアに使う）。
+    int pointsEarned_ = 0;
     uint64_t waveDamageStart_ = 0;
     uint64_t waveCappedStart_ = 0;
     int repairs_ = 0;
@@ -818,6 +820,16 @@ private:
     }
     /// @brief 波の間のショップの画面を作る。
     void RefreshShop();
+    /// @brief 機体の今の組み立て（左の3枚に技の段とパーク、左下に HP と Q）を入れた画面の土台。ショップと Tab の画面で使う。
+    SurvivorItemScreen::View HeroBuildView() const;
+    /// @brief 結果画面のスコアの内訳（進んだ波・稼いだポイント・ボス）と合計。
+    struct HeroScore {
+        int waves = 0;
+        int points = 0;
+        bool boss = false;
+        int total = 0;
+    };
+    HeroScore ComputeHeroScore() const;
     std::array<int, survivor::kUpgradeTargets> upgradeTiers_{};
     std::array<bool, survivor::kPerkCount> perks_{};
     std::vector<ShopOffer> shopOffers_;

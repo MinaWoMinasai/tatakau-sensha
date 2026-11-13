@@ -314,6 +314,12 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             myEngine::Vector4 hpColor = world_.presentation.playerGridColor_;
             hpColor = lerpColor({hpColor.x * 1.25f, hpColor.y * 1.25f, hpColor.z * 1.25f, 1.0f}, {1.9f, 0.35f, 0.25f, 1.0f},
                                 hpRatio < 0.3f ? 0.75f : 0.0f);
+            // 機体の遊び方（Q のゲージを出している間）：残りに応じて緑 → 黄 → 赤へ変える（計画書 p4 の K5）。
+            if (world_.run.IsSurvivorRun() && world_.presentation.heroUltimateRatio_ >= 0.0f) {
+                const myEngine::Vector4 green{0.45f, 1.9f, 0.7f, 1.0f}, yellow{1.9f, 1.6f, 0.35f, 1.0f}, red{1.9f, 0.3f, 0.22f, 1.0f};
+                hpColor = hpRatio > 0.5f ? lerpColor(yellow, green, (hpRatio - 0.5f) * 2.0f)
+                                         : lerpColor(red, yellow, (std::max)(0.0f, hpRatio - 0.15f) / 0.35f);
+            }
             const float woundRatio = static_cast<float>(world_.resources.player_->GetSurvivorWound()) /
                                      static_cast<float>((std::max)(1, world_.resources.player_->GetMaxHp()));
             const int woundSegments = woundRatio > 0.0f ? static_cast<int>(std::ceil(woundRatio * 12.0f - 0.001f)) : 0;

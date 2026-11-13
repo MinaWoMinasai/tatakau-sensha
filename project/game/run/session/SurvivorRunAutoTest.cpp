@@ -832,7 +832,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     if (!player.IsDead() && elapsed_ >= autoDeathAt_) {
         world_.presentation.debugPlayerNoDamage_ = false;
         player.SetDebugNoDamage(false);
-        player.TakeDamage(1000000, 0.0f);
+        // 機体の遊び方では1回の被弾に上限があるので、無敵を外して敵に倒されるのを待つ（死因も本物になる）。
+        if (!HeroMode()) {
+            player.TakeDamage(1000000, 0.0f);
+        }
     }
     if (player.IsDead() && IsResultVisible() && autoTestClearedTime_ < 0.0f) {
         autoTestClearedTime_ = autoTestTime_;
@@ -1063,6 +1066,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                    }
                    return bought.str();
                }() << "],\"maxHp\":" << player.GetMaxHp() << "}"
+            << ",\"result\":{\"lastHit\":\"" << player.GetSurvivorLastHit() << "\",\"dead\":" << (player.IsDead() ? "true" : "false")
+            << ",\"pointsEarned\":" << pointsEarned_ << ",\"score\":" << (HeroMode() ? ComputeHeroScore().total : 0) << "}"
             << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false") << ",\"weaponSwaps\":" << weaponSwaps_ << ",\"reloads\":" << reloads_ << ",\"lockedAttacks\":" << autoLockedAttacks_
             << ",\"lockedSeconds\":" << autoLockedSeconds_ << ",\"emptyAttacks\":" << autoEmptyAttacks_ << ",\"emptySeconds\":" << autoEmptySeconds_
             << ",\"reserves\":[" << reserves_[0] << "," << reserves_[1] << "," << reserves_[2] << "],\"swapMeasured\":[" << autoSwapMeasured_[0] << ","

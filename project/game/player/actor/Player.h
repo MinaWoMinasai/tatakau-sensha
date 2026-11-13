@@ -676,6 +676,11 @@ public:
     {
         return static_cast<int>(survivorWound_);
     }
+    /// @brief 体力の決まりを通った最後の被弾の相手の名前（死因。機体の遊び方だけ記録する）。
+    const std::string& GetSurvivorLastHit() const
+    {
+        return survivorLastHit_;
+    }
     /// @brief 傷を全部治す（ショップの修理）。
     void ClearSurvivorWound()
     {
@@ -1267,6 +1272,9 @@ private:
     float survivorWound_ = 0.0f;
     float survivorClock_ = 0.0f;
     uint64_t survivorDamageSource_ = 0;
+    // 今受けている被弾の相手の名前（OnCollision と ReceiveHostileHazard が入れる）と、通った最後の被弾の相手の名前。
+    std::string survivorPendingHit_;
+    std::string survivorLastHit_;
     std::vector<std::pair<uint64_t, float>> survivorRecentSources_;
     std::vector<std::pair<float, uint32_t>> survivorRecentDamage_;
     uint64_t survivorDamageTaken_ = 0;
