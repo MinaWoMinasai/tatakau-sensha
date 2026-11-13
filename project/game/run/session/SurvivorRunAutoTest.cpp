@@ -174,8 +174,16 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             return;
         }
         if (autoRestState_ == 0) {
-            RequestCapture("rest_room");
+            RequestCapture(HeroMode() ? "wave_break" : "rest_room");
             autoRestState_ = 1;
+        } else if (autoRestState_ == 1 && HeroMode()) {
+            // 機体の遊び方の波の間：修理を押せれば押し（体力の決まりの確認で傷が付いている）、画面を保存する。
+            const myEngine::Vector2 repair = itemScreen_.CenterOf({SurvivorItemScreen::Zone::Button, 2});
+            DriveScreenPointer(repair, false, false, 0);
+            DriveScreenPointer(repair, true, false, 0);
+            DriveScreenPointer(repair, false, false, 0);
+            RequestCapture("wave_break_after");
+            autoRestState_ = 2;
         } else if (autoRestState_ == 1) {
             using Zone = SurvivorItemScreen::Zone;
             auto drag = [this](const SurvivorItemScreen::Hit& from, const SurvivorItemScreen::Hit& to) {
@@ -347,6 +355,27 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         if (FindAbility(survivor::AbilityKind::HealZone) && abilityUses_[static_cast<size_t>(AbilitySlot::Skill)] == 0 &&
             autoHeroPress_[static_cast<size_t>(AbilitySlot::Skill)] && player.GetHp() == player.GetMaxHp()) {
             player.SpendRunHealth(player.GetMaxHp() / 2);
+        }
+        // 体力の決まり（H6・H7）：5秒で一度だけ無敵を外し、同じ相手から2回・別の相手から2回当てて、1回の上限・同じ相手の間隔・
+        // 1秒の上限で削られるか、傷の分だけ HP が戻らないかを見る（消える移動の間は待つ）。
+        if (!autoHealthChecked_ && autoTestTime_ >= 5.0f && !player.IsSurvivorPhased()) {
+            autoHealthChecked_ = true;
+            ApplyHeroHealthRules();
+            const int maxHp = player.GetMaxHp();
+            player.HealRunPlayer(maxHp);
+            player.SetDebugNoDamage(false);
+            std::array<int, 4> taken{};
+            const std::array<std::pair<uint64_t, uint32_t>, 4> hits{{{0xA1, 1000}, {0xA1, 5}, {0xA2, 1000}, {0xA3, 5}}};
+            for (size_t i = 0; i < hits.size(); ++i) {
+                const int before = player.GetHp();
+                player.TakeSurvivorHit(hits[i].first, hits[i].second);
+                taken[i] = before - player.GetHp();
+            }
+            player.SetDebugNoDamage(true);
+            const int wound = player.GetSurvivorWound();
+            player.HealRunPlayer(maxHp);
+            autoHealthCheck_ << "{\"maxHp\":" << maxHp << ",\"taken\":[" << taken[0] << "," << taken[1] << "," << taken[2] << ","
+                             << taken[3] << "],\"wound\":" << wound << ",\"hpAfterHeal\":" << player.GetHp() << "}";
         }
         // 自分を回復（モイラ型）：吸収ゲージがほぼ満タンで HP も満タンなら HP を半分にし（自動確認は無敵なので）、
         // HP が減っていてゲージがあれば押し続ける。
@@ -837,7 +866,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     if (cleared_ && !restRoomOpen_ && autoTestClearedTime_ < 0.0f) {
         autoTestClearedTime_ = autoTestTime_;
     }
-    const bool timedOut = autoTestTime_ > kSectorAutoTestExitSeconds + (autoFullRun_ ? 360.0f : 90.0f);
+    // 機体の遊び方で波を全部通すときは、波の秒の合計とボスの分だけ長く待つ。
+    const float fullRunSeconds = HeroMode() ? config_.waves.seconds * static_cast<float>(config_.waves.count) + 300.0f : 360.0f;
+    const bool timedOut = autoTestTime_ > kSectorAutoTestExitSeconds + (autoFullRun_ ? fullRunSeconds : 90.0f);
     if ((autoTestClearedTime_ >= 0.0f && autoTestTime_ - autoTestClearedTime_ > 1.5f) || timedOut) {
         if (!autoTestCaptureQueued_) {
             RequestCapture(cleared_ ? "cleared" : "timeout");
@@ -978,6 +1009,20 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"phaseAvoided\":" << player.GetSurvivorPhaseAvoided() << ",\"orbDamage\":" << orbDamage_
             << ",\"orbBounces\":" << orbBounces_ << ",\"lanceDamage\":" << lanceDamage_ << ",\"lanceMaxHits\":" << lanceMaxHits_
             << ",\"primaryShots\":" << player.GetPrimaryAttackCount() << "}"
+            << ",\"waves\":{\"count\":" << config_.waves.count << ",\"seconds\":" << config_.waves.seconds << ",\"maxHp\":" << player.GetMaxHp()
+            << ",\"damageTaken\":" << player.GetSurvivorDamageTaken() << ",\"damageCapped\":" << player.GetSurvivorDamageCapped()
+            << ",\"hits\":" << player.GetSurvivorHits() << ",\"sameSourceBlocked\":" << player.GetSurvivorSameSourceBlocked()
+            << ",\"repairs\":" << repairs_ << ",\"repairSpent\":" << repairSpent_ << ",\"points\":" << bag_.money
+            << ",\"healthCheck\":" << (autoHealthCheck_.tellp() > 0 ? autoHealthCheck_.str() : std::string("null")) << ",\"records\":[" << [&] {
+                   std::ostringstream records;
+                   for (size_t i = 0; i < waveRecords_.size(); ++i) {
+                       const WaveRecord& r = waveRecords_[i];
+                       records << (i ? "," : "") << "{\"wave\":" << r.wave << ",\"points\":" << r.points << ",\"damage\":" << r.damage
+                               << ",\"capped\":" << r.capped << ",\"wound\":" << r.wound << ",\"hp\":" << r.hp << ",\"maxHp\":" << r.maxHp
+                               << ",\"seconds\":" << r.seconds << "}";
+                   }
+                   return records.str();
+               }() << "]}"
             << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false") << ",\"weaponSwaps\":" << weaponSwaps_ << ",\"reloads\":" << reloads_ << ",\"lockedAttacks\":" << autoLockedAttacks_
             << ",\"lockedSeconds\":" << autoLockedSeconds_ << ",\"emptyAttacks\":" << autoEmptyAttacks_ << ",\"emptySeconds\":" << autoEmptySeconds_
             << ",\"reserves\":[" << reserves_[0] << "," << reserves_[1] << "," << reserves_[2] << "],\"swapMeasured\":[" << autoSwapMeasured_[0] << ","

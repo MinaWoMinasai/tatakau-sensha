@@ -248,6 +248,24 @@ void SurvivorRunController::RefreshInventoryScreen()
 
 void SurvivorRunController::RefreshRestRoom()
 {
+    // 機体の遊び方：波の間の画面（K4 でショップにする）。今は修理と次の波へだけ。
+    if (HeroMode()) {
+        const auto& player = *world_.resources.player_;
+        SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, false);
+        view.title = "波 " + std::to_string(stage_ + 1) + "/" + std::to_string(config_.waves.count) + " おわり";
+        view.help = "HP " + std::to_string(player.GetHp()) + "/" + std::to_string(player.GetMaxHp()) + "（傷 " +
+                    std::to_string(player.GetSurvivorWound()) + "）　／　レベルポイント " + std::to_string(bag_.money) +
+                    "　／　HP は波の間に戻らない。修理で傷を全部と HP を治す";
+        view.gridTitle = "";
+        view.showEmptyCells = false;
+        const bool hurt = player.GetSurvivorWound() > 0 || player.GetHp() < player.GetMaxHp();
+        view.buttons.push_back({"出撃を終える（結果へ）", 0, true});
+        view.buttons.push_back({"次へ：" + (stage_ + 2 == StageCount() ? std::string("ボスの波") : "波 " + std::to_string(stage_ + 2)), 1, true});
+        view.buttons.push_back({"修理 " + std::to_string(config_.health.repairCost) + "：傷を治し HP+" + std::to_string(config_.health.repairHeal), 2,
+                                hurt && bag_.money >= config_.health.repairCost});
+        itemScreen_.Show(view);
+        return;
+    }
     SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, !HeroMode());
     view.title = "休憩部屋";
     view.help = "マウスを合わせると説明が出る　／　ドラッグで付け替え・チップを付ける　／　右クリックで売る　／　Z で捨てる";
@@ -452,6 +470,10 @@ void SurvivorRunController::HandleScreenEvent(const SurvivorItemScreen::Event& e
         if (event.type == EventType::Press && event.source.zone == Zone::Button) {
             if (event.source.index == 0) {
                 LeaveRestRoom();
+            } else if (event.source.index == 2) {
+                if (RepairHero()) {
+                    RefreshRestRoom();
+                }
             } else {
                 StartNextStage();
             }

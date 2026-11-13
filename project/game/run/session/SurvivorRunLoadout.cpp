@@ -17,6 +17,12 @@ void SurvivorRunController::AddExperience(int amount)
         return;
     }
     expCollected_ += amount;
+    // 機体の遊び方では、欠片はそのままレベルポイントになる（倒した敵の種類で量が決まる。H2）。
+    if (HeroMode()) {
+        bag_.money += amount;
+        wavePoints_ += amount;
+        return;
+    }
     // 武器の枠を使う遊び方では、レベルを上げず、欠片はお金になる（W3）。
     if (WeaponMode()) {
         moneyRemainder_ += static_cast<float>(amount) * config_.loot.moneyPerExp;

@@ -1091,6 +1091,10 @@ void PlayerProgression::RecalculateStatsFromBase(bool healToFull)
     derivedStatsInput.previousStamina = player_.stats_.stamina;
 
     player_.stats_ = CalculatePlayerDerivedStats(derivedStatsInput);
+    // 機体の最大HP（育つ戦車の試作の機体の遊び方）。
+    if (player_.survivorMaxHp_ > 0) {
+        player_.stats_.maxHp = static_cast<float>(player_.survivorMaxHp_);
+    }
     player_.SetDamage(static_cast<uint32_t>((std::max)(1.0f, player_.stats_.bodyDamage)));
     player_.hp_ = ResolvePlayerRecalculatedHp(player_.hp_, oldMaxHp, player_.GetMaxHp(), healToFull);
 }

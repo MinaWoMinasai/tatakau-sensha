@@ -100,6 +100,10 @@ void SurvivorRunController::Initialize()
     ConfigurePickups();
     // 大五角は宝箱：倒すと、まだ持っていないレリックの2択を1つ貯める（D4）。全部持っていれば、軽い部品の出ない3択を1つ貯める。
     ExpEnemy::SetPlayerExpDropCallback([this](const ExpEnemy& enemy, uint32_t value) {
+        // 機体の遊び方では、欠片の量は倒した敵の種類ごとのレベルポイント（H2）。
+        if (HeroMode()) {
+            value = static_cast<uint32_t>((std::max)(0, WavePoints(enemy)));
+        }
         pickups_.Drop(enemy.GetWorldPosition(), value, random_);
         expDropped_ += static_cast<int>(value);
         // 機体の遊び方では、お金（欠片）のほかは落とさない（計画書 p4 の H7）。
@@ -558,6 +562,9 @@ void SurvivorRunController::Update(float dt)
         if (!exitOpen_ && !rivalSpawned_ && elapsed_ >= config_.exitOpenSeconds) {
             if (config_.rival.enabled) {
                 SpawnRival();
+            } else if (HeroMode()) {
+                // 機体の遊び方：波の時間が終わったら、出口を歩かずにそのまま波の間へ（H1）。
+                FinishWave();
             } else {
                 OpenExit();
             }
@@ -832,18 +839,30 @@ void SurvivorRunController::RefreshHud()
     if (!WeaponMode()) {
         text << "Lv " << level_ << "   ";
     } else {
-        // 3ステージの流れ（W8）：今のステージと難しさの段。
-        text << "ステージ " << stage_ + 1 << "/" << survivor::SpawnConfig::kStageCount << "（" << (IsBossStage() ? "ボス・" : "") << "段"
-             << config_.stages.tier << "）   ";
+        // 3ステージの流れ（W8）：今のステージと難しさの段。機体の遊び方では波の数（H1）。
+        if (HeroMode()) {
+            text << (IsBossStage() ? std::string("ボスの波") : "波 " + std::to_string(stage_ + 1) + "/" + std::to_string(config_.waves.count))
+                 << "   ";
+        } else {
+            text << "ステージ " << stage_ + 1 << "/" << StageCount() << "（" << (IsBossStage() ? "ボス・" : "") << "段" << config_.stages.tier
+                 << "）   ";
+        }
     }
-    text << "区画  " << Clock(elapsed_) << "   脅威 Lv" << threatStage_;
+    // 機体の遊び方では、区画の時計・脅威・敵の数は出さない（波の残りとボスだけ）。
+    // 文字が変わるたびに文字の画像が1枚増えて解放されないので、細かく変わる数字を減らして長い出撃でも上限に届かないようにする。
+    if (!HeroMode()) {
+        text << "区画  " << Clock(elapsed_) << "   脅威 Lv" << threatStage_;
+    }
     if (IsRivalActive()) {
         const auto& rival = *world_.resources.enemy_;
         text << (WeaponMode() ? "   ボス " : "   宿敵 ") << (std::max)(0, rival.GetHp() * 100 / (std::max)(1, rival.GetMaxHp())) << "%";
     } else if (!exitOpen_) {
-        text << (config_.rival.enabled ? (WeaponMode() ? "   ボスまで " : "   宿敵まで ") : "   出口まで ") << Clock(config_.exitOpenSeconds - elapsed_);
+        text << (config_.rival.enabled ? (WeaponMode() ? "   ボスまで " : "   宿敵まで ") : HeroMode() ? "   波の終わりまで " : "   出口まで ")
+             << Clock(config_.exitOpenSeconds - elapsed_);
     }
-    text << "   敵 " << alive.total;
+    if (!HeroMode()) {
+        text << "   敵 " << alive.total;
+    }
     hudText_->SetText(text.str());
     if (qText_) {
         const std::string q = HeroMode() ? DescribeHeroAbilities() : DescribeQ();

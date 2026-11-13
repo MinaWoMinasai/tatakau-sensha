@@ -597,6 +597,9 @@
     <ClCompile Include="game\run\session\SurvivorRunHero.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunWaves.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\run\session\SurvivorRunScreens.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>

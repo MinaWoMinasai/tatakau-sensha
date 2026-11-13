@@ -549,6 +549,7 @@
     <ClCompile Include="game\run\session\SurvivorRunRest.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunBarrier.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunHero.cpp" />
+    <ClCompile Include="game\run\session\SurvivorRunWaves.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunScreens.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunElites.cpp" />
     <ClCompile Include="game\run\session\SurvivorAudio.cpp" />

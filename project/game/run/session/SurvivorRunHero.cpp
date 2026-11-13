@@ -43,6 +43,20 @@ void SurvivorRunController::StartHero()
     world_.resources.player_->RestoreHeat({});
     RefreshWeaponSlots();
     ResetHeroState();
+    // 機体の最大HP（満タンにする）と、体力の決まり（H6・H7）。
+    world_.resources.player_->SetSurvivorMaxHp(Hero().maxHp);
+    ApplyHeroHealthRules();
+}
+
+void SurvivorRunController::ApplyHeroHealthRules()
+{
+    Player::SurvivorDamageRules rules;
+    rules.enabled = HeroMode();
+    rules.maxHitRatio = config_.health.maxHitRatio;
+    rules.maxPerSecondRatio = config_.health.maxPerSecondRatio;
+    rules.sameSourceSeconds = config_.health.sameSourceSeconds;
+    rules.woundRatio = config_.health.woundRatio;
+    world_.resources.player_->ConfigureSurvivorDamageRules(rules);
 }
 
 void SurvivorRunController::ResetHeroState()
@@ -722,9 +736,10 @@ std::string SurvivorRunController::DescribeHeroAbilities() const
         first = false;
         if (slot == AbilitySlot::Ultimate) {
             const float ratio = ultimateCharge_ / Hero().ultimateCharge;
-            text << (ratio >= 1.0f ? std::string("使える") : std::to_string(static_cast<int>(ratio * 100.0f)) + "%");
+            // 5% 刻み（文字が変わるたびに文字の画像が増えるので、細かく変えない）。
+            text << (ratio >= 1.0f ? std::string("使える") : std::to_string(static_cast<int>(ratio * 20.0f) * 5) + "%");
         } else if (ability.kind == AbilityKind::SelfHeal) {
-            text << "吸収 " << static_cast<int>(absorb_ / (std::max)(0.001f, ability.duration) * 100.0f) << "%";
+            text << "吸収 " << static_cast<int>(absorb_ / (std::max)(0.001f, ability.duration) * 20.0f) * 5 << "%";
         } else if (survivor::IsHeldAbility(ability.kind)) {
             text << (barrierExhausted_ > 0.0f ? "回復中" : "押して張る");
         } else if (abilityCooldown_[i] > 0.0f) {

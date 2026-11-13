@@ -654,6 +654,52 @@ public:
         survivorMoveScale_ = (std::max)(0.0f, scale);
     }
 
+    /// @brief 機体の遊び方の体力の決まり（計画書 p4 の H6・H7）。enabled なら被弾の後の無敵時間を使わず、
+    /// 1回の被弾・1秒に受ける量・同じ相手から当たる間隔に上限を付け、受けたダメージの一部を「傷」にする。
+    struct SurvivorDamageRules {
+        bool enabled = false;
+        /// @brief 1回の被弾の上限（最大HPに対する割合）。
+        float maxHitRatio = 0.2f;
+        /// @brief 1秒に受けるダメージの上限（最大HPに対する割合）。
+        float maxPerSecondRatio = 0.3f;
+        /// @brief 同じ相手から当たる間隔（秒）。
+        float sameSourceSeconds = 0.5f;
+        /// @brief 受けたダメージのうち、傷になる割合（治すまで HP はそこまでしか戻らない）。
+        float woundRatio = 0.3f;
+    };
+    /// @brief 体力の決まりを入れ、傷と上限の記録を0に戻す。
+    void ConfigureSurvivorDamageRules(const SurvivorDamageRules& rules);
+    /// @brief source（当たり判定の id）から amount の被弾。同じ相手から当たる間隔を見る（体力の決まりが無効なら TakeDamage と同じ）。
+    void TakeSurvivorHit(uint64_t source, uint32_t amount);
+    /// @brief 今の傷（HP の上限から引かれる量）。
+    int GetSurvivorWound() const
+    {
+        return static_cast<int>(survivorWound_);
+    }
+    /// @brief 傷を全部治す（ショップの修理）。
+    void ClearSurvivorWound()
+    {
+        survivorWound_ = 0.0f;
+    }
+    /// @brief 体力の決まりを通った被弾の合計（無敵の自動確認でも数える）、上限で削った量、当たった回数、間隔で弾いた回数。
+    uint64_t GetSurvivorDamageTaken() const
+    {
+        return survivorDamageTaken_;
+    }
+    uint64_t GetSurvivorDamageCapped() const
+    {
+        return survivorDamageCapped_;
+    }
+    uint32_t GetSurvivorHits() const
+    {
+        return survivorHits_;
+    }
+    uint32_t GetSurvivorSameSourceBlocked() const
+    {
+        return survivorSameSourceBlocked_;
+    }
+    /// @brief 最大HPを hp にして満タンにする（機体の最大HP。0 なら元の値に戻す）。
+    void SetSurvivorMaxHp(int hp);
     /// @brief 機体の「消える移動」：seconds 秒、敵・敵の弾・床の危険に触れても押されず、傷つかない。
     void StartSurvivorPhase(float seconds)
     {
@@ -1211,6 +1257,20 @@ private:
     bool survivorFireLocked_ = false;
     // 機体の「走る」の間の、移動の速さの倍率。
     float survivorMoveScale_ = 1.0f;
+    // 機体の遊び方の体力の決まりと、傷・時計・最近当たった相手（id と時刻）・最近1秒の被弾（時刻と量）・記録。
+    SurvivorDamageRules survivorDamageRules_{};
+    float survivorWound_ = 0.0f;
+    float survivorClock_ = 0.0f;
+    uint64_t survivorDamageSource_ = 0;
+    std::vector<std::pair<uint64_t, float>> survivorRecentSources_;
+    std::vector<std::pair<float, uint32_t>> survivorRecentDamage_;
+    uint64_t survivorDamageTaken_ = 0;
+    uint64_t survivorDamageCapped_ = 0;
+    uint32_t survivorHits_ = 0;
+    uint32_t survivorSameSourceBlocked_ = 0;
+    int survivorMaxHp_ = 0;
+    /// @brief 体力の決まりで amount を削る（同じ相手の間隔・1回の上限・1秒の上限）。当たらないなら0。
+    uint32_t LimitSurvivorDamage(uint32_t amount);
     // 機体の「消える移動」の残りの秒・すり抜けた数・今の移動ですり抜けた相手。
     float survivorPhaseTimer_ = 0.0f;
     uint32_t survivorPhaseAvoided_ = 0;

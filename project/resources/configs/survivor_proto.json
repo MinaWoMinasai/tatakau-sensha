@@ -98,7 +98,7 @@
                   "damageScale": 1.2, "reloadScale": 0.8, "speedScale": 1.6, "heatScale": 0.6 }
   },
   "heroes": {
-    "comment": "機体（計画書 p4）。enabled が true なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイール・リロード・拠点の画面・お金以外の落とし物を止める）。start は出撃する機体。機体ごとに、name は名前、primary は主武器（weapons のキー。弾は数えず熱だけで撃つ）、primaryHeatScale は主武器の1発の熱の倍率の上書き（0 なら武器の値。撃ち続けられる長さが決まる）、ultimateCharge は Q のゲージが満タンになるまでに要る量（与えたダメージ＋回復した量）。primaryAbility を書くと、主武器は弾ではなく技の部品になる（primary の武器は見た目だけ）。secondary（右クリック）・mobility（Shift）・skill（E）・ultimate（Q）は技の部品で、kind は種類（none・sprint 走る・barrier バリア・rocket 爆発する弾・healZone 回復の場・barrage 自動で狙う弾幕・drainBeam 吸い付く光線・selfHeal 吸収ゲージで自分を回復・phase 無敵ですり抜ける移動・bounceOrb 敵の間を跳ねる球・lance 太い光線）、name は画面の名前、cooldown は次に使えるまでの秒（Q はゲージ）、duration は効いている秒（selfHeal は吸収ゲージの上限の秒）、power は種類ごとの強さ（sprint・phase は速さの倍率、rocket・barrage は主砲1発に対する威力の倍率、drainBeam・bounceOrb・lance は毎秒の威力の主砲1発に対する倍率、healZone・selfHeal は毎秒の回復の最大HPに対する割合）、radius は半径や長さ（rocket は爆発、healZone は場、barrage は狙う範囲、drainBeam は届く距離、lance は光線の長さ）、rate は弾幕の毎秒の発射数・跳ねる球の速さ、size は光線の太さ・跳ねる球の半径、gain は与えた威力1ごとに溜まる吸収ゲージの秒。バリアと selfHeal は押している間だけ効く（バリアは設定の barrier とスタミナを使う）。",
+    "comment": "機体（計画書 p4）。enabled が true なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイール・リロード・拠点の画面・お金以外の落とし物を止める）。start は出撃する機体。機体ごとに、name は名前、primary は主武器（weapons のキー。弾は数えず熱だけで撃つ）、primaryHeatScale は主武器の1発の熱の倍率の上書き（0 なら武器の値。撃ち続けられる長さが決まる）、ultimateCharge は Q のゲージが満タンになるまでに要る量（与えたダメージ＋回復した量）。maxHp は最大HP（0 なら自機の値のまま）。primaryAbility を書くと、主武器は弾ではなく技の部品になる（primary の武器は見た目だけ）。secondary（右クリック）・mobility（Shift）・skill（E）・ultimate（Q）は技の部品で、kind は種類（none・sprint 走る・barrier バリア・rocket 爆発する弾・healZone 回復の場・barrage 自動で狙う弾幕・drainBeam 吸い付く光線・selfHeal 吸収ゲージで自分を回復・phase 無敵ですり抜ける移動・bounceOrb 敵の間を跳ねる球・lance 太い光線）、name は画面の名前、cooldown は次に使えるまでの秒（Q はゲージ）、duration は効いている秒（selfHeal は吸収ゲージの上限の秒）、power は種類ごとの強さ（sprint・phase は速さの倍率、rocket・barrage は主砲1発に対する威力の倍率、drainBeam・bounceOrb・lance は毎秒の威力の主砲1発に対する倍率、healZone・selfHeal は毎秒の回復の最大HPに対する割合）、radius は半径や長さ（rocket は爆発、healZone は場、barrage は狙う範囲、drainBeam は届く距離、lance は光線の長さ）、rate は弾幕の毎秒の発射数・跳ねる球の速さ、size は光線の太さ・跳ねる球の半径、gain は与えた威力1ごとに溜まる吸収ゲージの秒。バリアと selfHeal は押している間だけ効く（バリアは設定の barrier とスタミナを使う）。",
     "enabled": true,
     "start": "moira",
     "prototype": { "name": "試作機", "primary": "cannon", "ultimateCharge": 600,
@@ -106,12 +106,12 @@
                    "mobility": { "kind": "sprint", "name": "走る", "cooldown": 8, "duration": 3, "power": 1.5 },
                    "skill": { "kind": "none", "name": "", "cooldown": 0, "duration": 0, "power": 1 },
                    "ultimate": { "kind": "none", "name": "", "cooldown": 0, "duration": 0, "power": 1 } },
-    "soldier": { "name": "ソルジャー型", "primary": "machineGun", "primaryHeatScale": 1.0, "ultimateCharge": 2000,
+    "soldier": { "name": "ソルジャー型", "primary": "machineGun", "primaryHeatScale": 1.0, "ultimateCharge": 2000, "maxHp": 100,
                  "secondary": { "kind": "rocket", "name": "小型ロケット", "cooldown": 6, "duration": 0, "power": 6, "radius": 3, "rate": 0 },
                  "mobility": { "kind": "sprint", "name": "全力で走る", "cooldown": 8, "duration": 3, "power": 1.5, "radius": 0, "rate": 0 },
                  "skill": { "kind": "healZone", "name": "回復の場", "cooldown": 15, "duration": 5, "power": 0.04, "radius": 4, "rate": 0 },
                  "ultimate": { "kind": "barrage", "name": "弾幕", "cooldown": 0, "duration": 5, "power": 0.8, "radius": 18, "rate": 14 } },
-    "moira": { "name": "モイラ型", "primary": "beam", "ultimateCharge": 1800,
+    "moira": { "name": "モイラ型", "primary": "beam", "ultimateCharge": 1800, "maxHp": 90,
                "primaryAbility": { "kind": "drainBeam", "name": "吸収ビーム", "power": 2.2, "radius": 8, "size": 0.22, "gain": 0.012 },
                "secondary": { "kind": "selfHeal", "name": "自分を回復", "cooldown": 0, "duration": 6, "power": 0.06 },
                "mobility": { "kind": "phase", "name": "消える移動", "cooldown": 6, "duration": 0.8, "power": 1.6 },
@@ -134,6 +134,16 @@
   "stages": {
     "comment": "3ステージの流れ（計画書 p3 の W8）。武器の枠を使う遊び方だけ。ステージ1 → 休憩部屋 → ステージ2 → 休憩部屋 → ボスステージ。exitSeconds はステージ1・2では出口が開くまでの秒、ボスステージではボス（宿敵）が出るまでの秒。threatOffset はステージごとの脅威の段階の上乗せ、enemyHp は湧く敵のHPの倍率。swarmScale は寄ってくる三角の群れと包囲の数の倍率。ボスを倒すと出口が開き、ボスの素材 bossMaterials 個と武器を1つ落とす。休憩部屋で次へ進むと、HPが戻る。tier は難しさの段（今は段1の入口だけ）。",
     "exitSeconds": [180, 180, 15], "threatOffset": [0, 1, 2], "enemyHp": [0.8, 0.96, 1.12], "swarmScale": 0.67, "bossMaterials": 5, "tier": 1
+  },
+  "waves": {
+    "comment": "機体の遊び方の出撃の流れ（計画書 p4 の H1）。seconds 秒の波を count 回、そのあとボスの波。波が終わると敵と弾を片付け、落ちている欠片は拾ったことにして、波の間の画面を開く。ボスの波では bossDelay 秒でボスが出て、倒すと出撃を終える。threatOffset と enemyHp は波ごと（最後がボスの波）の脅威の段階の上乗せと敵のHPの倍率（足りなければ最後の値）。points は倒した敵の種類ごとのレベルポイント（H2）：triangle 三角・square 四角・pentagon 五角・heavySquare 重い四角・bigPentagon 大五角・tank 敵戦車・boss ボス。",
+    "count": 5, "seconds": 90, "bossDelay": 10,
+    "threatOffset": [0, 1, 2, 3, 4, 5], "enemyHp": [0.8, 0.9, 1.0, 1.1, 1.2, 1.3],
+    "points": { "triangle": 5, "square": 10, "pentagon": 25, "heavySquare": 40, "bigPentagon": 80, "tank": 80, "boss": 500 }
+  },
+  "health": {
+    "comment": "機体の遊び方の体力の決まり（計画書 p4 の H6〜H8）。全体の無敵時間は使わない。1回の被弾は最大HPの maxHitRatio まで、1秒に受けるのは maxPerSecondRatio まで、同じ相手からは sameSourceSeconds 秒に1回まで。受けたダメージの woundRatio は傷になり、治すまで HP はそこまでしか戻らない（HP の弧の灰色）。波の間に HP は戻らず、修理（repairCost のレベルポイント）で傷を全部と HP を repairHeal 治す。",
+    "maxHitRatio": 0.2, "maxPerSecondRatio": 0.3, "sameSourceSeconds": 0.5, "woundRatio": 0.3, "repairCost": 150, "repairHeal": 30
   },
   "barrier": {
     "comment": "右クリックのバリアとスタミナ（計画書 p3 の X3）。武器の枠を使う遊び方だけ。押している間、自機の前に半径 radius・開き arcDegrees 度の扇を張り、敵の弾を消し、敵を縁まで押し返す。張っている間は毎秒 drainPerSecond、弾を止めると hitCost、敵に触れていると1体ごとに毎秒 contactPerSecond 減る（上限 staminaMax）。尽きると exhaustedSeconds 秒は張れない。放して regenDelay 秒たつと毎秒 regenPerSecond 戻る。",

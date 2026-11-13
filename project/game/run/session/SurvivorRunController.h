@@ -624,6 +624,8 @@ private:
     std::array<int, survivor::kAmmoTypeCount> ammoPicked_{};
     std::unique_ptr<myEngine::TextLabel> lootText_;
     std::string lootTextShown_;
+    // 袋の一行を次に書き換えてよいまでの秒（機体の遊び方。お金が細かく増えるたびに文字の画像を作らない）。
+    float lootTextWait_ = 0.0f;
 
     // E の持ち物の画面（W4）。開いている間は区画を止める（IsPaused）。戦闘中は見るだけ。
     /// @brief 持ち物の画面を開く（文字はここで1回だけ作る）。
@@ -741,9 +743,43 @@ private:
     void StartNextStage();
     bool IsBossStage() const
     {
-        return WeaponMode() && stage_ == survivor::SpawnConfig::kStageCount - 1;
+        return WeaponMode() && stage_ == StageCount() - 1;
     }
+    /// @brief ステージ（機体の遊び方では波）の数。機体の遊び方は波 count 回＋ボスの波（計画書 p4 の H1）。
+    int StageCount() const
+    {
+        return HeroMode() ? config_.waves.count + 1 : survivor::SpawnConfig::kStageCount;
+    }
+    /// @brief 今のステージ（波）の、脅威の段階の上乗せと敵のHPの倍率。
+    int StageThreatOffset() const;
+    float StageEnemyHp() const;
     int stage_ = 0;
+    // 機体の遊び方の波（計画書 p4 の K3）。SurvivorRunWaves.cpp。
+    /// @brief 波の時間が終わった・ボスを倒した：落ちている欠片を拾ったことにし、敵と弾を片付け、波の間の画面（ボスの波なら結果画面）へ。
+    void FinishWave();
+    /// @brief 倒した敵の種類ごとのレベルポイント（H2）。
+    int WavePoints(const ExpEnemy& enemy) const;
+    /// @brief 波の間の修理（H8）：傷を全部と HP を治す。レベルポイントが足りなければ何もしない。治したら真。
+    bool RepairHero();
+    /// @brief 機体の遊び方の体力の決まり（H6・H7）を自機に入れる。
+    void ApplyHeroHealthRules();
+    // 波ごとの記録（自動確認と遊んだ記録）：稼いだポイント・通った被弾・傷・終わりの HP。
+    struct WaveRecord {
+        int wave = 0;
+        int points = 0;
+        uint64_t damage = 0;
+        uint64_t capped = 0;
+        int wound = 0;
+        int hp = 0;
+        int maxHp = 0;
+        float seconds = 0.0f;
+    };
+    std::vector<WaveRecord> waveRecords_;
+    int wavePoints_ = 0;
+    uint64_t waveDamageStart_ = 0;
+    uint64_t waveCappedStart_ = 0;
+    int repairs_ = 0;
+    int repairSpent_ = 0;
 
     // BGM と効果音。SurvivorRunAudio.cpp。毎フレームの回数の増え方から鳴らし、場面で曲を替える。
     struct AudioCounters {
@@ -918,6 +954,9 @@ private:
     uint32_t autoSampleShots_ = 0;
     int autoShieldStep_ = 0;
     std::ostringstream autoShieldLog_;
+    // 体力の決まりの確認（機体の遊び方）を済ませたかと、その結果。
+    bool autoHealthChecked_ = false;
+    std::ostringstream autoHealthCheck_;
     // 形態の確認。MYENGINE_SURVIVOR_FORM=twin なら連装、それ以外は長砲身を選ぶ。
     size_t autoFormIndex_ = static_cast<size_t>(survivor::FormId::LongBarrel);
     float autoFormTimer_ = 0.0f;

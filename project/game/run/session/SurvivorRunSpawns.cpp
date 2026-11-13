@@ -219,7 +219,7 @@ bool SurvivorRunController::SpawnShape(const char* prefab, const myEngine::Vecto
 float SurvivorRunController::EnemyHpScale() const
 {
     // 武器の枠を使う遊び方では、ステージごとの倍率もかける（W8）。
-    const float stage = WeaponMode() ? config_.stages.enemyHp[static_cast<size_t>((std::clamp)(stage_, 0, 2))] : 1.0f;
+    const float stage = WeaponMode() ? StageEnemyHp() : 1.0f;
     return (std::max)(0.1f, (1.0f + config_.threat.enemyHpPerStage * static_cast<float>(threatStage_ - 1)) * stage);
 }
 
@@ -236,7 +236,7 @@ void SurvivorRunController::ScaleLastSpawnHp()
 void SurvivorRunController::UpdateThreat()
 {
     // 武器の枠を使う遊び方では、ステージごとに脅威の段階を上乗せする（W8）。
-    const int offset = WeaponMode() ? config_.stages.threatOffset[static_cast<size_t>((std::clamp)(stage_, 0, 2))] : 0;
+    const int offset = WeaponMode() ? StageThreatOffset() : 0;
     const int stage = (std::clamp)(config_.ThreatStage(elapsed_) + offset, 1, (std::max)(1, config_.threat.maxStage));
     if (stage != threatStage_) {
         threatStage_ = stage;
@@ -428,6 +428,12 @@ void SurvivorRunController::FinishRivalDefeat()
     const myEngine::Vector3 position = cineAnchor_;
     pickups_.Drop(position, static_cast<uint32_t>((std::max)(0, config_.rival.exp)), random_);
     expDropped_ += (std::max)(0, config_.rival.exp);
+    // 機体の遊び方のボス：レベルポイントを入れて、出撃を終える（K3）。
+    if (HeroMode()) {
+        AddExperience((std::max)(0, config_.waves.boss));
+        FinishWave();
+        return;
+    }
     // 武器の枠を使う遊び方のボス：3択の代わりに、ボスの素材と武器を1つ落とす（W8）。
     if (WeaponMode()) {
         for (int i = 0; i < config_.stages.bossMaterials; ++i) {

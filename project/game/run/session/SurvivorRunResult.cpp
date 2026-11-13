@@ -74,9 +74,12 @@ void SurvivorRunController::RefreshResult(int selection)
     // 見出し（区画クリア・撃破された）は、上の帯の文字（CombatFlow）が出す。
     text << (cleared_ ?"区画の時間　　" : "生き延びた時間　") << Clock(elapsed_) << "\n"
          << (WeaponMode() ? std::string() : "レベル　　　　" + std::to_string(level_) + "\n")
-         << (WeaponMode() ? "ステージ　　　" + std::to_string(stage_ + 1) + "/" + std::to_string(survivor::SpawnConfig::kStageCount) + "（段" +
-                                std::to_string(config_.stages.tier) + "）" + (IsBossStage() && rivalDefeated_ ? "　ボス撃破" : "") + "\n"
-                          : std::string())
+         << (HeroMode()     ? (IsBossStage() ? std::string("ボスの波") : "波　　　　　　" + std::to_string(stage_ + 1) + "/" +
+                                                                         std::to_string(config_.waves.count)) +
+                                  (IsBossStage() && rivalDefeated_ ? "　ボス撃破" : "") + "\n"
+             : WeaponMode() ? "ステージ　　　" + std::to_string(stage_ + 1) + "/" + std::to_string(StageCount()) + "（段" +
+                                  std::to_string(config_.stages.tier) + "）" + (IsBossStage() && rivalDefeated_ ? "　ボス撃破" : "") + "\n"
+                            : std::string())
          << "撃破　　　　　" << world_.combat.defeatedEnemies_ << "\n"
          << (WeaponMode() ? "武器　　　　　" + WeaponNames() + "\n"
                           : "形態　　　　　" + formPath_ + "　　特性 " + survivor::TraitName(trait_) + "\n")

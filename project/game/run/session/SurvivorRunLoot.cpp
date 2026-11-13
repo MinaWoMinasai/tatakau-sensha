@@ -86,10 +86,13 @@ void SurvivorRunController::UpdateLoot(float dt)
     }
 
     // 袋の一行。文字が変わったときだけ作り直す。
+    // 機体の遊び方ではお金が欠片ごとに細かく増えるので、0.5秒に1回まで（文字が変わるたびに文字の画像が増えて解放されないため）。
+    lootTextWait_ = (std::max)(0.0f, lootTextWait_ - dt);
     const std::string bag = DescribeBag();
-    if (lootText_ && bag != lootTextShown_) {
+    if (lootText_ && bag != lootTextShown_ && (!HeroMode() || lootTextWait_ <= 0.0f)) {
         lootText_->SetText(bag);
         lootTextShown_ = bag;
+        lootTextWait_ = 0.5f;
     }
 }
 

@@ -200,6 +200,11 @@ void Player::Initialize(myEngine::Object3d* object, const myEngine::Vector3& pos
     survivorPhaseTimer_ = 0.0f;
     survivorPhaseAvoided_ = 0;
     survivorPhaseTouched_.clear();
+    survivorDamageRules_ = {};
+    survivorWound_ = 0.0f;
+    survivorRecentSources_.clear();
+    survivorRecentDamage_.clear();
+    survivorMaxHp_ = 0;
 
     object_ = object;
     baseVehicleColor_ = object_->GetColor();
@@ -307,6 +312,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
 
     invincibleTimer_ -= deltaTime;
     survivorPhaseTimer_ = (std::max)(0.0f, survivorPhaseTimer_ - deltaTime);
+    survivorClock_ += deltaTime;
     if (shieldConfig_.enabled && !isDead_) {
         const float shieldMax = GetShieldMax();
         if (shieldRegenWait_ > 0.0f) {
@@ -648,7 +654,7 @@ void Player::OnCollision(Collider* other)
 
     if (other->GetCollisionAttribute() == kCollisionAttributeEnemy || other->GetCollisionAttribute() == kCollisionAttributeExpEnemy ||
         other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
-        TakeDamage(other->GetDamage(), 0.45f);
+        TakeSurvivorHit(other->GetCollisionId(), other->GetDamage());
     }
 }
 
@@ -671,7 +677,8 @@ uint32_t Player::ReceiveHostileHazard(uint32_t amount, bool dodgeable)
         return 0;
     }
     const int before = hp_;
-    TakeDamage(amount, 0.45f);
+    // 床の危険は、まとめて1つの相手として間隔を見る。
+    TakeSurvivorHit(~0ull, amount);
     return static_cast<uint32_t>((std::max)(0, before - hp_));
 }
 
@@ -762,7 +769,21 @@ void Player::Damage(uint32_t amount)
 void Player::TakeDamage(uint32_t amount, float invincibleTime)
 {
     // 機体の消える移動の間は、どこから来た攻撃も受けない（数えるのは OnCollision と ReceiveHostileHazard）。
-    if (isDead_ || amount == 0 || invincibleTimer_ > 0.0f || debugNoDamage_ || survivorPhaseTimer_ > 0.0f) {
+    if (isDead_ || amount == 0 || invincibleTimer_ > 0.0f || survivorPhaseTimer_ > 0.0f) {
+        return;
+    }
+    // 機体の遊び方の体力の決まり（H6）：上限で削り、無敵時間は付けない。無敵の自動確認でも、通った量は数える。
+    const bool rules = survivorDamageRules_.enabled;
+    if (rules) {
+        amount = LimitSurvivorDamage(amount);
+        if (amount == 0) {
+            return;
+        }
+        invincibleTime = 0.0f;
+        survivorDamageTaken_ += amount;
+        ++survivorHits_;
+    }
+    if (debugNoDamage_) {
         return;
     }
     if (saberCounterTimer_ > 0.0f) {
@@ -791,6 +812,11 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
         hp_ = 0;
     }
 
+    // 傷（H7）：受けたダメージの一部は、治すまで HP の上限から引かれる（最大HP-1 まで）。
+    if (rules) {
+        survivorWound_ = (std::min)(static_cast<float>((std::max)(0, GetMaxHp() - 1)),
+                                    survivorWound_ + static_cast<float>(amount) * survivorDamageRules_.woundRatio);
+    }
     TriggerDamageFeedback();
     invincibleTimer_ = invincibleTime * partEffects_.invincibleScale;
     if (hp_ <= 0) {
@@ -1276,7 +1302,73 @@ void Player::ConfigurePrototypeLoadout(int archetype)
 
 void Player::HealRunPlayer(int amount)
 {
+    // 傷がある間は、HP は「最大HP − 傷」までしか戻らない（H7）。
+    if (survivorWound_ >= 1.0f) {
+        amount = (std::min)(amount, GetMaxHp() - GetSurvivorWound() - hp_);
+        if (amount <= 0) {
+            return;
+        }
+    }
     playerProgression_->HealRunPlayer(amount);
+}
+
+void Player::ConfigureSurvivorDamageRules(const SurvivorDamageRules& rules)
+{
+    survivorDamageRules_ = rules;
+    survivorWound_ = 0.0f;
+    survivorRecentSources_.clear();
+    survivorRecentDamage_.clear();
+}
+
+void Player::TakeSurvivorHit(uint64_t source, uint32_t amount)
+{
+    survivorDamageSource_ = source;
+    TakeDamage(amount, 0.45f);
+    survivorDamageSource_ = 0;
+}
+
+uint32_t Player::LimitSurvivorDamage(uint32_t amount)
+{
+    const SurvivorDamageRules& rules = survivorDamageRules_;
+    const float maxHp = static_cast<float>((std::max)(1, GetMaxHp()));
+    // 同じ相手からは sameSourceSeconds に1回まで（id の分からない被弾は見ない）。
+    const uint64_t source = survivorDamageSource_;
+    std::erase_if(survivorRecentSources_, [&](const auto& entry) {
+        return survivorClock_ - entry.second >= rules.sameSourceSeconds;
+    });
+    if (source != 0 && std::any_of(survivorRecentSources_.begin(), survivorRecentSources_.end(), [&](const auto& entry) {
+            return entry.first == source;
+        })) {
+        ++survivorSameSourceBlocked_;
+        return 0;
+    }
+    const uint32_t requested = amount;
+    // 1回の上限と、最近1秒の合計の上限。
+    amount = (std::min)(amount, static_cast<uint32_t>((std::max)(1.0f, std::round(maxHp * rules.maxHitRatio))));
+    std::erase_if(survivorRecentDamage_, [&](const auto& entry) {
+        return survivorClock_ - entry.first >= 1.0f;
+    });
+    uint32_t recent = 0;
+    for (const auto& entry : survivorRecentDamage_) {
+        recent += entry.second;
+    }
+    const auto perSecond = static_cast<uint32_t>((std::max)(1.0f, std::round(maxHp * rules.maxPerSecondRatio)));
+    amount = recent >= perSecond ? 0 : (std::min)(amount, perSecond - recent);
+    survivorDamageCapped_ += requested - amount;
+    if (amount == 0) {
+        return 0;
+    }
+    survivorRecentDamage_.push_back({survivorClock_, amount});
+    if (source != 0) {
+        survivorRecentSources_.push_back({source, survivorClock_});
+    }
+    return amount;
+}
+
+void Player::SetSurvivorMaxHp(int hp)
+{
+    survivorMaxHp_ = (std::max)(0, hp);
+    RecalculateStatsFromBase(true);
 }
 
 bool Player::SpendRunHealth(int amount)

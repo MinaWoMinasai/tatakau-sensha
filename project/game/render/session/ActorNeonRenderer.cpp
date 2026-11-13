@@ -290,7 +290,7 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};
             const float radius = world_.presentation.playerNeonBillboardRadius_;
             auto queueSegmentedArc = [&](float arcRadius, float centerAngle, float span, int segments, float ratio,
-                                         const myEngine::Vector4& lit, float thickness) {
+                                         const myEngine::Vector4& lit, float thickness, int grayFrom = 1 << 30) {
                 const float step = span / static_cast<float>(segments);
                 const int litSegments =
                     static_cast<int>(std::ceil((std::clamp)(ratio, 0.0f, 1.0f) * static_cast<float>(segments) - 0.001f));
@@ -301,7 +301,10 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                     const myEngine::Vector3 middle = center + radial * arcRadius;
                     const float half = arcRadius * step * 0.36f;
                     const bool on = i < litSegments;
-                    const myEngine::Vector4 segmentColor = on ? lit : myEngine::Vector4{lit.x * 0.18f, lit.y * 0.18f, lit.z * 0.18f, 0.45f};
+                    // grayFrom 番目からは灰色（機体の遊び方の傷：治すまで戻らない分）。
+                    const myEngine::Vector4 segmentColor = i >= grayFrom ? myEngine::Vector4{0.55f, 0.55f, 0.6f, 0.9f}
+                                                           : on          ? lit
+                                                                         : myEngine::Vector4{lit.x * 0.18f, lit.y * 0.18f, lit.z * 0.18f, 0.45f};
                     world_.resources.neonGridRenderer_->QueueLine(middle - tangent * half, middle + tangent * half, thickness,
                                                                   segmentColor);
                 }
@@ -311,7 +314,10 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             myEngine::Vector4 hpColor = world_.presentation.playerGridColor_;
             hpColor = lerpColor({hpColor.x * 1.25f, hpColor.y * 1.25f, hpColor.z * 1.25f, 1.0f}, {1.9f, 0.35f, 0.25f, 1.0f},
                                 hpRatio < 0.3f ? 0.75f : 0.0f);
-            queueSegmentedArc(radius * 1.55f, 0.0f, 2.05f, 12, hpRatio, hpColor, radius * 0.30f);
+            const float woundRatio = static_cast<float>(world_.resources.player_->GetSurvivorWound()) /
+                                     static_cast<float>((std::max)(1, world_.resources.player_->GetMaxHp()));
+            const int woundSegments = woundRatio > 0.0f ? static_cast<int>(std::ceil(woundRatio * 12.0f - 0.001f)) : 0;
+            queueSegmentedArc(radius * 1.55f, 0.0f, 2.05f, 12, hpRatio, hpColor, radius * 0.30f, 12 - woundSegments);
             // シールドはHPの弧のすぐ外側に、細い水色の弧として重ねる（試作のモードだけ）。
             const float shieldMax = world_.resources.player_->GetShieldMax();
             if (shieldMax > 0.0f) {

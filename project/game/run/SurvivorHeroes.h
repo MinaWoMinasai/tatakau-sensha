@@ -107,6 +107,8 @@ struct HeroDefinition {
     std::array<AbilityDefinition, kAbilitySlotCount> abilities{};
     /// @brief Q のゲージが満タンになるまでに要る量（与えたダメージ＋回復した量）。
     float ultimateCharge = 600.0f;
+    /// @brief 最大HP（0 なら自機の値のまま）。
+    int maxHp = 0;
 };
 
 /// @brief 機体の設定。enabled なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイールとリロードなし）。
@@ -139,6 +141,7 @@ inline std::vector<HeroDefinition> DefaultHeroes()
     soldier.abilities[static_cast<size_t>(AbilitySlot::Skill)] = {AbilityKind::HealZone, "回復の場", 15.0f, 5.0f, 0.04f, 4.0f};
     soldier.abilities[static_cast<size_t>(AbilitySlot::Ultimate)] = {AbilityKind::Barrage, "弾幕", 0.0f, 5.0f, 0.8f, 18.0f, 14.0f};
     soldier.ultimateCharge = 2000.0f;
+    soldier.maxHp = 100;
 
     // モイラ型（計画書 p4 の3章）：近づいて吸い取る。攻める → 吸収ゲージが溜まる → 生き残る。
     // 群れへの答えは跳ねる球、硬い敵への答えは吸い付く光線。
@@ -153,6 +156,7 @@ inline std::vector<HeroDefinition> DefaultHeroes()
     moira.abilities[static_cast<size_t>(AbilitySlot::Ultimate)] = {
         AbilityKind::Lance, "太い光線", 0.0f, 4.0f, 4.0f, 20.0f, 0.0f, 1.4f, 0.006f};
     moira.ultimateCharge = 1800.0f;
+    moira.maxHp = 90;
     return {prototype, soldier, moira};
 }
 

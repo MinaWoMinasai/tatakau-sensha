@@ -245,6 +245,39 @@ struct SpawnConfig {
     };
     StageConfig stages{};
 
+    /// @brief 機体の遊び方の出撃の流れ（計画書 p4 の H1）：seconds 秒の波を count 回、そのあとボスの波。
+    /// @note 波が終わると敵と弾を片付けて、波の間の画面（K4 でショップ）を開く。ボスの波では bossDelay 秒でボス（宿敵）が出て、倒すと出撃を終える。
+    /// threatOffset と enemyHp は波ごと（最後がボスの波）の脅威の段階の上乗せと敵のHPの倍率。足りない分は最後の値を使う。
+    /// 倒した敵の種類ごとのレベルポイント（H2）：三角・四角・五角・重い四角・大五角・敵戦車・ボス。欠片として落ち、拾うと入る。
+    struct WaveConfig {
+        int count = 5;
+        float seconds = 90.0f;
+        float bossDelay = 10.0f;
+        std::vector<int> threatOffset{0, 1, 2, 3, 4, 5};
+        std::vector<float> enemyHp{0.8f, 0.9f, 1.0f, 1.1f, 1.2f, 1.3f};
+        int triangle = 5;
+        int square = 10;
+        int pentagon = 25;
+        int heavySquare = 40;
+        int bigPentagon = 80;
+        int tank = 80;
+        int boss = 500;
+    };
+    WaveConfig waves{};
+
+    /// @brief 機体の遊び方の体力の決まり（計画書 p4 の H6〜H8）。全体の無敵時間は使わない。
+    /// @note 1回の被弾は最大HPの maxHitRatio まで、1秒に受けるのは maxPerSecondRatio まで、同じ相手からは sameSourceSeconds 秒に1回まで。
+    /// 受けたダメージの woundRatio は「傷」になり、治すまで HP はそこまでしか戻らない。波の間に HP は戻らず、修理（repairCost）で傷を全部と HP を repairHeal 治す。
+    struct HealthConfig {
+        float maxHitRatio = 0.2f;
+        float maxPerSecondRatio = 0.3f;
+        float sameSourceSeconds = 0.5f;
+        float woundRatio = 0.3f;
+        int repairCost = 150;
+        int repairHeal = 30;
+    };
+    HealthConfig health{};
+
     /// @brief 右クリックのバリアとスタミナ（計画書 p3 の X3）。武器の枠を使う遊び方だけ。
     /// @note radius と arcDegrees は扇の半径と開き。張っている間は drainPerSecond ずつ減り、弾を止めると hitCost、敵に触れていると1体ごとに
     /// contactPerSecond ずつ減る。尽きると exhaustedSeconds の間は張れない。放してから regenDelay 秒たつと regenPerSecond ずつ戻る。
@@ -762,6 +795,8 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             }
             number(value, "ultimateCharge", hero.ultimateCharge);
             number(value, "primaryHeatScale", hero.primaryHeatScale);
+            number(value, "maxHp", hero.maxHp);
+            hero.maxHp = (std::max)(0, hero.maxHp);
             hero.primaryHeatScale = (std::max)(0.0f, hero.primaryHeatScale);
             hero.ultimateCharge = (std::max)(1.0f, hero.ultimateCharge);
             // 技を1つ読む（主武器の部品 primaryAbility と、4つの枠で同じ書き方）。
@@ -815,6 +850,58 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         for (float& seconds : config.stages.exitSeconds) {
             seconds = (std::max)(1.0f, seconds);
         }
+    }
+    if (data.contains("waves") && data.at("waves").is_object()) {
+        const auto& waves = data.at("waves");
+        number(waves, "count", config.waves.count);
+        number(waves, "seconds", config.waves.seconds);
+        number(waves, "bossDelay", config.waves.bossDelay);
+        auto readList = [&](const char* key, auto& values) {
+            if (waves.contains(key) && waves.at(key).is_array()) {
+                values.clear();
+                for (const auto& value : waves.at(key)) {
+                    if (value.is_number()) {
+                        values.push_back(value.get<typename std::remove_reference_t<decltype(values)>::value_type>());
+                    }
+                }
+            }
+        };
+        readList("threatOffset", config.waves.threatOffset);
+        readList("enemyHp", config.waves.enemyHp);
+        if (waves.contains("points") && waves.at("points").is_object()) {
+            const auto& points = waves.at("points");
+            number(points, "triangle", config.waves.triangle);
+            number(points, "square", config.waves.square);
+            number(points, "pentagon", config.waves.pentagon);
+            number(points, "heavySquare", config.waves.heavySquare);
+            number(points, "bigPentagon", config.waves.bigPentagon);
+            number(points, "tank", config.waves.tank);
+            number(points, "boss", config.waves.boss);
+        }
+        config.waves.count = (std::clamp)(config.waves.count, 1, 20);
+        config.waves.seconds = (std::max)(5.0f, config.waves.seconds);
+        config.waves.bossDelay = (std::max)(0.0f, config.waves.bossDelay);
+        if (config.waves.threatOffset.empty()) {
+            config.waves.threatOffset.push_back(0);
+        }
+        if (config.waves.enemyHp.empty()) {
+            config.waves.enemyHp.push_back(1.0f);
+        }
+    }
+    if (data.contains("health") && data.at("health").is_object()) {
+        const auto& health = data.at("health");
+        number(health, "maxHitRatio", config.health.maxHitRatio);
+        number(health, "maxPerSecondRatio", config.health.maxPerSecondRatio);
+        number(health, "sameSourceSeconds", config.health.sameSourceSeconds);
+        number(health, "woundRatio", config.health.woundRatio);
+        number(health, "repairCost", config.health.repairCost);
+        number(health, "repairHeal", config.health.repairHeal);
+        config.health.maxHitRatio = (std::clamp)(config.health.maxHitRatio, 0.01f, 1.0f);
+        config.health.maxPerSecondRatio = (std::clamp)(config.health.maxPerSecondRatio, 0.01f, 1.0f);
+        config.health.sameSourceSeconds = (std::max)(0.0f, config.health.sameSourceSeconds);
+        config.health.woundRatio = (std::clamp)(config.health.woundRatio, 0.0f, 1.0f);
+        config.health.repairCost = (std::max)(0, config.health.repairCost);
+        config.health.repairHeal = (std::max)(0, config.health.repairHeal);
     }
     if (data.contains("barrier") && data.at("barrier").is_object()) {
         const auto& barrier = data.at("barrier");
@@ -1242,6 +1329,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         item["primary"] = hero.primary;
         item["ultimateCharge"] = round(hero.ultimateCharge);
         item["primaryHeatScale"] = round(hero.primaryHeatScale);
+        item["maxHp"] = hero.maxHp;
         auto writeAbility = [&](const AbilityDefinition& ability, nlohmann::json& abilityItem) {
             abilityItem["kind"] = AbilityKindKey(ability.kind);
             abilityItem["name"] = ability.name;
@@ -1314,6 +1402,33 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     stages["swarmScale"] = round(config.stages.swarmScale);
     stages["bossMaterials"] = config.stages.bossMaterials;
     stages["tier"] = config.stages.tier;
+    auto& waves = section("waves");
+    waves["count"] = config.waves.count;
+    waves["seconds"] = round(config.waves.seconds);
+    waves["bossDelay"] = round(config.waves.bossDelay);
+    waves["threatOffset"] = nlohmann::json::array();
+    for (int offset : config.waves.threatOffset) {
+        waves["threatOffset"].push_back(offset);
+    }
+    waves["enemyHp"] = nlohmann::json::array();
+    for (float scale : config.waves.enemyHp) {
+        waves["enemyHp"].push_back(round(scale));
+    }
+    auto& points = waves["points"];
+    points["triangle"] = config.waves.triangle;
+    points["square"] = config.waves.square;
+    points["pentagon"] = config.waves.pentagon;
+    points["heavySquare"] = config.waves.heavySquare;
+    points["bigPentagon"] = config.waves.bigPentagon;
+    points["tank"] = config.waves.tank;
+    points["boss"] = config.waves.boss;
+    auto& health = section("health");
+    health["maxHitRatio"] = round(config.health.maxHitRatio);
+    health["maxPerSecondRatio"] = round(config.health.maxPerSecondRatio);
+    health["sameSourceSeconds"] = round(config.health.sameSourceSeconds);
+    health["woundRatio"] = round(config.health.woundRatio);
+    health["repairCost"] = config.health.repairCost;
+    health["repairHeal"] = config.health.repairHeal;
     auto& barrier = section("barrier");
     barrier["radius"] = round(config.barrier.radius);
     barrier["arcDegrees"] = round(config.barrier.arcDegrees);
@@ -1455,10 +1570,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 36> kOrder{
+    static constexpr std::array<const char*, 38> kOrder{
         "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "weapons",       "heroes",        "loot",          "crafting",      "stages",        "barrier",       "elites",        "audio",         "glow",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
+        "heat",          "shield",    "forms",           "weapons",       "heroes",        "loot",          "crafting",      "stages",        "waves",         "health",        "barrier",       "elites",        "audio",         "glow",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
         "partTuning",    "bigPentagon", "damageNumbers"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
