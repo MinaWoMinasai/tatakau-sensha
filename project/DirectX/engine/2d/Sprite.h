@@ -208,6 +208,8 @@ private:
     Vector2 textureSize_ = {100.0f, 100.0f};
 
     std::string textureFilePath_;
+    // 文字画像のように使われなくなると解放されるテクスチャを、このスプライトが使っている間は残す。
+    TextureReference textureRef_;
 
     bool isRenderTexture_ = false;
     SrvManager* srvManager_ = nullptr;

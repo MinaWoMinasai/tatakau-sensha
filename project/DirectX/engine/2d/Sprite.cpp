@@ -68,8 +68,8 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, const std::string& textureFi
     transformationMatrixData->WorldInverseTranspose = MakeIdentity4x4();
     transformationMatrixData->LightWVP = MakeIdentity4x4();
 
-    // 単位行列を書き込んでおく
-    TextureManager::GetInstance()->LoadTexture(textureFilePath_);
+    // 使っている間はテクスチャを解放させない
+    textureRef_.Reset(textureFilePath_);
     textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(textureFilePath_);
 
     AdjustTextureSize();
@@ -81,6 +81,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, uint32_t srvIndex, SrvManage
     textureIndex = srvIndex;
     isRenderTexture_ = true;
     srvManager_ = srvManager;
+    textureRef_.Reset();
 
     vertexResource = texture.CreateBufferResource(spriteCommon_->GetDxCommon()->GetDevice(), sizeof(VertexData) * 4);
 
@@ -237,7 +238,7 @@ void Sprite::SetTexture(const std::string& textureFilePath)
 {
     textureFilePath_ = textureFilePath;
     isRenderTexture_ = false;
-    TextureManager::GetInstance()->LoadTexture(textureFilePath_);
+    textureRef_.Reset(textureFilePath_);
     textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(textureFilePath_);
     AdjustTextureSize();
 }

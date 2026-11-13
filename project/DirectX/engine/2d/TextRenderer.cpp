@@ -1,6 +1,7 @@
 #include "TextRenderer.h"
 #include "ResourcePaths.h"
 #include "StartupTrace.h"
+#include "TextureManager.h"
 #include "Utf8Path.h"
 #include "WinApp.h"
 #include <Windows.h>
@@ -116,6 +117,8 @@ std::string TextRenderer::GetOrCreateTexture(const std::string& utf8Text, const 
 #endif
         assert(saved);
     }
+    // 文字画像はファイルから作り直せるので、どのスプライトも使わなくなったらGPUのテクスチャを解放してよい。
+    TextureManager::GetInstance()->MarkTextureReleasable(path);
     return path;
 }
 

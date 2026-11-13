@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 #include <future>
 #include <memory>
 
@@ -26,8 +28,16 @@ public:
     /// @brief 利用終了時の資源と状態を解放する。
     void Finalize();
 
-    /// @brief テクスチャを読み込む。
+    /// @brief テクスチャを読み込む。ここから読み込んだテクスチャは、文字画像でも解放しない。
     void LoadTexture(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
+    /// @brief テクスチャを読み込み、使っている数を1つ増やす。ReleaseTextureと組にして使う。
+    void AcquireTexture(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
+    /// @brief 使っている数を1つ減らす。解放してよい画像は、0になりGPUが使い終わってからSRVとリソースを返す。
+    void ReleaseTexture(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
+    /// @brief 使われなくなったら解放してよい画像（文字画像など、ファイルから作り直せるもの）として登録する。
+    void MarkTextureReleasable(const std::string& filePath);
+    /// @brief 解放を待っているテクスチャのうち、GPUが使い終わったものを解放する。
+    void CollectReleasedTextures();
     // CPUでのデコードはBackgroundLoaderで行い、登録とアップロードはメインスレッドで行う。
     void PreloadTexture(const std::string& filePath, TextureColorSpace colorSpace = TextureColorSpace::SRGB);
     /// @brief 先読み済みのテクスチャを、1回の呼び出しで最大maxUploads枚だけGPUへ登録する。メインスレッドで呼ぶ。
@@ -106,7 +116,16 @@ private:
         uint32_t srvIndex;
         D3D12_CPU_DESCRIPTOR_HANDLE srvHandleCPU;
         D3D12_GPU_DESCRIPTOR_HANDLE srvHandleGPU;
+        // AcquireTextureで使っている数。
+        uint32_t refCount = 0;
+        // LoadTextureで直接読み込まれた。使っている数が0でも解放しない。
+        bool pinned = false;
+        // 解放を待っている間、このフェンス値までGPUが進めば解放できる。0なら待っていない。
+        uint64_t releaseFence = 0;
     };
+
+    /// @brief テクスチャを読み込む。読み込み済みなら何もしない。
+    void LoadTextureInternal(const std::string& filePath, TextureColorSpace colorSpace);
 
     /// @brief テクスチャキーを作成して返す。
     static std::string MakeTextureKey(const std::string& filePath, TextureColorSpace colorSpace);
@@ -121,6 +140,14 @@ private:
 
     // テクスチャデータ
     std::unordered_map<std::string, TextureData> textureDatas;
+    // 使われなくなったら解放してよい画像のファイルパス。
+    std::unordered_set<std::string> releasablePaths_;
+    /// @brief 解放を待っているテクスチャ。
+    struct PendingRelease {
+        std::string key;
+        std::string filePath;
+    };
+    std::vector<PendingRelease> pendingReleases_;
 
     Texture texture;
     DirectXCommon* dxCommon_ = nullptr;
@@ -128,6 +155,42 @@ private:
     std::string pbrEnvironmentSourcePath_;
     bool pbrEnvironmentBuilt_ = false;
     bool pbrEnvironmentLoadedFromSource_ = false;
+};
+
+/// @brief TextureManagerのテクスチャを1つ使っている間、その使用数を持つ。コピーすると使用数も増える。
+class TextureReference {
+public:
+    TextureReference() = default;
+    ~TextureReference()
+    {
+        Reset();
+    }
+    TextureReference(const TextureReference& other)
+    {
+        Reset(other.filePath_);
+    }
+    TextureReference& operator=(const TextureReference& other)
+    {
+        if (this != &other) {
+            Reset(other.filePath_);
+        }
+        return *this;
+    }
+
+    /// @brief 使うテクスチャを替える。新しいほうを先に読み込んでから古いほうを手放す。空文字なら手放すだけ。
+    void Reset(const std::string& filePath = {})
+    {
+        if (!filePath.empty()) {
+            TextureManager::GetInstance()->AcquireTexture(filePath);
+        }
+        if (!filePath_.empty()) {
+            TextureManager::GetInstance()->ReleaseTexture(filePath_);
+        }
+        filePath_ = filePath;
+    }
+
+private:
+    std::string filePath_;
 };
 
 } // namespace myEngine

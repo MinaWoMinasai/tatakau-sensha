@@ -775,6 +775,8 @@ void TextureManager::CreateBlackCausticsTexture()
 void TextureManager::Finalize()
 {
     pendingTextures_.clear();
+    pendingReleases_.clear();
+    releasablePaths_.clear();
     textureDatas.clear();
     dxCommon_ = nullptr;
     srvManager_ = nullptr;
@@ -871,6 +873,82 @@ bool TextureManager::ArePreloadsReady() const
 }
 
 void TextureManager::LoadTexture(const std::string& filePath, TextureColorSpace colorSpace)
+{
+    LoadTextureInternal(filePath, colorSpace);
+    // 直接読み込んだ側はテクスチャの使用数を持たないので、文字画像でも解放しない。
+    if (auto found = textureDatas.find(MakeTextureKey(filePath, colorSpace)); found != textureDatas.end()) {
+        found->second.pinned = true;
+        found->second.releaseFence = 0;
+    }
+}
+
+void TextureManager::AcquireTexture(const std::string& filePath, TextureColorSpace colorSpace)
+{
+    CollectReleasedTextures();
+    LoadTextureInternal(filePath, colorSpace);
+    if (auto found = textureDatas.find(MakeTextureKey(filePath, colorSpace)); found != textureDatas.end()) {
+        ++found->second.refCount;
+        found->second.releaseFence = 0;
+    }
+}
+
+void TextureManager::ReleaseTexture(const std::string& filePath, TextureColorSpace colorSpace)
+{
+    if (!dxCommon_ || !srvManager_) {
+        return;
+    }
+    const std::string textureKey = MakeTextureKey(filePath, colorSpace);
+    auto found = textureDatas.find(textureKey);
+    if (found == textureDatas.end()) {
+        return;
+    }
+    TextureData& textureData = found->second;
+    if (textureData.refCount > 0) {
+        --textureData.refCount;
+    }
+    if (textureData.refCount == 0 && !textureData.pinned && textureData.releaseFence == 0 && releasablePaths_.contains(filePath)) {
+        // ここまでに記録した描画コマンドは、次に発行するフェンス値で完了がわかる。
+        // それより前に解放すると、GPUが使っている最中のリソースやSRVを消してしまう。
+        textureData.releaseFence = dxCommon_->GetFenceValue() + 1;
+        pendingReleases_.push_back({textureKey, filePath});
+    }
+    CollectReleasedTextures();
+}
+
+void TextureManager::MarkTextureReleasable(const std::string& filePath)
+{
+    releasablePaths_.insert(filePath);
+}
+
+void TextureManager::CollectReleasedTextures()
+{
+    if (pendingReleases_.empty() || !dxCommon_ || !srvManager_) {
+        return;
+    }
+    const uint64_t completedFence = dxCommon_->GetFence()->GetCompletedValue();
+    auto keep = pendingReleases_.begin();
+    for (auto it = pendingReleases_.begin(); it != pendingReleases_.end(); ++it) {
+        auto found = textureDatas.find(it->key);
+        // 解放を待つ間にもう一度使われたもの、すでに解放したものは外す。
+        if (found == textureDatas.end() || found->second.releaseFence == 0 || found->second.refCount > 0 || found->second.pinned) {
+            continue;
+        }
+        if (completedFence < found->second.releaseFence) {
+            if (keep != it) {
+                *keep = std::move(*it);
+            }
+            ++keep;
+            continue;
+        }
+        srvManager_->Free(found->second.srvIndex);
+        textureDatas.erase(found);
+        // 同じ文字列をもう一度使うときは、TextRendererがまた登録する。
+        releasablePaths_.erase(it->filePath);
+    }
+    pendingReleases_.erase(keep, pendingReleases_.end());
+}
+
+void TextureManager::LoadTextureInternal(const std::string& filePath, TextureColorSpace colorSpace)
 {
     const std::string textureKey = MakeTextureKey(filePath, colorSpace);
     if (textureDatas.contains(textureKey)) {

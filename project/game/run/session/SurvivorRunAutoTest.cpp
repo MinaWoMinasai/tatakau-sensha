@@ -1,6 +1,7 @@
 #include "game/run/session/SurvivorRunController.h"
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
+#include "Object3dCommon.h"
 #include "game/render/settings/ArenaCameraProfile.h"
 #include <algorithm>
 #include <array>
@@ -763,7 +764,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                      << ",\"shots\":" << player.GetPrimaryAttackCount() - autoSampleShots_ << ",\"heat\":" << player.GetHeat().GetHeat()
                      << ",\"burst\":" << autoBurstStats_[0] << ",\"repeat\":" << autoBurstStats_[1]
                      << ",\"overheats\":" << player.GetHeat().GetOverheatCount() << ",\"threat\":" << threatStage_
-                     << ",\"rivalHp\":" << (IsRivalActive() ? world_.resources.enemy_->GetHp() : -1) << "}";
+                     << ",\"rivalHp\":" << (IsRivalActive() ? world_.resources.enemy_->GetHp() : -1)
+                     << ",\"srv\":" << myEngine::Object3dCommon::GetInstance()->GetSrvManager()->GetAllocatedCount() << "}";
         autoSampleShots_ = player.GetPrimaryAttackCount();
     }
 
