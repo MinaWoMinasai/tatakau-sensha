@@ -56,6 +56,7 @@ void SurvivorRunController::Initialize()
         for (DWORD i = 0; i < heroLength; ++i) {
             config_.heroes.start.push_back(static_cast<char>(heroKey[i]));
         }
+        heroStartFromEnv_ = true;
     }
     world_.presentation.heroAbilityReady_.fill(-1.0f);
     world_.presentation.heroUltimateRatio_ = -1.0f;
@@ -423,6 +424,11 @@ void SurvivorRunController::Initialize()
             audio_.Initialize(config_.audio, autoTest_ != AutoTest::None);
         }
         // 機体の遊び方（計画書 p4）なら、機体の主武器1つを枠に入れる。そうでなければ拠点の武器3つ。
+        // 機体は、前に選んだ機体（環境変数で決めていなければ）。使えない機体なら StartHero が使える機体へ替える。
+        LoadHeroSaveFile();
+        if (!heroStartFromEnv_ && !heroSave_.selected.empty()) {
+            config_.heroes.start = heroSave_.selected;
+        }
         StartHero();
         if (HeroMode()) {
             hintTexts_[static_cast<size_t>(Hint::Move)]->SetText(HeroControlsText());
@@ -433,8 +439,8 @@ void SurvivorRunController::Initialize()
         }
         ApplyStageSettings(0);
         // 出撃の前に、拠点の画面で持っていく武器を選ぶ。タイトルの見本と、四隅・fps の自動確認では出さない。
-        // 機体の遊び方では、機体を選ぶ画面ができるまで（K6）拠点の画面は出さない。
-        if (!HeroMode() && !world_.demo.titleDemo_ && autoTest_ != AutoTest::Tour && autoTest_ != AutoTest::Perf) {
+        // 機体の遊び方では、拠点で機体を選ぶ・解放する（K6）。
+        if (!world_.demo.titleDemo_ && autoTest_ != AutoTest::Tour && autoTest_ != AutoTest::Perf) {
             OpenBaseScreen();
         }
         // 出口の案内は、袋の一行の下へずらす。
@@ -644,6 +650,7 @@ void SurvivorRunController::Update(float dt)
     if (IsResultVisible()) {
         if (!runLogWritten_) {
             runLogWritten_ = true;
+            AwardHeroPoints();
             CommitRunToBase();
             WriteRunLog();
             RefreshResult(world_.combat.resultSelection_);

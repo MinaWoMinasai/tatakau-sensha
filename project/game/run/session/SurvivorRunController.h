@@ -1,6 +1,7 @@
 #pragma once
 #include "game/session/GameWorld.h"
 #include "game/run/SurvivorSave.h"
+#include "game/run/SurvivorHeroSave.h"
 #include "game/run/SurvivorSpawnConfig.h"
 #include "game/run/session/SurvivorAudio.h"
 #include "game/run/session/SurvivorLootField.h"
@@ -698,6 +699,34 @@ private:
     void CommitRunToBase();
     survivor::BaseInventory base_;
     bool baseScreenOpen_ = false;
+
+    // 機体の遊び方の拠点（計画書 p4 の K6）：機体を選ぶ・解放する。出撃の外に残るのは解放と記録だけ。SurvivorRunUnlock.cpp。
+    std::string HeroSavePath() const;
+    /// @brief 機体のセーブを読む（無ければ・自動確認では新しく）。
+    void LoadHeroSaveFile();
+    void SaveHeroSaveFile();
+    /// @brief 拠点の札に並べる機体の番号（使える機体が先、まだの機体は後）。
+    std::vector<int> HeroCardOrder() const;
+    /// @brief 札の番号の機体を選ぶ。使える機体なら、その機体で出撃の準備をし直す。
+    void SelectHeroCard(int card);
+    /// @brief 選んでいる札の機体を解放する。候補で、解放ポイントが足りれば解放する。解放したら真。
+    bool UnlockHeroCard();
+    /// @brief 機体を選ぶ画面を作る（SurvivorRunScreens.cpp）。
+    void RefreshHeroSelect();
+    /// @brief 結果画面の最初に、スコアと初クリアのボーナスを解放ポイントに足して保存する（1回だけ）。
+    void AwardHeroPoints();
+    /// @brief 「次の機体まであと○○」の一行。
+    std::string NextHeroText() const;
+    survivor::HeroSave heroSave_{};
+    std::string heroSaveError_;
+    int heroCard_ = 0;
+    bool heroStartFromEnv_ = false;
+    bool heroAwarded_ = false;
+    int heroAwardGained_ = 0;
+    int heroAwardBonus_ = 0;
+    // 自動確認：拠点の画面の段階と、解放の確認の結果。
+    int autoHeroBaseState_ = 0;
+    bool autoUnlockOk_ = false;
     int baseCursor_ = 0;
     // 右の欄（0 武器・1 作る・2 派生の木）。baseCursor_ は派生の木で見ている武器。作った数・進化させた数（自動確認と記録）。
     int basePage_ = 0;

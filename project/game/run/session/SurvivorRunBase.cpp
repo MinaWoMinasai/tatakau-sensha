@@ -113,6 +113,14 @@ void SurvivorRunController::SyncSlotWeapons()
 void SurvivorRunController::OpenBaseScreen()
 {
     baseScreenOpen_ = true;
+    // 機体の遊び方：機体を選ぶ・解放する画面（K6）。
+    if (HeroMode()) {
+        const std::vector<int> order = HeroCardOrder();
+        const auto selected = std::find(order.begin(), order.end(), hero_);
+        heroCard_ = selected != order.end() ? static_cast<int>(selected - order.begin()) : 0;
+        RefreshHeroSelect();
+        return;
+    }
     baseCursor_ = (std::max)(0, base_.equipped[0]);
     basePage_ = 0;
     RefreshBaseScreen();
@@ -212,6 +220,13 @@ bool SurvivorRunController::BranchBaseWeapon(int index, size_t branch)
 
 void SurvivorRunController::StartSortie()
 {
+    if (HeroMode()) {
+        baseScreenOpen_ = false;
+        heroSave_.selected = Hero().key;
+        ++heroSave_.sorties;
+        SaveHeroSaveFile();
+        return;
+    }
     const bool any = std::any_of(base_.equipped.begin(), base_.equipped.end(), [&](int index) {
         return index >= 0 && static_cast<size_t>(index) < base_.weapons.size() &&
                survivor::FindWeapon(config_.weapons, base_.weapons[static_cast<size_t>(index)].key) >= 0;

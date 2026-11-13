@@ -267,6 +267,8 @@ struct SpawnConfig {
         float scorePerWave = 100.0f;
         float scorePerPoint = 0.2f;
         float scoreBoss = 300.0f;
+        /// @brief その機体で初めてボスを倒したときに足す解放ポイント。
+        float scoreFirstClear = 500.0f;
     };
     WaveConfig waves{};
 
@@ -803,6 +805,11 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(value, "ultimateCharge", hero.ultimateCharge);
             number(value, "primaryHeatScale", hero.primaryHeatScale);
             number(value, "maxHp", hero.maxHp);
+            number(value, "unlockCost", hero.unlockCost);
+            if (value.contains("unlockFirst") && value.at("unlockFirst").is_boolean()) {
+                hero.unlockFirst = value.at("unlockFirst").get<bool>();
+            }
+            hero.unlockCost = (std::max)(0, hero.unlockCost);
             hero.maxHp = (std::max)(0, hero.maxHp);
             hero.primaryHeatScale = (std::max)(0.0f, hero.primaryHeatScale);
             hero.ultimateCharge = (std::max)(1.0f, hero.ultimateCharge);
@@ -890,6 +897,7 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(score, "perWave", config.waves.scorePerWave);
             number(score, "perPoint", config.waves.scorePerPoint);
             number(score, "boss", config.waves.scoreBoss);
+            number(score, "firstClear", config.waves.scoreFirstClear);
         }
         config.waves.count = (std::clamp)(config.waves.count, 1, 20);
         config.waves.seconds = (std::max)(5.0f, config.waves.seconds);
@@ -1369,6 +1377,8 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         item["ultimateCharge"] = round(hero.ultimateCharge);
         item["primaryHeatScale"] = round(hero.primaryHeatScale);
         item["maxHp"] = hero.maxHp;
+        item["unlockCost"] = hero.unlockCost;
+        item["unlockFirst"] = hero.unlockFirst;
         auto writeAbility = [&](const AbilityDefinition& ability, nlohmann::json& abilityItem) {
             abilityItem["kind"] = AbilityKindKey(ability.kind);
             abilityItem["name"] = ability.name;
@@ -1465,6 +1475,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     score["perWave"] = round(config.waves.scorePerWave);
     score["perPoint"] = round(config.waves.scorePerPoint);
     score["boss"] = round(config.waves.scoreBoss);
+    score["firstClear"] = round(config.waves.scoreFirstClear);
     auto& health = section("health");
     health["maxHitRatio"] = round(config.health.maxHitRatio);
     health["maxPerSecondRatio"] = round(config.health.maxPerSecondRatio);

@@ -109,6 +109,10 @@ struct HeroDefinition {
     float ultimateCharge = 600.0f;
     /// @brief 最大HP（0 なら自機の値のまま）。
     int maxHp = 0;
+    /// @brief 解放に要る解放ポイント（0 なら最初から使える。計画書 p4 の K6）。
+    int unlockCost = 0;
+    /// @brief 最初に解放する機体か（まだなら、次に解放できるのはこの機体だけ）。
+    bool unlockFirst = false;
 };
 
 /// @brief 機体の設定。enabled なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイールとリロードなし）。
@@ -129,6 +133,10 @@ inline std::vector<HeroDefinition> DefaultHeroes()
     prototype.abilities[static_cast<size_t>(AbilitySlot::Secondary)] = {AbilityKind::Barrier, "バリア"};
     prototype.abilities[static_cast<size_t>(AbilitySlot::Mobility)] = {AbilityKind::Sprint, "走る", 8.0f, 3.0f, 1.5f};
     prototype.ultimateCharge = 600.0f;
+    // K7 でタンク型ができるまで、最初に解放する機体の代わりにする。
+    prototype.unlockCost = 1500;
+    prototype.maxHp = 100;
+    prototype.unlockFirst = true;
 
     // ソルジャー型（計画書 p4 の3章）：連射砲は熱だけで撃つ。群れへの答えはロケット、硬い敵への答えは連射砲。
     HeroDefinition soldier;

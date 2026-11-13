@@ -100,7 +100,10 @@ void SurvivorRunController::RefreshResult(int selection)
                 }() << "\n"
              << "スコア　　　　進んだ波 " << score.waves << " × " << fixed(config_.waves.scorePerWave) << "　＋　稼いだポイント " << score.points
              << " × " << fixed(config_.waves.scorePerPoint) << "　＋　ボス " << (score.boss ? fixed(config_.waves.scoreBoss) : std::string("0")) << "\n"
-             << "　　　　　　　＝ " << score.total;
+             << "　　　　　　　＝ " << score.total << "\n"
+             << "解放ポイント　+" << heroAwardGained_ << (heroAwardBonus_ > 0 ? "（初クリア +" + std::to_string(heroAwardBonus_) + "）" : std::string())
+             << "　　合計 " << heroSave_.points << "\n"
+             << "次の機体　　　" << NextHeroText();
         resultText_->SetText(text.str());
         std::ostringstream menu;
         menu << (selection == 0 ? "> " : "   ") << "もう1回（R）\n" << (selection == 1 ? "> " : "   ") << "タイトルへ";

@@ -20,7 +20,16 @@ void SurvivorRunController::StartHero()
     if (!config_.weaponsEnabled || !config_.heroes.enabled || config_.heroes.heroes.empty()) {
         return;
     }
-    const int found = survivor::FindHero(config_.heroes.heroes, config_.heroes.start);
+    int found = survivor::FindHero(config_.heroes.heroes, config_.heroes.start);
+    // まだ解放していない機体は選べない（K6）。使える最初の機体にする。
+    if (found < 0 || !survivor::IsHeroUnlocked(heroSave_, config_.heroes.heroes[static_cast<size_t>(found)])) {
+        found = -1;
+        for (size_t i = 0; i < config_.heroes.heroes.size() && found < 0; ++i) {
+            if (survivor::IsHeroUnlocked(heroSave_, config_.heroes.heroes[i])) {
+                found = static_cast<int>(i);
+            }
+        }
+    }
     const size_t index = found >= 0 ? static_cast<size_t>(found) : 0;
     const int weapon = survivor::FindWeapon(config_.weapons, config_.heroes.heroes[index].primary);
     if (weapon < 0) {

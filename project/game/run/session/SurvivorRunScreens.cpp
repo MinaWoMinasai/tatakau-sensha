@@ -414,6 +414,20 @@ void SurvivorRunController::HandleScreenEvent(const SurvivorItemScreen::Event& e
     const bool toCard = event.type == EventType::Drop && (event.target.zone == Zone::Card || event.target.zone == Zone::Socket);
     const size_t targetSlot = toCard ? static_cast<size_t>(event.target.index) : 0;
 
+    // 機体の遊び方の拠点：札をクリックで機体を選び、ボタンで出撃・解放する（K6）。
+    if (baseScreenOpen_ && HeroMode()) {
+        if (event.type == EventType::Press && event.source.zone == Zone::Button) {
+            if (event.source.index == 0) {
+                StartSortie();
+            } else if (UnlockHeroCard()) {
+                RefreshHeroSelect();
+            }
+        } else if (event.type == EventType::Click && (event.source.zone == Zone::Card || event.source.zone == Zone::Socket)) {
+            SelectHeroCard(event.source.index);
+            RefreshHeroSelect();
+        }
+        return;
+    }
     if (baseScreenOpen_) {
         if (event.type == EventType::Press) {
             if (event.source.zone == Zone::Button) {
@@ -628,6 +642,72 @@ void SurvivorRunController::RefreshShop()
     view.buttons.push_back({"修理 " + std::to_string(config_.health.repairCost) + "：傷を治し HP+" + std::to_string(config_.health.repairHeal), 2,
                             hurt && bag_.money >= config_.health.repairCost});
     view.buttons.push_back({"引き直す " + std::to_string(RerollPrice()), 3, bag_.money >= RerollPrice()});
+    itemScreen_.Show(view);
+}
+
+void SurvivorRunController::RefreshHeroSelect()
+{
+    // 機体の遊び方の拠点（計画書 p4 の K6）：3枚の札に機体を並べ、クリックで選ぶ。まだの機体は解放ポイントで解放する。
+    SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, heroSave_.points, false);
+    view.header.resize(1);
+    view.header[0].title = "解放ポイント";
+    view.header[0].body = "出撃のスコアから入る（倒れても入る）。機体の解放に使う。";
+    view.title = "拠点　─　機体を選ぶ";
+    view.help = "札をクリックで選ぶ　／　Enter で出撃　／　強化は残らない（毎回ゼロから）。残るのは機体の解放だけ";
+    view.gridTitle = NextHeroText();
+    view.showEmptyCells = false;
+    // 左下：これまでの記録（出撃とクリアの回数、ボスを倒した機体の数）。
+    view.shield = {};
+    view.shield.icon = Icon("chip_morale");
+    view.shield.color = {0.7f, 0.95f, 1.0f, 1.0f};
+    view.shield.title = "出撃 " + std::to_string(heroSave_.sorties) + "　クリア " + std::to_string(heroSave_.clears);
+    view.shield.body = "ボスを倒した機体：" + std::to_string(heroSave_.cleared.size()) + "（初めて倒すと解放ポイントのボーナス）";
+    view.support = {};
+    const std::vector<int> order = HeroCardOrder();
+    const std::vector<int> candidates = survivor::HeroUnlockCandidates(heroSave_, config_.heroes.heroes);
+    for (size_t c = 0; c < view.cards.size(); ++c) {
+        auto& card = view.cards[c];
+        if (c >= order.size()) {
+            card.name = " ";
+            continue;
+        }
+        const int index = order[c];
+        const survivor::HeroDefinition& hero = config_.heroes.heroes[static_cast<size_t>(index)];
+        const bool unlocked = survivor::IsHeroUnlocked(heroSave_, hero);
+        const bool candidate = std::find(candidates.begin(), candidates.end(), index) != candidates.end();
+        card.empty = false;
+        card.active = static_cast<int>(c) == heroCard_;
+        card.name = hero.name + (index == hero_ && unlocked ? "　（出撃する）" : "");
+        std::string skills;
+        for (size_t i = 0; i < survivor::kAbilitySlotCount; ++i) {
+            if (hero.abilities[i].kind != survivor::AbilityKind::None) {
+                skills += std::string(skills.empty() ? "" : "・") + hero.abilities[i].name;
+            }
+        }
+        card.stats = (unlocked    ? std::string("使える")
+                      : candidate ? "解放 " + std::to_string(hero.unlockCost) + " ポイント"
+                                  : std::string("まだ解放できない")) +
+                     "　　HP " + std::to_string(hero.maxHp) + "\n" + skills;
+        card.item.icon = WeaponIcon(hero.primary);
+        card.item.color = unlocked ? myEngine::Vector4{0.7f, 0.95f, 1.0f, 1.0f} : myEngine::Vector4{0.45f, 0.5f, 0.58f, 1.0f};
+        card.item.dim = !unlocked;
+        card.item.title = hero.name;
+        card.item.body = card.stats;
+        card.item.actions = unlocked ? "クリック：この機体で出撃する" : candidate ? "クリックして「解放する」" : "";
+    }
+    // 選んでいる札が、解放できる機体なら「解放する」を押せる。
+    std::string unlockText = "解放する";
+    bool unlockEnabled = false;
+    if (heroCard_ >= 0 && static_cast<size_t>(heroCard_) < order.size()) {
+        const int index = order[static_cast<size_t>(heroCard_)];
+        const survivor::HeroDefinition& hero = config_.heroes.heroes[static_cast<size_t>(index)];
+        if (!survivor::IsHeroUnlocked(heroSave_, hero)) {
+            unlockText = "解放する：" + hero.name + " " + std::to_string(hero.unlockCost);
+            unlockEnabled = std::find(candidates.begin(), candidates.end(), index) != candidates.end() && heroSave_.points >= hero.unlockCost;
+        }
+    }
+    view.buttons.push_back({"出撃：" + Hero().name + "（Enter）", 0, true});
+    view.buttons.push_back({unlockText, 1, unlockEnabled});
     itemScreen_.Show(view);
 }
 

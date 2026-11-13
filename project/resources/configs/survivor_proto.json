@@ -98,10 +98,10 @@
                   "damageScale": 1.2, "reloadScale": 0.8, "speedScale": 1.6, "heatScale": 0.6 }
   },
   "heroes": {
-    "comment": "機体（計画書 p4）。enabled が true なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイール・リロード・拠点の画面・お金以外の落とし物を止める）。start は出撃する機体。機体ごとに、name は名前、primary は主武器（weapons のキー。弾は数えず熱だけで撃つ）、primaryHeatScale は主武器の1発の熱の倍率の上書き（0 なら武器の値。撃ち続けられる長さが決まる）、ultimateCharge は Q のゲージが満タンになるまでに要る量（与えたダメージ＋回復した量）。maxHp は最大HP（0 なら自機の値のまま）。primaryAbility を書くと、主武器は弾ではなく技の部品になる（primary の武器は見た目だけ）。secondary（右クリック）・mobility（Shift）・skill（E）・ultimate（Q）は技の部品で、kind は種類（none・sprint 走る・barrier バリア・rocket 爆発する弾・healZone 回復の場・barrage 自動で狙う弾幕・drainBeam 吸い付く光線・selfHeal 吸収ゲージで自分を回復・phase 無敵ですり抜ける移動・bounceOrb 敵の間を跳ねる球・lance 太い光線）、name は画面の名前、cooldown は次に使えるまでの秒（Q はゲージ）、duration は効いている秒（selfHeal は吸収ゲージの上限の秒）、power は種類ごとの強さ（sprint・phase は速さの倍率、rocket・barrage は主砲1発に対する威力の倍率、drainBeam・bounceOrb・lance は毎秒の威力の主砲1発に対する倍率、healZone・selfHeal は毎秒の回復の最大HPに対する割合）、radius は半径や長さ（rocket は爆発、healZone は場、barrage は狙う範囲、drainBeam は届く距離、lance は光線の長さ）、rate は弾幕の毎秒の発射数・跳ねる球の速さ、size は光線の太さ・跳ねる球の半径、gain は与えた威力1ごとに溜まる吸収ゲージの秒。バリアと selfHeal は押している間だけ効く（バリアは設定の barrier とスタミナを使う）。",
+    "comment": "機体（計画書 p4）。enabled が true なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイール・リロード・拠点の画面・お金以外の落とし物を止める）。start は出撃する機体。機体ごとに、name は名前、primary は主武器（weapons のキー。弾は数えず熱だけで撃つ）、primaryHeatScale は主武器の1発の熱の倍率の上書き（0 なら武器の値。撃ち続けられる長さが決まる）、ultimateCharge は Q のゲージが満タンになるまでに要る量（与えたダメージ＋回復した量）。maxHp は最大HP（0 なら自機の値のまま）。unlockCost は解放に要る解放ポイント（0 なら最初から使える）、unlockFirst は最初に解放する機体（まだなら次に解放できるのはその機体だけ。それ以外は2〜3体から選ぶ）。primaryAbility を書くと、主武器は弾ではなく技の部品になる（primary の武器は見た目だけ）。secondary（右クリック）・mobility（Shift）・skill（E）・ultimate（Q）は技の部品で、kind は種類（none・sprint 走る・barrier バリア・rocket 爆発する弾・healZone 回復の場・barrage 自動で狙う弾幕・drainBeam 吸い付く光線・selfHeal 吸収ゲージで自分を回復・phase 無敵ですり抜ける移動・bounceOrb 敵の間を跳ねる球・lance 太い光線）、name は画面の名前、cooldown は次に使えるまでの秒（Q はゲージ）、duration は効いている秒（selfHeal は吸収ゲージの上限の秒）、power は種類ごとの強さ（sprint・phase は速さの倍率、rocket・barrage は主砲1発に対する威力の倍率、drainBeam・bounceOrb・lance は毎秒の威力の主砲1発に対する倍率、healZone・selfHeal は毎秒の回復の最大HPに対する割合）、radius は半径や長さ（rocket は爆発、healZone は場、barrage は狙う範囲、drainBeam は届く距離、lance は光線の長さ）、rate は弾幕の毎秒の発射数・跳ねる球の速さ、size は光線の太さ・跳ねる球の半径、gain は与えた威力1ごとに溜まる吸収ゲージの秒。バリアと selfHeal は押している間だけ効く（バリアは設定の barrier とスタミナを使う）。",
     "enabled": true,
     "start": "moira",
-    "prototype": { "name": "試作機", "primary": "cannon", "ultimateCharge": 600,
+    "prototype": { "name": "試作機", "primary": "cannon", "ultimateCharge": 600, "unlockCost": 1500, "unlockFirst": true, "maxHp": 100,
                    "secondary": { "kind": "barrier", "name": "バリア", "cooldown": 0, "duration": 0, "power": 1 },
                    "mobility": { "kind": "sprint", "name": "走る", "cooldown": 8, "duration": 3, "power": 1.5 },
                    "skill": { "kind": "none", "name": "", "cooldown": 0, "duration": 0, "power": 1 },
@@ -136,10 +136,11 @@
     "exitSeconds": [180, 180, 15], "threatOffset": [0, 1, 2], "enemyHp": [0.8, 0.96, 1.12], "swarmScale": 0.67, "bossMaterials": 5, "tier": 1
   },
   "waves": {
-    "comment": "機体の遊び方の出撃の流れ（計画書 p4 の H1）。seconds 秒の波を count 回、そのあとボスの波。波が終わると敵と弾を片付け、落ちている欠片は拾ったことにして、波の間の画面を開く。ボスの波では bossDelay 秒でボスが出て、倒すと出撃を終える。threatOffset と enemyHp は波ごと（最後がボスの波）の脅威の段階の上乗せと敵のHPの倍率（足りなければ最後の値）。points は倒した敵の種類ごとのレベルポイント（H2）：triangle 三角・square 四角・pentagon 五角・heavySquare 重い四角・bigPentagon 大五角・tank 敵戦車・boss ボス。",
+    "comment": "機体の遊び方の出撃の流れ（計画書 p4 の H1）。seconds 秒の波を count 回、そのあとボスの波。波が終わると敵と弾を片付け、落ちている欠片は拾ったことにして、波の間の画面を開く。ボスの波では bossDelay 秒でボスが出て、倒すと出撃を終える。threatOffset と enemyHp は波ごと（最後がボスの波）の脅威の段階の上乗せと敵のHPの倍率（足りなければ最後の値）。points は倒した敵の種類ごとのレベルポイント（H2）：triangle 三角・square 四角・pentagon 五角・heavySquare 重い四角・bigPentagon 大五角・tank 敵戦車・boss ボス。score は結果画面のスコア＝解放ポイント（K6）：進んだ波1つごと perWave・稼いだポイント1ごと perPoint・ボス撃破 boss、その機体で初めてボスを倒すと firstClear を足す。",
     "count": 5, "seconds": 90, "bossDelay": 10,
     "threatOffset": [0, 1, 2, 3, 4, 5], "enemyHp": [0.8, 0.9, 1.0, 1.1, 1.2, 1.3],
-    "points": { "triangle": 2, "square": 5, "pentagon": 12, "heavySquare": 20, "bigPentagon": 40, "tank": 40, "boss": 250 }
+    "points": { "triangle": 2, "square": 5, "pentagon": 12, "heavySquare": 20, "bigPentagon": 40, "tank": 40, "boss": 250 },
+    "score": { "perWave": 100, "perPoint": 0.2, "boss": 300, "firstClear": 500 }
   },
   "health": {
     "comment": "機体の遊び方の体力の決まり（計画書 p4 の H6〜H8）。全体の無敵時間は使わない。1回の被弾は最大HPの maxHitRatio まで、1秒に受けるのは maxPerSecondRatio まで、同じ相手からは sameSourceSeconds 秒に1回まで。受けたダメージの woundRatio は傷になり、治すまで HP はそこまでしか戻らない（HP の弧の灰色）。波の間に HP は戻らず、修理（repairCost のレベルポイント）で傷を全部と HP を repairHeal 治す。",

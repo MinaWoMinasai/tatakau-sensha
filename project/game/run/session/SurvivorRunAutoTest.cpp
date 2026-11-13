@@ -60,6 +60,46 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         if (!world_.run.tankRunCapturePath_.empty()) {
             return;
         }
+        // 機体の遊び方の拠点（K6）：画面を保存し、解放ポイントを足して最初の候補の機体を解放してみてから、
+        // 決めた機体（設定の start か MYENGINE_SURVIVOR_HERO）を選び直して画面を保存し、出撃する。
+        if (HeroMode()) {
+            auto click = [this](const SurvivorItemScreen::Hit& hit) {
+                const myEngine::Vector2 at = itemScreen_.CenterOf(hit);
+                DriveScreenPointer(at, false, false, 0);
+                DriveScreenPointer(at, true, false, 0);
+                DriveScreenPointer(at, false, false, 0);
+            };
+            const std::string start = config_.heroes.start;
+            if (autoHeroBaseState_ == 0) {
+                RequestCapture("hero_select");
+                autoHeroBaseState_ = 1;
+            } else if (autoHeroBaseState_ == 1) {
+                const std::vector<int> candidates = survivor::HeroUnlockCandidates(heroSave_, config_.heroes.heroes);
+                if (!candidates.empty()) {
+                    const survivor::HeroDefinition& target = config_.heroes.heroes[static_cast<size_t>(candidates.front())];
+                    heroSave_.points = (std::max)(heroSave_.points, target.unlockCost);
+                    const std::vector<int> order = HeroCardOrder();
+                    const auto card = std::find(order.begin(), order.end(), candidates.front());
+                    if (card != order.end()) {
+                        click({SurvivorItemScreen::Zone::Card, static_cast<int>(card - order.begin())});
+                        click({SurvivorItemScreen::Zone::Button, 1});
+                    }
+                    autoUnlockOk_ = survivor::IsHeroUnlocked(heroSave_, target) && heroSave_.points == 0;
+                }
+                // 決めた機体を選び直す（解放で選び替わったので）。
+                const std::vector<int> order = HeroCardOrder();
+                const int wanted = survivor::FindHero(config_.heroes.heroes, start);
+                const auto card = std::find(order.begin(), order.end(), wanted);
+                if (card != order.end()) {
+                    click({SurvivorItemScreen::Zone::Card, static_cast<int>(card - order.begin())});
+                }
+                RequestCapture("hero_select_after");
+                autoHeroBaseState_ = 2;
+            } else {
+                click({SurvivorItemScreen::Zone::Button, 0});
+            }
+            return;
+        }
         if (autoBaseState_ == 0) {
             RequestCapture("base");
             autoBaseState_ = 1;
@@ -1068,6 +1108,16 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                }() << "],\"maxHp\":" << player.GetMaxHp() << "}"
             << ",\"result\":{\"lastHit\":\"" << player.GetSurvivorLastHit() << "\",\"dead\":" << (player.IsDead() ? "true" : "false")
             << ",\"pointsEarned\":" << pointsEarned_ << ",\"score\":" << (HeroMode() ? ComputeHeroScore().total : 0) << "}"
+            // 機体のセーブ（K6）：書いて読み直し、同じになるか。解放の確認・結果画面で足した解放ポイント・次の機体まで。
+            << ",\"heroSave\":{\"roundTrip\":" << [&] {
+                   std::string error;
+                   survivor::HeroSave loaded;
+                   const bool same = survivor::SaveHeroSave(HeroSavePath(), heroSave_, error) &&
+                                     survivor::LoadHeroSave(HeroSavePath(), loaded, error) && loaded == heroSave_;
+                   return same ? "true" : "false";
+               }() << ",\"unlockOk\":" << (autoUnlockOk_ ? "true" : "false") << ",\"points\":" << heroSave_.points
+            << ",\"gained\":" << heroAwardGained_ << ",\"bonus\":" << heroAwardBonus_ << ",\"unlocked\":" << heroSave_.unlocked.size()
+            << ",\"selected\":\"" << heroSave_.selected << "\",\"sorties\":" << heroSave_.sorties << ",\"next\":\"" << NextHeroText() << "\"}"
             << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false") << ",\"weaponSwaps\":" << weaponSwaps_ << ",\"reloads\":" << reloads_ << ",\"lockedAttacks\":" << autoLockedAttacks_
             << ",\"lockedSeconds\":" << autoLockedSeconds_ << ",\"emptyAttacks\":" << autoEmptyAttacks_ << ",\"emptySeconds\":" << autoEmptySeconds_
             << ",\"reserves\":[" << reserves_[0] << "," << reserves_[1] << "," << reserves_[2] << "],\"swapMeasured\":[" << autoSwapMeasured_[0] << ","
