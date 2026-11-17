@@ -24,6 +24,7 @@
 #include "game/run/session/ExpeditionMapController.h"
 #include "game/run/session/ExpeditionBuildSelection.h"
 #include "game/run/session/ExpeditionExperience.h"
+#include "game/run/session/ExpeditionOverdrive.h"
 #include "game/editor/session/ExpeditionBalanceEditor.h"
 #include "game/editor/session/ExpeditionAuthoring.h"
 #include "game/render/session/BossPresentation.h"

@@ -28,6 +28,16 @@ namespace gameplay {
 
 using namespace detail;
 
+namespace {
+/// @brief 遠征の熱（0〜1）に strength を掛けた分だけ、色を赤いネオンへ寄せる。透明度は保つ。
+myEngine::Vector4 HeatShift(const myEngine::Vector4& color, float heat, float strength)
+{
+    const float t = (std::clamp)(heat, 0.0f, 1.0f) * strength;
+    const myEngine::Vector4 hot{2.1f, 0.10f, 0.28f, color.w};
+    return {color.x + (hot.x - color.x) * t, color.y + (hot.y - color.y) * t, color.z + (hot.z - color.z) * t, color.w};
+}
+} // namespace
+
 void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
 {
     if (!world_.resources.neonGridRenderer_) {
@@ -59,12 +69,14 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     auto gridWidth = [&](float authored) {
         return authored > 0.0f ? (std::max)(authored, minimumGridWidth) : authored;
     };
+    // 遠征の熱が高まるほど、格子を赤いネオンへ寄せる。
+    const float heat = world_.presentation.heatTint_;
     auto gridColor = [&](myEngine::Vector4 authored, float width) {
         // 遠景や傾いた視点でサブピクセルの線を太くするときも、発光エネルギーを保つ。
         if (width > 0.0f) {
             authored.w *= width / gridWidth(width);
         }
-        return authored;
+        return HeatShift(authored, heat, 0.8f);
     };
     if (world_.presentation.showNeonGrid_) {
         const float minX = 0.0f;
@@ -239,9 +251,10 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
             auto world = [&](myEngine::Vector3 p) {
                 return myEngine::TransformMatrix(p, matrix);
             };
-            auto color = wall.exterior
-                             ? myEngine::Vector4{1.55f, .16f, .34f, 1.0f}
-                             : (damage ? world_.presentation.stageDamageBlockNeonColor_ : world_.presentation.stageBlockNeonColor_);
+            auto color = HeatShift(wall.exterior ? myEngine::Vector4{1.55f, .16f, .34f, 1.0f}
+                                                 : (damage ? world_.presentation.stageDamageBlockNeonColor_
+                                                           : world_.presentation.stageBlockNeonColor_),
+                                   world_.presentation.heatTint_, 0.7f);
             float pulse = 1.0f;
             if (damage) {
                 pulse = world_.presentation.stageDamageBlockPulseMin_ +
@@ -363,7 +376,7 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
             auto localToWorld = [&](const myEngine::Vector3& local) {
                 return myEngine::TransformMatrix(local, transform);
             };
-            myEngine::Vector4 blockNeonColor = world_.presentation.stageBlockNeonColor_;
+            myEngine::Vector4 blockNeonColor = HeatShift(world_.presentation.stageBlockNeonColor_, world_.presentation.heatTint_, 0.7f);
             if (isDamageBlock) {
                 const float wave = 0.5f + 0.5f * std::sin(world_.presentation.stageDamageBlockPulseTime_ *
                                                           world_.presentation.stageDamageBlockPulseSpeed_);

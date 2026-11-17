@@ -786,6 +786,14 @@ public:
     bool FireSurvivorShot(const SurvivorShot& shot);
     /// @brief 自機の位置で爆発を起こす（緊急放出）。威力は 主砲1発 × damageScale。衝撃放電と同じ爆発の仕組みを使う。
     void TriggerSurvivorBlast(float radius, float damageScale);
+    /// @brief 指定位置で爆発を起こす（遠征の派手な強化）。威力は 主砲1発 × damageScale。fuse 秒後に敵へ当たる。
+    void TriggerBlastAt(const myEngine::Vector3& position, float radius, float damageScale, const myEngine::Vector4& color,
+                        float fuse = 0.06f);
+    /// @brief 熱を amount だけ足す（遠征の強化の代償）。熱が無効なら何もしない。
+    void AddHeat(float amount)
+    {
+        heat_.AddHeat(amount);
+    }
 
     /// @brief 育つ戦車の試作の部品による、撃ち方・守りの挙動の変化。既定では何も変えない。
     struct SurvivorPartEffects {

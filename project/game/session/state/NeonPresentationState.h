@@ -174,6 +174,9 @@ struct NeonPresentationState {
 
     float cameraShakePower_ = 0.0f;
 
+    /// @brief 遠征の熱の高まり（0〜1、オーバーヒート中は脈打つ）。床の格子・壁・自機の色と画面の赤みに使う。
+    float heatTint_ = 0.0f;
+
     bool showCollisionDebug_ = false;
 
     bool showCollisionDebugBullets_ = true;

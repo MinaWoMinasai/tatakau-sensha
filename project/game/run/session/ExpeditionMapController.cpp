@@ -218,6 +218,7 @@ myEngine::InitializationTask ExpeditionMapController::BuildInitialization()
     world_.run.tankExpedition_.OpenMap();
     world_.run.tankExpeditionTutorial_.Skip();
     world_.expeditionExperience->InitializeExpeditionExperience();
+    world_.expeditionOverdrive->Initialize();
     const auto initialNodes = world_.run.expeditionMapRun_.GetAvailableNodeIds();
     if (!initialNodes.empty()) {
         world_.run.expeditionMapSelection_ = initialNodes.front();
@@ -697,6 +698,15 @@ bool ExpeditionMapController::StartAuthoredExpeditionRoom()
     // HasAuthoredDefinitionを確認し、個別設定の接触ダメージを全体値で上書きしない。
     world_.expeditionBalanceEditor->ApplyTankExpeditionRoomBalance();
     world_.depthEncounter->ConfigureNeonDepthEncounter();
+    {
+        // 増援の波と熱をこの区画用に用意する（操作訓練とボスには増援を呼ばない）。
+        std::vector<std::string> spawnTypes;
+        for (const auto& spawn : room->spawns) {
+            spawnTypes.push_back(spawn.type);
+        }
+        world_.expeditionOverdrive->BeginRoom(spawnTypes, node->combatStage, node->kind == NK::Elite,
+                                              node->role == tankexp::NodeRole::TutorialCombat, room->objective == "boss");
+    }
     world_.combat.previousPlayerHp_ = world_.resources.player_->GetHp();
     world_.combat.previousBossHp_ = world_.resources.enemy_->GetHp();
     world_.combat.bossDefeatHandled_ = false;
@@ -1317,6 +1327,7 @@ void ExpeditionMapController::UpdateExpeditionMap(float dt)
     if (world_.combat.phase_ != Phase::kMain) {
         return;
     }
+    world_.expeditionOverdrive->UpdatePresentation(dt);
     if (world_.specialValidation->UpdateSpecialValidation(dt)) {
         return;
     }
@@ -1614,7 +1625,7 @@ void ExpeditionMapController::UpdateExpeditionMap(float dt)
             !world_.run.expeditionGuideActive_ || world_.run.expeditionGuide_.IsCombatReadyToClear() || world_.run.expeditionMapAutoTest_;
         const auto kind = world_.run.tankExpedition_.GetRoomKind();
         if (ready && kind != tankexp::RoomKind::Boss && ThreatCount(world_.resources.enemyManager_.get()) == 0 &&
-            (kind != tankexp::RoomKind::Guard || world_.run.tankExpeditionNodes_ >= 3)) {
+            world_.expeditionOverdrive->WavesFinished() && (kind != tankexp::RoomKind::Guard || world_.run.tankExpeditionNodes_ >= 3)) {
             const auto* cleared = world_.run.expeditionMapRun_.GetActiveNode();
             // 完了演出より先に報酬通貨を一度だけ生成し、残る通貨の回収中は戦闘を停止する。
             if (!world_.run.expeditionClearRewardQueued_) {
@@ -1636,6 +1647,7 @@ void ExpeditionMapController::UpdateExpeditionMap(float dt)
         }
         world_.run.tankExpedition_.Update(dt);
         world_.run.tankRun_.Update(dt);
+        world_.expeditionOverdrive->UpdateCombat(dt);
         world_.run.tankExpeditionArrival_ += dt;
         world_.run.tankRunComboTime_ = (std::max)(0.0f, world_.run.tankRunComboTime_ - dt);
         for (auto& burst : world_.run.tankRunBursts_) {

@@ -46,6 +46,12 @@ enum class CardId {
     DashSlash,
     SpinBlade,
     WallSmash,
+    // 遠征の熱を使う、派手で代償の大きい強化（集団戦向け）。
+    ThermalNova,     // 熱核解放：オーバーヒートの瞬間に大爆発
+    ChainDetonation, // 誘爆コア：倒した敵が爆発して連鎖する
+    NovaBarrage,     // 全方位斉射：4回に1回、全周へ弾幕
+    Overclock,       // 臨界駆動：熱が高いほど威力が上がる
+    Singularity,     // 重力崩壊：ダッシュで敵を吸い寄せて爆発
     Count
 };
 constexpr std::size_t CardCount = static_cast<std::size_t>(CardId::Count);

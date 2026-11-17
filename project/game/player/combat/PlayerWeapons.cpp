@@ -94,6 +94,10 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
             if (player_.bulletCoolTime > 0.0f) {
                 return;
             }
+            // オーバーヒートの間は斬れない（熱が無効なモードでは常に斬れる）。
+            if (!player_.heat_.CanFire()) {
+                return;
+            }
             if (TryStartSpinBlade(wantsPrimaryAttack)) {
                 return;
             }
@@ -155,6 +159,8 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
             player_.specialWaveEmitted_ = false;
             player_.specialPerfectFeedback_ = false;
             player_.specialParriedBullets_.clear();
+            // 斬撃も熱を生む（遠征。熱が無効なら何もしない）。
+            player_.heat_.AddShot(1.3f);
             player_.meleeComboStep_ = dashSlash ? 1 : (step + 1) % 3;
             player_.finisherSpinReady_ = !dashSlash && step == 2;
             player_.bulletCoolTime = event.windupDuration + event.duration + event.recoveryDuration;

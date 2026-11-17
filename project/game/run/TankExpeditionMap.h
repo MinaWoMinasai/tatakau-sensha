@@ -475,7 +475,8 @@ inline MapDefinition GenerateExpeditionMapUnchecked(uint32_t seed, const MapDefi
     };
     for (int column = 2; column < length; ++column) {
         const bool final = column == length - 1;
-        const bool workshop = column == 5 || column == length - 5;
+        // 短いマップ（12〜13列）では、工房を前半と後半に1回ずつ置き、それ以外の列は戦闘を多めにする。
+        const bool workshop = column == 4 || column == length - 4;
         int width = column == 2 || final ? 1 : workshop || column == length - 2 ? 2 : 1 + static_cast<int>(draw(3));
         const size_t first = map.nodes.size();
         for (int lane = 0; lane < width; ++lane) {
@@ -544,10 +545,8 @@ inline MapDefinition GenerateExpeditionMapUnchecked(uint32_t seed, const MapDefi
                 std::vector<NodeKind> choices;
                 if (workshop || column == length - 2) {
                     choices = {NodeKind::Upgrade, NodeKind::Heal};
-                } else if (column % 3 == 2) {
+                } else if (column % 2 == 1) {
                     choices = {NodeKind::Combat, NodeKind::Combat, NodeKind::Elite};
-                } else if (column % 3 == 0) {
-                    choices = {NodeKind::Upgrade, NodeKind::Upgrade, NodeKind::Heal};
                 } else {
                     choices = {NodeKind::Combat, NodeKind::Elite, NodeKind::Upgrade, NodeKind::Heal};
                 }
@@ -566,9 +565,11 @@ inline MapDefinition GenerateExpeditionMapUnchecked(uint32_t seed, const MapDefi
                 node.kind = choices[draw(static_cast<uint32_t>(choices.size()))];
             }
             if (IsCombatNode(node.kind)) {
-                node.combatStage = final ? 4 : (std::min)(4, 1 + (column - 2) / 4);
+                // 区画の強さは、マップの長さに合わせて1から3へ上げる（ボスは4）。
+                node.combatStage = final ? 4 : (std::min)(4, 1 + (column - 2) * 3 / (std::max)(1, length - 3));
                 node.roomTemplate = pickRoom(node.kind, column);
-                node.clearReward = final ? 0 : (node.kind == NodeKind::Elite ? 45 : 28) + column * 3;
+                // 1区画が長くなった分、クリア報酬も増やす。
+                node.clearReward = final ? 0 : (node.kind == NodeKind::Elite ? 60 : 38) + column * 5;
             } else {
                 node.combatStage = -1;
                 node.serviceCost = node.kind == NodeKind::Upgrade ? 30 + column * 2 : node.kind == NodeKind::Heal ? 20 + column : 0;

@@ -739,7 +739,7 @@ void ExpeditionController::RefreshTankExpeditionUi()
     const Room room = world_.run.tankExpedition_.GetRoomKind();
     const bool terminal = phase == EPhase::Clear || phase == EPhase::Dead;
     const bool inCombat = phase == EPhase::Combat && !world_.run.tankRunPaused_;
-    world_.run.tankRunHudPanel_->SetSize({264, 78});
+    world_.run.tankRunHudPanel_->SetSize({264, world_.run.expeditionMapEnabled_ ? 100.0f : 78.0f});
     world_.run.tankRunHudPanel_->SetColor({0.0f, 0.0f, 0.004f, 0.42f});
     world_.run.tankRunHudPanel_->Update();
     world_.run.tankRunHud_->SetText(
@@ -774,10 +774,12 @@ void ExpeditionController::RefreshTankExpeditionUi()
             ? (world_.run.tankExpeditionResourceReleased_ ? "金色の通貨ボックスを壊そう"
                                                           : "敵を倒して宝物を手に入れよう  あと " + std::to_string(threats))
         : room == Room::Guard
-            ? "通貨ボックス " + std::to_string(world_.run.tankExpeditionNodes_) + " / 3   敵 あと " + std::to_string(threats)
+            ? "通貨ボックス " + std::to_string(world_.run.tankExpeditionNodes_) + " / 3   敵 あと " + std::to_string(threats) +
+                  (world_.run.expeditionMapEnabled_ ? world_.expeditionOverdrive->WaveStatus() : std::string{})
         : room == Room::Boss
             ? "ボスを倒そう"
-            : (world_.run.expeditionMapEnabled_ ? "敵とブロックを倒そう  あと " : "敵を全滅させろ  残り ") + std::to_string(threats);
+            : (world_.run.expeditionMapEnabled_ ? "敵とブロックを倒そう  あと " : "敵を全滅させろ  残り ") + std::to_string(threats) +
+                  (world_.run.expeditionMapEnabled_ ? world_.expeditionOverdrive->WaveStatus() : std::string{});
     world_.run.tankRunObjectiveText_->SetAlpha(0.90f + 0.10f * std::sin(world_.run.expeditionPresentationClock_ * 2.0f));
     world_.run.tankRunObjectiveText_->SetAnchorPoint({0.5f, 0});
     world_.run.tankRunObjectiveText_->SetPosition({640, 12});
@@ -1032,6 +1034,10 @@ void ExpeditionController::DrawTankExpeditionUi()
     world_.run.tankExpeditionHpFill_->Draw();
     if (world_.run.expeditionMapEnabled_) {
         world_.expeditionExperience->DrawExpeditionVitals();
+        if (!decision && !result) {
+            world_.expeditionOverdrive->Draw();
+            myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+        }
     }
     world_.run.tankRunObjectiveText_->Draw();
     if (world_.run.tankExpeditionDetailsOpen_) {

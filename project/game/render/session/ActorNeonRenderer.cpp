@@ -258,6 +258,8 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
 
     if (world_.presentation.playerNeonRenderMode_ == 1 && world_.resources.player_ && !world_.resources.player_->IsDead()) {
         myEngine::Vector4 color = world_.presentation.playerGridColor_;
+        // 遠征の熱が高まるほど、自機の輪郭を赤く灼けた色へ寄せる。
+        color = lerpColor(color, {2.2f, 0.32f, 0.22f, color.w}, (std::clamp)(world_.presentation.heatTint_, 0.0f, 1.0f) * 0.65f);
         const float feedback = world_.resources.player_->GetDamageFeedbackRatio();
         const float pulse = std::sin(feedback * 3.14159265f) * 0.10f;
         color = lerpColor(color, {1.8f, 1.8f, 1.8f, color.w}, feedback * feedback * 0.75f);

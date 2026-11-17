@@ -53,6 +53,9 @@ IScene::ScreenEffectState GameplayQueries::GetScreenEffectState() const
     if (state.active) {
         world_.combat.screenEffectDirector_.ApplyTo(state.param);
     }
+    if (world_.run.IsExpeditionRun() && world_.expeditionOverdrive) {
+        world_.expeditionOverdrive->ApplyScreenEffect(state);
+    }
     return state;
 }
 

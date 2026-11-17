@@ -279,6 +279,7 @@ void ArenaRunController::OnTankRunEnemyDefeated(const myEngine::Vector3& positio
     }
     if (world_.run.expeditionMapEnabled_) {
         world_.expeditionExperience->SpawnExpeditionCredits(position, world_.resources.player_->TakeRunCurrencyEarned());
+        world_.expeditionOverdrive->OnEnemyDefeated(position);
     }
     world_.run.tankRun_.AddSalvage(1);
     world_.run.tankRunCombo_ = (world_.run.tankRunComboTime_ > 0 ? world_.run.tankRunCombo_ : 0) + 1;

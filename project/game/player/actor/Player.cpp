@@ -907,6 +907,18 @@ void Player::TriggerSurvivorBlast(float radius, float damageScale)
     pendingMineDrops_.push_back(explosion);
 }
 
+void Player::TriggerBlastAt(const myEngine::Vector3& position, float radius, float damageScale, const myEngine::Vector4& color, float fuse)
+{
+    MineDropEvent explosion{};
+    explosion.position = position;
+    explosion.radius = radius;
+    explosion.fuseTime = (std::max)(0.0f, fuse);
+    explosion.lifeTime = explosion.fuseTime + 0.02f;
+    explosion.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * damageScale)));
+    explosion.color = color;
+    pendingMineDrops_.push_back(explosion);
+}
+
 float Player::FireSurvivorHeatVent(float damagePerHeat)
 {
     const float heat = heat_.GetHeat();

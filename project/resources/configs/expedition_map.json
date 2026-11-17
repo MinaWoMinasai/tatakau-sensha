@@ -228,40 +228,40 @@
       {
         "firstColumn": 2,
         "weight": 4,
-        "lastColumn": 7,
+        "lastColumn": 4,
         "roomTemplate": "outskirts",
         "kind": "combat"
       },
       {
         "firstColumn": 2,
         "weight": 1,
-        "lastColumn": 7,
+        "lastColumn": 6,
         "roomTemplate": "crossfire",
         "kind": "combat"
       },
       {
-        "firstColumn": 8,
+        "firstColumn": 5,
         "weight": 2,
-        "lastColumn": 13,
+        "lastColumn": 8,
         "roomTemplate": "crossfire",
         "kind": "combat"
       },
       {
-        "firstColumn": 8,
+        "firstColumn": 4,
         "weight": 2,
-        "lastColumn": 13,
+        "lastColumn": 8,
         "roomTemplate": "resource_fork",
         "kind": "combat"
       },
       {
-        "firstColumn": 14,
+        "firstColumn": 8,
         "weight": 2,
         "lastColumn": 31,
         "roomTemplate": "hazard_lane",
         "kind": "combat"
       },
       {
-        "firstColumn": 14,
+        "firstColumn": 8,
         "weight": 1,
         "lastColumn": 31,
         "roomTemplate": "crossfire",
@@ -283,34 +283,34 @@
       },
       {
         "kind": "combat",
-        "firstColumn": 8,
+        "firstColumn": 5,
         "lastColumn": 31,
         "weight": 2,
         "roomTemplate": "guard_patrol"
       },
       {
         "kind": "combat",
-        "firstColumn": 7,
+        "firstColumn": 4,
         "lastColumn": 31,
         "weight": 2,
         "roomTemplate": "command_post"
       },
       {
         "kind": "combat",
-        "firstColumn": 10,
+        "firstColumn": 6,
         "lastColumn": 31,
         "weight": 2,
         "roomTemplate": "emp_patrol"
       },
       {
         "kind": "combat",
-        "firstColumn": 13,
+        "firstColumn": 8,
         "lastColumn": 31,
         "weight": 2,
         "roomTemplate": "reflect_bastion"
       }
     ],
-    "minColumns": 18,
-    "maxColumns": 22
+    "minColumns": 12,
+    "maxColumns": 13
   }
 }
