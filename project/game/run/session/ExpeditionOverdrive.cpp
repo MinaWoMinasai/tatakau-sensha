@@ -184,6 +184,24 @@ void ExpeditionOverdrive::UpdatePresentation(float dt)
         overheated_ = false;
         heatRatio_ = 0.0f;
     }
+    // HUD の文字はここ（更新の段）で作り直す。TextLabel::SetText は新しい文字のテクスチャを読み込み、
+    // コマンドリストを実行して作り直すので、描画の途中で呼ぶとルートシグネチャが外れて落ちる。
+    // 割合は5%刻みにして、作るテクスチャの数を抑える。
+    if (combatVisible_ && heatText_ && warningText_) {
+        const int percent = static_cast<int>(heatRatio_ * 20.0f + 0.5f) * 5;
+        const std::string heatText = overheated_ ? "熱  オーバーヒート" : "熱  " + std::to_string(percent) + "%";
+        if (heatText != heatTextValue_) {
+            heatTextValue_ = heatText;
+            heatText_->SetText(heatText);
+        }
+        const std::string warning = overheated_ ? "!! OVERHEAT !!" : heatRatio_ >= 0.8f ? "HEAT CRITICAL" : "";
+        if (warning != warningTextValue_) {
+            warningTextValue_ = warning;
+            if (!warning.empty()) {
+                warningText_->SetText(warning);
+            }
+        }
+    }
     float& tint = world_.presentation.heatTint_;
     const float rate = target > tint ? 5.0f : 2.5f;
     tint += (target - tint) * (std::min)(1.0f, rate * dt);
@@ -642,26 +660,11 @@ void ExpeditionOverdrive::Draw()
         heatFill_->Update();
         heatFill_->Draw();
     }
-    const std::string heatText =
-        overheated_ ? "熱  オーバーヒート" : "熱  " + std::to_string(static_cast<int>(heatRatio_ * 100.0f + 0.5f)) + "%";
-    if (heatText != heatTextValue_) {
-        heatTextValue_ = heatText;
-        heatText_->SetText(heatText);
-    }
+    // 文字は UpdatePresentation で作り直してある（描画の途中で文字のテクスチャを作るとコマンドリストが閉じられるため）。
     heatText_->Draw();
 
     // 画面上の警告。
-    std::string warning;
-    if (overheated_) {
-        warning = "!! OVERHEAT !!";
-    } else if (heatRatio_ >= 0.8f) {
-        warning = "HEAT CRITICAL";
-    }
-    if (!warning.empty()) {
-        if (warning != warningTextValue_) {
-            warningTextValue_ = warning;
-            warningText_->SetText(warning);
-        }
+    if (!warningTextValue_.empty()) {
         const float jitter = overheated_ ? std::uniform_real_distribution<float>(-4.0f, 4.0f)(random_) : 0.0f;
         warningText_->SetPosition({640.0f + jitter, 96.0f});
         warningText_->SetAlpha(overheated_ ? 0.55f + 0.45f * std::sin(clock_ * 20.0f) : 0.6f + 0.3f * std::sin(clock_ * 8.0f));
