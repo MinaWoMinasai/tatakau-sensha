@@ -254,14 +254,14 @@
         "kind": "combat"
       },
       {
-        "firstColumn": 8,
+        "firstColumn": 7,
         "weight": 2,
         "lastColumn": 31,
         "roomTemplate": "hazard_lane",
         "kind": "combat"
       },
       {
-        "firstColumn": 8,
+        "firstColumn": 7,
         "weight": 1,
         "lastColumn": 31,
         "roomTemplate": "crossfire",
@@ -297,20 +297,20 @@
       },
       {
         "kind": "combat",
-        "firstColumn": 6,
+        "firstColumn": 5,
         "lastColumn": 31,
         "weight": 2,
         "roomTemplate": "emp_patrol"
       },
       {
         "kind": "combat",
-        "firstColumn": 8,
+        "firstColumn": 7,
         "lastColumn": 31,
         "weight": 2,
         "roomTemplate": "reflect_bastion"
       }
     ],
-    "minColumns": 12,
-    "maxColumns": 13
+    "minColumns": 10,
+    "maxColumns": 10
   }
 }
