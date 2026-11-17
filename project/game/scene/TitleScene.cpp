@@ -313,13 +313,12 @@ void TitleScene::Update()
                 UpdateMenuVisuals();
             }
         }
-#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+        // F7：遠征のボス戦から始める（講評会の Release でも使う）。
         if (triggered(DIK_F7)) {
             if (StartTransitionIfAvailable("TANK_EXPEDITION", 0.5f)) {
                 GameStartSession::RequestDeveloperBossStart();
             }
         } else
-#endif
             if (myEngine::kDeveloperTools && triggered(DIK_F9)) {
             StartTransitionIfAvailable("TANK_EXPEDITION", 0.5f);
         } else if (triggered(DIK_RETURN) || triggered(DIK_SPACE) || (click && hovered >= 0)) {

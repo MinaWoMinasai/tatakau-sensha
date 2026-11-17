@@ -123,13 +123,10 @@ struct WorldResources {
     NeonShowcaseCapture neonBossCapture_;
 #endif
 
-#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    // ボス戦への移動（F7）は講評会の Release でも使うので、どの構成でも持つ。
     bool neonBossAutoTest_ = false, neonBossDeveloperStartPending_ = false;
-#endif
 
-#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     bool neonBossDeveloperFreeze_ = false;
-#endif
 
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     int neonBossProbe_ = 0, neonBossCaptureStep_ = 0;
@@ -151,9 +148,7 @@ struct WorldResources {
     nlohmann::json neonBossValidationCaptures_ = nlohmann::json::array();
 #endif
 
-#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     std::vector<std::string> neonBossValidationErrors_;
-#endif
 
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     unsigned neonBossDeadShots_ = 0, neonBossDeadDashCount_ = 0;

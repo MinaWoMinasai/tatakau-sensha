@@ -1,4 +1,6 @@
 #include "SceneManager.h"
+#include "game/scene/PresentationToggles.h"
+#include <Windows.h>
 #include "FixedTimestep.h"
 #include "LogWrite.h"
 #include "StartupTrace.h"
@@ -238,6 +240,21 @@ IScene::WaterPostProcessSettings SceneManager::GetWaterPostProcessSettings()
 
 IScene::BloomViewSettings SceneManager::GetBloomViewSettings()
 {
+    // MYENGINE_BLOOM_OFF=1 なら、起動したときからブルームを切っておく（比べるときや、重いPC向け）。
+    static const bool startOff = [] {
+        char value[4]{};
+        if (GetEnvironmentVariableA("MYENGINE_BLOOM_OFF", value, sizeof(value)) > 0 && value[0] == '1') {
+            PresentationToggles::bloomOff = true;
+        }
+        return true;
+    }();
+    (void)startOff;
+    // F12 でブルームを切っている間は、どのシーンでも「オフ」にする（画面全体と物ごとのブルームの両方に効く）。
+    if (PresentationToggles::bloomOff) {
+        IScene::BloomViewSettings off;
+        off.view = 1;
+        return off;
+    }
     return currentScene_ ? currentScene_->GetBloomViewSettings() : IScene::BloomViewSettings{};
 }
 

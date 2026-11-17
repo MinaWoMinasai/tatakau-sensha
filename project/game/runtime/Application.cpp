@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "game/scene/PresentationToggles.h"
 #include "FixedTimestep.h"
 #include "Dump.h"
 #include "DeveloperTools.h"
@@ -523,6 +524,13 @@ int Application::MainLoop()
             if (msg.message == WM_KEYDOWN && msg.wParam == VK_F1 && !(msg.lParam & (1LL << 30))) {
                 myEngine::RuntimeProfiler::Get().HandleShortcut((GetKeyState(VK_SHIFT) & 0x8000) != 0);
             }
+#if !(defined(USE_IMGUI) && !defined(NDEBUG))
+            // F12：ブルームをすべてオン・オフする（講評会の Release 用。開発用の構成の F12 は開発用の画面を開く。
+            // 開発用の構成では [B] で同じオフにできる）。
+            if (msg.message == WM_KEYDOWN && msg.wParam == VK_F12 && !(msg.lParam & (1LL << 30))) {
+                PresentationToggles::ToggleBloom();
+            }
+#endif
             TranslateMessage(&msg);
             DispatchMessage(&msg);
             // 同じメッセージのまとまりの中で後続のキー押下が記録される前に、

@@ -30,6 +30,8 @@ struct NeonPresentationState {
     int bloomView_ = 0;
     bool bloomViewFreeze_ = false;
     float bloomViewLabelTimer_ = 0.0f;
+    /// @brief 最後に見た F12 のブルームの切り替えの回数（PresentationToggles::bloomSerial）。
+    uint32_t bloomToggleSeen_ = 0;
     stagesurface::Settings stageSurface_;
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     int developerStageSurfaceDebugView_ = -1;

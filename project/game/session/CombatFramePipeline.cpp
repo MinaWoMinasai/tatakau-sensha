@@ -1,4 +1,5 @@
 #include "game/session/CombatFramePipeline.h"
+#include "game/scene/PresentationToggles.h"
 #include "FixedTimestep.h"
 #include "game/render/settings/ArenaCameraProfile.h"
 #include "game/session/GameplaySystems.h"
@@ -76,6 +77,26 @@ void CombatFramePipeline::Update()
             return; // フレームを止める: 同じ状態のまま描画は続くので、同じ瞬間で表示を比べられる。
         }
     }
+
+    // F12 のブルームの切り替え（Application が受ける）を、ゲーム中は画面の下に短く出す。
+    if (!world_.demo.titleDemo_ && PresentationToggles::bloomSerial != world_.presentation.bloomToggleSeen_) {
+        world_.presentation.bloomToggleSeen_ = PresentationToggles::bloomSerial;
+        if (world_.combat.bloomViewText_) {
+            world_.combat.bloomViewText_->SetText(PresentationToggles::bloomOff ? "ブルーム：オフ（すべて）   [F12]で戻す"
+                                                                                : "ブルーム：オン   [F12]で切る");
+            world_.presentation.bloomViewLabelTimer_ = 2.5f;
+        }
+    }
+    if (!myEngine::kDeveloperTools) {
+        world_.presentation.bloomViewLabelTimer_ = (std::max)(0.0f, world_.presentation.bloomViewLabelTimer_ - myEngine::kFixedStepSeconds);
+    }
+#if !(MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG))
+    // F7：遠征のボス戦へ移る（講評会の Release でも使う）。開発用の構成では下の開発用の処理が受ける。
+    if (!world_.demo.titleDemo_ && world_.run.expeditionMapEnabled_ && world_.resources.input_->IsKeyTriggered(DIK_F7)) {
+        world_.bossPresentation->RequestNeonBossDeveloperEncounter();
+    }
+    world_.bossPresentation->UpdateNeonBossQuickStart();
+#endif
 
     // この更新は固定ステップ1回分（1/60秒）。実時間に合わせて何回回すかはApplicationが決める。
     // 検証では指定した固定時間でメニュー・演出も進める。
