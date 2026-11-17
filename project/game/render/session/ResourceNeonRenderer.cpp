@@ -216,8 +216,23 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
             continue;
         }
         if (expEnemy->IsExpeditionCombatRole()) {
+            // 遠征の増援で現れる戦闘員も、ワープ機と同じディゾルブで現す。
+            const bool dissolving = expEnemy->GetWarpDissolve() > 0.0f;
+            if (dissolving) {
+                myEngine::NeonGridRenderer::LineDissolve dissolve{};
+                dissolve.origin = expEnemy->GetWorldPosition();
+                dissolve.direction = myEngine::Normalize(cameraRight - cameraUp);
+                dissolve.extent = (std::max)(0.8f, expEnemy->GetRadius()) * 2.0f;
+                dissolve.progress = expEnemy->GetWarpDissolve();
+                dissolve.pieceLength = (std::max)(0.05f, expEnemy->GetRadius() * 0.3f);
+                dissolve.edgeColor = {1.9f, 0.5f, 1.9f, 1.0f};
+                world_.resources.neonGridRenderer_->BeginLineDissolve(dissolve);
+            }
             expEnemy->QueueCombatVisuals(*world_.resources.neonGridRenderer_, cameraRight, cameraUp, cameraForward,
                                          world_.presentation.expEnemyNeonLineWidth_);
+            if (dissolving) {
+                world_.resources.neonGridRenderer_->EndLineDissolve();
+            }
             continue;
         }
         const myEngine::Vector3 visualScale = expEnemy->GetVisualScale();

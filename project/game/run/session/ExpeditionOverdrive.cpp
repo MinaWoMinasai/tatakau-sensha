@@ -24,6 +24,9 @@ constexpr int kWarper = static_cast<int>(ExpEnemy::SurvivorRole::Warper);
 constexpr float kWarpInterval = 3.2f;
 constexpr float kWarpFadeSeconds = 0.45f;
 constexpr float kWarpDistance = 7.0f;
+// 出現のディゾルブ（ワープ機が現れるときと同じ見た目。1.12 で全部消えた状態）と、現れきるまでの秒数。
+constexpr float kArrivalDissolve = 1.12f;
+constexpr float kArrivalSeconds = 0.7f;
 const myEngine::Vector4 kHunterColor{2.0f, 0.42f, 0.12f, 1.0f};
 const myEngine::Vector4 kWarperColor{1.05f, 0.35f, 2.0f, 1.0f};
 
@@ -84,10 +87,8 @@ void ExpeditionOverdrive::Initialize()
 {
     heatTrack_ = Rect({24, 79}, {230, 6}, {0.20f, 0.06f, 0.06f, 0.9f});
     heatFill_ = Rect({24, 79}, {230, 6}, {1.0f, 0.45f, 0.12f, 1.0f});
-    heatText_ = Label(13, {20, 84}, {1.0f, 0.62f, 0.45f, 1.0f});
     warningText_ = Label(30, {640, 96}, {1.0f, 0.18f, 0.30f, 1.0f});
     warningText_->SetAnchorPoint({0.5f, 0.0f});
-    heatTextValue_.clear();
     warningTextValue_.clear();
     // 縁の光は、外側ほど濃い帯を6段重ねて作る（上・下・左・右）。
     edgeGlow_.clear();
@@ -135,6 +136,20 @@ void ExpeditionOverdrive::BeginRoom(const std::vector<std::string>& spawnTypes, 
     lastOverheats_ = player.GetHeat().GetOverheatCount();
     lastAttacks_ = player.GetPrimaryAttackCount();
     lastDashes_ = player.GetDashStartedCount();
+    // 部屋に置かれた敵も、ワープ機と同じディゾルブで現す（戦闘が始まった最初の更新で光と輪を出す）。
+    // 操作訓練は説明の間に敵を見せたいので、そのまま置く。
+    for (ExpEnemy* enemy : tutorial ? std::vector<ExpEnemy*>{} : world_.resources.enemyManager_->GetEnemyPtrs()) {
+        if (enemy && !enemy->IsDead() && !enemy->IsRunResource()) {
+            enemy->SetWarpDissolve(kArrivalDissolve);
+        }
+    }
+    arrivalPending_ = true;
+}
+
+void ExpeditionOverdrive::AnnounceArrival(const myEngine::Vector3& position)
+{
+    myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(position, {0, 1, 0}, kWarperColor, 10);
+    AddRing(position, 1.8f, 0.35f, kWarperColor);
 }
 
 void ExpeditionOverdrive::ApplyHeatConfig(bool force)
@@ -184,16 +199,9 @@ void ExpeditionOverdrive::UpdatePresentation(float dt)
         overheated_ = false;
         heatRatio_ = 0.0f;
     }
-    // HUD の文字はここ（更新の段）で作り直す。TextLabel::SetText は新しい文字のテクスチャを読み込み、
+    // 警告の文字はここ（更新の段）で作り直す。TextLabel::SetText は新しい文字のテクスチャを読み込み、
     // コマンドリストを実行して作り直すので、描画の途中で呼ぶとルートシグネチャが外れて落ちる。
-    // 割合は5%刻みにして、作るテクスチャの数を抑える。
-    if (combatVisible_ && heatText_ && warningText_) {
-        const int percent = static_cast<int>(heatRatio_ * 20.0f + 0.5f) * 5;
-        const std::string heatText = overheated_ ? "熱  オーバーヒート" : "熱  " + std::to_string(percent) + "%";
-        if (heatText != heatTextValue_) {
-            heatTextValue_ = heatText;
-            heatText_->SetText(heatText);
-        }
+    if (combatVisible_ && warningText_) {
         const std::string warning = overheated_ ? "!! OVERHEAT !!" : heatRatio_ >= 0.8f ? "HEAT CRITICAL" : "";
         if (warning != warningTextValue_) {
             warningTextValue_ = warning;
@@ -221,6 +229,14 @@ void ExpeditionOverdrive::UpdateCombat(float dt)
     selfHitCooldown_ = (std::max)(0.0f, selfHitCooldown_ - dt);
     chainBudget_ = (std::min)(12.0f, chainBudget_ + dt * 12.0f);
     ApplyHeatConfig(false);
+    if (arrivalPending_) {
+        arrivalPending_ = false;
+        for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (enemy && !enemy->IsDead() && enemy->GetWarpDissolve() > 0.0f) {
+                AnnounceArrival(enemy->GetWorldPosition());
+            }
+        }
+    }
 
     const int overheats = player.GetHeat().GetOverheatCount();
     if (overheats > lastOverheats_) {
@@ -335,7 +351,6 @@ void ExpeditionOverdrive::OnOverheat()
     overheatFlash_ = 0.6f;
     auto& player = *world_.resources.player_;
     const myEngine::Vector3 center = player.GetWorldPosition();
-    world_.combatFlow->SetEventCallout("オーバーヒート！", 0.9f);
     myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(center, {0, 1, 0}, {2.2f, 0.25f, 0.18f, 1.0f}, 14);
     Shake(0.08f, 0.14f);
     if (Has(C::ThermalNova)) {
@@ -346,7 +361,6 @@ void ExpeditionOverdrive::OnOverheat()
         myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(center, {0, 1, 0}, kNovaColor, 40);
         world_.combat.screenEffectDirector_.TriggerEnemyDefeat(world_.gameplayQueries->WorldToScreenUv(center), 1.0f);
         Shake(0.26f, 0.28f);
-        world_.combatFlow->SetEventCallout("熱核解放！", 1.0f);
     }
 }
 
@@ -412,9 +426,9 @@ void ExpeditionOverdrive::SpawnWave()
             return nullptr;
         }
         ExpEnemy* enemy = enemies.GetEnemyPtrs().back();
-        // 出現はワープのディゾルブで現す。
-        enemy->SetWarpDissolve(1.12f);
-        myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(position, {0, 1, 0}, {1.6f, 0.3f, 0.9f, 1.0f}, 8);
+        // 出現はワープ機と同じディゾルブで現す。
+        enemy->SetWarpDissolve(kArrivalDissolve);
+        AnnounceArrival(position);
         return enemy;
     };
 
@@ -456,15 +470,6 @@ void ExpeditionOverdrive::SpawnWave()
         }
     }
 
-    std::string callout = "増援 第" + std::to_string(wavesSpawned_) + "波！";
-    if (!announcedHunter_) {
-        callout += " 追尾機が迫る";
-        announcedHunter_ = true;
-    } else if (warpers > 0 && !announcedWarper_) {
-        callout += " ワープ機に注意";
-        announcedWarper_ = true;
-    }
-    world_.combatFlow->SetEventCallout(callout, 1.4f);
     Shake(0.06f, 0.12f);
 }
 
@@ -478,7 +483,7 @@ void ExpeditionOverdrive::UpdateEnemyRoles(float dt)
         if (static_cast<int>(enemy->GetSurvivorRole()) != kWarper) {
             // 増援の出現のディゾルブを戻していく。
             if (enemy->GetWarpDissolve() > 0.0f) {
-                enemy->SetWarpDissolve((std::max)(0.0f, enemy->GetWarpDissolve() - dt * 2.4f));
+                enemy->SetWarpDissolve((std::max)(0.0f, enemy->GetWarpDissolve() - dt * kArrivalDissolve / kArrivalSeconds));
             }
             continue;
         }
@@ -660,9 +665,7 @@ void ExpeditionOverdrive::Draw()
         heatFill_->Update();
         heatFill_->Draw();
     }
-    // 文字は UpdatePresentation で作り直してある（描画の途中で文字のテクスチャを作るとコマンドリストが閉じられるため）。
-    heatText_->Draw();
-
+    // 警告の文字は UpdatePresentation で作り直してある（描画の途中で文字のテクスチャを作るとコマンドリストが閉じられるため）。
     // 画面上の警告。
     if (!warningTextValue_.empty()) {
         const float jitter = overheated_ ? std::uniform_real_distribution<float>(-4.0f, 4.0f)(random_) : 0.0f;

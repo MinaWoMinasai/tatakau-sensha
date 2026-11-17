@@ -616,8 +616,23 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
                 continue;
             }
             if (enemy->IsExpeditionCombatRole()) {
+                // 遠征の増援で現れる戦闘員は、塗りも線と同じディゾルブで現す。
+                const bool dissolving = enemy->GetWarpDissolve() > 0.0f;
+                if (dissolving) {
+                    myEngine::NeonGridRenderer::LineDissolve dissolve{};
+                    dissolve.origin = enemy->GetWorldPosition();
+                    dissolve.direction = myEngine::Normalize(cameraRight - cameraUp);
+                    dissolve.extent = (std::max)(0.8f, enemy->GetRadius()) * 2.0f;
+                    dissolve.progress = enemy->GetWarpDissolve();
+                    dissolve.pieceLength = (std::max)(0.05f, enemy->GetRadius() * 0.3f);
+                    dissolve.edgeColor = {1.9f, 0.5f, 1.9f, 1.0f};
+                    world_.resources.neonGridRenderer_->BeginLineDissolve(dissolve);
+                }
                 enemy->QueueCombatVisuals(*world_.resources.neonGridRenderer_, cameraRight, cameraUp, cameraForward,
                                           world_.presentation.expEnemyNeonLineWidth_, true);
+                if (dissolving) {
+                    world_.resources.neonGridRenderer_->EndLineDissolve();
+                }
                 continue;
             }
             const auto type = enemy->GetType();

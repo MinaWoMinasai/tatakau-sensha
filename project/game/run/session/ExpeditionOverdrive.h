@@ -65,6 +65,8 @@ private:
     /// @brief 熱を使う強化（全方位斉射・重力崩壊・臨界駆動）を進める。
     void UpdateUpgrades(float dt);
     bool Has(tankrun::CardId card) const;
+    /// @brief 敵が現れた場所に、ワープの光と輪を出す。
+    void AnnounceArrival(const myEngine::Vector3& position);
 
     GameWorld& world_;
     std::mt19937 random_{0x5eedu};
@@ -77,8 +79,7 @@ private:
     float roomTime_ = 0.0f;
     float sinceWave_ = 0.0f;
     std::vector<std::string> spawnTypes_;
-    bool announcedHunter_ = false;
-    bool announcedWarper_ = false;
+    bool arrivalPending_ = false;
 
     // 熱と強化。
     PlayerHeat::Config appliedHeat_{};
@@ -107,8 +108,8 @@ private:
 
     // HUD。
     std::unique_ptr<myEngine::Sprite> heatTrack_, heatFill_;
-    std::unique_ptr<myEngine::TextLabel> heatText_, warningText_;
-    std::string heatTextValue_, warningTextValue_;
+    std::unique_ptr<myEngine::TextLabel> warningText_;
+    std::string warningTextValue_;
     /// @brief 画面の縁の赤い光（上・下・左・右の各段）と、ネオンの枠線・角・走査線。
     std::vector<std::unique_ptr<myEngine::Sprite>> edgeGlow_;
     std::array<std::unique_ptr<myEngine::Sprite>, 4> frameLines_;
