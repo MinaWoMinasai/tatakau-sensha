@@ -178,6 +178,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         world_.playerAttackEffects->QueuePlayerLasers(cameraForward);
         world_.playerAttackEffects->QueuePlayerMines(cameraRight, cameraUp, cameraForward);
         world_.playerAttackEffects->QueuePlayerMeleeSlashes();
+        world_.expeditionBossDirector->QueueVisuals(cameraRight, cameraUp);
         world_.combatEffects->QueueNeonTriangleParticles(cameraRight, cameraUp, cameraForward);
         if (world_.presentation.showNeonTriangleDemo_) {
             world_.resources.neonGridRenderer_->QueueBillboardTriangle(

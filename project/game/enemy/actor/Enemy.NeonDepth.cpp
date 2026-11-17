@@ -378,7 +378,7 @@ void Enemy::UpdateNeonDepthCombat(float dt)
     impactVelocity_ = {}; // この方針では、旧来のフレーム単位の移動を使ってはならない。
     const auto before = neonDepthCombat_.GetSnapshot();
     const auto walls = std::span<const neondepth::FloorBox>{neonDepthWalls_.data(), neonDepthWallCount_};
-    if (before.phase == neondepth::Phase::Reposition) {
+    if (before.phase == neondepth::Phase::Reposition && !neonDepthExternal_) {
         if (neonDepthRepositionKey_ != before.plan.instance) {
             neonDepthRepositionKey_ = before.plan.instance;
             const Point core = XY(GetWorldPosition()), player = XY(player_->GetWorldPosition());
@@ -420,6 +420,10 @@ void Enemy::UpdateNeonDepthCombat(float dt)
             AbortNeonDepthEncounter();
             return;
         }
+    }
+    if (neonDepthExternal_) {
+        // 攻撃は ExpeditionBossDirector が行う。ここでは登場と被弾できる状態だけを進める。
+        return;
     }
     if (const auto request = neonDepthCombat_.GetPlanningRequest()) {
         const auto plan = PlanNeonDepthAttack(*request);

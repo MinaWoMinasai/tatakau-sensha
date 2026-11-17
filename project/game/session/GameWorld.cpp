@@ -18,6 +18,7 @@ GameWorld::GameWorld(RunMode runMode)
       expeditionBuildSelection(std::make_unique<ExpeditionBuildSelection>(*this)),
       expeditionExperience(std::make_unique<ExpeditionExperience>(*this)),
       expeditionOverdrive(std::make_unique<ExpeditionOverdrive>(*this)),
+      expeditionBossDirector(std::make_unique<ExpeditionBossDirector>(*this)),
       expeditionBalanceEditor(std::make_unique<ExpeditionBalanceEditor>(*this)),
       expeditionAuthoring(std::make_unique<ExpeditionAuthoring>(*this)), bossPresentation(std::make_unique<BossPresentation>(*this)),
       depthEncounter(std::make_unique<DepthEncounter>(*this)), combatValidation(std::make_unique<CombatValidation>(*this)),

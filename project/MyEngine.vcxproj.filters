@@ -638,6 +638,9 @@
     <ClCompile Include="game\run\session\ExpeditionOverdrive.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\run\session\ExpeditionBossDirector.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\editor\session\ExpeditionBalanceEditor.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -778,6 +781,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\run\session\ExpeditionOverdrive.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\ExpeditionBossDirector.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\editor\session\ExpeditionBalanceEditor.h">

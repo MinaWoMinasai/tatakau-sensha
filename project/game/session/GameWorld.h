@@ -33,6 +33,7 @@ class ExpeditionMapController;
 class ExpeditionBuildSelection;
 class ExpeditionExperience;
 class ExpeditionOverdrive;
+class ExpeditionBossDirector;
 class ExpeditionBalanceEditor;
 class ExpeditionAuthoring;
 class BossPresentation;
@@ -85,6 +86,7 @@ struct GameWorld {
     std::unique_ptr<ExpeditionBuildSelection> expeditionBuildSelection;
     std::unique_ptr<ExpeditionExperience> expeditionExperience;
     std::unique_ptr<ExpeditionOverdrive> expeditionOverdrive;
+    std::unique_ptr<ExpeditionBossDirector> expeditionBossDirector;
     std::unique_ptr<ExpeditionBalanceEditor> expeditionBalanceEditor;
     std::unique_ptr<ExpeditionAuthoring> expeditionAuthoring;
     std::unique_ptr<BossPresentation> bossPresentation;

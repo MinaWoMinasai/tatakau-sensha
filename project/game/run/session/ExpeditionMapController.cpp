@@ -706,6 +706,8 @@ bool ExpeditionMapController::StartAuthoredExpeditionRoom()
         }
         world_.expeditionOverdrive->BeginRoom(spawnTypes, node->combatStage, node->kind == NK::Elite,
                                               node->role == tankexp::NodeRole::TutorialCombat, room->objective == "boss");
+        // ボス部屋では、ネオンボスの攻撃を新しい4つの攻撃に入れ替える（見た目と視点はそのまま）。
+        world_.expeditionBossDirector->Begin(room->objective == "boss");
     }
     world_.combat.previousPlayerHp_ = world_.resources.player_->GetHp();
     world_.combat.previousBossHp_ = world_.resources.enemy_->GetHp();
@@ -1648,6 +1650,7 @@ void ExpeditionMapController::UpdateExpeditionMap(float dt)
         world_.run.tankExpedition_.Update(dt);
         world_.run.tankRun_.Update(dt);
         world_.expeditionOverdrive->UpdateCombat(dt);
+        world_.expeditionBossDirector->Update(dt);
         world_.run.tankExpeditionArrival_ += dt;
         world_.run.tankRunComboTime_ = (std::max)(0.0f, world_.run.tankRunComboTime_ - dt);
         for (auto& burst : world_.run.tankRunBursts_) {
@@ -1738,6 +1741,45 @@ void ExpeditionMapController::UpdateExpeditionMapValidation(float dt)
         return;
     }
     if (tankexp::IsCombatNode(node->kind)) {
+        // MYENGINE_TANK_MAP_BOSS_SOAK=秒：ボスをすぐ倒さず、その秒数だけ新しい攻撃を受け続けて、撮影と数の記録をする（開発用）。
+        char soakText[16]{};
+        const float soak = node->kind == NK::Boss && GetEnvironmentVariableA("MYENGINE_TANK_MAP_BOSS_SOAK", soakText, sizeof(soakText)) > 0
+                               ? static_cast<float>(std::atof(soakText))
+                               : 0.0f;
+        if (soak > 0.0f && world_.run.expeditionMapTestAge_ <= soak) {
+            world_.resources.player_->HealRunPlayer(1000);
+            auto& boss = *world_.resources.enemy_;
+            // 前半の一部は自機をボスの近く（刃の届く距離）に置き、回転切りが選ばれて当たるかを確かめる。
+            if (world_.run.expeditionMapTestAge_ > soak * 0.15f && world_.run.expeditionMapTestAge_ < soak * 0.4f) {
+                const auto core = boss.GetWorldPosition();
+                for (const float angle : {0.0f, 1.57f, 3.14f, 4.71f}) {
+                    const myEngine::Vector3 closeSpot{core.x + std::cos(angle) * 4.5f, core.y + std::sin(angle) * 4.5f, 0.0f};
+                    if (!world_.resources.stage_->IsCollisionWithAnyBlock(closeSpot, 1.2f)) {
+                        world_.resources.player_->SetWorldPosition(closeSpot);
+                        break;
+                    }
+                }
+            }
+            if (world_.run.expeditionMapTestAge_ > soak * 0.5f && !world_.expeditionBossDirector->IsPhaseTwo() && !boss.IsDead()) {
+                boss.TakeDamage(static_cast<uint32_t>((std::max)(1, boss.GetHp() - boss.GetMaxHp() * 2 / 5)));
+            }
+            const std::string state = world_.expeditionBossDirector->DebugStateName();
+            if (!state.empty() && std::find(world_.run.expeditionMapTestVisited_.begin(), world_.run.expeditionMapTestVisited_.end(),
+                                            "boss_" + state) == world_.run.expeditionMapTestVisited_.end()) {
+                world_.run.expeditionMapTestVisited_.push_back("boss_" + state);
+                world_.run.tankRunCapturePath_ = "generated/expedition_map/boss_" + state + ".png";
+            }
+            const auto& stats = world_.expeditionBossDirector->GetStats();
+            nlohmann::json soakReport = {{"age", world_.run.expeditionMapTestAge_}, {"phaseTwo", world_.expeditionBossDirector->IsPhaseTwo()},
+                                         {"bossHp", boss.GetHp()},       {"spins", stats.spins},
+                                         {"summons", stats.summons},     {"gatlings", stats.gatlings},
+                                         {"homings", stats.homings},     {"spinHits", stats.spinHits}, {"spinContacts", stats.spinContacts}, {"playerHits", world_.resources.player_->GetDamageTakenCount()},
+                                         {"bullets", stats.bullets},     {"orbs", stats.orbs},
+                                         {"orbHits", stats.orbHits},     {"orbWalls", stats.orbWalls},
+                                         {"summoned", stats.summoned},   {"summonExpired", stats.summonExpired}};
+            std::ofstream("generated/expedition_map/boss_soak.json") << std::setw(2) << soakReport << '\n';
+            return;
+        }
         if (world_.run.expeditionMapTestAge_ > 2.0f) {
             for (auto* e : world_.resources.enemyManager_->GetEnemyPtrs()) {
                 if (e && !e->IsDead()) {

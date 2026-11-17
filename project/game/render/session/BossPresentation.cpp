@@ -34,6 +34,8 @@ void BossPresentation::UpdateNeonBossVisual(float deltaTime)
     input.damageFeedback = world_.resources.enemy_->GetDamageFeedbackRatio();
     input.depthEncounter = world_.resources.enemy_->IsNeonDepthEncounterEnabled();
     input.depth = world_.resources.enemy_->GetNeonDepthSnapshot();
+    // 遠征のネオンボスは攻撃を ExpeditionBossDirector が行うので、ポーズもその攻撃に合わせる。
+    world_.expeditionBossDirector->OverrideVisual(input.depth);
     const auto rival = world_.resources.enemy_->GetRivalCombatStatus();
     BossVisualBridgeInput bridgeInput;
     bridgeInput.encounterGeneration = world_.resources.enemy_->GetEncounterGeneration();
