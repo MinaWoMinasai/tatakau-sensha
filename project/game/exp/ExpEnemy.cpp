@@ -845,8 +845,11 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
             param.bulletCount = flanker ? 5 : suppressor ? 3 : 1;
             param.spreadAngleDeg = flanker ? 50.0f : suppressor ? 32.0f : 0.0f;
             param.randomSpread = false;
-            param.damage = hasAuthoredDefinition_ ? authoredBulletDamage_ : balanceConfig_.shooterBulletDamage;
-            param.bulletHp = sniper ? tankspecial::kArmoredEnemyBulletHp : tankspecial::kOrdinaryEnemyBulletHp;
+            // 遠征の敵の弾は弱めにする：威力は7割、耐久は半分ほど（ふつうの弾6→3、狙撃の装甲弾24→10）。
+            // 狙撃の弾は、近接で切れない「装甲弾」のまま（耐久がふつうの弾の上限6を超える）。
+            const uint32_t baseDamage = hasAuthoredDefinition_ ? authoredBulletDamage_ : balanceConfig_.shooterBulletDamage;
+            param.damage = (std::max)(1u, static_cast<uint32_t>(std::lround(static_cast<float>(baseDamage) * 0.7f)));
+            param.bulletHp = sniper ? 10.0f : tankspecial::kOrdinaryEnemyBulletHp * 0.5f;
             param.bulletPenetration = 1.0f;
             param.canClaimRunResource = false;
             const myEngine::Vector3 shotOrigin = GetWorldPosition();

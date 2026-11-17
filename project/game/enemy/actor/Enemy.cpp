@@ -625,8 +625,9 @@ void Enemy::FireBossBullet(const myEngine::Vector3& direction, float speed, uint
     param.randomSpread = false;
     param.bulletSpeed = speed;
     param.damage = damage;
-    param.bulletHp = tankspecial::kBossEnemyBulletHp;
-    param.bulletPenetration = 3.0f;
+    // 遠征のネオンボスの弾（ガトリング）は、ふつうの敵弾と同じく自機の弾1発で消せる強さにする。
+    param.bulletHp = tankspecial::kOrdinaryEnemyBulletHp * 0.5f;
+    param.bulletPenetration = 1.0f;
     param.reflect = param.penetrate = param.canClaimRunResource = false;
     attackController_.FireFromMuzzle(GetWorldPosition() + aim * 1.9f, aim, param, BulletOwner::kEnemy);
 }

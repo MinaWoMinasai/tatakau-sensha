@@ -540,7 +540,7 @@ void ExpeditionBossDirector::UpdateGatling(float dt)
     while (fireTimer_ <= 0.0f) {
         fireTimer_ += interval;
         const float angle = facing_ + spread(random_);
-        boss.FireBossBullet(FromAngle(angle), phaseTwo_ ? 0.27f : 0.24f, phaseTwo_ ? 6u : 5u);
+        boss.FireBossBullet(FromAngle(angle), phaseTwo_ ? 0.27f : 0.24f, phaseTwo_ ? 4u : 3u);
         ++stats_.bullets;
     }
     if (timer_ >= duration_) {
@@ -633,7 +633,7 @@ void ExpeditionBossDirector::UpdateOrbs(float dt)
             return true;
         }
         if (!player.IsDead() && Distance2D(orb.position, playerPosition) <= 0.6f + player.GetRadius()) {
-            player.ReceiveHostileHazard(phaseTwo_ ? 12u : 10u, true);
+            player.ReceiveHostileHazard(phaseTwo_ ? 8u : 7u, true);
             ++stats_.orbHits;
             myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(orb.position, {0, 1, 0}, kOrbColor, 14);
             return true;
@@ -659,8 +659,10 @@ void ExpeditionBossDirector::UpdateSummon()
                 }
                 ExpEnemy* enemy = enemies.GetEnemyPtrs().back();
                 enemy->SetWarpDissolve(1.12f);
+                // ボスの手下は、ふつうの同じ敵の半分のHPにする。
+                enemy->SetHp((std::max)(1, enemy->GetMaxHp() / 2));
                 if (std::string(type) == "Triangle") {
-                    enemy->SetHp(18);
+                    enemy->SetHp(9);
                     enemy->SetBaseColor({2.0f, 0.42f, 0.12f, 1.0f});
                     enemy->SetPlayerChase(7.0f, 7.5f);
                     enemy->SetWobble(0.55f, 3.2f, std::uniform_real_distribution<float>(0.0f, kTwoPi)(random_));
