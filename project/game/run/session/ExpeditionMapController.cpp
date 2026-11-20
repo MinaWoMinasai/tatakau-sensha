@@ -302,6 +302,16 @@ myEngine::InitializationTask ExpeditionMapController::BuildInitialization()
     while (!cards.Advance()) {
         co_await std::suspend_always{};
     }
+    // 機体で遊ぶとき（計画書 p5 の H2）、操作の説明は今の操作（右クリックのダッシュ）のままなので出さない。最初は説明をスキップを選んでおく。
+    if (world_.run.expeditionHeroMode_) {
+        for (const auto& id : world_.run.expeditionMapRun_.GetAvailableNodeIds()) {
+            if (const auto* n = tankexp::FindMapNode(world_.run.expeditionMapRun_.GetDefinition(), id);
+                n && n->role == tankexp::NodeRole::TutorialSkip) {
+                world_.run.expeditionMapSelection_ = id;
+                break;
+            }
+        }
+    }
     RefreshExpeditionMapUi();
 }
 
@@ -325,7 +335,10 @@ void ExpeditionMapController::RequestExpeditionMapNode(const std::string& id)
     if (world_.run.expeditionTransition_.IsActive() || world_.run.expeditionBuildChoice_) {
         return;
     }
-    if (!world_.run.expeditionMapRun_.CanSelectNode(id)) {
+    // 機体で遊ぶときは、操作の説明（今の操作のまま）を選べない（計画書 p5 の H2。チュートリアルは後で作り直す）。
+    const auto* requested = tankexp::FindMapNode(world_.run.expeditionMapRun_.GetDefinition(), id);
+    if (!world_.run.expeditionMapRun_.CanSelectNode(id) ||
+        (world_.run.expeditionHeroMode_ && requested && requested->role == tankexp::NodeRole::TutorialCombat)) {
         world_.run.expeditionUiErrorAge_ = 0.35f;
         world_.run.tankExpeditionAudio_.UiDenied();
         world_.run.expeditionMapStatus_ = "明るく光る、接続された地点を選んでください。";
@@ -979,11 +992,13 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
         return;
     }
     if (world_.run.expeditionBuildChoice_ && !world_.run.tankRunPaused_) {
-        world_.run.expeditionMapTitle_->SetText("戦闘スタイルを選ぼう");
+        const bool heroMode = world_.run.expeditionHeroMode_;
+        world_.run.expeditionMapTitle_->SetText(heroMode ? "出撃する機体を選ぼう" : "戦闘スタイルを選ぼう");
         world_.run.expeditionMapTitle_->PrepareForDraw();
-        world_.run.expeditionMapSubtitle_->SetText("カーソルを合わせると攻撃方法を確認できます。");
+        world_.run.expeditionMapSubtitle_->SetText(heroMode ? "機体ごとに、左クリック・右クリック・Shift・E・Q の技が決まっています。"
+                                                            : "カーソルを合わせると攻撃方法を確認できます。");
         world_.run.expeditionMapSubtitle_->PrepareForDraw();
-        world_.run.tankRunDescription_->SetText("選んだスタイルに合う強化が工房に並びます。");
+        world_.run.tankRunDescription_->SetText(heroMode ? "選んだ機体で、遠征の最後まで戦います。" : "選んだスタイルに合う強化が工房に並びます。");
         world_.run.tankRunDescription_->SetPosition({64, 209});
         world_.run.tankRunDescription_->PrepareForDraw();
         world_.expeditionBuildSelection->RefreshExpeditionBuildCards();
@@ -1081,7 +1096,7 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
         const bool reachable = world_.run.expeditionMapRun_.CanSelectNode(n.id), visited = world_.run.expeditionMapRun_.HasVisited(n.id);
         const bool selected = n.id == world_.run.expeditionMapSelection_;
         const bool intro = n.role == tankexp::NodeRole::TutorialCombat || n.role == tankexp::NodeRole::TutorialSkip;
-        const bool learning = reachable && n.role == tankexp::NodeRole::TutorialCombat;
+        const bool learning = reachable && n.role == tankexp::NodeRole::TutorialCombat && !world_.run.expeditionHeroMode_;
         const bool abandoned = !visited && !reachable && !future.contains(n.id) && current;
         auto tint = visited ? myEngine::Vector4{0.25f, 1.35f, 0.62f, 1} : NodeColor(n.kind);
         tint.w = abandoned ? 0.09f : reachable || selected ? 1.0f : visited ? 0.9f : 0.35f;
@@ -1116,7 +1131,7 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
         const float captionX = intro ? (std::max)(112.0f, v.center.x) : v.center.x;
         v.label->SetPosition({captionX, v.center.y + 39});
         v.label->SetAlpha(abandoned ? 0.2f : reachable && intro ? 1.0f : 0.85f);
-        v.state->SetText(n.role == tankexp::NodeRole::TutorialCombat ? "初回プレイにおすすめ"
+        v.state->SetText(n.role == tankexp::NodeRole::TutorialCombat ? (world_.run.expeditionHeroMode_ ? "機体の説明は準備中" : "初回プレイにおすすめ")
                          : n.role == tankexp::NodeRole::TutorialSkip ? "操作を知っている人向け"
                                                                      : " ");
         v.state->SetPosition({captionX, v.center.y + 60});
@@ -1324,6 +1339,55 @@ void ExpeditionMapController::DrawExpeditionMapUi()
     world_.run.expeditionMapHelp_->Draw();
 }
 
+bool ExpeditionMapController::UpdateExpeditionHeroAutoTest()
+{
+    auto& run = world_.run;
+    constexpr const char* kDirectory = "generated/expedition_hero";
+    // 画面の保存が終わるまで、と画面が落ち着くまでは待つ。
+    if (!run.tankRunCapturePath_.empty() || run.tankRunMenuAge_ < 0.8f) {
+        return true;
+    }
+    auto capture = [&](const char* name) {
+        std::filesystem::create_directories(kDirectory);
+        run.tankRunCapturePath_ = std::string(kDirectory) + "/" + name + ".png";
+    };
+    switch (run.expeditionHeroAutoStep_) {
+    case 0:
+        if (run.expeditionBuildChoice_) {
+            capture("hero_select");
+            run.expeditionHeroAutoStep_ = 1;
+        }
+        return true;
+    case 1:
+        world_.expeditionBuildSelection->SelectExpeditionBuildStyle(run.expeditionHeroAutoTest_);
+        run.expeditionHeroAutoStep_ = 2;
+        return true;
+    case 2:
+        if (!run.expeditionBuildChoice_ && run.expeditionMapRun_.IsChoosing()) {
+            capture("hero_map");
+            run.expeditionHeroAutoStep_ = 3;
+        }
+        return true;
+    default: {
+        const auto* hero = world_.expeditionBuildSelection->SelectedExpeditionHero();
+        const auto* selected = tankexp::FindMapNode(run.expeditionMapRun_.GetDefinition(), run.expeditionMapSelection_);
+        const nlohmann::json report{{"completed", hero != nullptr},
+                                    {"heroMode", run.expeditionHeroMode_},
+                                    {"heroes", run.expeditionHeroes_.size()},
+                                    {"hero", hero ? hero->key : ""},
+                                    {"style", tankbuild::Id(run.expeditionBuildStyle_)},
+                                    {"buildChosen", run.expeditionBuildChosen_},
+                                    {"selectionIsTutorialSkip", selected && selected->role == tankexp::NodeRole::TutorialSkip},
+                                    {"currency", run.expeditionMapRun_.GetCurrency()},
+                                    {"hp", world_.resources.player_->GetHp()}};
+        std::ofstream(std::string(kDirectory) + "/validation.json") << std::setw(2) << report << '\n';
+        PostQuitMessage(hero ? 0 : 4);
+        run.expeditionHeroAutoTest_ = -1;
+        return true;
+    }
+    }
+}
+
 void ExpeditionMapController::UpdateExpeditionMap(float dt)
 {
     if (world_.combat.phase_ != Phase::kMain) {
@@ -1357,6 +1421,10 @@ void ExpeditionMapController::UpdateExpeditionMap(float dt)
     world_.run.tankRunAutoTime_ += dt;
     if (world_.run.expeditionMapAutoTest_) {
         UpdateExpeditionMapValidation(dt);
+    }
+    if (world_.run.expeditionHeroAutoTest_ >= 0 && UpdateExpeditionHeroAutoTest()) {
+        world_.expeditionController->RefreshTankExpeditionUi();
+        return;
     }
     if (myEngine::kDeveloperTools && Press(world_.resources.input_, DIK_F10)) {
         world_.arenaRunController->RequestTankRunCapture("map_manual");

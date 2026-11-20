@@ -2,8 +2,79 @@
 #include "game/session/GameplaySystems.h"
 #include "StartupTrace.h"
 #include "game/run/TankSubmissionValidation.h"
+#include "game/run/SurvivorSpawnConfig.h"
+#include "game/run/session/SurvivorRunShared.h"
 
 namespace gameplay {
+namespace {
+/// @brief 遠征の始めに機体を選ぶか（計画書 p5 の H2）。確認用の仕組みは戦い方を名指しで選ぶので、動いている間は今までの選択のままにする。
+/// MYENGINE_EXPEDITION_STYLES=1 でも今までの選択に戻せる。
+bool ExpeditionHeroModeWanted(const GameWorld& world)
+{
+    wchar_t styles[4]{};
+    if (GetEnvironmentVariableW(L"MYENGINE_EXPEDITION_STYLES", styles, 4) > 0 && styles[0] == L'1') {
+        return false;
+    }
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    if (GameplayScenarioSession::Get().IsActive()) {
+        return false;
+    }
+#endif
+    return !world.run.combatValidationEnabled_ && !world.run.specialValidationEnabled_ && world.validation.experienceValidationVariant_ == 0 &&
+           !world.run.expeditionMapAutoTest_ && !world.run.tankRunAutoTest_ && !world.resources.normalRouteReplayActive_ &&
+           !world.demo.titleDemo_;
+}
+
+/// @brief 機体の札の説明：最大HPと、ボタンごとの技の名前（1行に2つずつ。語の途中で折り返さないように行を分ける）。
+std::string HeroCardDescription(const survivor::HeroDefinition& hero, const std::string& primaryName)
+{
+    // 札の幅に収まるよう、ボタンは短く書く（左・右は左クリック・右クリック。見出しの下で説明する）。
+    static constexpr std::array<const char*, survivor::kAbilitySlotCount> kShortButtons{"右", "Shift", "E", "Q"};
+    std::vector<std::string> parts{"左 " + (hero.primaryAbility.kind != survivor::AbilityKind::None ? hero.primaryAbility.name : primaryName)};
+    for (size_t i = 0; i < survivor::kAbilitySlotCount; ++i) {
+        const auto& ability = hero.abilities[i];
+        if (ability.kind != survivor::AbilityKind::None) {
+            parts.push_back(std::string(kShortButtons[i]) + " " + ability.name);
+        }
+    }
+    parts.push_back("HP " + std::to_string(hero.maxHp));
+    std::string text;
+    for (size_t i = 0; i < parts.size(); ++i) {
+        text += (i == 0 ? "" : i % 2 == 0 ? "\n" : "／") + parts[i];
+    }
+    return text;
+}
+} // namespace
+
+void ExpeditionBuildSelection::LoadExpeditionHeroes()
+{
+    // 育つ戦車の試作と同じ設定から読む（同じ機体を1か所で調整するため）。読めなければ既定の機体。
+    survivor::SpawnConfig config;
+    std::string error;
+    if (!survivor::LoadSpawnConfig(survivorrun::kConfigPath, config, error)) {
+        OutputDebugStringA(("[Expedition] hero config: " + error + "\n").c_str());
+    }
+    world_.run.expeditionHeroes_ = config.heroes.heroes.empty() ? survivor::DefaultHeroes() : config.heroes.heroes;
+    // 札は3枚なので、今は先頭の3体まで。
+    if (world_.run.expeditionHeroes_.size() > 3) {
+        world_.run.expeditionHeroes_.resize(3);
+    }
+    world_.run.expeditionHeroPrimaryNames_.clear();
+    for (const auto& hero : world_.run.expeditionHeroes_) {
+        const int weapon = survivor::FindWeapon(config.weapons, hero.primary);
+        world_.run.expeditionHeroPrimaryNames_.push_back(weapon >= 0 ? config.weapons[static_cast<size_t>(weapon)].name : hero.primary);
+    }
+    world_.run.expeditionHero_ = -1;
+}
+
+const survivor::HeroDefinition* ExpeditionBuildSelection::SelectedExpeditionHero() const
+{
+    const int index = world_.run.expeditionHero_;
+    if (!world_.run.expeditionHeroMode_ || index < 0 || index >= static_cast<int>(world_.run.expeditionHeroes_.size())) {
+        return nullptr;
+    }
+    return &world_.run.expeditionHeroes_[static_cast<size_t>(index)];
+}
 
 bool ExpeditionBuildSelection::IsExpeditionBuildCardScreen() const
 {
@@ -33,28 +104,46 @@ myEngine::InitializationTask ExpeditionBuildSelection::BuildInitialization()
         card->Initialize(myEngine::SpriteCommon::GetInstance());
         card->InitializePreview(myEngine::Object3dCommon::GetInstance()->GetSrvManager());
     }
+    // 機体で遊ぶなら、マップの前に機体を選ぶ（計画書 p5 の H2）。
+    world_.run.expeditionHeroMode_ = ExpeditionHeroModeWanted(world_);
+    if (world_.run.expeditionHeroMode_) {
+        LoadExpeditionHeroes();
+        wchar_t autoTest[8]{};
+        world_.run.expeditionHeroAutoTest_ =
+            GetEnvironmentVariableW(L"MYENGINE_EXPEDITION_HERO_AUTOTEST", autoTest, 8) > 0 ? (std::max)(0, _wtoi(autoTest)) : -1;
+        world_.run.expeditionHeroAutoStep_ = 0;
+    }
     // 導入用の2つの分岐を持たない作成済みマップでも、最初の戦闘の前にスタイルを選ばせる。
     // 独立したAI用フィクスチャにはマップの入力が無い。
     const auto& nodes = world_.run.expeditionMapRun_.GetDefinition().nodes;
-    world_.run.expeditionBuildChoice_ = !world_.run.combatValidationEnabled_ && !world_.run.specialValidationEnabled_ &&
-                                        std::none_of(nodes.begin(), nodes.end(), [](const auto& n) {
-                                            return tankexp::IsIntroUpgrade(n.role);
-                                        });
+    world_.run.expeditionBuildChoice_ = world_.run.expeditionHeroMode_ ||
+                                        (!world_.run.combatValidationEnabled_ && !world_.run.specialValidationEnabled_ &&
+                                         std::none_of(nodes.begin(), nodes.end(), [](const auto& n) {
+                                             return tankexp::IsIntroUpgrade(n.role);
+                                         }));
     RefreshExpeditionBuildCards();
     UpdateExpeditionBuildCards(0);
 }
 
 void ExpeditionBuildSelection::SelectExpeditionBuildStyle(int index)
 {
-    if (!world_.run.expeditionBuildChoice_ || world_.run.expeditionBuildChosen_ || index < 0 || index > 2) {
+    const bool heroMode = world_.run.expeditionHeroMode_;
+    const int choices = heroMode ? static_cast<int>(world_.run.expeditionHeroes_.size()) : 3;
+    if (!world_.run.expeditionBuildChoice_ || world_.run.expeditionBuildChosen_ || index < 0 || index >= choices) {
         return;
     }
-    const auto style = static_cast<tankbuild::Style>(index);
+    // 機体のときは、index は機体の番号。戦い方は中では射撃に固定する（ドローン・近接の処理は眠ったまま）。
+    const auto style = heroMode ? tankbuild::Style::Shooter : static_cast<tankbuild::Style>(index);
     if (!world_.run.expeditionTransition_.IsActive()) {
         world_.run.expeditionPendingBuild_ = index;
         world_.run.expeditionRewardCards_[index]->PlayAcquire();
-        world_.expeditionMapController->BeginExpeditionPresentation(4, std::string(tankbuild::Name(style)) + " / 機体準備",
-                                                                    "取得した強化・現在HP・通貨を引き継ぎます", {0.65f, 0.94f, 1, 1});
+        if (heroMode) {
+            world_.expeditionMapController->BeginExpeditionPresentation(
+                4, world_.run.expeditionHeroes_[static_cast<size_t>(index)].name + " / 出撃準備", "マップへ進みます", {0.65f, 0.94f, 1, 1});
+        } else {
+            world_.expeditionMapController->BeginExpeditionPresentation(4, std::string(tankbuild::Name(style)) + " / 機体準備",
+                                                                        "取得した強化・現在HP・通貨を引き継ぎます", {0.65f, 0.94f, 1, 1});
+        }
         return;
     }
     const int hp = world_.resources.player_->GetHp(), maxHp = world_.resources.player_->GetMaxHp(),
@@ -66,6 +155,12 @@ void ExpeditionBuildSelection::SelectExpeditionBuildStyle(int index)
     world_.run.expeditionBuildStyle_ = style;
     world_.run.expeditionBuildChosen_ = true;
     world_.run.expeditionBuildChoice_ = false;
+    if (heroMode) {
+        world_.run.expeditionHero_ = index;
+        // 機体では右クリックと Shift を技に使うので、遠征のダッシュは切る（技は H3 で入れる）。
+        world_.resources.player_->SetRightClickDashEnabled(false);
+        world_.resources.player_->SetShiftDashEnabled(false);
+    }
     world_.arenaRunController->ApplyTankRunCards();
     if (world_.validation.experienceValidationVariant_) {
         world_.validation.experienceBuildPreserved_ =
@@ -125,7 +220,27 @@ void ExpeditionBuildSelection::RefreshExpeditionBuildCards()
             model.fanAngle = model.currentFanAngle = variant->fanAngle;
             model.alternate = model.currentAlternate = variant->alternate;
         }
-        if (world_.run.expeditionBuildChoice_) {
+        if (world_.run.expeditionBuildChoice_ && world_.run.expeditionHeroMode_) {
+            // 機体の札（計画書 p5 の H2）。見た目は射撃の機体のまま、名前と技を出す。
+            if (static_cast<size_t>(i) >= world_.run.expeditionHeroes_.size()) {
+                continue;
+            }
+            const auto& hero = world_.run.expeditionHeroes_[static_cast<size_t>(i)];
+            model.style = tankbuild::Style::Shooter;
+            model.profile = world_.resources.player_->GetCombatStyleProfile(model.style);
+            model.styleChoice = true;
+            model.rarity = 0;
+            model.id = "hero_" + hero.key;
+            model.title = hero.name;
+            model.description = HeroCardDescription(hero, world_.run.expeditionHeroPrimaryNames_[static_cast<size_t>(i)]);
+            model.footer = "左クリックで選択";
+            model.drones = model.currentDrones = 0;
+            model.barrels = model.currentBarrels = 1;
+            model.fanAngle = model.currentFanAngle = 0;
+            model.alternate = model.currentAlternate = false;
+            model.currentDamageScale = model.damageScale = model.currentReloadScale = model.reloadScale = model.currentBulletSpeedScale =
+                model.bulletSpeedScale = 1.0f;
+        } else if (world_.run.expeditionBuildChoice_) {
             model.style = static_cast<tankbuild::Style>(i);
             model.profile = world_.resources.player_->GetCombatStyleProfile(model.style);
             model.styleChoice = true;

@@ -1,6 +1,7 @@
 #pragma once
 #include "game/session/GameplayTypes.h"
 #include "game/session/RunMode.h"
+#include "game/run/SurvivorHeroes.h"
 
 namespace gameplay {
 /// @brief RunSessionStateに属する資源と実行状態を保持する。
@@ -99,6 +100,18 @@ struct RunSessionState {
     bool expeditionMapPreview_ = false;
 
     bool expeditionBuildChoice_ = false, expeditionBuildChosen_ = false;
+
+    // 機体（計画書 p5 の H2）。expeditionHeroMode_ なら、遠征の始め（マップの前）に戦い方ではなく機体を選ぶ。
+    // 戦い方は中では「射撃」に固定する。確認用の仕組み（戦い方を名指しで選ぶ）が動いているときは偽で、今までの選択のまま。
+    bool expeditionHeroMode_ = false;
+    /// @brief 選んだ機体の番号（expeditionHeroes_ の添字。まだなら -1）。
+    int expeditionHero_ = -1;
+    /// @brief 選べる機体。育つ戦車の試作と同じ設定（survivor_proto.json の heroes）から読む。
+    std::vector<survivor::HeroDefinition> expeditionHeroes_;
+    /// @brief 機体ごとの主武器の名前（weapons の name。札の説明に使う）。
+    std::vector<std::string> expeditionHeroPrimaryNames_;
+    /// @brief 機体を選ぶ自動確認（MYENGINE_EXPEDITION_HERO_AUTOTEST=機体の番号。無ければ -1）と、その進み。
+    int expeditionHeroAutoTest_ = -1, expeditionHeroAutoStep_ = 0;
 
     bool specialValidationEnabled_ = false;
 
