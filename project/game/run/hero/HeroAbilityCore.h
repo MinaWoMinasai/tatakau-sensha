@@ -60,6 +60,11 @@ protected:
         (void)perk;
         return 0.0f;
     }
+    /// @brief 自機の移動の速さの土台の倍率（技・パークの倍率はこれに掛ける）。試作では1、遠征では調整ファイルの heroMoveScale。
+    virtual float HeroBaseMoveScale() const
+    {
+        return 1.0f;
+    }
 
     /// @brief 出撃する機体の定義（HeroActive のときだけ呼ぶ）。試作ではショップの技の強化とパークを効かせた後の値。
     const survivor::HeroDefinition& Hero() const

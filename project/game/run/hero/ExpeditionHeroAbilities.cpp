@@ -146,7 +146,12 @@ void ExpeditionHeroAbilities::OnRoomStart()
     beamOn_ = selfHealOn_ = barrierOn_ = false;
     chargeHit_.clear();
     shockAge_ = 10.0f;
-    heroWorld_.resources.player_->SetSurvivorMoveScale(1.0f);
+    heroWorld_.resources.player_->SetSurvivorMoveScale(HeroBaseMoveScale());
+}
+
+float ExpeditionHeroAbilities::HeroBaseMoveScale() const
+{
+    return heroWorld_.run.tankExpeditionBalance_.value("heroMoveScale", 0.7f);
 }
 
 bool ExpeditionHeroAbilities::HeroBossTargetActive() const
@@ -252,6 +257,37 @@ void ExpeditionHeroAbilities::UpdateBot(float dt)
     }
     player.SetDemoInput(true, move, aim, true, false);
     botPrimary_ = true;
+    // 速さを測る（自機と、動いている敵。部屋の始めのワープ・押し飛ばしの大きな跳びは除く）。
+    if (dt > 0.0f) {
+        if (hasLastPlayerPosition_ && moveLength > 0.95f) {
+            const float step = myEngine::Length(myEngine::Vector3{self.x - lastPlayerPosition_.x, self.y - lastPlayerPosition_.y, 0.0f});
+            if (step < 2.0f) {
+                playerMoveDistance_ += step;
+                playerMoveSeconds_ += dt;
+            }
+        }
+        lastPlayerPosition_ = self;
+        hasLastPlayerPosition_ = true;
+        std::unordered_map<uint64_t, myEngine::Vector3> seen;
+        for (const ExpEnemy* enemy : heroWorld_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (!enemy || enemy->IsDead() || enemy->IsRunResource()) {
+                continue;
+            }
+            const myEngine::Vector3 p = enemy->GetWorldPosition();
+            if (const auto last = lastEnemyPositions_.find(enemy->GetCollisionId()); last != lastEnemyPositions_.end()) {
+                const float speed = myEngine::Length(myEngine::Vector3{p.x - last->second.x, p.y - last->second.y, 0.0f}) / dt;
+                if (speed > 0.5f && speed < 60.0f) {
+                    enemySpeedSum_ += speed;
+                    ++enemySpeedSamples_;
+                    if (enemySpeedHistogram_.size() < 200000) {
+                        enemySpeedHistogram_.push_back(speed);
+                    }
+                }
+            }
+            seen[enemy->GetCollisionId()] = p;
+        }
+        lastEnemyPositions_ = std::move(seen);
+    }
     // 押している間の右クリック：バリアは1秒ごとに張る・放す、自分を回復は吸収ゲージがあれば押し続ける。
     const AbilityKind secondary = Ability(AbilitySlot::Secondary).kind;
     botSecondary_ = secondary == AbilityKind::Barrier ? std::fmod(botClock_, 2.0f) < 1.0f : secondary == AbilityKind::SelfHeal;
@@ -275,7 +311,20 @@ void ExpeditionHeroAbilities::QueueWorldVisuals()
 
 nlohmann::json ExpeditionHeroAbilities::MakeReport() const
 {
+    // 動いている敵の速さの中央値と9割の値（並べ替えは写しで）。
+    std::vector<float> speeds = enemySpeedHistogram_;
+    std::sort(speeds.begin(), speeds.end());
+    const auto at = [&](float ratio) {
+        return speeds.empty() ? 0.0f : speeds[static_cast<size_t>(ratio * static_cast<float>(speeds.size() - 1))];
+    };
+    const nlohmann::json speed{{"player", playerMoveSeconds_ > 0.0f ? playerMoveDistance_ / playerMoveSeconds_ : 0.0f},
+                               {"enemyMean", enemySpeedSamples_ ? enemySpeedSum_ / static_cast<double>(enemySpeedSamples_) : 0.0},
+                               {"enemyMedian", at(0.5f)},
+                               {"enemyP90", at(0.9f)},
+                               {"enemyMax", at(1.0f)},
+                               {"samples", enemySpeedSamples_}};
     return {{"active", active_},
+            {"speed", speed},
             {"key", heroDef_.key},
             {"primary", primaryName_},
             {"tiers", tiers_},

@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <string_view>
+#include <unordered_map>
 
 namespace gameplay {
 /// @brief 遠征で機体（ヒーロー）の技を動かす（計画書 p5 の H3）。技の処理は土台の HeroAbilityCore と育つ戦車の試作で同じものを使う。
@@ -107,6 +108,8 @@ protected:
     {
         return barrier_;
     }
+    /// @brief 遠征の調整ファイル（tankExpeditionBalance.json）の heroMoveScale。敵とほぼ同じ速さにして、振り切れないようにする。
+    float HeroBaseMoveScale() const override;
 
 private:
     /// @brief 戦闘の部屋で、止めていないか（ポーズ・マップの確認・詳細の画面・場面の移り変わりの間は止める）。
@@ -137,5 +140,13 @@ private:
     std::array<bool, survivor::kAbilitySlotCount> botPress_{};
     bool botPrimary_ = false, botSecondary_ = false;
     float botClock_ = 0.0f;
+    // 速さの測り（自動確認）：自機が動いた距離と秒、動いている敵の速さの合計と数・一番速い敵（ワールド単位/秒）。
+    myEngine::Vector3 lastPlayerPosition_{};
+    bool hasLastPlayerPosition_ = false;
+    float playerMoveDistance_ = 0.0f, playerMoveSeconds_ = 0.0f;
+    std::unordered_map<uint64_t, myEngine::Vector3> lastEnemyPositions_;
+    double enemySpeedSum_ = 0.0;
+    uint64_t enemySpeedSamples_ = 0;
+    std::vector<float> enemySpeedHistogram_;
 };
 } // namespace gameplay

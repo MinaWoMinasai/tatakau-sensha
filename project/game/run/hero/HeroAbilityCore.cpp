@@ -35,7 +35,7 @@ void HeroAbilityCore::ResetHeroState()
     chargeTimer_ = 0.0f;
     fortressTimer_ = 0.0f;
     shockAge_ = 10.0f;
-    heroWorld_.resources.player_->SetSurvivorMoveScale(1.0f);
+    heroWorld_.resources.player_->SetSurvivorMoveScale(HeroBaseMoveScale());
 }
 
 bool HeroAbilityCore::UseAbility(AbilitySlot slot)
@@ -205,7 +205,7 @@ void HeroAbilityCore::UpdateHeroAbilities(float dt)
     if (HasPerk(survivor::PerkId::Speed)) {
         moveScale *= 1.0f + PerkValue(survivor::PerkId::Speed);
     }
-    heroWorld_.resources.player_->SetSurvivorMoveScale(moveScale);
+    heroWorld_.resources.player_->SetSurvivorMoveScale(moveScale * HeroBaseMoveScale());
     if (const survivor::AbilityDefinition* zone = FindAbility(AbilityKind::HealZone)) {
         UpdateHealZone(dt, *zone);
     }

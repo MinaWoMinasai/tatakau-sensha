@@ -11,6 +11,7 @@
     "spreadAngleDeg": 44.0
   },
   "bossMaxHp": 900,
+  "heroMoveScale": 0.7,
   "combatStyles": {
     "drone": {
       "attackDamage": 3.0,
