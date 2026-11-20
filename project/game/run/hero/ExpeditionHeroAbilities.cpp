@@ -16,7 +16,7 @@ using survivor::AbilitySlot;
 
 void ExpeditionHeroAbilities::Start(const survivor::HeroDefinition& hero)
 {
-    autoAim_ = heroWorld_.run.tankExpeditionBalance_.value("heroAutoAim", true);
+    autoFire_ = heroWorld_.run.tankExpeditionBalance_.value("heroAutoFire", true);
     baseHero_ = hero;
     heroDef_ = hero;
     tiers_.fill(0);
@@ -177,25 +177,22 @@ void ExpeditionHeroAbilities::Update(float dt)
     }
     auto& player = *heroWorld_.resources.player_;
     if (!IsPlaying()) {
-        // 止めている間は押していないことにし、技の時間も進めない。自動で狙うのも止める（マップや工房で撃たない）。
+        // 止めている間は押していないことにし、技の時間も進めない。自動で撃つのも止める（マップや工房で撃たない）。
         primaryHeld_ = secondaryHeld_ = false;
-        player.SetAutoAim(false, {}, false);
+        player.SetAutoFire(false);
         return;
     }
     clock_ += dt;
-    // F：自動で狙うの切り替え。
+    // F：自動で撃つの切り替え。
     if (!bot_ && heroWorld_.resources.input_->IsKeyTriggered(DIK_F)) {
-        autoAim_ = !autoAim_;
-        heroWorld_.combatFlow->SetEventCallout(autoAim_ ? "自動で狙う：オン（F で切り替え）" : "自動で狙う：オフ（F で切り替え）", 1.0f);
+        autoFire_ = !autoFire_;
+        heroWorld_.combatFlow->SetEventCallout(autoFire_ ? "自動で撃つ：オン（F で切り替え）" : "自動で撃つ：オフ（F で切り替え）", 1.0f);
     }
     if (bot_) {
         UpdateBot(dt);
-        player.SetAutoAim(false, {}, false);
-    } else {
-        myEngine::Vector3 target{};
-        const bool hasTarget = autoAim_ && FindAutoAimTarget(target);
-        player.SetAutoAim(autoAim_, target, hasTarget);
     }
+    // 向きはふつうどおりマウスか右スティック。撃つのは押さなくてもずっと（HoloCure と同じ）。ボットは自分で撃つ。
+    player.SetAutoFire(autoFire_ && !bot_);
     ReadInput();
     UpdateHeroAbilities(dt);
     if (Ability(AbilitySlot::Secondary).kind == AbilityKind::Barrier) {
@@ -213,9 +210,8 @@ void ExpeditionHeroAbilities::ReadInput()
         return bot_ ? botPress_[static_cast<size_t>(slot)] : keyTriggered;
     };
     // 左クリック・右クリックを押しているか（押している間の技：吸い付く光線・自分を回復）。
-    // 自動で狙うときは、狙う相手がいる間ずっと押していることにする（モイラ型の吸収ビームも自動で吸い付く）。
-    primaryHeld_ = bot_ ? botPrimary_
-                        : heroWorld_.resources.player_->IsAutoAimFiring() || input.IsPress(input.GetMouseState().rgbButtons[0]);
+    // 自動で撃つときは、ずっと押していることにする（モイラ型の吸収ビームも、向いている方の敵へ自動で吸い付く）。
+    primaryHeld_ = bot_ ? botPrimary_ : heroWorld_.resources.player_->IsAutoFiring() || input.IsPress(input.GetMouseState().rgbButtons[0]);
     secondaryHeld_ = bot_ ? botSecondary_ : input.IsPress(input.GetMouseState().rgbButtons[1]);
     // 右クリック：押している間の技（バリア・自分を回復）は Update と UpdateHeroAbilities で見る。押した瞬間の技（ロケット）はここで使う。
     if (!survivor::IsHeldAbility(Ability(AbilitySlot::Secondary).kind) &&
@@ -232,37 +228,6 @@ void ExpeditionHeroAbilities::ReadInput()
         UseAbility(AbilitySlot::Ultimate);
     }
     botPress_.fill(false);
-}
-
-bool ExpeditionHeroAbilities::FindAutoAimTarget(myEngine::Vector3& target) const
-{
-    // 画面の中くらい（自機から18）までで、一番近い敵。いなければボス（ボス戦の間だけ）。資源（通貨ボックス）は狙わない。
-    constexpr float kRange = 18.0f;
-    const myEngine::Vector3 self = heroWorld_.resources.player_->GetWorldPosition();
-    float nearest = kRange;
-    bool found = false;
-    for (const ExpEnemy* enemy : heroWorld_.resources.enemyManager_->GetEnemyPtrs()) {
-        if (!enemy || enemy->IsDead() || enemy->IsRunResource()) {
-            continue;
-        }
-        const myEngine::Vector3 p = enemy->GetWorldPosition();
-        const float distance = myEngine::Length(myEngine::Vector3{p.x - self.x, p.y - self.y, 0.0f});
-        if (distance < nearest) {
-            nearest = distance;
-            target = p;
-            found = true;
-        }
-    }
-    // ボスは大きいので少し遠くまで狙う。手下より近ければボスを狙う。
-    if (HeroBossTargetActive()) {
-        const myEngine::Vector3 p = heroWorld_.resources.enemy_->GetWorldPosition();
-        const float distance = myEngine::Length(myEngine::Vector3{p.x - self.x, p.y - self.y, 0.0f});
-        if (distance < (found ? nearest : kRange * 1.5f)) {
-            target = p;
-            found = true;
-        }
-    }
-    return found;
 }
 
 void ExpeditionHeroAbilities::UpdateBot(float dt)

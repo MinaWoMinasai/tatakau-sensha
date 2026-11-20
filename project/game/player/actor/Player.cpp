@@ -107,26 +107,15 @@ void Player::RotateToMouse(myEngine::Camera* viewProjection)
         object_->SetRotate(worldTransform_.rotate);
         return;
     }
-    // 自動で狙う：相手がいればそちらへ向ける。いなければ最後の向きのまま（マウスやスティックで振り回さない）。
-    if (autoAimEnabled_) {
-        if (autoAimHasTarget_) {
-            const myEngine::Vector3 offset{autoAimTarget_.x - worldTransform_.translate.x, autoAimTarget_.y - worldTransform_.translate.y, 0.0f};
-            if (myEngine::Length(offset) > 0.001f) {
-                dir_ = myEngine::Normalize(offset);
-            }
-        }
-        runAimWorld_ = autoAimHasTarget_ ? autoAimTarget_ : worldTransform_.translate + dir_ * 12.0f;
-        angle_ = std::atan2(dir_.y, dir_.x);
-        worldTransform_.rotate.z = angle_;
-        object_->SetRotate(worldTransform_.rotate);
-        return;
-    }
     if (input_ && input_->IsGamepadActive()) {
         // ツインスティックの照準: 右スティックで砲身の向きを決め、離すと最後の向きを保つ。
         // 置いたままのマウスで照準が引っ張られないよう、OSのカーソルは無視する。
+        // 自動で撃つとき（HoloCure と同じ）は、右スティックを離している間は動いている方を向く。
         myEngine::Vector2 aim{};
         if (input_->TryGetGamepadAim(aim)) {
             dir_ = myEngine::Normalize(myEngine::Vector3{aim.x, aim.y, 0.0f});
+        } else if (autoFireEnabled_ && myEngine::Length(myEngine::Vector3{inputDir_.x, inputDir_.y, 0.0f}) > 0.2f) {
+            dir_ = myEngine::Normalize(myEngine::Vector3{inputDir_.x, inputDir_.y, 0.0f});
         }
         runAimWorld_ = worldTransform_.translate + dir_ * 12.0f;
         angle_ = std::atan2(dir_.y, dir_.x);

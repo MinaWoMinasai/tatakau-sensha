@@ -40,10 +40,10 @@ public:
     void Update(float dt);
     /// @brief 技の見た目とバリアを、ネオンの格子のパスに積む。
     void QueueWorldVisuals();
-    /// @brief 自動で狙うか（F キーで切り替える。最初は調整ファイルの heroAutoAim）。
-    bool IsAutoAim() const
+    /// @brief 自動で撃つか（F キーで切り替える。最初は調整ファイルの heroAutoFire）。
+    bool IsAutoFire() const
     {
-        return autoAim_;
+        return autoFire_;
     }
     /// @brief 自動確認：ボットが入力の代わりに技を使う（照準と移動は Player::SetDemoInput）。
     void SetBotEnabled(bool enabled)
@@ -123,16 +123,14 @@ private:
     void ReadInput();
     /// @brief ボットの入力：近い敵（かボス）を狙って撃ち続け、使える技はすぐ使う。
     void UpdateBot(float dt);
-    /// @brief 自動で狙う相手：届く距離の中で一番近い敵（いなければボス）。見つかれば真。
-    bool FindAutoAimTarget(myEngine::Vector3& target) const;
     /// @brief 機体の主武器（weapons の primary）を、試作と同じ形で自機に入れる：武器 → 形態 → 自機の機体設定（砲の数・威力・連射・弾の色・熱）。
     /// 機関砲の撃ち続けると速くなる加速も入れる。見つからなければ遠征のふつうの砲のまま。
     void ApplyPrimaryWeapon(const survivor::HeroDefinition& hero);
 
     bool active_ = false;
     float clock_ = 0.0f;
-    // 自動で狙う（HoloCure の感想から：狙う操作を外し、動くことに集中する遊び方を試す）。
-    bool autoAim_ = true;
+    // 自動で撃つ（HoloCure と同じ：押さなくても向いている方へ撃ち続け、向きと移動だけを操作する）。
+    bool autoFire_ = true;
     /// @brief 選んだときの機体（強化を効かせる前）と、技ごとの強化の段。
     survivor::HeroDefinition baseHero_{};
     std::array<int, survivor::kUpgradeTargets> tiers_{};

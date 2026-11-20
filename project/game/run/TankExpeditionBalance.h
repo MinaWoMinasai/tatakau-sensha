@@ -86,8 +86,8 @@ inline nlohmann::json DefaultBalance()
             // 機体で遊ぶとき（計画書 p5）の自機の移動の速さの倍率。1 で今までと同じ。HoloCure のように敵とほぼ同じ速さにして、
             // 振り切れないようにする（移動の技で逃げる意味が出る）。
             {"heroMoveScale", 0.7f},
-            // 機体で遊ぶとき、主砲を近い敵へ自動で狙って撃つか（遊んでいる間も F キーで切り替えられる）。
-            {"heroAutoAim", true},
+            // 機体で遊ぶとき、押さなくても向いている方へ主砲を撃ち続けるか（HoloCure と同じ。遊んでいる間も F キーで切り替えられる）。
+            {"heroAutoFire", true},
             {"defaultRandomSpawnEnabled", false},
             {"combatStyles", CombatStylesToJson(DefaultTankCombatStyleBalances())},
             {"player",
@@ -171,8 +171,8 @@ inline nlohmann::json SanitizeBalance(const nlohmann::json& source)
     };
     number("", "bossMaxHp", 1, 100000);
     number("", "heroMoveScale", 0.2, 2.0);
-    if (source.contains("heroAutoAim") && source["heroAutoAim"].is_boolean()) {
-        result["heroAutoAim"] = source["heroAutoAim"];
+    if (source.contains("heroAutoFire") && source["heroAutoFire"].is_boolean()) {
+        result["heroAutoFire"] = source["heroAutoFire"];
     }
     number("player", "maxHp", 1, 9999);
     number("player", "bulletDamage", 1, 999);

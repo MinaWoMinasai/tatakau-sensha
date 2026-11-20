@@ -506,18 +506,16 @@ public:
         return demoInputEnabled_;
     }
 
-    /// @brief 自動で狙う（遠征の機体、計画書 p6 の HoloCure の感想から）。有効で hasTarget なら、照準を target へ向け、主砲を撃ち続ける。
-    /// @note 移動はふつうの入力のまま。hasTarget が偽の間は、照準は最後の向きのまま撃たない。無効にすると、ふつうのマウス・スティックに戻る。
-    void SetAutoAim(bool enabled, const myEngine::Vector3& target, bool hasTarget)
+    /// @brief 自動で撃つ（遠征の機体、計画書 p6 の HoloCure の感想から）。有効なら、左クリックを押さなくても、向いている方へ主砲を撃ち続ける
+    /// （撃つ間隔と熱はふつうのまま）。向きはふつうどおりマウスか右スティックで決め、右スティックを離している間は動いている方を向く。
+    void SetAutoFire(bool enabled)
     {
-        autoAimEnabled_ = enabled;
-        autoAimTarget_ = target;
-        autoAimHasTarget_ = enabled && hasTarget;
+        autoFireEnabled_ = enabled;
     }
-    /// @brief 自動で狙っていて、狙う相手がいるか（主砲を撃つ）。
-    bool IsAutoAimFiring() const
+    /// @brief 自動で撃っているか。
+    bool IsAutoFiring() const
     {
-        return autoAimEnabled_ && autoAimHasTarget_;
+        return autoFireEnabled_;
     }
 
     /// @brief デモ用の移動・ワールド座標の照準・射撃・ダッシュ入力を設定する。
@@ -1426,9 +1424,8 @@ private:
     std::string runStarterBranch_ = "Twin";
     PlayerClassConfig runStarterConfig_{};
     bool demoInputEnabled_ = false, demoShoot_ = false, demoDash_ = false;
-    // 自動で狙う（SetAutoAim）。
-    bool autoAimEnabled_ = false, autoAimHasTarget_ = false;
-    myEngine::Vector3 autoAimTarget_{};
+    // 自動で撃つ（SetAutoFire）。
+    bool autoFireEnabled_ = false;
     myEngine::Vector2 demoMove_{};
     myEngine::Vector3 demoAim_{};
     myEngine::Vector3 runAimWorld_{};

@@ -1065,7 +1065,7 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
         world_.run.expeditionMapSubtitle_->SetText(heroMode ? "機体ごとに、左クリック・右クリック・Shift・E・Q の技が決まっています。"
                                                             : "カーソルを合わせると攻撃方法を確認できます。");
         world_.run.expeditionMapSubtitle_->PrepareForDraw();
-        world_.run.tankRunDescription_->SetText(heroMode ? "主砲は近い敵を自動で狙って撃ちます（戦闘中に F で切り替え）。"
+        world_.run.tankRunDescription_->SetText(heroMode ? "主砲は向いている方へ自動で撃ち続けます。向きはマウスか右スティック（戦闘中に F で切り替え）。"
                                                          : "選んだスタイルに合う強化が工房に並びます。");
         world_.run.tankRunDescription_->SetPosition({64, 209});
         world_.run.tankRunDescription_->PrepareForDraw();
@@ -1638,12 +1638,12 @@ bool ExpeditionMapController::UpdateExpeditionHeroAutoTest()
         }
         if (tankexp::IsCombatNode(node->kind)) {
             if (run.tankExpedition_.IsCombat()) {
-                // MYENGINE_EXPEDITION_HERO_AUTOAIM_ONLY=1：ボットは使わず、自機は止まったまま、自動で狙う設定だけで撃つ（無敵）。
+                // MYENGINE_EXPEDITION_HERO_AUTOFIRE_ONLY=1：ボットは使わず、自機は止まったまま、自動で撃つ設定だけで撃つ（無敵）。
                 wchar_t aimOnly[4]{};
-                const bool autoAimOnly = GetEnvironmentVariableW(L"MYENGINE_EXPEDITION_HERO_AUTOAIM_ONLY", aimOnly, 4) > 0 && aimOnly[0] == L'1';
-                run.expeditionHeroAutoReport_["autoAimOnly"] = autoAimOnly;
+                const bool autoFireOnly = GetEnvironmentVariableW(L"MYENGINE_EXPEDITION_HERO_AUTOFIRE_ONLY", aimOnly, 4) > 0 && aimOnly[0] == L'1';
+                run.expeditionHeroAutoReport_["autoFireOnly"] = autoFireOnly;
                 world_.presentation.debugPlayerNoDamage_ = true;
-                hero.SetBotEnabled(!autoAimOnly);
+                hero.SetBotEnabled(!autoFireOnly);
                 run.expeditionHeroAutoMark_ = hero.PlayClock();
                 run.expeditionHeroAutoStep_ = 4;
             }
