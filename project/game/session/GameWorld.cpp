@@ -16,6 +16,7 @@ GameWorld::GameWorld(RunMode runMode)
       expeditionController(std::make_unique<ExpeditionController>(*this)),
       expeditionMapController(std::make_unique<ExpeditionMapController>(*this)),
       expeditionBuildSelection(std::make_unique<ExpeditionBuildSelection>(*this)),
+      expeditionHeroAbilities(std::make_unique<ExpeditionHeroAbilities>(*this)),
       expeditionExperience(std::make_unique<ExpeditionExperience>(*this)),
       expeditionOverdrive(std::make_unique<ExpeditionOverdrive>(*this)),
       expeditionBossDirector(std::make_unique<ExpeditionBossDirector>(*this)),

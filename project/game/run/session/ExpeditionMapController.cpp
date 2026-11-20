@@ -1341,15 +1341,32 @@ void ExpeditionMapController::DrawExpeditionMapUi()
 
 bool ExpeditionMapController::UpdateExpeditionHeroAutoTest()
 {
+    // 段：0 選ぶ画面を保存 → 1 機体を選ぶ → 2 マップを保存 → 3 マップを進んで最初の戦闘へ → 4 戦闘で技を使い、20秒で保存
+    // → 5 ボス戦へ移る（F7 と同じ）→ 6 ボスに技を当て、15秒で保存 → 7 結果を書いて終わる。
+    // 戦闘の間（4〜6）は偽を返し、ふつうの遠征の更新を止めない。
     auto& run = world_.run;
+    auto& hero = *world_.expeditionHeroAbilities;
     constexpr const char* kDirectory = "generated/expedition_hero";
+    const bool fighting = run.expeditionHeroAutoStep_ >= 4 && run.expeditionHeroAutoStep_ <= 6;
     // 画面の保存が終わるまで、と画面が落ち着くまでは待つ。
-    if (!run.tankRunCapturePath_.empty() || run.tankRunMenuAge_ < 0.8f) {
-        return true;
+    if (!run.tankRunCapturePath_.empty() || (!fighting && run.tankRunMenuAge_ < 0.8f)) {
+        return !fighting;
     }
     auto capture = [&](const char* name) {
         std::filesystem::create_directories(kDirectory);
         run.tankRunCapturePath_ = std::string(kDirectory) + "/" + name + ".png";
+    };
+    auto finish = [&](bool completed) {
+        const auto* selected = world_.expeditionBuildSelection->SelectedExpeditionHero();
+        run.expeditionHeroAutoReport_["completed"] = completed && selected != nullptr;
+        run.expeditionHeroAutoReport_["hero"] = selected ? selected->key : "";
+        run.expeditionHeroAutoReport_["style"] = tankbuild::Id(run.expeditionBuildStyle_);
+        run.expeditionHeroAutoReport_["abilities"] = hero.MakeReport();
+        run.expeditionHeroAutoReport_["bossHp"] = world_.resources.enemy_->GetHp();
+        run.expeditionHeroAutoReport_["playerHp"] = world_.resources.player_->GetHp();
+        std::ofstream(std::string(kDirectory) + "/validation.json") << std::setw(2) << run.expeditionHeroAutoReport_ << '\n';
+        PostQuitMessage(completed && selected ? 0 : 4);
+        run.expeditionHeroAutoTest_ = -1;
     };
     switch (run.expeditionHeroAutoStep_) {
     case 0:
@@ -1364,27 +1381,125 @@ bool ExpeditionMapController::UpdateExpeditionHeroAutoTest()
         return true;
     case 2:
         if (!run.expeditionBuildChoice_ && run.expeditionMapRun_.IsChoosing()) {
+            const auto* selected = tankexp::FindMapNode(run.expeditionMapRun_.GetDefinition(), run.expeditionMapSelection_);
+            run.expeditionHeroAutoReport_ = {{"heroMode", run.expeditionHeroMode_},
+                                             {"heroes", run.expeditionHeroes_.size()},
+                                             {"buildChosen", run.expeditionBuildChosen_},
+                                             {"selectionIsTutorialSkip", selected && selected->role == tankexp::NodeRole::TutorialSkip},
+                                             {"startHp", world_.resources.player_->GetHp()},
+                                             {"startMaxHp", world_.resources.player_->GetMaxHp()}};
             capture("hero_map");
             run.expeditionHeroAutoStep_ = 3;
         }
         return true;
-    default: {
-        const auto* hero = world_.expeditionBuildSelection->SelectedExpeditionHero();
-        const auto* selected = tankexp::FindMapNode(run.expeditionMapRun_.GetDefinition(), run.expeditionMapSelection_);
-        const nlohmann::json report{{"completed", hero != nullptr},
-                                    {"heroMode", run.expeditionHeroMode_},
-                                    {"heroes", run.expeditionHeroes_.size()},
-                                    {"hero", hero ? hero->key : ""},
-                                    {"style", tankbuild::Id(run.expeditionBuildStyle_)},
-                                    {"buildChosen", run.expeditionBuildChosen_},
-                                    {"selectionIsTutorialSkip", selected && selected->role == tankexp::NodeRole::TutorialSkip},
-                                    {"currency", run.expeditionMapRun_.GetCurrency()},
-                                    {"hp", world_.resources.player_->GetHp()}};
-        std::ofstream(std::string(kDirectory) + "/validation.json") << std::setw(2) << report << '\n';
-        PostQuitMessage(hero ? 0 : 4);
-        run.expeditionHeroAutoTest_ = -1;
-        return true;
+    case 3: {
+        // 進み方の記録（止まったときに、どのマスで止まったかを見る）。
+        {
+            const auto* active = run.expeditionMapRun_.GetActiveNode();
+            const std::string state = std::string(run.expeditionMapRun_.IsChoosing() ? "choosing " : "active ") +
+                                      (active ? active->id + " kind=" + std::to_string(static_cast<int>(active->kind)) : "-") +
+                                      " combat=" + std::to_string(run.tankExpedition_.IsCombat());
+            if (run.expeditionHeroAutoReport_.value("lastState", "") != state) {
+                run.expeditionHeroAutoReport_["lastState"] = state;
+                run.expeditionHeroAutoReport_["route"].push_back(state);
+                std::ofstream(std::string(kDirectory) + "/progress.json") << std::setw(2) << run.expeditionHeroAutoReport_ << '\n';
+            }
+        }
+        // マップを進む：戦闘のマス（操作の説明は除く）があればそこへ、無ければ説明をスキップ、それも無ければ先頭。
+        if (run.expeditionMapRun_.IsChoosing()) {
+            const auto options = run.expeditionMapRun_.GetAvailableNodeIds();
+            std::string id, skip, other;
+            for (const auto& option : options) {
+                const auto* n = tankexp::FindMapNode(run.expeditionMapRun_.GetDefinition(), option);
+                if (!n || n->role == tankexp::NodeRole::TutorialCombat) {
+                    continue;
+                }
+                if (n->role == tankexp::NodeRole::TutorialSkip) {
+                    skip = option;
+                } else if (id.empty() && n->kind == tankexp::NodeKind::Combat) {
+                    id = option;
+                } else if (other.empty()) {
+                    other = option;
+                }
+            }
+            if (id.empty()) {
+                id = !skip.empty() ? skip : other;
+            }
+            if (!id.empty()) {
+                RequestExpeditionMapNode(id);
+            }
+            return true;
+        }
+        const auto* node = run.expeditionMapRun_.GetActiveNode();
+        if (!node) {
+            return true;
+        }
+        if (tankexp::IsCombatNode(node->kind)) {
+            if (run.tankExpedition_.IsCombat()) {
+                hero.SetBotEnabled(true);
+                run.expeditionHeroAutoMark_ = hero.PlayClock();
+                run.expeditionHeroAutoStep_ = 4;
+            }
+            return false;
+        }
+        // 通貨のマス（説明をスキップを含む）は、ふつうの更新が受け取って先へ進める。
+        // 取引のマス：工房は何も買わずに先へ、ほかは決まった1つ目を選ぶ。どちらも、ふつうの更新は止めない。
+        if (node->kind != tankexp::NodeKind::Currency) {
+            SelectExpeditionService(node->kind == tankexp::NodeKind::Upgrade || node->kind == tankexp::NodeKind::Evolution ? 3 : 0);
+        }
+        return false;
     }
+    case 4:
+        // 戦闘の6秒で画面を保存し、20秒たつか、その前に部屋を片付けたら次へ。
+        if (!run.expeditionHeroAutoReport_.value("combatCaptured", false) && hero.PlayClock() - run.expeditionHeroAutoMark_ >= 6.0f) {
+            run.expeditionHeroAutoReport_["combatCaptured"] = true;
+            capture("hero_combat");
+            return false;
+        }
+        if (hero.PlayClock() - run.expeditionHeroAutoMark_ >= 20.0f ||
+            (!run.tankExpedition_.IsCombat() && hero.PlayClock() - run.expeditionHeroAutoMark_ >= 2.0f)) {
+            run.expeditionHeroAutoReport_["combat"] = hero.MakeReport();
+            run.expeditionHeroAutoStep_ = 5;
+        }
+        return false;
+    case 5:
+        // まだ部屋で戦っていれば残りの敵を片付け（数字はもう控えた）、マップに戻ってからボス戦へ移る。
+        if (run.tankExpedition_.IsCombat()) {
+            for (auto* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+                if (enemy && !enemy->IsDead()) {
+                    enemy->TakeDamageFromPlayer(100000);
+                }
+            }
+            return false;
+        }
+        world_.bossPresentation->RequestNeonBossDeveloperEncounter();
+        run.expeditionHeroAutoMark_ = hero.PlayClock();
+        run.expeditionHeroAutoReport_["bossStartHp"] = -1;
+        run.expeditionHeroAutoStep_ = 6;
+        return false;
+    case 6:
+        // 技の時計は戦闘の間しか進まないので、待ちすぎはフレーム数で見る（約90秒）。
+        run.expeditionHeroAutoReport_["waitFrames"] = run.expeditionHeroAutoReport_.value("waitFrames", 0) + 1;
+        if (run.expeditionHeroAutoReport_["waitFrames"].get<int>() > 60 * 90) {
+            run.expeditionHeroAutoReport_["error"] = "boss did not start";
+            finish(false);
+            return false;
+        }
+        if (hero.BossTargetActive() && run.expeditionHeroAutoReport_["bossStartHp"] == -1) {
+            run.expeditionHeroAutoReport_["bossStartHp"] = world_.resources.enemy_->GetHp();
+            run.expeditionHeroAutoMark_ = hero.PlayClock();
+        }
+        if (hero.BossTargetActive() && hero.PlayClock() - run.expeditionHeroAutoMark_ >= 15.0f) {
+            capture("hero_boss");
+            run.expeditionHeroAutoStep_ = 7;
+        } else if (hero.PlayClock() - run.expeditionHeroAutoMark_ >= 60.0f) {
+            run.expeditionHeroAutoReport_["error"] = "boss did not start";
+            finish(false);
+        }
+        return false;
+    default:
+        finish(true);
+        return true;
     }
 }
 

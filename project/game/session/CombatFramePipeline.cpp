@@ -176,6 +176,10 @@ void CombatFramePipeline::Update()
             world_.survivorRunController->Update(baseDeltaTime);
         } else {
             world_.arenaRunController->UpdateTankRun(baseDeltaTime);
+            // 遠征の機体の技（計画書 p5 の H3）。機体で遊んでいなければ何もしない。
+            if (world_.run.IsExpeditionRun()) {
+                world_.expeditionHeroAbilities->Update(baseDeltaTime);
+            }
         }
     }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)

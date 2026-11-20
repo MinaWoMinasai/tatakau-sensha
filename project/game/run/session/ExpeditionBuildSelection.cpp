@@ -55,6 +55,7 @@ void ExpeditionBuildSelection::LoadExpeditionHeroes()
         OutputDebugStringA(("[Expedition] hero config: " + error + "\n").c_str());
     }
     world_.run.expeditionHeroes_ = config.heroes.heroes.empty() ? survivor::DefaultHeroes() : config.heroes.heroes;
+    world_.expeditionHeroAbilities->Configure(config.barrier);
     // 札は3枚なので、今は先頭の3体まで。
     if (world_.run.expeditionHeroes_.size() > 3) {
         world_.run.expeditionHeroes_.resize(3);
@@ -157,9 +158,10 @@ void ExpeditionBuildSelection::SelectExpeditionBuildStyle(int index)
     world_.run.expeditionBuildChoice_ = false;
     if (heroMode) {
         world_.run.expeditionHero_ = index;
-        // 機体では右クリックと Shift を技に使うので、遠征のダッシュは切る（技は H3 で入れる）。
+        // 機体では右クリックと Shift を技に使うので、遠征のダッシュは切る。技は ExpeditionHeroAbilities が動かす（計画書 p5 の H3）。
         world_.resources.player_->SetRightClickDashEnabled(false);
         world_.resources.player_->SetShiftDashEnabled(false);
+        world_.expeditionHeroAbilities->Start(world_.run.expeditionHeroes_[static_cast<size_t>(index)]);
     }
     world_.arenaRunController->ApplyTankRunCards();
     if (world_.validation.experienceValidationVariant_) {

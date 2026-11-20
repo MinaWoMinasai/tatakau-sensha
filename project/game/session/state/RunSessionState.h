@@ -112,6 +112,9 @@ struct RunSessionState {
     std::vector<std::string> expeditionHeroPrimaryNames_;
     /// @brief 機体を選ぶ自動確認（MYENGINE_EXPEDITION_HERO_AUTOTEST=機体の番号。無ければ -1）と、その進み。
     int expeditionHeroAutoTest_ = -1, expeditionHeroAutoStep_ = 0;
+    /// @brief 機体の自動確認：段の始めの時計（技を進めた秒）と、書き出す結果。
+    float expeditionHeroAutoMark_ = 0.0f;
+    nlohmann::json expeditionHeroAutoReport_;
 
     bool specialValidationEnabled_ = false;
 

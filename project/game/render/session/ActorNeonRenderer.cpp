@@ -317,7 +317,8 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             hpColor = lerpColor({hpColor.x * 1.25f, hpColor.y * 1.25f, hpColor.z * 1.25f, 1.0f}, {1.9f, 0.35f, 0.25f, 1.0f},
                                 hpRatio < 0.3f ? 0.75f : 0.0f);
             // 機体の遊び方（Q のゲージを出している間）：残りに応じて緑 → 黄 → 赤へ変える（計画書 p4 の K5）。
-            if (world_.run.IsSurvivorRun() && world_.presentation.heroUltimateRatio_ >= 0.0f) {
+            // 遠征の機体（計画書 p5 の H3）でも同じ（Q のゲージを出しているのは機体のときだけ）。
+            if ((world_.run.IsSurvivorRun() || world_.run.IsExpeditionRun()) && world_.presentation.heroUltimateRatio_ >= 0.0f) {
                 const myEngine::Vector4 green{0.45f, 1.9f, 0.7f, 1.0f}, yellow{1.9f, 1.6f, 0.35f, 1.0f}, red{1.9f, 0.3f, 0.22f, 1.0f};
                 hpColor = hpRatio > 0.5f ? lerpColor(yellow, green, (hpRatio - 0.5f) * 2.0f)
                                          : lerpColor(red, yellow, (std::max)(0.0f, hpRatio - 0.15f) / 0.35f);
@@ -333,14 +334,14 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                                   {0.55f, 1.35f, 1.95f, 1.0f}, radius * 0.13f);
             }
             // スタミナはシールドと同じ場所に、細い黄緑の弧として出す（尽きて張れない間は赤）。
-            if (world_.run.IsSurvivorRun() && world_.presentation.playerStaminaRatio_ >= 0.0f) {
+            if ((world_.run.IsSurvivorRun() || world_.run.IsExpeditionRun()) && world_.presentation.playerStaminaRatio_ >= 0.0f) {
                 const myEngine::Vector4 staminaColor = world_.presentation.playerStaminaExhausted_ ? myEngine::Vector4{1.9f, 0.3f, 0.25f, 1.0f}
                                                                                                     : myEngine::Vector4{0.85f, 1.8f, 0.55f, 1.0f};
                 queueSegmentedArc(radius * 1.82f, 0.0f, 2.05f, 12, world_.presentation.playerStaminaRatio_, staminaColor, radius * 0.13f);
             }
             // 機体の技（計画書 p4 の K0）：本体の上側に、左から右クリック・Shift・E の短い弧（使えると水色で全部光る）と、
             // その外側に Q のゲージの弧（満タンで金色に脈打つ）。
-            if (world_.run.IsSurvivorRun()) {
+            if (world_.run.IsSurvivorRun() || (world_.run.IsExpeditionRun() && world_.presentation.heroUltimateRatio_ >= 0.0f)) {
                 static constexpr std::array<float, 3> kAbilityAngles{3.14159265f + 0.78f, 3.14159265f, 3.14159265f - 0.78f};
                 for (size_t i = 0; i < kAbilityAngles.size(); ++i) {
                     const float ready = world_.presentation.heroAbilityReady_[i];

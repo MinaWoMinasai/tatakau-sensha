@@ -204,6 +204,7 @@ void ExpeditionController::StartTankExpeditionRoom()
     // ここで前の敵・弾・場の攻撃を消去し、衝突走査中に対象の実体を削除しない。
     world_.resources.enemy_->SetRunEncounterEnabled(false);
     world_.run.tankExpeditionRivalActive_ = false;
+    world_.expeditionHeroAbilities->OnRoomStart();
     world_.resources.enemyManager_->ClearRunActors();
     world_.resources.bulletManager_->ClearAll();
     world_.presentation.playerLaserBeams_.clear();

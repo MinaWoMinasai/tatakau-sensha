@@ -132,6 +132,9 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     }
     if (world_.run.UsesTankRunDirector()) {
         world_.arenaRunController->QueueTankRunTelegraph();
+        if (world_.run.IsExpeditionRun()) {
+            world_.expeditionHeroAbilities->QueueWorldVisuals();
+        }
     } else if (world_.run.IsSurvivorRun()) {
         world_.survivorRunController->QueueWorldVisuals();
     }

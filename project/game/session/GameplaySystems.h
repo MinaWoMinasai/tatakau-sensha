@@ -23,6 +23,7 @@
 #include "game/run/session/ExpeditionController.h"
 #include "game/run/session/ExpeditionMapController.h"
 #include "game/run/session/ExpeditionBuildSelection.h"
+#include "game/run/hero/ExpeditionHeroAbilities.h"
 #include "game/run/session/ExpeditionExperience.h"
 #include "game/run/session/ExpeditionOverdrive.h"
 #include "game/run/session/ExpeditionBossDirector.h"
