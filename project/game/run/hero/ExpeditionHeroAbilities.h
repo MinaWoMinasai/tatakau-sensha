@@ -1,6 +1,8 @@
 #pragma once
 #include "game/run/hero/HeroAbilityCore.h"
 #include <nlohmann/json.hpp>
+#include <algorithm>
+#include <string_view>
 
 namespace gameplay {
 /// @brief 遠征で機体（ヒーロー）の技を動かす（計画書 p5 の H3）。技の処理は土台の HeroAbilityCore と育つ戦車の試作で同じものを使う。
@@ -55,6 +57,42 @@ public:
         return HeroBossTargetActive();
     }
 
+    // 技の強化（覚醒）。工房で買う。0 は主武器、1〜4 は右クリック・Shift・E・Q。1段目は威力、2段目は待ち時間、3段目で挙動が変わる。
+    /// @brief 今の機体（強化を効かせた後）。
+    const survivor::HeroDefinition& CurrentHero() const
+    {
+        return Hero();
+    }
+    /// @brief target の技を、まだ強くできるか（空きの枠でなく、3段に届いていない）。
+    bool CanUpgrade(int target) const;
+    /// @brief target の技を1段強くし、機体の値と主武器を入れ直す。
+    void BuyUpgrade(int target);
+    int UpgradeTier(int target) const override
+    {
+        return target >= 0 && target < static_cast<int>(survivor::kUpgradeTargets) ? tiers_[static_cast<size_t>(target)] : 0;
+    }
+    /// @brief 工房に並べるときの強化の id（"hero_upgrade_0" など。強化の札の id とぶつからない）。
+    static std::string UpgradeOfferId(int target)
+    {
+        return "hero_upgrade_" + std::to_string(target);
+    }
+    /// @brief 工房の id が技の強化なら、対象（0〜4）を返す。違えば -1。
+    static int ParseUpgradeOfferId(const std::string& id)
+    {
+        constexpr std::string_view prefix = "hero_upgrade_";
+        if (id.size() != prefix.size() + 1 || id.compare(0, prefix.size(), prefix) != 0) {
+            return -1;
+        }
+        const int target = id.back() - '0';
+        return target >= 0 && target < static_cast<int>(survivor::kUpgradeTargets) ? target : -1;
+    }
+    /// @brief 技の強化の値段（今の段ごと。遠征の通貨。共通の札が 24〜78 なので、その間から上に置く。遊んで調整する）。
+    static int UpgradeOfferPrice(int currentTier)
+    {
+        static constexpr std::array<int, survivor::kMaxUpgradeTier> kPrices{40, 70, 110};
+        return kPrices[static_cast<size_t>((std::clamp)(currentTier, 0, survivor::kMaxUpgradeTier - 1))];
+    }
+
 protected:
     bool HeroActive() const override
     {
@@ -83,6 +121,9 @@ private:
 
     bool active_ = false;
     float clock_ = 0.0f;
+    /// @brief 選んだときの機体（強化を効かせる前）と、技ごとの強化の段。
+    survivor::HeroDefinition baseHero_{};
+    std::array<int, survivor::kUpgradeTargets> tiers_{};
     survivor::SpawnConfig::BarrierConfig barrier_{};
     std::vector<survivor::WeaponDefinition> weapons_;
     std::array<survivor::FormDefinition, survivor::kFormCount> forms_{};

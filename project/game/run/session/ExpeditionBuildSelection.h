@@ -30,6 +30,8 @@ public:
     const survivor::HeroDefinition* SelectedExpeditionHero() const;
 
 private:
+    /// @brief 工房の id を札として出せるか（強化の札か、機体の技の強化）。
+    bool IsServiceOfferShown(const std::string& id) const;
     /// @brief 選べる機体を、育つ戦車の試作と同じ設定（survivor_proto.json）から読む。
     void LoadExpeditionHeroes();
 

@@ -68,6 +68,11 @@ void ExpeditionBuildSelection::LoadExpeditionHeroes()
     world_.run.expeditionHero_ = -1;
 }
 
+bool ExpeditionBuildSelection::IsServiceOfferShown(const std::string& id) const
+{
+    return ExpeditionHeroAbilities::ParseUpgradeOfferId(id) >= 0 || tankcontent::FindUpgrade(world_.run.expeditionContent_, id);
+}
+
 const survivor::HeroDefinition* ExpeditionBuildSelection::SelectedExpeditionHero() const
 {
     const int index = world_.run.expeditionHero_;
@@ -196,7 +201,7 @@ void ExpeditionBuildSelection::RefreshExpeditionBuildCards()
         const size_t offerIndex = static_cast<size_t>(world_.run.expeditionServicePage_ * 3 + i);
         if (!world_.run.expeditionBuildChoice_ &&
             (offerIndex >= world_.run.expeditionServiceOffers_.size() ||
-             !tankcontent::FindUpgrade(world_.run.expeditionContent_, world_.run.expeditionServiceOffers_[offerIndex]))) {
+             !IsServiceOfferShown(world_.run.expeditionServiceOffers_[offerIndex]))) {
             continue;
         }
         TankRewardCardModel model;
@@ -267,12 +272,23 @@ void ExpeditionBuildSelection::RefreshExpeditionBuildCards()
             const int price = world_.expeditionMapController->ExpeditionServicePrice(model.id);
             model.footer =
                 std::to_string(price) + (world_.run.expeditionMapRun_.CanAfford(price) ? "  / 左クリックで装備" : "  / 通貨が足りません");
-            const auto* u = tankcontent::FindUpgrade(world_.run.expeditionContent_, model.id);
-            model.title = u->name;
-            model.description = u->description;
-            model.rarity = u->rarity;
-            model.effects = u->effects;
-            model.effectPower = u->effectPower;
+            if (const int target = ExpeditionHeroAbilities::ParseUpgradeOfferId(model.id); target >= 0) {
+                // 機体の技の強化（覚醒）。3段目（覚醒）は珍しさを上げて目立たせる。
+                const auto& hero = *world_.expeditionHeroAbilities;
+                const int tier = hero.UpgradeTier(target);
+                model.title = survivor::UpgradeOfferName(hero.CurrentHero(), target, tier);
+                model.description = survivor::UpgradeOfferText(hero.CurrentHero(), target, tier);
+                model.rarity = tier + 1 >= survivor::kMaxUpgradeTier ? 3 : tier;
+                model.footer = std::to_string(price) +
+                               (world_.run.expeditionMapRun_.CanAfford(price) ? "  / 左クリックで強くする" : "  / 通貨が足りません");
+            } else {
+                const auto* u = tankcontent::FindUpgrade(world_.run.expeditionContent_, model.id);
+                model.title = u->name;
+                model.description = u->description;
+                model.rarity = u->rarity;
+                model.effects = u->effects;
+                model.effectPower = u->effectPower;
+            }
         }
         if (world_.validation.experienceValidationVariant_ && !tanksubmission::Enabled() && world_.run.expeditionBuildChoice_ &&
             world_.validation.experienceValidationStateAge_ > 0.55f) {
@@ -336,7 +352,7 @@ void ExpeditionBuildSelection::UpdateExpeditionBuildCards(float dt)
         const size_t index = static_cast<size_t>(world_.run.expeditionServicePage_ * 3 + i);
         const bool present = world_.run.expeditionBuildChoice_ ||
                              (index < world_.run.expeditionServiceOffers_.size() &&
-                              tankcontent::FindUpgrade(world_.run.expeditionContent_, world_.run.expeditionServiceOffers_[index]));
+                              IsServiceOfferShown(world_.run.expeditionServiceOffers_[index]));
         if (present && mouse.x >= 64 + i * 388 && mouse.x <= 432 + i * 388 && mouse.y >= 260 && mouse.y <= 590) {
             hovered = i;
         }
@@ -351,7 +367,7 @@ void ExpeditionBuildSelection::UpdateExpeditionBuildCards(float dt)
         const size_t index = static_cast<size_t>(world_.run.expeditionServicePage_ * 3 + i);
         const bool present = world_.run.expeditionBuildChoice_ ||
                              (index < world_.run.expeditionServiceOffers_.size() &&
-                              tankcontent::FindUpgrade(world_.run.expeditionContent_, world_.run.expeditionServiceOffers_[index]));
+                              IsServiceOfferShown(world_.run.expeditionServiceOffers_[index]));
         if (!present) {
             continue;
         }

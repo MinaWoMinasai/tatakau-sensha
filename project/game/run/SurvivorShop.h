@@ -1,5 +1,8 @@
 #pragma once
+#include "game/run/SurvivorHeroes.h"
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <string>
 
 namespace survivor {
@@ -95,4 +98,109 @@ struct ShopConfig {
         return values;
     }();
 };
+// 技の強化（計画書 p4 の K4。p5 の後で遠征の工房でも使う）。1段目は威力、2段目は待ち時間（待ち時間の無い技は効く秒）、
+// 3段目で挙動が変わる（挙動は HeroAbilityCore が UpgradeTier を見て変える）。試作のショップと遠征の工房で同じ計算を使う。
+
+/// @brief 強化の対象の技（0 は主武器の技、1〜4 は右クリック・Shift・E・Q）。
+inline const AbilityDefinition& UpgradeTargetAbility(const HeroDefinition& hero, int target)
+{
+    return target == 0 ? hero.primaryAbility : hero.abilities[static_cast<size_t>(target - 1)];
+}
+
+/// @brief 強化の段を機体の技の数値に効かせる：1段目は威力 ×1.25、2段目は待ち時間 ×0.8（待ち時間の無い技は効く秒 ×1.25）。
+inline void ApplyUpgradeTiers(HeroDefinition& hero, const std::array<int, kUpgradeTargets>& tiers)
+{
+    auto apply = [](AbilityDefinition& ability, int tier) {
+        if (tier >= 1) {
+            ability.power *= 1.25f;
+        }
+        if (tier >= 2) {
+            if (ability.cooldown > 0.0f) {
+                ability.cooldown *= 0.8f;
+            } else {
+                ability.duration *= 1.25f;
+            }
+        }
+    };
+    apply(hero.primaryAbility, tiers[0]);
+    for (size_t i = 0; i < kAbilitySlotCount; ++i) {
+        apply(hero.abilities[i], tiers[i + 1]);
+    }
+}
+
+/// @brief 主武器が武器のときの威力の倍率（1段ごとに ×1.15、2段まで）。
+inline float PrimaryWeaponDamageScale(int tier)
+{
+    return std::pow(1.15f, static_cast<float>((std::min)(2, tier)));
+}
+
+/// @brief 主武器が武器のときの、3段目の小さな爆発の半径（無ければ0）。
+inline float PrimaryWeaponBlastRadius(int tier)
+{
+    return tier >= 3 ? 1.3f : 0.0f;
+}
+
+/// @brief 技の強化の3段目の説明（技の種類ごと）。主武器が武器なら kind は None。
+inline std::string TierThreeText(AbilityKind kind)
+{
+    switch (kind) {
+    case AbilityKind::None:
+        return "弾が当たった所で小さく爆発する";
+    case AbilityKind::DrainBeam:
+        return "光線が近くのもう1体へ跳ねる（威力は半分）";
+    case AbilityKind::Rocket:
+        return "ロケットを2発、少し開いて撃つ";
+    case AbilityKind::Sprint:
+        return "走り出すと熱が0に戻る";
+    case AbilityKind::HealZone:
+        return "回復の場が自機について来る";
+    case AbilityKind::Barrage:
+        return "弾幕の弾が2体を貫く";
+    case AbilityKind::SelfHeal:
+        return "回復した量の半分だけ、傷も治る";
+    case AbilityKind::Phase:
+        return "使うと吸収ゲージが1.5秒ぶん溜まる";
+    case AbilityKind::BounceOrb:
+        return "跳ねるたびに球が大きくなる";
+    case AbilityKind::Lance:
+        return "太い光線の間、移動が速くなる";
+    case AbilityKind::Barrier:
+        return "バリアで弾を止めると Q のゲージが溜まる";
+    case AbilityKind::Charge:
+        return "突進の間は無敵になり、敵や弾をすり抜ける";
+    case AbilityKind::Shockwave:
+        return "衝撃波が敵の弾も消す";
+    case AbilityKind::Fortress:
+        return "大きな盾の間、HP が少しずつ戻る";
+    default:
+        return "挙動が変わる";
+    }
+}
+
+/// @brief 強化の名前（「ロケット 2段」など）。tier は今の段（買うと tier+1 段になる）。
+inline std::string UpgradeOfferName(const HeroDefinition& hero, int target, int tier)
+{
+    const AbilityDefinition& ability = UpgradeTargetAbility(hero, target);
+    const std::string name = target == 0 ? (ability.kind != AbilityKind::None ? ability.name : std::string("主武器")) : ability.name;
+    return name + " " + std::to_string(tier + 1) + "段";
+}
+
+/// @brief 強化の説明（ボタンと、次の段で変わること）。tier は今の段。
+inline std::string UpgradeOfferText(const HeroDefinition& hero, int target, int tier)
+{
+    const int next = tier + 1;
+    const AbilityDefinition& ability = UpgradeTargetAbility(hero, target);
+    const std::string button = target == 0 ? std::string("左クリック") : AbilitySlotButton(static_cast<AbilitySlot>(target - 1));
+    std::string effect;
+    if (next == 1) {
+        effect = target == 0 && ability.kind == AbilityKind::None ? "威力 ×1.15" : "威力 ×1.25";
+    } else if (next == 2) {
+        effect = target == 0 && ability.kind == AbilityKind::None ? "威力 ×1.15"
+                 : ability.cooldown > 0.0f                         ? "待ち時間 ×0.8"
+                                                                   : "効く時間 ×1.25";
+    } else {
+        effect = "挙動が変わる：" + TierThreeText(ability.kind);
+    }
+    return button + " の技を強くする。\n" + effect;
+}
 } // namespace survivor

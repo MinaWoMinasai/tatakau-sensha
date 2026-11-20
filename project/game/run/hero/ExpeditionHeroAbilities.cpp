@@ -16,7 +16,9 @@ using survivor::AbilitySlot;
 
 void ExpeditionHeroAbilities::Start(const survivor::HeroDefinition& hero)
 {
+    baseHero_ = hero;
     heroDef_ = hero;
+    tiers_.fill(0);
     active_ = true;
     clock_ = 0.0f;
     damageDealt_ = 0;
@@ -26,6 +28,16 @@ void ExpeditionHeroAbilities::Start(const survivor::HeroDefinition& hero)
     barrierExhausted_ = 0.0f;
     auto& player = *heroWorld_.resources.player_;
     ApplyPrimaryWeapon(hero);
+    // 確かめ用：MYENGINE_EXPEDITION_HERO_TIERS=段 で、すべての技をその段から始める（3 なら覚醒した挙動をすぐ見られる）。
+    wchar_t tiersText[4]{};
+    if (GetEnvironmentVariableW(L"MYENGINE_EXPEDITION_HERO_TIERS", tiersText, 4) > 0) {
+        const int startTier = (std::clamp)(_wtoi(tiersText), 0, survivor::kMaxUpgradeTier);
+        for (int target = 0; target < static_cast<int>(survivor::kUpgradeTargets); ++target) {
+            while (CanUpgrade(target) && tiers_[static_cast<size_t>(target)] < startTier) {
+                BuyUpgrade(target);
+            }
+        }
+    }
     if (hero.maxHp > 0) {
         player.SetSurvivorMaxHp(hero.maxHp, true);
     }
@@ -59,6 +71,13 @@ void ExpeditionHeroAbilities::ApplyPrimaryWeapon(const survivor::HeroDefinition&
     if (hero.primaryHeatScale > 0.0f) {
         weapon.heatScale = hero.primaryHeatScale;
     }
+    // 主武器の強化（試作の SyncSlotWeapons と同じ）：1・2段目は威力、3段目は当たった所で小さく爆発する。
+    weapon.damageScale *= survivor::PrimaryWeaponDamageScale(tiers_[0]);
+    if (const float blast = survivor::PrimaryWeaponBlastRadius(tiers_[0]); blast > 0.0f && weapon.blastRadius <= 0.0f) {
+        weapon.blastRadius = blast;
+        weapon.blastCenter = 1.0f;
+        weapon.blastSplash = 0.5f;
+    }
     const survivor::FormDefinition form = survivor::WeaponForm(forms_, weapon);
     auto& player = *heroWorld_.resources.player_;
     const PlayerClassConfig* source = player.FindCatalogClassConfig(form.sourceClass);
@@ -81,7 +100,38 @@ void ExpeditionHeroAbilities::ApplyPrimaryWeapon(const survivor::HeroDefinition&
     Player::SurvivorPartEffects effects{};
     effects.loaderRamp = form.fireRamp;
     player.SetSurvivorPartEffects(effects);
+    // 当たった所で爆発する弾（試作の榴弾砲と同じ。主武器の3段目）。無ければ消す。
+    if (weapon.blastRadius > 0.0f) {
+        heroWorld_.resources.bulletManager_->SetImpactBlast(weapon.blastRadius, weapon.blastCenter, weapon.blastSplash,
+                                                            weapon.color.w > 0.0f ? weapon.color : myEngine::Vector4{1.9f, 0.7f, 0.2f, 1.0f});
+    } else {
+        heroWorld_.resources.bulletManager_->SetImpactBlast(0.0f, 0.0f, 0.0f, {});
+    }
     primaryName_ = weapon.name;
+}
+
+bool ExpeditionHeroAbilities::CanUpgrade(int target) const
+{
+    if (!active_ || target < 0 || target >= static_cast<int>(survivor::kUpgradeTargets)) {
+        return false;
+    }
+    // 主武器はいつも強くできる。技の枠は空きでなければ。
+    const bool usable = target == 0 || survivor::UpgradeTargetAbility(baseHero_, target).kind != AbilityKind::None;
+    return usable && tiers_[static_cast<size_t>(target)] < survivor::kMaxUpgradeTier;
+}
+
+void ExpeditionHeroAbilities::BuyUpgrade(int target)
+{
+    if (!CanUpgrade(target)) {
+        return;
+    }
+    ++tiers_[static_cast<size_t>(target)];
+    // 試作の RebuildHero と同じ計算（SurvivorShop.h）。最大HPは変えない。3段目の挙動は技を使うところで UpgradeTier を見る。
+    heroDef_ = baseHero_;
+    survivor::ApplyUpgradeTiers(heroDef_, tiers_);
+    if (target == 0) {
+        ApplyPrimaryWeapon(heroDef_);
+    }
 }
 
 void ExpeditionHeroAbilities::OnRoomStart()
@@ -228,6 +278,7 @@ nlohmann::json ExpeditionHeroAbilities::MakeReport() const
     return {{"active", active_},
             {"key", heroDef_.key},
             {"primary", primaryName_},
+            {"tiers", tiers_},
             {"className", heroWorld_.resources.player_->GetCurrentClassName()},
             {"bulletDamage", heroWorld_.resources.player_->GetStats().bulletDamage},
             {"primaryShots", heroWorld_.resources.player_->GetPrimaryAttackCount()},
