@@ -25,6 +25,7 @@ void ExpeditionHeroAbilities::Start(const survivor::HeroDefinition& hero)
     barrierStamina_ = barrier_.staminaMax;
     barrierExhausted_ = 0.0f;
     auto& player = *heroWorld_.resources.player_;
+    ApplyPrimaryWeapon(hero);
     if (hero.maxHp > 0) {
         player.SetSurvivorMaxHp(hero.maxHp, true);
     }
@@ -44,6 +45,43 @@ void ExpeditionHeroAbilities::Start(const survivor::HeroDefinition& hero)
     presentation.heroUltimateRatio_ = 0.0f;
     presentation.playerStaminaRatio_ = Ability(AbilitySlot::Secondary).kind == AbilityKind::Barrier ? 1.0f : -1.0f;
     presentation.playerStaminaExhausted_ = false;
+}
+
+void ExpeditionHeroAbilities::ApplyPrimaryWeapon(const survivor::HeroDefinition& hero)
+{
+    primaryName_.clear();
+    const int index = survivor::FindWeapon(weapons_, hero.primary);
+    if (index < 0) {
+        return;
+    }
+    // 試作の SurvivorRunController::SyncSlotWeapons・ApplyFormToPlayer と同じ：機体の熱の倍率で武器の熱を上書きし、形態にして自機に入れる。
+    survivor::WeaponDefinition weapon = weapons_[static_cast<size_t>(index)];
+    if (hero.primaryHeatScale > 0.0f) {
+        weapon.heatScale = hero.primaryHeatScale;
+    }
+    const survivor::FormDefinition form = survivor::WeaponForm(forms_, weapon);
+    auto& player = *heroWorld_.resources.player_;
+    const PlayerClassConfig* source = player.FindCatalogClassConfig(form.sourceClass);
+    if (!source) {
+        source = player.GetActiveClassConfig();
+    }
+    if (!source) {
+        return;
+    }
+    Player::SurvivorFormTuning tuning{};
+    tuning.heatScale = form.heatScale;
+    tuning.railPower = form.railPower;
+    tuning.railHeatBase = form.railHeatBase;
+    tuning.railHeatPerCharge = form.railHeatPerCharge;
+    tuning.railWidthScale = form.railWidth;
+    tuning.railExtraPierce = form.railPierce;
+    tuning.bulletColor = form.color;
+    player.ApplySurvivorForm(survivor::BuildFormConfig(*source, form, weapon.form), tuning);
+    // 機関砲は、撃ち続けると速くなる加速を最初から持つ（試作の装填機の3段と同じ）。
+    Player::SurvivorPartEffects effects{};
+    effects.loaderRamp = form.fireRamp;
+    player.SetSurvivorPartEffects(effects);
+    primaryName_ = weapon.name;
 }
 
 void ExpeditionHeroAbilities::OnRoomStart()
@@ -189,6 +227,12 @@ nlohmann::json ExpeditionHeroAbilities::MakeReport() const
 {
     return {{"active", active_},
             {"key", heroDef_.key},
+            {"primary", primaryName_},
+            {"className", heroWorld_.resources.player_->GetCurrentClassName()},
+            {"bulletDamage", heroWorld_.resources.player_->GetStats().bulletDamage},
+            {"primaryShots", heroWorld_.resources.player_->GetPrimaryAttackCount()},
+            {"overheats", heroWorld_.resources.player_->GetHeat().GetOverheatCount()},
+            {"heatPerShot", heroWorld_.resources.player_->GetHeat().GetConfig().heatPerShot},
             {"maxHp", heroWorld_.resources.player_->GetMaxHp()},
             {"clock", clock_},
             {"uses", abilityUses_},

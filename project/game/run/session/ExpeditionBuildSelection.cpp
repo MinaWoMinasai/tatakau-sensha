@@ -55,7 +55,7 @@ void ExpeditionBuildSelection::LoadExpeditionHeroes()
         OutputDebugStringA(("[Expedition] hero config: " + error + "\n").c_str());
     }
     world_.run.expeditionHeroes_ = config.heroes.heroes.empty() ? survivor::DefaultHeroes() : config.heroes.heroes;
-    world_.expeditionHeroAbilities->Configure(config.barrier);
+    world_.expeditionHeroAbilities->Configure(config);
     // 札は3枚なので、今は先頭の3体まで。
     if (world_.run.expeditionHeroes_.size() > 3) {
         world_.run.expeditionHeroes_.resize(3);

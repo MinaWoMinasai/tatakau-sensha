@@ -162,6 +162,11 @@ void ExpeditionOverdrive::ApplyHeatConfig(bool force)
     config.coolPerSecond = kCoolPerSecond;
     config.coolPerSecondWhileFiring = kCoolWhileFiring;
     config.overheatSeconds = kOverheatSeconds;
+    // 機体で遊ぶとき（計画書 p5）は、機体の主武器を釣り合わせた試作の熱を土台にする。
+    if (const PlayerHeat::Config* hero = world_.expeditionHeroAbilities->HeroHeatConfig()) {
+        config = *hero;
+        config.enabled = true;
+    }
     if (Has(C::ThermalNova)) {
         config.heatPerShot *= 1.5f;
         config.overheatSeconds += 0.8f;

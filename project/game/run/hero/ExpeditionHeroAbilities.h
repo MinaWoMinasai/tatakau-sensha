@@ -10,12 +10,21 @@ class ExpeditionHeroAbilities : public HeroAbilityCore {
 public:
     explicit ExpeditionHeroAbilities(GameWorld& world) : HeroAbilityCore(world) {}
 
-    /// @brief バリアとスタミナの設定（育つ戦車の試作と同じ survivor_proto.json の barrier）。Start の前に呼ぶ。
-    void Configure(const survivor::SpawnConfig::BarrierConfig& barrier)
+    /// @brief 育つ戦車の試作と同じ設定（survivor_proto.json）から、バリアとスタミナ・武器・形態を受け取る。Start の前に呼ぶ。
+    void Configure(const survivor::SpawnConfig& config)
     {
-        barrier_ = barrier;
+        barrier_ = config.barrier;
+        weapons_ = config.weapons;
+        forms_ = config.forms;
+        heat_ = config.heat;
     }
-    /// @brief 選んだ機体で始める：最大HPを入れて満タンにし、技の状態を始めに戻し、与えたダメージで Q のゲージが溜まるようにする。
+    /// @brief 機体で遊んでいるときの熱の設定（試作と同じ。機体の主武器はこの熱で釣り合わせてある）。機体でなければ nullptr。
+    /// @note 遠征の熱（ExpeditionOverdrive）は、これを土台にして札の効果を重ねる。
+    const PlayerHeat::Config* HeroHeatConfig() const
+    {
+        return active_ ? &heat_ : nullptr;
+    }
+    /// @brief 選んだ機体で始める：主武器と最大HPを入れて満タンにし、技の状態を始めに戻し、与えたダメージで Q のゲージが溜まるようにする。
     void Start(const survivor::HeroDefinition& hero);
     /// @brief 機体で遊んでいるか。
     bool IsActive() const
@@ -68,10 +77,18 @@ private:
     void ReadInput();
     /// @brief ボットの入力：近い敵（かボス）を狙って撃ち続け、使える技はすぐ使う。
     void UpdateBot(float dt);
+    /// @brief 機体の主武器（weapons の primary）を、試作と同じ形で自機に入れる：武器 → 形態 → 自機の機体設定（砲の数・威力・連射・弾の色・熱）。
+    /// 機関砲の撃ち続けると速くなる加速も入れる。見つからなければ遠征のふつうの砲のまま。
+    void ApplyPrimaryWeapon(const survivor::HeroDefinition& hero);
 
     bool active_ = false;
     float clock_ = 0.0f;
     survivor::SpawnConfig::BarrierConfig barrier_{};
+    std::vector<survivor::WeaponDefinition> weapons_;
+    std::array<survivor::FormDefinition, survivor::kFormCount> forms_{};
+    PlayerHeat::Config heat_{};
+    /// @brief 入れた主武器の名前（記録）。
+    std::string primaryName_;
     // 与えたダメージの合計（記録）。
     uint64_t damageDealt_ = 0;
     // ボット：押したことにする枠・左右の押し続け・バリアの切り替えの時計。
