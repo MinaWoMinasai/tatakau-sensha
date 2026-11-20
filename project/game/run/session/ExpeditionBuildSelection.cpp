@@ -16,13 +16,13 @@ bool ExpeditionHeroModeWanted(const GameWorld& world)
         return false;
     }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    if (GameplayScenarioSession::Get().IsActive()) {
+    // シナリオと経路の再生は開発用の構成にしか無い（Release では値そのものが無い）。
+    if (GameplayScenarioSession::Get().IsActive() || world.resources.normalRouteReplayActive_) {
         return false;
     }
 #endif
     return !world.run.combatValidationEnabled_ && !world.run.specialValidationEnabled_ && world.validation.experienceValidationVariant_ == 0 &&
-           !world.run.expeditionMapAutoTest_ && !world.run.tankRunAutoTest_ && !world.resources.normalRouteReplayActive_ &&
-           !world.demo.titleDemo_;
+           !world.run.expeditionMapAutoTest_ && !world.run.tankRunAutoTest_ && !world.demo.titleDemo_;
 }
 
 /// @brief 機体の札の説明：最大HPと、ボタンごとの技の名前（1行に2つずつ。語の途中で折り返さないように行を分ける）。
