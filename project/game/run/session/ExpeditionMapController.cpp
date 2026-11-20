@@ -1362,7 +1362,7 @@ bool ExpeditionMapController::UpdateExpeditionHeroAutoTest()
     auto& run = world_.run;
     auto& hero = *world_.expeditionHeroAbilities;
     constexpr const char* kDirectory = "generated/expedition_hero";
-    const bool fighting = run.expeditionHeroAutoStep_ >= 4 && run.expeditionHeroAutoStep_ <= 6;
+    const bool fighting = (run.expeditionHeroAutoStep_ >= 4 && run.expeditionHeroAutoStep_ <= 6) || run.expeditionHeroAutoStep_ == 10;
     // 画面の保存が終わるまで、と画面が落ち着くまでは待つ。
     if (!run.tankRunCapturePath_.empty() || (!fighting && run.tankRunMenuAge_ < 0.8f)) {
         return !fighting;
@@ -1428,8 +1428,102 @@ bool ExpeditionMapController::UpdateExpeditionHeroAutoTest()
                                              {"startHp", world_.resources.player_->GetHp()},
                                              {"startMaxHp", world_.resources.player_->GetMaxHp()}};
             capture("hero_map");
-            run.expeditionHeroAutoStep_ = 3;
+            run.expeditionHeroAutoStep_ = run.expeditionHeroAutoFull_ ? 10 : 3;
+            if (run.expeditionHeroAutoFull_) {
+                hero.SetBotEnabled(true);
+            }
         }
+        return true;
+    case 10: {
+        // 通し（MYENGINE_EXPEDITION_HERO_FULL=1）：マップを最後まで進む。戦闘はボットが技を使って戦い、
+        // ふつうの部屋は12秒・ボスは30秒たったら残りを片付ける（時間を縮めるため。自機は無敵）。工房は1枚目を買ってみる。
+        auto& report = run.expeditionHeroAutoReport_;
+        report["fullFrames"] = report.value("fullFrames", 0) + 1;
+        if (run.expeditionMapRun_.IsComplete() || run.expeditionMapRun_.IsDead() || report["fullFrames"].get<int>() > 60 * 900) {
+            report["mapComplete"] = run.expeditionMapRun_.IsComplete();
+            report["mapDead"] = run.expeditionMapRun_.IsDead();
+            capture("hero_full_end");
+            run.expeditionHeroAutoStep_ = 11;
+            return false;
+        }
+        if (run.expeditionTransition_.IsActive()) {
+            return false;
+        }
+        if (run.expeditionMapRun_.IsChoosing()) {
+            if (run.tankRunMenuAge_ < 0.5f) {
+                return false;
+            }
+            std::string id, skip;
+            for (const auto& option : run.expeditionMapRun_.GetAvailableNodeIds()) {
+                const auto* n = tankexp::FindMapNode(run.expeditionMapRun_.GetDefinition(), option);
+                if (!n || n->role == tankexp::NodeRole::TutorialCombat) {
+                    continue;
+                }
+                if (n->role == tankexp::NodeRole::TutorialSkip) {
+                    skip = option;
+                } else if (id.empty()) {
+                    id = option;
+                }
+            }
+            id = !skip.empty() ? skip : id;
+            if (!id.empty()) {
+                RequestExpeditionMapNode(id);
+            }
+            return false;
+        }
+        const auto* node = run.expeditionMapRun_.GetActiveNode();
+        if (!node) {
+            return false;
+        }
+        if (tankexp::IsCombatNode(node->kind)) {
+            if (!run.tankExpedition_.IsCombat()) {
+                return false;
+            }
+            // 部屋に入った最初のフレームで記録を始める。
+            if (report.value("roomNode", "") != node->id) {
+                report["roomNode"] = node->id;
+                report["roomStart"] = hero.PlayClock();
+                report["rooms"].push_back({{"node", node->id},
+                                           {"kind", static_cast<int>(node->kind)},
+                                           {"hpAtStart", world_.resources.player_->GetHp()},
+                                           {"maxHp", world_.resources.player_->GetMaxHp()},
+                                           {"usesAtStart", hero.MakeReport()["uses"]},
+                                           {"damageAtStart", hero.MakeReport()["damageDealt"]}});
+                if (node->kind == tankexp::NodeKind::Boss) {
+                    capture("hero_full_boss");
+                }
+            }
+            const bool boss = node->kind == tankexp::NodeKind::Boss;
+            const float limit = boss ? 30.0f : 12.0f;
+            if (hero.PlayClock() - report.value("roomStart", 0.0f) > limit) {
+                for (auto* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+                    if (enemy && !enemy->IsDead()) {
+                        enemy->TakeDamageFromPlayer(100000);
+                    }
+                }
+                if (boss) {
+                    world_.resources.enemy_->TakeDamage(100000);
+                }
+            }
+            return false;
+        }
+        if (node->kind == tankexp::NodeKind::Upgrade || node->kind == tankexp::NodeKind::Evolution) {
+            visitShop(*node);
+        } else if (node->kind != tankexp::NodeKind::Currency) {
+            // 修理などは決まった1つ目、2回目からは先へ。
+            if (report.value("serviceTried", "") != node->id) {
+                report["serviceTried"] = node->id;
+                report["services"].push_back({{"node", node->id}, {"kind", static_cast<int>(node->kind)}, {"hp", world_.resources.player_->GetHp()}});
+                SelectExpeditionService(0);
+            } else {
+                SelectExpeditionService(3);
+            }
+        }
+        return false;
+    }
+    case 11:
+        run.expeditionHeroAutoReport_["finalHero"] = hero.MakeReport();
+        finish(run.expeditionHeroAutoReport_.value("mapComplete", false));
         return true;
     case 3: {
         // 進み方の記録（止まったときに、どのマスで止まったかを見る）。

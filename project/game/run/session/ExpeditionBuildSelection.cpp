@@ -113,6 +113,8 @@ myEngine::InitializationTask ExpeditionBuildSelection::BuildInitialization()
         world_.run.expeditionHeroAutoTest_ =
             GetEnvironmentVariableW(L"MYENGINE_EXPEDITION_HERO_AUTOTEST", autoTest, 8) > 0 ? (std::max)(0, _wtoi(autoTest)) : -1;
         world_.run.expeditionHeroAutoStep_ = 0;
+        wchar_t full[4]{};
+        world_.run.expeditionHeroAutoFull_ = GetEnvironmentVariableW(L"MYENGINE_EXPEDITION_HERO_FULL", full, 4) > 0 && full[0] == L'1';
     }
     // 導入用の2つの分岐を持たない作成済みマップでも、最初の戦闘の前にスタイルを選ばせる。
     // 独立したAI用フィクスチャにはマップの入力が無い。
