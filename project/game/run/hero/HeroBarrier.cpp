@@ -1,4 +1,5 @@
-#include "game/run/session/SurvivorRunController.h"
+#include "game/run/hero/HeroAbilityCore.h"
+#include "game/session/GameWorld.h"
 #include "Calculation.h"
 #include "game/render/neon/NeonGridRenderer.h"
 #include "game/session/GameplaySystems.h"
@@ -7,7 +8,8 @@
 #include <cmath>
 #include <vector>
 
-// 育つ戦車の試作のバリアとスタミナ（計画書 p3 の X3）。右クリックを押している間、自機の前に扇形のバリアを張り、敵の弾と寄ってくる敵を止める。
+// バリアとスタミナ（計画書 p3 の X3、p5 の H1 で SurvivorRunBarrier.cpp から移した）。右クリックを押している間、自機の前に扇形のバリアを張り、
+// 敵の弾と寄ってくる敵を止める。育つ戦車の試作の武器の遊び方と、機体（タンク型）の右クリックで使う。
 
 namespace gameplay {
 namespace {
@@ -88,25 +90,25 @@ float WrapAngle(float angle)
 }
 } // namespace
 
-bool SurvivorRunController::IsInsideBarrier(const myEngine::Vector3& position, float margin) const
+bool HeroAbilityCore::IsInsideBarrier(const myEngine::Vector3& position, float margin) const
 {
-    const myEngine::Vector3 player = world_.resources.player_->GetWorldPosition();
+    const myEngine::Vector3 player = heroWorld_.resources.player_->GetWorldPosition();
     const myEngine::Vector3 delta{position.x - player.x, position.y - player.y, 0.0f};
     const float distance = myEngine::Length(delta);
-    if (distance > config_.barrier.radius + margin) {
+    if (distance > HeroBarrierSettings().radius + margin) {
         return false;
     }
     if (distance < 0.001f) {
         return true;
     }
-    const myEngine::Vector3 direction = world_.resources.player_->GetDirection();
+    const myEngine::Vector3 direction = heroWorld_.resources.player_->GetDirection();
     const float facing = std::atan2(direction.y, direction.x);
-    return std::abs(WrapAngle(std::atan2(delta.y, delta.x) - facing)) <= config_.barrier.arcDegrees * 0.5f * kPi / 180.0f;
+    return std::abs(WrapAngle(std::atan2(delta.y, delta.x) - facing)) <= HeroBarrierSettings().arcDegrees * 0.5f * kPi / 180.0f;
 }
 
-void SurvivorRunController::UpdateBarrier(float dt, bool wanted)
+void HeroAbilityCore::UpdateBarrier(float dt, bool wanted)
 {
-    const auto& barrier = config_.barrier;
+    const auto& barrier = HeroBarrierSettings();
     barrierExhausted_ = (std::max)(0.0f, barrierExhausted_ - dt);
     barrierFlash_ = (std::max)(0.0f, barrierFlash_ - dt * 4.0f);
     barrierAge_ += dt;
@@ -117,16 +119,16 @@ void SurvivorRunController::UpdateBarrier(float dt, bool wanted)
     barrierOn_ = wanted && !barrierAwaitRelease_ && barrierExhausted_ <= 0.0f && barrierStamina_ > 0.0f;
 
     // 機体の技の強化（K7）：バリアの強さ（power）でスタミナの減り方を割る。3段目は弾を止めると Q のゲージが溜まる。
-    const survivor::AbilityDefinition* heroBarrier = HeroMode() ? FindAbility(survivor::AbilityKind::Barrier) : nullptr;
+    const survivor::AbilityDefinition* heroBarrier = HeroActive() ? FindAbility(survivor::AbilityKind::Barrier) : nullptr;
     const float staminaScale = heroBarrier ? 1.0f / (std::max)(0.1f, heroBarrier->power) : 1.0f;
     if (barrierOn_) {
         barrierRegenWait_ = barrier.regenDelay;
         barrierStamina_ -= barrier.drainPerSecond * staminaScale * dt;
         barrierSeconds_ += dt;
-        auto& player = *world_.resources.player_;
+        auto& player = *heroWorld_.resources.player_;
         const myEngine::Vector3 center = player.GetWorldPosition();
         // 敵の弾：入ってきたら消し、スタミナを減らす。
-        for (Bullet* bullet : world_.resources.bulletManager_->GetBulletPtrs()) {
+        for (Bullet* bullet : heroWorld_.resources.bulletManager_->GetBulletPtrs()) {
             if (!bullet || bullet->IsDead() || bullet->GetOwner() == kPlayer || !IsInsideBarrier(bullet->GetWorldPosition(), bullet->GetRadius())) {
                 continue;
             }
@@ -143,7 +145,7 @@ void SurvivorRunController::UpdateBarrier(float dt, bool wanted)
             }
         }
         // 敵：バリアの外の縁まで押し返す。触れている数だけ、スタミナが少しずつ減る。
-        for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+        for (ExpEnemy* enemy : heroWorld_.resources.enemyManager_->GetEnemyPtrs()) {
             if (!enemy || enemy->IsDead() || !IsInsideBarrier(enemy->GetWorldPosition(), enemy->GetRadius())) {
                 continue;
             }
@@ -153,7 +155,7 @@ void SurvivorRunController::UpdateBarrier(float dt, bool wanted)
             away = distance > 0.001f ? away / distance : player.GetDirection();
             const myEngine::Vector3 pushed = center + away * (barrier.radius + enemy->GetRadius());
             // 壁の中へは押し込まない（そのときは止めるだけにする）。
-            if (!world_.resources.stage_->IsCollisionWithAnyBlock(pushed, enemy->GetRadius())) {
+            if (!heroWorld_.resources.stage_->IsCollisionWithAnyBlock(pushed, enemy->GetRadius())) {
                 enemy->SetWorldPosition({pushed.x, pushed.y, position.z});
             }
             barrierStamina_ -= barrier.contactPerSecond * dt;
@@ -166,25 +168,25 @@ void SurvivorRunController::UpdateBarrier(float dt, bool wanted)
             barrierAwaitRelease_ = true;
             barrierOn_ = false;
             ++barrierBreaks_;
-            world_.combatFlow->SetEventCallout("スタミナ切れ", 0.8f);
+            heroWorld_.combatFlow->SetEventCallout("スタミナ切れ", 0.8f);
         }
     } else if (barrierRegenWait_ > 0.0f) {
         barrierRegenWait_ -= dt;
     } else {
         barrierStamina_ = (std::min)(barrier.staminaMax, barrierStamina_ + barrier.regenPerSecond * dt);
     }
-    world_.presentation.playerStaminaRatio_ = barrierStamina_ / (std::max)(1.0f, barrier.staminaMax);
-    world_.presentation.playerStaminaExhausted_ = barrierExhausted_ > 0.0f;
+    heroWorld_.presentation.playerStaminaRatio_ = barrierStamina_ / (std::max)(1.0f, barrier.staminaMax);
+    heroWorld_.presentation.playerStaminaExhausted_ = barrierExhausted_ > 0.0f;
 }
 
-void SurvivorRunController::QueueBarrier(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraForward) const
+void HeroAbilityCore::QueueBarrier(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraForward) const
 {
     if (!barrierOn_) {
         return;
     }
-    const auto& barrier = config_.barrier;
-    const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};
-    const myEngine::Vector3 direction = world_.resources.player_->GetDirection();
+    const auto& barrier = HeroBarrierSettings();
+    const myEngine::Vector3 center = heroWorld_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};
+    const myEngine::Vector3 direction = heroWorld_.resources.player_->GetDirection();
     const float facing = std::atan2(direction.y, direction.x);
     const float halfArc = barrier.arcDegrees * 0.5f * kPi / 180.0f;
     // 網目は扇の中で固定し、機体の向きと一緒に回す。弾を止めた瞬間は白く光らせる。
@@ -220,7 +222,7 @@ void SurvivorRunController::QueueBarrier(myEngine::NeonGridRenderer& renderer, c
     line(point(0.28f, halfArc), point(rimPolar, halfArc), 0.09f);
 }
 
-size_t SurvivorRunController::BarrierNetSegmentCount() const
+size_t HeroAbilityCore::BarrierNetSegmentCount() const
 {
     return BarrierNet().size();
 }
