@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <numeric>
 #include <optional>
+#include <set>
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
 #include "externals/imgui/imgui.h"
 #endif
@@ -775,13 +776,26 @@ void ExpeditionMapController::RefreshExpeditionServiceOffers()
             for (const unsigned char c : node->id) {
                 state = (state ^ c) * 16777619u;
             }
-            world_.run.expeditionServiceOffers_ =
-                tankcontent::BuildShopOffers(world_.run.expeditionContent_, world_.run.expeditionBuildStyle_,
-                                             world_.run.tankRun_.GetCardCounts(), world_.run.expeditionPurchases_, state);
+            world_.run.expeditionServiceOffers_ = BuildExpeditionShopOffers(state);
         }
     }
     world_.run.expeditionServicePage_ = (std::clamp)(world_.run.expeditionServicePage_, 0,
                                                      (std::max)(0, (static_cast<int>(world_.run.expeditionServiceOffers_.size()) - 1) / 3));
+}
+
+std::vector<std::string> ExpeditionMapController::BuildExpeditionShopOffers(uint32_t seed) const
+{
+    // 機体で遊ぶときは、全機体に効く共通の札だけから引く（計画書 p5 の H4）。
+    if (world_.run.expeditionHeroMode_) {
+        tankcontent::Catalog heroCatalog = world_.run.expeditionContent_;
+        std::erase_if(heroCatalog.upgrades, [](const tankcontent::Upgrade& u) {
+            return !tankcontent::IsHeroModeUpgrade(u);
+        });
+        return tankcontent::BuildShopOffers(heroCatalog, world_.run.expeditionBuildStyle_, world_.run.tankRun_.GetCardCounts(),
+                                            world_.run.expeditionPurchases_, seed);
+    }
+    return tankcontent::BuildShopOffers(world_.run.expeditionContent_, world_.run.expeditionBuildStyle_,
+                                        world_.run.tankRun_.GetCardCounts(), world_.run.expeditionPurchases_, seed);
 }
 
 bool ExpeditionMapController::IsIntroExpeditionService() const
@@ -893,7 +907,8 @@ void ExpeditionMapController::SelectExpeditionService(int option)
             if (!upgrade) {
                 return;
             }
-            if (!tankcontent::EligibleUpgrade(*upgrade, world_.run.expeditionBuildStyle_, world_.run.tankRun_.GetCardCounts())) {
+            if (!tankcontent::EligibleUpgrade(*upgrade, world_.run.expeditionBuildStyle_, world_.run.tankRun_.GetCardCounts()) ||
+                (world_.run.expeditionHeroMode_ && !tankcontent::IsHeroModeUpgrade(*upgrade))) {
                 world_.run.expeditionMapStatus_ = "このスタイルには装備できない強化です。";
                 reject();
                 return;
@@ -1363,10 +1378,34 @@ bool ExpeditionMapController::UpdateExpeditionHeroAutoTest()
         run.expeditionHeroAutoReport_["style"] = tankbuild::Id(run.expeditionBuildStyle_);
         run.expeditionHeroAutoReport_["abilities"] = hero.MakeReport();
         run.expeditionHeroAutoReport_["bossHp"] = world_.resources.enemy_->GetHp();
+        run.expeditionHeroAutoReport_["cards"] = run.tankRun_.GetCardCounts();
+        // 工房の品ぞろえ：実際の抽選を64通りの種で引き、出た札をまとめる（機体のときは共通の札だけのはず）。
+        std::set<std::string> seen;
+        for (uint32_t seed = 1; seed <= 64; ++seed) {
+            for (const auto& id : BuildExpeditionShopOffers(seed * 2654435761u)) {
+                seen.insert(id);
+            }
+        }
+        run.expeditionHeroAutoReport_["shopSweep"] = seen;
+        run.expeditionHeroAutoReport_["endMaxHp"] = world_.resources.player_->GetMaxHp();
         run.expeditionHeroAutoReport_["playerHp"] = world_.resources.player_->GetHp();
         std::ofstream(std::string(kDirectory) + "/validation.json") << std::setw(2) << run.expeditionHeroAutoReport_ << '\n';
         PostQuitMessage(completed && selected ? 0 : 4);
         run.expeditionHeroAutoTest_ = -1;
+    };
+    // 工房：並んだ札を記録し、1回目は1枚目を買ってみる（買えなければ次で先へ）。2回目からは先へ進む。
+    auto visitShop = [&](const tankexp::MapNode& node) {
+        if (run.expeditionHeroAutoReport_.value("shopTried", "") != node.id) {
+            run.expeditionHeroAutoReport_["shopTried"] = node.id;
+            run.expeditionHeroAutoReport_["shops"].push_back({{"node", node.id},
+                                                              {"intro", IsIntroExpeditionService()},
+                                                              {"offers", run.expeditionServiceOffers_},
+                                                              {"maxHpBefore", world_.resources.player_->GetMaxHp()},
+                                                              {"currency", run.expeditionMapRun_.GetCurrency()}});
+            SelectExpeditionService(0);
+        } else {
+            SelectExpeditionService(3);
+        }
     };
     switch (run.expeditionHeroAutoStep_) {
     case 0:
@@ -1444,8 +1483,10 @@ bool ExpeditionMapController::UpdateExpeditionHeroAutoTest()
         }
         // 通貨のマス（説明をスキップを含む）は、ふつうの更新が受け取って先へ進める。
         // 取引のマス：工房は何も買わずに先へ、ほかは決まった1つ目を選ぶ。どちらも、ふつうの更新は止めない。
-        if (node->kind != tankexp::NodeKind::Currency) {
-            SelectExpeditionService(node->kind == tankexp::NodeKind::Upgrade || node->kind == tankexp::NodeKind::Evolution ? 3 : 0);
+        if (node->kind == tankexp::NodeKind::Upgrade || node->kind == tankexp::NodeKind::Evolution) {
+            visitShop(*node);
+        } else if (node->kind != tankexp::NodeKind::Currency) {
+            SelectExpeditionService(0);
         }
         return false;
     }
@@ -1470,6 +1511,26 @@ bool ExpeditionMapController::UpdateExpeditionHeroAutoTest()
                     enemy->TakeDamageFromPlayer(100000);
                 }
             }
+            return false;
+        }
+        // 戦闘の後、隣に工房があれば寄って、機体のときの札の抽選（導入ではない工房）を確かめてからボス戦へ。
+        if (run.expeditionHeroAutoReport_["shops"].size() < 2) {
+            if (run.expeditionMapRun_.IsChoosing()) {
+                for (const auto& option : run.expeditionMapRun_.GetAvailableNodeIds()) {
+                    const auto* n = tankexp::FindMapNode(run.expeditionMapRun_.GetDefinition(), option);
+                    run.expeditionHeroAutoReport_["afterCombatOptions"][option] = n ? static_cast<int>(n->kind) : -1;
+                    if (n && (n->kind == tankexp::NodeKind::Upgrade || n->kind == tankexp::NodeKind::Evolution)) {
+                        RequestExpeditionMapNode(option);
+                        return false;
+                    }
+                }
+            } else if (const auto* node = run.expeditionMapRun_.GetActiveNode();
+                       node && (node->kind == tankexp::NodeKind::Upgrade || node->kind == tankexp::NodeKind::Evolution)) {
+                visitShop(*node);
+                return false;
+            }
+        }
+        if (!run.expeditionMapRun_.IsChoosing() || run.expeditionTransition_.IsActive()) {
             return false;
         }
         world_.bossPresentation->RequestNeonBossDeveloperEncounter();

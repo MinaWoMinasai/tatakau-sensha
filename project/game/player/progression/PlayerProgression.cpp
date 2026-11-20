@@ -1094,6 +1094,10 @@ void PlayerProgression::RecalculateStatsFromBase(bool healToFull)
     // 機体の最大HP（育つ戦車の試作の機体の遊び方）。
     if (player_.survivorMaxHp_ > 0) {
         player_.stats_.maxHp = static_cast<float>(player_.survivorMaxHp_);
+        // 遠征の機体（計画書 p5 の H4）：装甲修復の札の倍率は、機体の最大HPにも掛ける（試作には札が無いので変わらない）。
+        if (player_.runModifiers_.expedition) {
+            player_.stats_.maxHp *= derivedStatsInput.runTuning.maxHp;
+        }
     }
     player_.SetDamage(static_cast<uint32_t>((std::max)(1.0f, player_.stats_.bodyDamage)));
     player_.hp_ = ResolvePlayerRecalculatedHp(player_.hp_, oldMaxHp, player_.GetMaxHp(), healToFull);

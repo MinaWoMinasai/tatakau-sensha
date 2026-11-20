@@ -68,6 +68,8 @@ public:
     /// @brief 遠征マップ検証を更新する。
     /// @param dt この処理で進める経過時間（秒）。
     void UpdateExpeditionMapValidation(float dt);
+    /// @brief 工房（導入ではない）に並べる札を、seed で引く。機体で遊ぶときは全機体に効く共通の札だけから引く。
+    std::vector<std::string> BuildExpeditionShopOffers(uint32_t seed) const;
     /// @brief 機体を選ぶ自動確認（計画書 p5 の H2）：選ぶ画面と選んだ後のマップを保存し、結果を書いて終わる。動かしている間は真。
     bool UpdateExpeditionHeroAutoTest();
 

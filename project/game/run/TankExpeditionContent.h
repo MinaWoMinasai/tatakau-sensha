@@ -348,6 +348,20 @@ inline bool IsBehaviorUpgrade(const Upgrade& upgrade)
     return false;
 }
 
+/// @brief 機体で遊ぶとき（計画書 p5 の H4）にショップへ出す札か。今は全機体に効く共通のものだけにする
+/// （戦い方専用の札は機体の主武器や技と合わず、ダッシュ・ジャスト回避の札は機体ではダッシュが無いので効かない。機体専用の札は後で足す）。
+inline bool IsHeroModeUpgrade(const Upgrade& upgrade)
+{
+    using C = tankrun::CardId;
+    constexpr std::array<C, 5> allowed{C::Heavy, C::Rapid, C::Thrusters, C::Repair, C::ChainDetonation};
+    for (const auto effect : upgrade.effects) {
+        if (std::find(allowed.begin(), allowed.end(), effect) == allowed.end()) {
+            return false;
+        }
+    }
+    return !upgrade.effects.empty();
+}
+
 /// @brief Shop候補を組み立てる。
 inline std::vector<std::string> BuildShopOffers(const Catalog& catalog, tankbuild::Style style, const tankrun::CardCounts& owned,
                                                 const std::unordered_map<std::string, int>& purchased, std::uint32_t seed)

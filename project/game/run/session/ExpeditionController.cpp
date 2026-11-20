@@ -829,7 +829,10 @@ void ExpeditionController::RefreshTankExpeditionUi()
     const char* features[] = {"跳弾ビルド", "突撃ビルド", "群体ビルド", "標準戦車"};
     const auto core = (std::clamp)(static_cast<int>(world_.run.tankRun_.GetCore()), 0, 3);
     std::string build = std::string("BUILD / ") + (world_.run.tankRun_.GetDraftCount() < 2 ? "基本射撃" : features[core]);
-    const std::string combatStyle = world_.resources.player_->IsMeleeBuild()   ? "近接ブレード"
+    // 機体で遊ぶとき（計画書 p5 の H4）は、戦い方の代わりに機体の名前を出す。
+    const survivor::HeroDefinition* hero = world_.expeditionBuildSelection->SelectedExpeditionHero();
+    const std::string combatStyle = hero                                       ? hero->name
+                                    : world_.resources.player_->IsMeleeBuild() ? "近接ブレード"
                                     : world_.resources.player_->IsDroneBuild() ? "ドローン編隊"
                                                                                : "シューター";
     if (world_.run.expeditionMapEnabled_) {
@@ -857,7 +860,8 @@ void ExpeditionController::RefreshTankExpeditionUi()
         }
     }
     if (!world_.run.tankRun_.GetDraftCount()) {
-        build += world_.resources.player_->IsMeleeBuild()   ? "\n基本装備 / 3段斬り"
+        build += hero                                       ? std::string("\n主武器 / ") + world_.resources.player_->GetCurrentClassName()
+                 : world_.resources.player_->IsMeleeBuild() ? "\n基本装備 / 3段斬り"
                  : world_.resources.player_->IsDroneBuild() ? "\n基本装備 / 左クリックで指揮"
                                                             : "\n基本装備 / 単発射撃";
         details << (world_.run.expeditionMapEnabled_ ? "\nまだ強化を取得していません" : "\nまだ改造を取得していません");
