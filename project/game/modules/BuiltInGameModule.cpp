@@ -21,6 +21,9 @@ bool BuiltInGameModule::RegisterScenes(SceneRegistry& registry) const
     success = registry.Register("TANK_EXPEDITION", []() {
         return std::make_unique<GameScene>(gameplay::RunMode::Expedition);
     }) && success;
-    // 発表用：遠征だけを出す。TANK_SURVIVOR を登録しないと、タイトルの2つ目の項目は出ない。
+    // 試作モード（計画書 p7：無限の場の試作。設定は survivor_endless.json）。タイトルの2つ目の項目から入る。
+    success = registry.Register("TANK_SURVIVOR", []() {
+        return std::make_unique<GameScene>(gameplay::RunMode::Survivor);
+    }) && success;
     return success;
 }

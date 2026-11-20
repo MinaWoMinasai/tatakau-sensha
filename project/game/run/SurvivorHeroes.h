@@ -125,6 +125,10 @@ struct HeroesConfig {
     /// @brief 出撃する機体（K6 で拠点の選ぶ画面にする）。
     std::string start = "soldier";
     std::vector<HeroDefinition> heroes;
+    /// @brief 機体の移動の速さの倍率（計画書 p7。敵とほぼ同じ速さにする。1 で今までと同じ）。
+    float moveScale = 1.0f;
+    /// @brief 押さなくても向いている方へ主砲を撃ち続けるか（計画書 p7。HoloCure と同じ。遊んでいる間も F で切り替え）。
+    bool autoFire = false;
 };
 
 /// @brief 設定ファイルが無いときの機体。ソルジャー型（K1）・モイラ型（K2）・タンク型（K7。最初に解放する）。

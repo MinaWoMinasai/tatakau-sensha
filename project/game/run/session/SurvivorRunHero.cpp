@@ -38,6 +38,7 @@ void SurvivorRunController::StartHero()
     }
     hero_ = static_cast<int>(index);
     heroDef_ = config_.heroes.heroes[index];
+    heroAutoFire_ = config_.heroes.autoFire;
     upgradeTiers_.fill(0);
     perks_.fill(false);
     // 枠は1つ目だけを使う（コモン・チップなし）。弾は数えない（LoadAmmoToPlayer）。
@@ -78,8 +79,14 @@ void SurvivorRunController::UpdateHeroInput()
     auto pressed = [&](AbilitySlot slot, bool keyTriggered) {
         return bot ? autoHeroPress_[static_cast<size_t>(slot)] : keyTriggered;
     };
+    // F：自動で撃つの切り替え（計画書 p7）。自動で撃つときは、押さなくても向いている方へ撃ち続ける（向きはマウスか右スティック）。
+    if (!bot && input.IsKeyTriggered(DIK_F)) {
+        heroAutoFire_ = !heroAutoFire_;
+        world_.combatFlow->SetEventCallout(heroAutoFire_ ? "自動で撃つ：オン（F で切り替え）" : "自動で撃つ：オフ（F で切り替え）", 1.0f);
+    }
+    world_.resources.player_->SetAutoFire(heroAutoFire_ && !bot);
     // 左クリック・右クリックを押しているか（押している間の技：吸い付く光線・自分を回復）。
-    primaryHeld_ = bot ? true : input.IsPress(input.GetMouseState().rgbButtons[0]);
+    primaryHeld_ = bot ? true : heroAutoFire_ || input.IsPress(input.GetMouseState().rgbButtons[0]);
     secondaryHeld_ = bot ? autoSecondaryHold_ : input.IsPress(input.GetMouseState().rgbButtons[1]);
     // 右クリック：押している間の技（バリア）は UpdateBarrier で見る。押した瞬間の技（ロケット）はここで使う。
     if (!survivor::IsHeldAbility(Ability(AbilitySlot::Secondary).kind) &&

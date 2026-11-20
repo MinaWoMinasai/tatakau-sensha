@@ -963,7 +963,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         {
             const std::string path = std::string(kAutoTestDirectory) + "/config_roundtrip.json";
             std::error_code ignored;
-            std::filesystem::copy_file(kConfigPath, path, std::filesystem::copy_options::overwrite_existing, ignored);
+            std::filesystem::copy_file(ConfigPath(), path, std::filesystem::copy_options::overwrite_existing, ignored);
             std::string error;
             survivor::SpawnConfig loaded;
             if (survivor::SaveSpawnConfig(path, ConfigForSaving(), error) && survivor::LoadSpawnConfig(path, loaded, error)) {

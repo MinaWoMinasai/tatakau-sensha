@@ -427,6 +427,12 @@ private:
     {
         return config_.barrier;
     }
+    float HeroBaseMoveScale() const override
+    {
+        return config_.heroes.moveScale;
+    }
+    /// @brief 押さなくても向いている方へ主砲を撃ち続けるか（計画書 p7。最初は config_.heroes.autoFire、F で切り替え）。
+    bool heroAutoFire_ = false;
     // 技を使う・進める・当てる・見た目・バリアは土台の HeroAbilityCore（game/run/hero）。ここは試作に固有の所だけ持つ。
     /// @brief 設定の start の機体を選び、主武器を1つ目の枠に入れて構える（弾は数えない）。見つからなければ機体を使わない。
     void StartHero();

@@ -2,6 +2,9 @@
 #include "Struct.h"
 #include <algorithm>
 #include <array>
+#include <filesystem>
+#include <system_error>
+#include <Windows.h>
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -12,6 +15,20 @@ namespace gameplay::survivorrun {
 /// @brief 自動確認と遊んだ記録の出力先。
 inline constexpr const char* kAutoTestDirectory = "generated/tank_survivor";
 inline constexpr const char* kConfigPath = "resources/configs/survivor_proto.json";
+/// @brief 無限の場の試作（計画書 p7）の設定。あれば試作モードはこちらを使う。
+inline constexpr const char* kEndlessConfigPath = "resources/configs/survivor_endless.json";
+
+/// @brief 試作モードが読み書きする設定ファイル。MYENGINE_SURVIVOR_CONFIG があればそれ（例：前の試作に戻すなら
+/// resources/configs/survivor_proto.json）、無ければ無限の場の試作の設定、それも無ければ前の試作の設定。
+inline std::string ConfigPath()
+{
+    char path[260]{};
+    if (GetEnvironmentVariableA("MYENGINE_SURVIVOR_CONFIG", path, sizeof(path)) > 0) {
+        return path;
+    }
+    std::error_code error;
+    return std::filesystem::exists(kEndlessConfigPath, error) ? kEndlessConfigPath : kConfigPath;
+}
 inline constexpr const char* kContentPath = "resources/configs/expedition_content.json";
 // 格子 45×30 全体を外壁で囲んだ部屋（約90×60）。画面の約2×2.4倍の広さ。
 inline constexpr const char* kArenaMap = "resources/maps/survivor_arena.csv";

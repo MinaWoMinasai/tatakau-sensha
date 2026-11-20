@@ -34,7 +34,7 @@ void SurvivorRunController::Initialize()
 
     // 湧き方の設定と、敵戦車の性能（遠征と同じ制作カタログ）を読む。読めなければ既定値で続ける。
     std::string error;
-    if (!survivor::LoadSpawnConfig(kConfigPath, config_, error)) {
+    if (!survivor::LoadSpawnConfig(ConfigPath(), config_, error)) {
         OutputDebugStringA(("[Survivor] " + error + "\n").c_str());
     }
     fileExitOpenSeconds_ = config_.exitOpenSeconds;
@@ -76,7 +76,7 @@ void SurvivorRunController::Initialize()
 
     // 試作用の広い部屋に差し替え、自機とカメラを中央に置く。カメラは CombatFramePipeline が自機を追い、
     // 部屋の外枠（ArenaBounds）からはみ出さないように止める。
-    if (!world_.resources.stage_->LoadRunMap(kArenaMap)) {
+    if (!world_.resources.stage_->LoadRunMap(config_.arenaMap.c_str())) {
         OutputDebugStringA("[Survivor] arena map could not be loaded\n");
     }
     world_.presentation.stagePostCacheValid_ = false;
@@ -466,6 +466,8 @@ void SurvivorRunController::Initialize()
 void SurvivorRunController::Update(float dt)
 {
     myEngine::RuntimeProfiler::CpuScope scope("Survivor Update");
+    // 自動で撃つのは、戦っている間に機体の入力を読むとき（UpdateHeroInput）だけ入れる。ショップ・持ち物・ポーズでは撃たない。
+    world_.resources.player_->SetAutoFire(false);
     if (world_.combat.phase_ != Phase::kMain) {
         return;
     }
@@ -744,7 +746,7 @@ void SurvivorRunController::UpdateTuningPanel()
     if (result.reloadRequested) {
         survivor::SpawnConfig loaded;
         std::string error;
-        if (survivor::LoadSpawnConfig(kConfigPath, loaded, error)) {
+        if (survivor::LoadSpawnConfig(ConfigPath(), loaded, error)) {
             // 武器の枠を使うかは起動の設定（環境変数）のままにする。
             loaded.weaponsEnabled = config_.weaponsEnabled;
             config_ = loaded;
@@ -779,7 +781,7 @@ void SurvivorRunController::UpdateTuningPanel()
     }
     if (result.saveRequested) {
         std::string error;
-        tuningStatus_ = survivor::SaveSpawnConfig(kConfigPath, ConfigForSaving(), error) ? std::string("保存しました") : error;
+        tuningStatus_ = survivor::SaveSpawnConfig(ConfigPath(), ConfigForSaving(), error) ? std::string("保存しました") : error;
     }
 #endif
 }

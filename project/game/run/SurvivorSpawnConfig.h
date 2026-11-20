@@ -35,6 +35,8 @@ struct SpawnConfig {
 
     float exitOpenSeconds = 180.0f;
     float exitRadius = 3.0f;
+    /// @brief 場のマップ（resources からの CSV。計画書 p7 の無限の場の試作では柱の無い広い部屋）。
+    std::string arenaMap = "resources/maps/survivor_arena.csv";
     float ringMinDistance = 26.0f;
     float ringMaxDistance = 36.0f;
     float maxSpawnsPerSecond = 10.0f;
@@ -412,6 +414,9 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         value.interval = (std::max)(0.5f, value.interval);
     };
     number(data, "exitOpenSeconds", config.exitOpenSeconds);
+    if (data.contains("arenaMap") && data.at("arenaMap").is_string()) {
+        config.arenaMap = data.at("arenaMap").get<std::string>();
+    }
     number(data, "exitRadius", config.exitRadius);
     if (data.contains("spawnRing")) {
         const auto& ring = data.at("spawnRing");
@@ -782,6 +787,12 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         }
         if (heroes.contains("start") && heroes.at("start").is_string()) {
             config.heroes.start = heroes.at("start").get<std::string>();
+        }
+        if (heroes.contains("moveScale") && heroes.at("moveScale").is_number()) {
+            config.heroes.moveScale = (std::clamp)(heroes.at("moveScale").get<float>(), 0.2f, 2.0f);
+        }
+        if (heroes.contains("autoFire") && heroes.at("autoFire").is_boolean()) {
+            config.heroes.autoFire = heroes.at("autoFire").get<bool>();
         }
         for (const auto& item : heroes.items()) {
             if (!item.value().is_object()) {
@@ -1200,6 +1211,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     };
 
     data["exitOpenSeconds"] = round(config.exitOpenSeconds);
+    data["arenaMap"] = config.arenaMap;
     data["exitRadius"] = round(config.exitRadius);
     auto& ring = section("spawnRing");
     ring["minDistance"] = round(config.ringMinDistance);
@@ -1370,6 +1382,8 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     auto& heroes = section("heroes");
     heroes["enabled"] = config.heroes.enabled;
     heroes["start"] = config.heroes.start;
+    heroes["moveScale"] = round(config.heroes.moveScale);
+    heroes["autoFire"] = config.heroes.autoFire;
     for (const auto& hero : config.heroes.heroes) {
         auto& item = heroes[hero.key];
         item["name"] = hero.name;
@@ -1637,8 +1651,8 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 39> kOrder{
-        "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
+    static constexpr std::array<const char*, 40> kOrder{
+        "schemaVersion", "comment",   "arenaMap", "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
         "heat",          "shield",    "forms",           "weapons",       "heroes",        "loot",          "crafting",      "stages",        "waves",         "health",        "shop",        "barrier",       "elites",        "audio",         "glow",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
         "partTuning",    "bigPentagon", "damageNumbers"};
