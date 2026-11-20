@@ -46,13 +46,16 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
     player_.heat_.Update(deltaTime);
     if (player_.partEffects_.loaderRamp) {
         // 3秒撃ち続けると最大。撃つのをやめると0.5秒で戻る。
-        const bool firing = (player_.demoInputEnabled_ ? player_.demoShoot_ : player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[0])) &&
+        const bool firing = (player_.demoInputEnabled_ ? player_.demoShoot_
+                                                       : player_.IsAutoAimFiring() || player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[0])) &&
                             player_.heat_.CanFire();
         player_.loaderRamp_ = (std::clamp)(player_.loaderRamp_ + (firing ? deltaTime / 3.0f : -deltaTime * 2.0f), 0.0f, 1.0f);
     }
 
-    bool wantsPrimaryAttack =
-        player_.demoInputEnabled_ ? player_.demoShoot_ : player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[0]);
+    // 自動で狙う（遠征の機体）ときは、狙う相手がいる間ずっと撃つ。
+    bool wantsPrimaryAttack = player_.demoInputEnabled_
+                                  ? player_.demoShoot_
+                                  : player_.IsAutoAimFiring() || player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[0]);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     wantsPrimaryAttack = wantsPrimaryAttack || player_.debugAutoFireEnabled_;
 #endif

@@ -12,6 +12,7 @@
   },
   "bossMaxHp": 900,
   "heroMoveScale": 0.7,
+  "heroAutoAim": true,
   "combatStyles": {
     "drone": {
       "attackDamage": 3.0,
