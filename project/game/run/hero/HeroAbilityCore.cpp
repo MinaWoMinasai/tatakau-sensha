@@ -35,6 +35,9 @@ void HeroAbilityCore::ResetHeroState()
     chargeTimer_ = 0.0f;
     fortressTimer_ = 0.0f;
     shockAge_ = 10.0f;
+    burstShotsLeft_ = 0;
+    burstShotTimer_ = 0.0f;
+    burstCooldown_ = 0.0f;
     orbitTick_ = 0.0f;
     turretTimer_ = 0.5f;
     mineTimer_ = 1.0f;
@@ -218,6 +221,9 @@ void HeroAbilityCore::UpdateHeroAbilities(float dt)
     }
     if (Hero().primaryAbility.kind == AbilityKind::DrainBeam) {
         UpdateDrainBeam(dt, Hero().primaryAbility);
+    }
+    if (Hero().primaryAbility.kind == AbilityKind::BurstGun) {
+        UpdateBurstGun(dt, Hero().primaryAbility);
     }
     if (const survivor::AbilityDefinition* heal = FindAbility(AbilityKind::SelfHeal)) {
         UpdateSelfHeal(dt, *heal);
@@ -912,6 +918,52 @@ void HeroAbilityCore::UpdateFortress(float dt, const survivor::AbilityDefinition
         TriggerShockwave(center, ability.radius * 1.6f, damage, 0.6f, false);
         fortressDamage_ = before + static_cast<uint64_t>(damage);
         ++fortressBlasts_;
+    }
+}
+
+void HeroAbilityCore::UpdateBurstGun(float dt, const survivor::AbilityDefinition& ability)
+{
+    const survivor::BurstGunStats stats = survivor::BurstGunAt(ability, UpgradeTier(0));
+    burstCooldown_ = (std::max)(0.0f, burstCooldown_ - dt);
+    if (burstShotsLeft_ <= 0) {
+        // 待ち時間が明けて、押していれば次の連射を始める（自動で撃つなら押していることになる）。
+        if (burstCooldown_ > 0.0f || !primaryHeld_) {
+            return;
+        }
+        burstShotsLeft_ = stats.shots;
+        burstShotTimer_ = 0.0f;
+        ++burstVolleys_;
+    }
+    auto& player = *heroWorld_.resources.player_;
+    const myEngine::Vector3 aim = myEngine::NormalizeOr(player.GetDirection(), myEngine::Vector3{1.0f, 0.0f, 0.0f}, 0.001f);
+    burstShotTimer_ -= dt;
+    while (burstShotsLeft_ > 0 && burstShotTimer_ <= 0.0f) {
+        burstShotTimer_ += 1.0f / (std::max)(0.5f, stats.rate);
+        // 向いている方から ±spreadDeg 度ばらける（xorshift で十分）。
+        burstRandom_ ^= burstRandom_ << 13;
+        burstRandom_ ^= burstRandom_ >> 17;
+        burstRandom_ ^= burstRandom_ << 5;
+        const float unit = static_cast<float>(burstRandom_ & 0xFFFFu) / 65535.0f * 2.0f - 1.0f;
+        const float angle = unit * stats.spreadDeg * 3.14159265f / 180.0f;
+        const float c = std::cos(angle), s = std::sin(angle);
+        Player::SurvivorShot shot;
+        shot.direction = myEngine::Vector3{aim.x * c - aim.y * s, aim.x * s + aim.y * c, 0.0f};
+        shot.damageScale = stats.damage;
+        shot.speedScale = 1.3f;
+        shot.size = stats.size;
+        shot.pierce = stats.pierce;
+        shot.bulletHp = stats.bulletHp;
+        shot.blastRadius = stats.blastRadius;
+        shot.blastCenter = 1.0f;
+        shot.blastSplash = 0.5f;
+        shot.burnScale = stats.burnDps;
+        shot.burnSeconds = stats.burnSeconds;
+        if (player.FireSurvivorShot(shot)) {
+            ++burstShots_;
+        }
+        if (--burstShotsLeft_ <= 0) {
+            burstCooldown_ = stats.cooldown;
+        }
     }
 }
 

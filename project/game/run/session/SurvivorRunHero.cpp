@@ -38,6 +38,7 @@ void SurvivorRunController::StartHero()
     }
     hero_ = static_cast<int>(index);
     heroDef_ = config_.heroes.heroes[index];
+    StripLockedAbilities();
     heroAutoFire_ = config_.heroes.autoFire;
     upgradeTiers_.fill(0);
     perks_.fill(false);
@@ -100,7 +101,8 @@ void SurvivorRunController::UpdateHeroInput()
     if (pressed(AbilitySlot::Skill, input.IsKeyTriggered(DIK_E))) {
         UseAbility(AbilitySlot::Skill);
     }
-    if (pressed(AbilitySlot::Ultimate, input.IsKeyTriggered(DIK_Q))) {
+    // Q（コントローラーは B）：必殺技。
+    if (pressed(AbilitySlot::Ultimate, input.IsKeyTriggered(DIK_Q) || input.IsGamepadButtonTrigger(XINPUT_GAMEPAD_B))) {
         UseAbility(AbilitySlot::Ultimate);
     }
     autoHeroPress_.fill(false);
@@ -126,6 +128,9 @@ std::string SurvivorRunController::HeroControlsText() const
         if (ability.kind != AbilityKind::None) {
             text += std::string(" ／ ") + survivor::AbilitySlotButton(static_cast<AbilitySlot>(i)) + " " + ability.name;
         }
+    }
+    if (config_.heroes.onlyUltimate) {
+        text += "（コントローラーは B）";
     }
     return text + " ／ Tab 組み立て";
 }

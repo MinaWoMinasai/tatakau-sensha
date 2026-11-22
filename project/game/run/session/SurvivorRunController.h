@@ -743,6 +743,8 @@ private:
     };
     /// @brief 設定の機体に、技の強化の段とパークを効かせて Hero() を作り直し、主武器・最大HPに入れ直す。heal なら HP を満タンにする。
     void RebuildHero(bool heal);
+    /// @brief 設定の heroes.onlyUltimate なら、右クリック・Shift・E の技を空きにする（計画書 p7 の E5。Q と主武器は残す）。
+    void StripLockedAbilities();
     /// @brief 並べられる物：3段まで上がっていない技の強化と、まだ持っていないパーク（共通と、この機体の物）。
     /// withSubWeapons なら、3段まで上がっていない副武器も入れる（レベルアップの3択で、設定の heroes.subWeapons のとき）。
     std::vector<ShopOffer> ShopOfferPool(bool withSubWeapons = false) const;

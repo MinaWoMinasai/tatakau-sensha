@@ -791,6 +791,11 @@ public:
         float blastCenter = 1.0f;
         float blastSplash = 0.8f;
         int pierce = 0;
+        /// @brief 敵の弾とぶつかったときの弾の耐久（0 なら今の主砲のまま）。大きいほど敵の弾を多く貫く。
+        float bulletHp = 0.0f;
+        /// @brief 当たった敵を燃やす毎秒の威力（主砲1発に対する倍率。0 なら燃やさない）と秒。
+        float burnScale = 0.0f;
+        float burnSeconds = 0.0f;
         /// @brief 弾と軌跡の色（A が0なら今の主砲の色）。
         myEngine::Vector4 color{0.0f, 0.0f, 0.0f, 0.0f};
     };

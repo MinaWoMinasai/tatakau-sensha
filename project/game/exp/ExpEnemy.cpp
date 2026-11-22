@@ -397,6 +397,21 @@ void ExpEnemy::Update(Stage& stage, float deltaTime)
         }
     }
     ApplyDamageFeedback(deltaTime);
+    // 燃えている間は、0.5秒ごとに削られる（自機が与えたダメージとして数える）。橙の火花を出す。
+    if (burnTimer_ > 0.0f && !isDead_ && !isRunResource_) {
+        burnTimer_ -= deltaTime;
+        burnTick_ -= deltaTime;
+        if (burnTick_ <= 0.0f) {
+            burnTick_ += 0.5f;
+            const auto amount = static_cast<uint32_t>((std::max)(1.0f, std::round(burnDamagePerSecond_ * 0.5f)));
+            myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(GetWorldPosition(), {0.0f, 1.0f, 0.0f},
+                                                                           {2.2f, 0.8f, 0.2f, 0.9f}, 3);
+            TakeDirectionalDamage(amount, GetWorldPosition());
+            if (isDead_) {
+                return;
+            }
+        }
+    }
 
     if (isRunResource_) {
         // 資源は取得地点から移動させず、回転と被弾表示だけを更新する。
@@ -1260,6 +1275,16 @@ void ExpEnemy::OnCollision(Collider* other)
         damage = ResolveShieldDamage(damage, source, melee);
     }
     ApplyDamage(damage, !killedByEnemy, true);
+    // 燃やす弾（拡散連射の覚醒）：当たった敵に火を付ける。燃えている間に当たると、時間を戻し、強い方の威力にする。
+    if (!killedByEnemy && !isDead_) {
+        if (const auto* bullet = dynamic_cast<const Bullet*>(other); bullet && bullet->GetBurnDamagePerSecond() > 0.0f) {
+            if (burnTimer_ <= 0.0f) {
+                burnTick_ = 0.5f;
+            }
+            burnTimer_ = (std::max)(burnTimer_, bullet->GetBurnSeconds());
+            burnDamagePerSecond_ = (std::max)(burnDamagePerSecond_, bullet->GetBurnDamagePerSecond());
+        }
+    }
 
     // この接触経路では、ダメージ0でHPを減らせなかった場合も自機接触の再受付を0.5秒抑える。
     if (other->GetCollisionAttribute() == kCollisionAttributePlayer) {

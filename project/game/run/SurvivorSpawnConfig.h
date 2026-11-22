@@ -40,6 +40,10 @@ struct SpawnConfig {
     float ringMinDistance = 26.0f;
     float ringMaxDistance = 36.0f;
     float maxSpawnsPerSecond = 10.0f;
+    /// @brief 湧く場所を、自機のまわりの輪ではなく、画面のすぐ外（上下左右の縁）からにするか（計画書 p7 の E5）。
+    bool ringScreenEdge = false;
+    /// @brief 図形（四角・三角・五角）が自機へ寄ってくる加速度と最高速度（ワールド単位/秒）。最高速度0なら寄ってこない（今まで通り）。
+    std::array<std::pair<float, float>, 3> shapeChase{};
 
     std::vector<std::pair<float, float>> shapeTargetAlive{
         {0.0f, 24.0f}, {60.0f, 45.0f}, {120.0f, 88.0f}, {180.0f, 100.0f}, {240.0f, 112.0f}};
@@ -423,6 +427,19 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(ring, "minDistance", config.ringMinDistance);
         number(ring, "maxDistance", config.ringMaxDistance);
         number(ring, "maxPerSecond", config.maxSpawnsPerSecond);
+        if (ring.contains("screenEdge") && ring.at("screenEdge").is_boolean()) {
+            config.ringScreenEdge = ring.at("screenEdge").get<bool>();
+        }
+    }
+    if (data.contains("shapes") && data.at("shapes").contains("chase") && data.at("shapes").at("chase").is_object()) {
+        static constexpr std::array<const char*, 3> kChaseKeys{"square", "triangle", "pentagon"};
+        const auto& chase = data.at("shapes").at("chase");
+        for (size_t i = 0; i < kChaseKeys.size(); ++i) {
+            if (chase.contains(kChaseKeys[i]) && chase.at(kChaseKeys[i]).is_array() && chase.at(kChaseKeys[i]).size() == 2 &&
+                chase.at(kChaseKeys[i])[0].is_number() && chase.at(kChaseKeys[i])[1].is_number()) {
+                config.shapeChase[i] = {chase.at(kChaseKeys[i])[0].get<float>(), chase.at(kChaseKeys[i])[1].get<float>()};
+            }
+        }
     }
     if (data.contains("shapes")) {
         const auto& shapes = data.at("shapes");
@@ -799,6 +816,9 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         }
         if (heroes.contains("subWeapons") && heroes.at("subWeapons").is_boolean()) {
             config.heroes.subWeapons = heroes.at("subWeapons").get<bool>();
+        }
+        if (heroes.contains("onlyUltimate") && heroes.at("onlyUltimate").is_boolean()) {
+            config.heroes.onlyUltimate = heroes.at("onlyUltimate").get<bool>();
         }
         for (const auto& item : heroes.items()) {
             if (!item.value().is_object()) {
@@ -1223,7 +1243,14 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     ring["minDistance"] = round(config.ringMinDistance);
     ring["maxDistance"] = round(config.ringMaxDistance);
     ring["maxPerSecond"] = round(config.maxSpawnsPerSecond);
+    ring["screenEdge"] = config.ringScreenEdge;
     auto& shapes = section("shapes");
+    if (config.shapeChase[0].second > 0.0f || config.shapeChase[1].second > 0.0f || config.shapeChase[2].second > 0.0f) {
+        static constexpr std::array<const char*, 3> kChaseKeys{"square", "triangle", "pentagon"};
+        for (size_t i = 0; i < kChaseKeys.size(); ++i) {
+            shapes["chase"][kChaseKeys[i]] = {round(config.shapeChase[i].first), round(config.shapeChase[i].second)};
+        }
+    }
     shapes["targetAlive"] = nlohmann::json::array();
     for (const auto& [seconds, alive] : config.shapeTargetAlive) {
         shapes["targetAlive"].push_back({round(seconds), round(alive)});
@@ -1392,6 +1419,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     heroes["autoFire"] = config.heroes.autoFire;
     heroes["levelUps"] = config.heroes.levelUps;
     heroes["subWeapons"] = config.heroes.subWeapons;
+    heroes["onlyUltimate"] = config.heroes.onlyUltimate;
     for (const auto& hero : config.heroes.heroes) {
         auto& item = heroes[hero.key];
         item["name"] = hero.name;

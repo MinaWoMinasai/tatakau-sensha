@@ -64,12 +64,15 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             RequestCapture("hero_levelup");
             return;
         }
-        // 副武器（E4）を確かめるため、並んでいれば副武器を選ぶ。
+        // 主武器の強化（E5 の拡散連射は7段）、次に副武器（E4）を確かめるため、並んでいればその順に選ぶ。
         size_t pick = 0;
+        int best = 0;
         for (size_t i = 0; i < heroLevelUpOffers_.size(); ++i) {
-            if (heroLevelUpOffers_[i].sub) {
+            const ShopOffer& offer = heroLevelUpOffers_[i];
+            const int score = offer.upgrade && offer.index == 0 ? 2 : offer.sub ? 1 : 0;
+            if (score > best) {
+                best = score;
                 pick = i;
-                break;
             }
         }
         ChooseHeroLevelUp(pick);
@@ -1111,7 +1114,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"walkSpeed\":" << autoMoveDistance_[0] / (std::max)(0.001f, autoMoveSeconds_[0]) << ",\"heroLevel\":" << level_
             << ",\"heroLevelUps\":" << heroLevelUpLog_.size() << ",\"subWeaponTiers\":[" << subWeaponTiers_[0] << ","
             << subWeaponTiers_[1] << "," << subWeaponTiers_[2] << "],\"orbitDamage\":" << orbitDamage_
-            << ",\"orbitBulletsCleared\":" << orbitBulletsCleared_ << ",\"turretShots\":" << turretShots_ << ",\"mineBlasts\":" << mineBlasts_
+            << ",\"orbitBulletsCleared\":" << orbitBulletsCleared_ << ",\"turretShots\":" << turretShots_ << ",\"mineBlasts\":" << mineBlasts_ << ",\"burstShots\":" << burstShots_ << ",\"burstVolleys\":" << burstVolleys_
             << ",\"sprintSpeed\":" << autoMoveDistance_[1] / (std::max)(0.001f, autoMoveSeconds_[1]) << ",\"ultimateCharge\":" << ultimateCharge_
             << ",\"ultimateFullAt\":" << ultimateFullAt_ << ",\"ultimateFills\":" << ultimateFills_ << ",\"rocketBlasts\":" << rocketBlasts_
             << ",\"rocketKills\":" << rocketKills_ << ",\"healed\":" << healedByZone_ << ",\"healInsideSeconds\":" << healZoneInsideSeconds_

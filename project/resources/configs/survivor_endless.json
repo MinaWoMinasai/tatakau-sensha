@@ -6,33 +6,34 @@
   "spawnRing": {
     "minDistance": 24.0,
     "maxDistance": 32.0,
-    "maxPerSecond": 14.0
+    "maxPerSecond": 3.0,
+    "screenEdge": true
   },
   "shapes": {
     "comment": "生存数の目標（時間, 数）を直線でつなぐ。最後の点より後は overtimePerMinute ずつ増える。",
     "targetAlive": [
       [
         0,
-        40
+        20
       ],
       [
         60,
-        70
+        35
       ],
       [
         120,
-        100
+        50
       ],
       [
         240,
-        140
+        80
       ],
       [
         420,
-        180
+        110
       ]
     ],
-    "overtimePerMinute": 20,
+    "overtimePerMinute": 10,
     "weights": [
       {
         "from": 0,
@@ -46,16 +47,30 @@
         "triangle": 3,
         "pentagon": 2
       }
-    ]
+    ],
+    "chase": {
+      "square": [
+        3.0,
+        2.0
+      ],
+      "triangle": [
+        6.0,
+        4.5
+      ],
+      "pentagon": [
+        2.5,
+        1.6
+      ]
+    }
   },
   "triangleSwarm": {
     "comment": "三角の群れが周期的に寄ってくる。加速度と最高速度はワールド単位/秒。",
     "from": 5,
     "interval": 7,
-    "count": 14,
+    "count": 0,
     "spread": 5.0,
     "acceleration": 14.0,
-    "maxSpeed": 9.0
+    "maxSpeed": 4.5
   },
   "tanks": {
     "comment": "敵戦車。同時にいる数は maxAlive まで。種類は expedition_content.json の id。",
@@ -74,11 +89,11 @@
     "stageSeconds": 60,
     "maxStage": 8,
     "enemyHpPerStage": 0.25,
-    "swarmCountPerStage": 3,
+    "swarmCountPerStage": 0,
     "swarmIntervalScalePerStage": 0.9,
     "swarmSpeedPerStage": 0.6,
     "tankMaxAlivePerStage": 1,
-    "ringFromStage": 3,
+    "ringFromStage": 99,
     "ringInterval": 30,
     "ringCount": 18,
     "ringRadius": 17.0
@@ -104,7 +119,7 @@
     "chance": 0.5,
     "acceleration": 4,
     "maxSpeed": 2,
-    "lungeSpeed": 13,
+    "lungeSpeed": 6.5,
     "interval": 3.5,
     "windup": 0.5,
     "duration": 0.5
@@ -361,6 +376,16 @@
         "power": 0.8,
         "radius": 18,
         "rate": 14
+      },
+      "primaryAbility": {
+        "kind": "burstGun",
+        "name": "拡散連射",
+        "cooldown": 1.0,
+        "duration": 5,
+        "power": 2.2,
+        "radius": 8,
+        "rate": 2.5,
+        "size": 1.0
       }
     },
     "moira": {
@@ -453,10 +478,11 @@
         "rate": 0.6
       }
     },
-    "moveScale": 0.7,
+    "moveScale": 0.42,
     "autoFire": true,
     "levelUps": true,
-    "subWeapons": true
+    "subWeapons": true,
+    "onlyUltimate": true
   },
   "loot": {
     "comment": "敵が落とす物（計画書 p3 の W3）。欠片はお金になり（経験値 × moneyPerExp）、自動で拾う。落ちている物は magnetRadius まで近づくと寄ってきて、触れると拾う。弾は ammoChance の確率で ammoAmount ずつ、予備は reserveMax まで（上限の弾は残る）。素材（倒した形の素材を materialChance、敵戦車はボスの素材を bossMaterialChance）・チップ（今の部品、chipChance）・武器（weaponChance）は出撃中の袋へ入る。確率は敵1体ごとで、大きな敵（敵戦車・大五角・重い四角）は bigScale 倍。チップと武器のレア度は rarityWeights の重みで選ぶ。弾と素材は lifetime 秒で消える。休憩部屋で売る値段は weaponPrice・chipPrice（レア度ごと）と materialPrice（素材1つごと）。",

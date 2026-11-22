@@ -554,6 +554,9 @@ void PlayerWeapons::FireSurvivorShot(BulletManager* bullets, const Player::Survi
     param.bulletSpeed = player_.stats_.bulletSpeed * (std::max)(0.05f, shot.speedScale);
     ApplyRunProjectileRules(param);
     param.actorPierceCount = (std::max)(shot.pierce, param.actorPierceCount);
+    if (shot.bulletHp > 0.0f) {
+        param.bulletHp = (std::max)(param.bulletHp, shot.bulletHp);
+    }
     const myEngine::Vector3 muzzle = player_.GetWorldPosition() + aim * 1.2f;
     auto bullet = std::make_unique<Bullet>();
     bullet->Initialize(muzzle, aim * param.bulletSpeed, param.damage, kPlayer, false, param.bulletHp, param.bulletPenetration);
@@ -562,6 +565,9 @@ void PlayerWeapons::FireSurvivorShot(BulletManager* bullets, const Player::Survi
                                       param.shooterChainPower, param.shooterMarkPower, param.shooterBoomerangPower, param.shooterKillBurstPower);
     bullet->ConfigureVisualScale(shot.size, shot.size);
     bullet->ConfigureBlast(shot.blastRadius, shot.blastCenter, shot.blastSplash);
+    if (shot.burnScale > 0.0f) {
+        bullet->ConfigureBurn(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * shot.burnScale, shot.burnSeconds);
+    }
     bullet->SetColorOverride(shot.color);
     bullets->Add(std::move(bullet));
 }

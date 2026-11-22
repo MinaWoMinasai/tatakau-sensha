@@ -34,6 +34,9 @@ enum class AbilityKind {
                // 終わりに半径 radius×1.6 で爆発し、主砲1発の power 倍 ＋ 止めた弾1つごとに rate 倍を与える
     Lance,     // 太い光線（Q）：duration 秒、向いている方へ長さ radius・太さ size の光線を出し、触れた敵すべてに毎秒 主砲1発の power 倍。
                // 与えた威力1ごとに吸収ゲージを gain 秒ぶん溜める
+    BurstGun,  // 拡散連射（主武器。計画書 p7 の E5）：押している間（自動で撃つなら いつも）、毎秒 rate 発で duration 発を撃ち、撃ち終えたら
+               // cooldown 秒待つ。弾は向いている方から ±radius 度ばらけ、威力は主砲1発の power 倍、大きさは size 倍。
+               // 強化は7段（SurvivorShop.h の BurstGunAt）で、貫通・待ち時間・連射・爆発・覚醒（燃える）が付く
     Count
 };
 
@@ -55,7 +58,7 @@ inline const char* AbilitySlotButton(AbilitySlot slot)
 inline const char* AbilityKindKey(AbilityKind kind)
 {
     static constexpr std::array<const char*, static_cast<size_t>(AbilityKind::Count)> kKeys{
-        "none", "sprint", "barrier", "rocket", "healZone", "barrage", "drainBeam", "selfHeal", "phase", "bounceOrb", "charge", "shockwave", "fortress", "lance"};
+        "none", "sprint", "barrier", "rocket", "healZone", "barrage", "drainBeam", "selfHeal", "phase", "bounceOrb", "charge", "shockwave", "fortress", "lance", "burstGun"};
     return kKeys[static_cast<size_t>(kind)];
 }
 
@@ -133,6 +136,9 @@ struct HeroesConfig {
     bool levelUps = false;
     /// @brief レベルアップの3択に副武器（勝手に動く武器。SurvivorSubWeapons.h）も並べるか（計画書 p7 の E4。levelUps のときだけ）。
     bool subWeapons = false;
+    /// @brief 右クリック・Shift・E の技を使わず、主武器・副武器・Q（コントローラーは B）だけで遊ぶか（計画書 p7 の E5。ヴァンサバに寄せる）。
+    /// 技の強化の候補からも外し、外した技に関わるパーク（機体専用と「連鎖の冷却」）も並べない。
+    bool onlyUltimate = false;
 };
 
 /// @brief 設定ファイルが無いときの機体。ソルジャー型（K1）・モイラ型（K2）・タンク型（K7。最初に解放する）。

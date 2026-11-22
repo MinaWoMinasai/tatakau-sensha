@@ -135,6 +135,22 @@ protected:
         return HeroActive() && Hero().primaryAbility.kind == survivor::AbilityKind::DrainBeam;
     }
 
+    /// @brief 主武器が技の部品（吸い付く光線・拡散連射など）か。真なら主武器の武器の弾は撃たない。
+    bool HeroPrimaryLocked() const
+    {
+        return HeroActive() && Hero().primaryAbility.kind != survivor::AbilityKind::None;
+    }
+
+    // 拡散連射（主武器。計画書 p7 の E5）：押している間（自動で撃つなら いつも）、決まった数を撃ってから待つ。
+    void UpdateBurstGun(float dt, const survivor::AbilityDefinition& ability);
+    // 今の連射の残りの発数・次の弾までの秒・撃ち終えてからの残りの待ち時間・ばらけ方の乱数・撃った数（自動確認）。
+    int burstShotsLeft_ = 0;
+    float burstShotTimer_ = 0.0f;
+    float burstCooldown_ = 0.0f;
+    uint32_t burstRandom_ = 0x9E3779B9u;
+    int burstShots_ = 0;
+    int burstVolleys_ = 0;
+
     /// @brief Q（アルティメット）が効いている間か。間は Q のゲージを溜めない。
     bool UltimateActive() const
     {

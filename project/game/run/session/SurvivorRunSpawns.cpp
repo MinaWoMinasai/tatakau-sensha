@@ -113,7 +113,12 @@ void SurvivorRunController::UpdateSpawns(float dt)
             break;
         }
         const size_t kind = static_cast<size_t>(pick(random_));
-        if (SpawnShape(kShapes[kind], *position, false) && kind == 2 && threatStage_ >= lunge.fromStage && chasers < config_.telegraph.maxChasers &&
+        const bool spawned = SpawnShape(kShapes[kind], *position, false);
+        // 寄ってくる図形（計画書 p7 の E5。設定の shapes.chase）：形ごとの速さで自機へ寄る。
+        if (spawned && config_.shapeChase[kind].second > 0.0f) {
+            world_.resources.enemyManager_->GetEnemyPtrs().back()->SetPlayerChase(config_.shapeChase[kind].first, config_.shapeChase[kind].second);
+        }
+        if (spawned && kind == 2 && threatStage_ >= lunge.fromStage && chasers < config_.telegraph.maxChasers &&
             chance(random_) < lunge.chance) {
             // 突進する五角：ゆっくり寄り、周期ごとに溜めてから速く迫る。周期は個体ごとにずらす。
             ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
@@ -183,6 +188,28 @@ std::optional<myEngine::Vector3> SurvivorRunController::FindSpawnPosition(float 
     std::uniform_real_distribution<float> angle(0.0f, 6.2831853f);
     std::uniform_real_distribution<float> distance(minDistance, maxDistance);
     std::uniform_real_distribution<float> anyX(kSpawnMinX, kSpawnMaxX), anyY(kSpawnMinY, kSpawnMaxY);
+    // 画面のすぐ外から（計画書 p7 の E5。設定の spawnRing.screenEdge）：上下左右の縁を、縁の長さに比例して選び、縁に沿ってばらける。
+    if (config_.ringScreenEdge) {
+        std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+        for (int attempt = 0; attempt < 16; ++attempt) {
+            const float along = unit(random_) * (halfWidth + halfHeight) * 2.0f;
+            const float sideOut = 1.0f + unit(random_) * 2.0f;
+            myEngine::Vector3 position{};
+            if (along < halfWidth * 2.0f) {
+                const float y = unit(random_) < 0.5f ? -(halfHeight + sideOut) : halfHeight + sideOut;
+                position = {camera.x - halfWidth + along, camera.y + y, 0.0f};
+            } else {
+                const float x = unit(random_) < 0.5f ? -(halfWidth + sideOut) : halfWidth + sideOut;
+                position = {camera.x + x, camera.y - halfHeight + (along - halfWidth * 2.0f), 0.0f};
+            }
+            position.x = (std::clamp)(position.x, kSpawnMinX, kSpawnMaxX);
+            position.y = (std::clamp)(position.y, kSpawnMinY, kSpawnMaxY);
+            const bool offScreen = std::abs(position.x - camera.x) > halfWidth || std::abs(position.y - camera.y) > halfHeight;
+            if (offScreen && !world_.resources.stage_->IsCollisionWithAnyBlock(position, 1.2f)) {
+                return position;
+            }
+        }
+    }
     for (int attempt = 0; attempt < 24; ++attempt) {
         myEngine::Vector3 position{};
         if (attempt < 16) {

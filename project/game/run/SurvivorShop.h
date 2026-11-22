@@ -107,7 +107,84 @@ inline const AbilityDefinition& UpgradeTargetAbility(const HeroDefinition& hero,
     return target == 0 ? hero.primaryAbility : hero.abilities[static_cast<size_t>(target - 1)];
 }
 
+/// @brief 拡散連射（主武器の部品 BurstGun。計画書 p7 の E5）の強化の段の上限。HoloCure の武器と同じく Lv1〜7（段0〜6）で、最後が覚醒。
+inline constexpr int kBurstGunMaxTier = 6;
+
+/// @brief 強化の段の上限（主武器が拡散連射なら7段、それ以外は3段）。
+inline int MaxUpgradeTier(const HeroDefinition& hero, int target)
+{
+    return target == 0 && hero.primaryAbility.kind == AbilityKind::BurstGun ? kBurstGunMaxTier : kMaxUpgradeTier;
+}
+
+/// @brief 拡散連射の、強化の段を効かせた後の値。
+struct BurstGunStats {
+    int shots = 5;
+    float rate = 2.5f;
+    float cooldown = 1.0f;
+    float damage = 1.0f;
+    float spreadDeg = 8.0f;
+    float size = 1.0f;
+    int pierce = 0;
+    float bulletHp = 1.0f;
+    float blastRadius = 0.0f;
+    float burnDps = 0.0f;
+    float burnSeconds = 0.0f;
+};
+
+/// @brief 段ごとに足すこと（Lv2〜7）：2 敵と敵の弾を1つ貫く、3 待ち時間 ×0.7、4 連射 ×1.4、5 さらに1つ貫き 威力 ×1.2、
+/// 6 当たると小さく爆発、7（覚醒）当たった敵が燃える（3秒、毎秒 主砲の0.6倍）＋ 待ち時間 ×0.7・連射 ×1.2。
+inline BurstGunStats BurstGunAt(const AbilityDefinition& ability, int tier)
+{
+    BurstGunStats stats;
+    stats.shots = (std::max)(1, static_cast<int>(std::lround(ability.duration)));
+    stats.rate = (std::max)(0.5f, ability.rate);
+    stats.cooldown = (std::max)(0.0f, ability.cooldown);
+    stats.damage = ability.power;
+    stats.spreadDeg = ability.radius;
+    stats.size = ability.size > 0.0f ? ability.size : 1.0f;
+    if (tier >= 1) {
+        stats.pierce += 1;
+        stats.bulletHp += 1.0f;
+    }
+    if (tier >= 2) {
+        stats.cooldown *= 0.7f;
+    }
+    if (tier >= 3) {
+        stats.rate *= 1.4f;
+    }
+    if (tier >= 4) {
+        stats.pierce += 1;
+        stats.bulletHp += 1.0f;
+        stats.damage *= 1.2f;
+    }
+    if (tier >= 5) {
+        stats.blastRadius = 1.4f;
+    }
+    if (tier >= 6) {
+        stats.burnDps = ability.power * 0.6f;
+        stats.burnSeconds = 3.0f;
+        stats.cooldown *= 0.7f;
+        stats.rate *= 1.2f;
+    }
+    return stats;
+}
+
+/// @brief 拡散連射の、次の段で足すこと（next は 1〜6）。
+inline const char* BurstGunTierText(int next)
+{
+    static constexpr std::array<const char*, kBurstGunMaxTier> kTexts{
+        "弾が敵を1体・敵の弾を1つ貫く",
+        "撃ち終えてからの待ち時間 ×0.7",
+        "連射が速くなる ×1.4",
+        "さらに1つ貫き、威力 ×1.2",
+        "弾が当たった所で小さく爆発する",
+        "覚醒：当たった敵が燃えて3秒削られる。待ち時間 ×0.7・連射 ×1.2",
+    };
+    return kTexts[static_cast<size_t>((std::clamp)(next, 1, kBurstGunMaxTier) - 1)];
+}
+
 /// @brief 強化の段を機体の技の数値に効かせる：1段目は威力 ×1.25、2段目は待ち時間 ×0.8（待ち時間の無い技は効く秒 ×1.25）。
+/// 主武器が拡散連射なら、主武器は BurstGunAt で別に計算するので、ここでは変えない。
 inline void ApplyUpgradeTiers(HeroDefinition& hero, const std::array<int, kUpgradeTargets>& tiers)
 {
     auto apply = [](AbilityDefinition& ability, int tier) {
@@ -122,7 +199,9 @@ inline void ApplyUpgradeTiers(HeroDefinition& hero, const std::array<int, kUpgra
             }
         }
     };
-    apply(hero.primaryAbility, tiers[0]);
+    if (hero.primaryAbility.kind != AbilityKind::BurstGun) {
+        apply(hero.primaryAbility, tiers[0]);
+    }
     for (size_t i = 0; i < kAbilitySlotCount; ++i) {
         apply(hero.abilities[i], tiers[i + 1]);
     }
@@ -182,6 +261,10 @@ inline std::string UpgradeOfferName(const HeroDefinition& hero, int target, int 
 {
     const AbilityDefinition& ability = UpgradeTargetAbility(hero, target);
     const std::string name = target == 0 ? (ability.kind != AbilityKind::None ? ability.name : std::string("主武器")) : ability.name;
+    // 拡散連射は HoloCure と同じく Lv で数える（Lv1 が段0）。
+    if (target == 0 && ability.kind == AbilityKind::BurstGun) {
+        return name + " Lv" + std::to_string(tier + 2);
+    }
     return name + " " + std::to_string(tier + 1) + "段";
 }
 
@@ -191,6 +274,9 @@ inline std::string UpgradeOfferText(const HeroDefinition& hero, int target, int 
     const int next = tier + 1;
     const AbilityDefinition& ability = UpgradeTargetAbility(hero, target);
     const std::string button = target == 0 ? std::string("左クリック") : AbilitySlotButton(static_cast<AbilitySlot>(target - 1));
+    if (target == 0 && ability.kind == AbilityKind::BurstGun) {
+        return std::string("主武器を強くする。\n") + BurstGunTierText(next);
+    }
     std::string effect;
     if (next == 1) {
         effect = target == 0 && ability.kind == AbilityKind::None ? "威力 ×1.15" : "威力 ×1.25";

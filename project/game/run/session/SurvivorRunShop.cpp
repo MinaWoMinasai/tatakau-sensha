@@ -26,6 +26,7 @@ void SurvivorRunController::RebuildHero(bool heal)
     heroDef_ = config_.heroes.heroes[static_cast<size_t>(hero_)];
     // 技の強化（SurvivorShop.h の ApplyUpgradeTiers。遠征の工房と同じ計算）。3段目の挙動は使うところで見る。
     survivor::ApplyUpgradeTiers(heroDef_, upgradeTiers_);
+    StripLockedAbilities();
     // 主武器が武器なら、威力（1段ごとに ×1.15、2段まで）と、3段目の小さな爆発。
     heroPrimaryDamage_ = survivor::PrimaryWeaponDamageScale(upgradeTiers_[0]);
     heroPrimaryBlast_ = survivor::PrimaryWeaponBlastRadius(upgradeTiers_[0]);
@@ -48,6 +49,16 @@ void SurvivorRunController::RebuildHero(bool heal)
     if (weaponEquipped_) {
         weaponHeat_[activeSlot_] = player.GetHeat().Save();
         RefreshSlotsAfterChange(survivor::kWeaponSlots);
+    }
+}
+
+void SurvivorRunController::StripLockedAbilities()
+{
+    if (!config_.heroes.onlyUltimate) {
+        return;
+    }
+    for (const auto slot : {survivor::AbilitySlot::Secondary, survivor::AbilitySlot::Mobility, survivor::AbilitySlot::Skill}) {
+        heroDef_.abilities[static_cast<size_t>(slot)] = {};
     }
 }
 
@@ -94,7 +105,7 @@ bool SurvivorRunController::OfferAwakens(const ShopOffer& offer) const
     if (offer.sub) {
         return SubWeaponTier(static_cast<survivor::SubWeapon>(offer.index)) == survivor::kMaxSubWeaponTier - 1;
     }
-    return offer.upgrade && UpgradeTier(offer.index) == survivor::kMaxUpgradeTier - 1;
+    return offer.upgrade && UpgradeTier(offer.index) == survivor::MaxUpgradeTier(Hero(), offer.index) - 1;
 }
 
 std::vector<SurvivorRunController::ShopOffer> SurvivorRunController::ShopOfferPool(bool withSubWeapons) const
@@ -103,13 +114,15 @@ std::vector<SurvivorRunController::ShopOffer> SurvivorRunController::ShopOfferPo
     std::vector<ShopOffer> pool;
     for (int target = 0; target < static_cast<int>(survivor::kUpgradeTargets); ++target) {
         const bool usable = target == 0 || UpgradeAbility(target).kind != AbilityKind::None;
-        if (usable && UpgradeTier(target) < survivor::kMaxUpgradeTier) {
+        if (usable && UpgradeTier(target) < survivor::MaxUpgradeTier(Hero(), target)) {
             pool.push_back({true, target});
         }
     }
     for (size_t i = 0; i < survivor::kPerkCount; ++i) {
         const auto& info = survivor::GetPerkInfo(static_cast<PerkId>(i));
-        if (!perks_[i] && (info.hero[0] == '\0' || Hero().key == info.hero)) {
+        // 右クリック・Shift・E を使わない遊び方では、機体専用のパークと「連鎖の冷却」（技の待ち時間）は効かないので並べない。
+        const bool locked = config_.heroes.onlyUltimate && (info.hero[0] != '\0' || static_cast<PerkId>(i) == PerkId::KillCooldown);
+        if (!perks_[i] && !locked && (info.hero[0] == '\0' || Hero().key == info.hero)) {
             pool.push_back({false, static_cast<int>(i)});
         }
     }
@@ -131,7 +144,7 @@ void SurvivorRunController::ApplyOffer(const ShopOffer& offer)
         return;
     }
     if (offer.upgrade) {
-        upgradeTiers_[static_cast<size_t>(offer.index)] = (std::min)(survivor::kMaxUpgradeTier, UpgradeTier(offer.index) + 1);
+        upgradeTiers_[static_cast<size_t>(offer.index)] = (std::min)(survivor::MaxUpgradeTier(Hero(), offer.index), UpgradeTier(offer.index) + 1);
     } else {
         perks_[static_cast<size_t>(offer.index)] = true;
     }

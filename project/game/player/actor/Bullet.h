@@ -169,6 +169,20 @@ public:
     {
         return blastRadius_;
     }
+    /// @brief 当たった敵を燃やす弾にする（計画書 p7 の E5。拡散連射の覚醒）。damagePerSecond が0なら燃やさない（既定）。
+    void ConfigureBurn(float damagePerSecond, float seconds)
+    {
+        burnDamagePerSecond_ = (std::max)(0.0f, damagePerSecond);
+        burnSeconds_ = (std::max)(0.0f, seconds);
+    }
+    float GetBurnDamagePerSecond() const
+    {
+        return burnDamagePerSecond_;
+    }
+    float GetBurnSeconds() const
+    {
+        return burnSeconds_;
+    }
     float GetBlastCenter() const
     {
         return blastCenter_;
@@ -396,6 +410,9 @@ private:
     float blastRadius_ = 0.0f;
     float blastCenter_ = 1.0f;
     float blastSplash_ = 0.8f;
+    // 当たった敵を燃やす（ConfigureBurn。毎秒の威力が0なら無し）。
+    float burnDamagePerSecond_ = 0.0f;
+    float burnSeconds_ = 0.0f;
 
     // 反射するか
     bool isReflectable_ = false;

@@ -615,6 +615,10 @@ private:
     float lungeDuration_ = 0.0f;
     float lungeSpeed_ = 0.0f;
     float lungeTimer_ = 0.0f;
+    // 燃えている（計画書 p7 の E5）：残りの秒・毎秒の威力・次に削るまでの秒。
+    float burnTimer_ = 0.0f;
+    float burnDamagePerSecond_ = 0.0f;
+    float burnTick_ = 0.0f;
     ExpEnemyType type_ = ExpEnemyType::Square;
     bool hasAuthoredDefinition_ = false;
     uint32_t authoredContactDamage_ = 0, authoredBulletDamage_ = 1;
