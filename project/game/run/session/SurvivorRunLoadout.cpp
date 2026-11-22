@@ -24,7 +24,14 @@ void SurvivorRunController::AddExperience(int amount)
         pointsEarned_ += amount;
         // 戦闘中のレベルアップ（計画書 p7 の E3）：同じ量でレベルも上がり、止めて技の強化とパークの3択を選ぶ。
         if (config_.heroes.levelUps && level_ < config_.maxLevel) {
-            exp_ += amount;
+            // 学習装置（計画書 p8 の F4）：レベルの経験値だけ増える（ポイントは増えない）。端数は次へ持ち越す。
+            const float gain = static_cast<float>(amount) *
+                                   (HasPerk(survivor::PerkId::ExpGain) ? 1.0f + PerkValue(survivor::PerkId::ExpGain) : 1.0f) +
+                               expRemainder_;
+            const int whole = static_cast<int>(gain);
+            expRemainder_ = gain - static_cast<float>(whole);
+            expBonus_ += whole - amount;
+            exp_ += whole;
             int gained = 0;
             while (level_ < config_.maxLevel && exp_ >= config_.ExpToNextLevel(level_)) {
                 exp_ -= config_.ExpToNextLevel(level_);

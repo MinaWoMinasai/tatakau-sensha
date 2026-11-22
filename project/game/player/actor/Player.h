@@ -749,6 +749,62 @@ public:
         return survivorPhaseAvoided_;
     }
 
+    /// @brief 機体の遊び方の共通パーク（計画書 p8 の F4）：会心の確率と倍率、技の弾と爆発の大きさの倍率。既定では何も変えない。
+    struct SurvivorPerkEffects {
+        float critChance = 0.0f;
+        float critScale = 2.0f;
+        float areaScale = 1.0f;
+    };
+    void SetSurvivorPerkEffects(const SurvivorPerkEffects& effects)
+    {
+        survivorPerkEffects_ = effects;
+    }
+    const SurvivorPerkEffects& GetSurvivorPerkEffects() const
+    {
+        return survivorPerkEffects_;
+    }
+    /// @brief 会心を引く。出たら critScale を返して数え、出なければ1（確率が0なら乱数を引かない）。
+    float RollSurvivorCrit();
+    /// @brief パークの会心が出た回数（自動確認用）。
+    uint32_t GetSurvivorCrits() const
+    {
+        return survivorCrits_;
+    }
+    /// @brief 反応装甲：ready なら、次の当たりを1回だけ防ぐ（防いだら0.5秒の無敵）。
+    void SetSurvivorGuardReady(bool ready)
+    {
+        survivorGuardReady_ = ready;
+    }
+    bool IsSurvivorGuardReady() const
+    {
+        return survivorGuardReady_;
+    }
+    uint32_t GetSurvivorGuardBlocks() const
+    {
+        return survivorGuardBlocks_;
+    }
+    /// @brief 予備の動力：count 回、倒れる当たりで HP を最大の hpRatio 倍にして立ち直る（2秒の無敵）。
+    void SetSurvivorRevives(int count, float hpRatio)
+    {
+        survivorRevives_ = (std::max)(0, count);
+        survivorReviveHp_ = hpRatio;
+    }
+    int GetSurvivorRevives() const
+    {
+        return survivorRevives_;
+    }
+    uint32_t GetSurvivorRevivesUsed() const
+    {
+        return survivorRevivesUsed_;
+    }
+    /// @brief 立ち直った直後なら真を返し、偽に戻す（演出を一度だけ出す）。
+    bool ConsumeSurvivorRevived()
+    {
+        const bool revived = survivorRevived_;
+        survivorRevived_ = false;
+        return revived;
+    }
+
     /// @brief 自動操作で、右クリック（形態の技）を押し続けているかを渡す。
     void SetDemoSpecialHold(bool held)
     {
@@ -1325,6 +1381,15 @@ private:
     // 機体の「消える移動」の残りの秒・すり抜けた数・今の移動ですり抜けた相手。
     float survivorPhaseTimer_ = 0.0f;
     uint32_t survivorPhaseAvoided_ = 0;
+    // 共通パーク（計画書 p8 の F4）：会心・大きさ、反応装甲、予備の動力の残りと立ち直る HP の割合、記録。
+    SurvivorPerkEffects survivorPerkEffects_{};
+    uint32_t survivorCrits_ = 0;
+    bool survivorGuardReady_ = false;
+    uint32_t survivorGuardBlocks_ = 0;
+    int survivorRevives_ = 0;
+    float survivorReviveHp_ = 0.5f;
+    uint32_t survivorRevivesUsed_ = 0;
+    bool survivorRevived_ = false;
     std::vector<uint64_t> survivorPhaseTouched_;
     /// @brief 消える移動の間なら、すり抜けた相手を数えて真を返す（id 0 は床の危険）。
     bool AvoidBySurvivorPhase(uint64_t id);

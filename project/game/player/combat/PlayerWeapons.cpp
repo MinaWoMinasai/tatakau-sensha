@@ -557,18 +557,26 @@ void PlayerWeapons::FireSurvivorShot(BulletManager* bullets, const Player::Survi
     if (shot.bulletHp > 0.0f) {
         param.bulletHp = (std::max)(param.bulletHp, shot.bulletHp);
     }
+    // 共通パーク（計画書 p8 の F4）：会心で威力2倍（弾は金色で少し大きく）、大きな弾頭で弾と当たった所の爆発が大きくなる。
+    const auto& perks = player_.survivorPerkEffects_;
+    const float crit = player_.RollSurvivorCrit();
+    if (crit > 1.0f) {
+        param.damage = static_cast<uint32_t>(std::round(static_cast<float>(param.damage) * crit));
+    }
+    const float size = (std::min)(2.4f, shot.size * perks.areaScale * (crit > 1.0f ? 1.2f : 1.0f));
+    const myEngine::Vector4 color = crit > 1.0f ? myEngine::Vector4{2.2f, 1.8f, 0.6f, 1.0f} : shot.color;
     const myEngine::Vector3 muzzle = shot.useOrigin ? shot.origin + aim * 0.4f : player_.GetWorldPosition() + aim * 1.2f;
     auto bullet = std::make_unique<Bullet>();
     bullet->Initialize(muzzle, aim * param.bulletSpeed, param.damage, kPlayer, false, param.bulletHp, param.bulletPenetration);
     bullet->ConfigureGrowth(0, param.actorPierceCount, 0);
     bullet->ConfigureShooterAbilities(param.shooterChain, param.shooterMark, param.shooterBoomerang, param.shooterKillBurst,
                                       param.shooterChainPower, param.shooterMarkPower, param.shooterBoomerangPower, param.shooterKillBurstPower);
-    bullet->ConfigureVisualScale(shot.size, shot.size);
-    bullet->ConfigureBlast(shot.blastRadius, shot.blastCenter, shot.blastSplash);
+    bullet->ConfigureVisualScale(size, size);
+    bullet->ConfigureBlast(shot.blastRadius * perks.areaScale, shot.blastCenter, shot.blastSplash);
     if (shot.burnScale > 0.0f) {
         bullet->ConfigureBurn(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * shot.burnScale, shot.burnSeconds);
     }
-    bullet->SetColorOverride(shot.color);
+    bullet->SetColorOverride(color);
     bullets->Add(std::move(bullet));
 }
 

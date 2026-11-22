@@ -817,6 +817,13 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
         if (amount == 0) {
             return;
         }
+        // 反応装甲（計画書 p8 の F4）：構えていれば、この当たりを丸ごと防ぐ。続けて当たらないよう、少しだけ無敵にする。
+        if (survivorGuardReady_) {
+            survivorGuardReady_ = false;
+            ++survivorGuardBlocks_;
+            invincibleTimer_ = 0.5f;
+            return;
+        }
         invincibleTime = 0.0f;
         survivorDamageTaken_ += amount;
         ++survivorHits_;
@@ -858,9 +865,26 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
     }
     TriggerDamageFeedback();
     invincibleTimer_ = invincibleTime * partEffects_.invincibleScale;
+    // 予備の動力（計画書 p8 の F4）：倒れる当たりなら、残りがあれば立ち直る。
+    if (hp_ <= 0 && survivorRevives_ > 0) {
+        --survivorRevives_;
+        ++survivorRevivesUsed_;
+        hp_ = (std::max)(1, static_cast<int>(std::round(static_cast<float>(GetMaxHp()) * survivorReviveHp_)));
+        invincibleTimer_ = 2.0f;
+        survivorRevived_ = true;
+    }
     if (hp_ <= 0) {
         Die();
     }
+}
+
+float Player::RollSurvivorCrit()
+{
+    if (survivorPerkEffects_.critChance <= 0.0f || myEngine::Rand(0.0f, 1.0f) >= survivorPerkEffects_.critChance) {
+        return 1.0f;
+    }
+    ++survivorCrits_;
+    return survivorPerkEffects_.critScale;
 }
 
 void Player::ConfigureSurvivorResources(const PlayerHeat::Config& heat, const ShieldConfig& shield)
@@ -917,7 +941,8 @@ void Player::TriggerBlastAt(const myEngine::Vector3& position, float radius, flo
     explosion.radius = radius;
     explosion.fuseTime = (std::max)(0.0f, fuse);
     explosion.lifeTime = explosion.fuseTime + 0.02f;
-    explosion.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * damageScale)));
+    // 会心（計画書 p8 の F4）。大きさは呼ぶ側で掛ける（迫撃砲の印と爆発を合わせるため）。
+    explosion.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * damageScale * RollSurvivorCrit())));
     explosion.color = color;
     pendingMineDrops_.push_back(explosion);
 }

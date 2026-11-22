@@ -85,13 +85,16 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         const bool skillFirst = pickSet && std::wstring(pickMode) == L"skill";
         // MYENGINE_SURVIVOR_PICK=newsub なら、F3 で足した副武器（迫撃砲・随伴機・火炎放射・衝撃の輪）を先に選ぶ。
         const bool newSubFirst = pickSet && std::wstring(pickMode) == L"newsub";
+        // MYENGINE_SURVIVOR_PICK=newperk なら、F4 で足したパーク（会心・大きさ・経験値・反応装甲・予備の動力）を先に選ぶ。
+        const bool newPerkFirst = pickSet && std::wstring(pickMode) == L"newperk";
         size_t pick = 0;
         int best = 0;
         for (size_t i = 0; i < heroLevelUpOffers_.size(); ++i) {
             const ShopOffer& offer = heroLevelUpOffers_[i];
             const bool perk = !offer.upgrade && !offer.sub && !offer.skill && offer.filler == Filler::None;
             const bool newSub = offer.sub && offer.index >= static_cast<int>(survivor::SubWeapon::Mortar);
-            const int score = (perkFirst && perk) || (skillFirst && offer.skill) || (newSubFirst && newSub) ? 3
+            const bool newPerk = perk && offer.index >= static_cast<int>(survivor::PerkId::Crit);
+            const int score = (perkFirst && perk) || (skillFirst && offer.skill) || (newSubFirst && newSub) || (newPerkFirst && newPerk) ? 3
                               : offer.upgrade && offer.index == 0                                          ? 2
                               : offer.sub                                                                  ? 1
                                                                                                            : 0;
@@ -983,6 +986,16 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             player.TakeDamage(1000000, 0.0f);
         }
     }
+    // MYENGINE_SURVIVOR_DRAIN=秒：その時刻から、無敵を外して毎フレーム自機を削る（予備の動力と反応装甲の確認。計画書 p8 の F4）。
+    if (autoDrainAt_ < 0.0f) {
+        wchar_t drain[16]{};
+        autoDrainAt_ = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_DRAIN", drain, 16) > 0 ? static_cast<float>(_wtof(drain)) : 1.0e9f;
+    }
+    if (!player.IsDead() && elapsed_ >= autoDrainAt_) {
+        world_.presentation.debugPlayerNoDamage_ = false;
+        player.SetDebugNoDamage(false);
+        player.TakeDamage(10, 0.0f);
+    }
     if (player.IsDead() && IsResultVisible() && autoTestClearedTime_ < 0.0f) {
         autoTestClearedTime_ = autoTestTime_;
     }
@@ -1189,7 +1202,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"heroLevelUps\":" << heroLevelUpLog_.size() << ",\"skillTiers\":[" << heroSkillTiers_[0] << "," << heroSkillTiers_[1] << ","
             << heroSkillTiers_[2] << "],\"steadyShots\":" << steadyShots_ << ",\"battleStacksMax\":" << battleStacksMax_
             << ",\"burstShotsPerVolleyMax\":" << burstShotsPerVolleyMax_ << ",\"fillers\":" << fillersTaken_ << ",\"fillerMaxHp\":" << fillerMaxHp_
-            << ",\"fillerPower\":" << fillerPower_ << ",\"levelUpLog\":[" << [&] {
+            << ",\"fillerPower\":" << fillerPower_ << ",\"crits\":" << player.GetSurvivorCrits()
+            << ",\"guardBlocks\":" << player.GetSurvivorGuardBlocks() << ",\"revivesUsed\":" << player.GetSurvivorRevivesUsed()
+            << ",\"expBonus\":" << expBonus_ << ",\"areaScale\":" << HeroAreaScale() << ",\"levelUpLog\":[" << [&] {
                    std::ostringstream log;
                    for (size_t i = 0; i < heroLevelUpLog_.size(); ++i) {
                        log << (i ? "," : "") << "\"" << heroLevelUpLog_[i] << "\"";

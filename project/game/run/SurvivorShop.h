@@ -23,6 +23,12 @@ enum class PerkId {
     ChargeShock,  // タンク型：突進の終わりに、半径 value の小さな衝撃波を出す
     BarrierHeal,  // タンク型：バリアで弾を止めるたびに、HP を value 回復する
     Quake,        // タンク型：衝撃波で押し返した数だけ、衝撃波の待ち時間を value 秒縮める
+    // 計画書 p8 の F4 で足した共通のパーク（HoloCure のアイテムに寄せる）。
+    Crit,    // 共通：弾・爆発・直接の削りが、value の確率で2倍になる（会心）
+    Area,    // 共通：弾・爆発・炎・衝撃の輪の大きさを value 倍だけ広げる
+    ExpGain, // 共通：レベルの経験値を value 倍だけ多く入れる（ポイントは増えない）
+    Guard,   // 共通：(kGuardBaseCooldown - value) 秒ごとに1回、当たりを防ぐ
+    Revive,  // 共通：1回だけ、倒れる当たりで HP を最大の value 倍にして立ち直る
     Count
 };
 inline constexpr size_t kPerkCount = static_cast<size_t>(PerkId::Count);
@@ -35,6 +41,8 @@ struct PerkInfo {
     const char* hero;
     int price;
     float value;
+    /// @brief 段の上限（0 なら設定の perkMaxTier。予備の動力のような1回きりの物は1）。
+    int maxTier = 0;
 };
 
 inline const PerkInfo& GetPerkInfo(PerkId id)
@@ -55,6 +63,11 @@ inline const PerkInfo& GetPerkInfo(PerkId id)
         {"chargeShock", "突進の衝撃", "突進の終わりに、小さな衝撃波を出す", "tank", 300, 3.5f},
         {"barrierHeal", "盾の手当て", "バリアで弾を止めるたびに、HP が少し戻る", "tank", 300, 1.0f},
         {"quake", "地鳴り", "衝撃波で押し返した数だけ、衝撃波の待ち時間が縮む", "tank", 300, 0.3f},
+        {"crit", "会心の照準", "弾や爆発が、ときどき2倍の威力になる", "", 200, 0.15f},
+        {"area", "大きな弾頭", "弾・爆発・炎・衝撃の輪が大きくなる", "", 200, 0.2f},
+        {"expGain", "学習装置", "レベルの経験値が多く入る", "", 150, 0.2f},
+        {"guard", "反応装甲", "数秒ごとに1回だけ、当たりを防ぐ", "", 250, 6.0f},
+        {"revive", "予備の動力", "倒れたとき1回だけ立ち直り、まわりを押し返す", "", 400, 0.5f, 1},
     }};
     return kPerks[static_cast<size_t>(id)];
 }
@@ -69,6 +82,16 @@ inline PerkId FindPerk(const std::string& key)
     }
     return PerkId::Count;
 }
+
+/// @brief 反応装甲（計画書 p8 の F4）の、当たりを防ぐ間隔の土台と下限（秒）。間隔は 土台 - パークの強さ。
+inline constexpr float kGuardBaseCooldown = 16.0f;
+inline constexpr float kGuardMinCooldown = 3.0f;
+inline float GuardCooldown(float value)
+{
+    return (std::max)(kGuardMinCooldown, kGuardBaseCooldown - value);
+}
+/// @brief 会心の威力の倍率。
+inline constexpr float kCritScale = 2.0f;
 
 /// @brief 技の強化の対象：主武器と4つの技の枠（0 が主武器、1〜4 が右クリック・Shift・E・Q）。
 inline constexpr size_t kUpgradeTargets = 5;
@@ -93,6 +116,14 @@ inline std::string PerkTierText(PerkId id, float value, int tier)
         return "欠片を引き寄せる範囲 +" + percent(total);
     case PerkId::UltCharge:
         return "Q のゲージの溜まり方 +" + percent(total);
+    case PerkId::Crit:
+        return percent(total) + " の確率で威力2倍";
+    case PerkId::Area:
+        return "弾・爆発の大きさ +" + percent(total);
+    case PerkId::ExpGain:
+        return "経験値 +" + percent(total);
+    case PerkId::Guard:
+        return std::to_string(static_cast<int>(std::round(GuardCooldown(total)))) + "秒ごとに1回、当たりを防ぐ";
     default:
         return GetPerkInfo(id).text;
     }

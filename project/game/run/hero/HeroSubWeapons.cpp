@@ -264,14 +264,15 @@ void HeroAbilityCore::UpdateSubWeapons(float dt)
                 ++it;
                 continue;
             }
-            player.TriggerBlastAt(it->position, t.radius, t.damage * HeroPowerScale(), kMineColor, 0.0f);
+            const float mineRadius = t.radius * HeroAreaScale();
+            player.TriggerBlastAt(it->position, mineRadius, t.damage * HeroPowerScale(), kMineColor, 0.0f);
             ++mineBlasts_;
             // 覚醒：まわりに小さな爆発が3つ続く。
             if (tier >= survivor::kMaxSubWeaponTier) {
                 for (int i = 0; i < 3; ++i) {
                     const float a = orbitAngle_ + 6.2831853f * static_cast<float>(i) / 3.0f;
-                    const myEngine::Vector3 offset{std::cos(a) * t.radius * 0.9f, std::sin(a) * t.radius * 0.9f, 0.0f};
-                    player.TriggerBlastAt(it->position + offset, t.radius * 0.6f, t.damage * 0.5f * HeroPowerScale(), kMineColor, 0.15f + 0.05f * static_cast<float>(i));
+                    const myEngine::Vector3 offset{std::cos(a) * mineRadius * 0.9f, std::sin(a) * mineRadius * 0.9f, 0.0f};
+                    player.TriggerBlastAt(it->position + offset, mineRadius * 0.6f, t.damage * 0.5f * HeroPowerScale(), kMineColor, 0.15f + 0.05f * static_cast<float>(i));
                 }
             }
             it = mines_.erase(it);
@@ -330,7 +331,7 @@ void HeroAbilityCore::UpdateNewSubWeapons(float dt)
                             best = point;
                         }
                     }
-                    mortarShells_.push_back({best, kMortarFall + 0.12f * static_cast<float>(shell), t.radius, t.damage});
+                    mortarShells_.push_back({best, kMortarFall + 0.12f * static_cast<float>(shell), t.radius * HeroAreaScale(), t.damage});
                 }
             }
         }
@@ -428,7 +429,7 @@ void HeroAbilityCore::UpdateNewSubWeapons(float dt)
                 auto inside = [&](const myEngine::Vector3& position, float radius) {
                     const myEngine::Vector3 to{position.x - self.x, position.y - self.y, 0.0f};
                     const float distance = myEngine::Length(to);
-                    if (distance > t.range + radius) {
+                    if (distance > t.range * HeroAreaScale() + radius) {
                         return false;
                     }
                     if (distance < radius + 0.6f) {
@@ -476,6 +477,17 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer) cons
                                center + myEngine::Vector3{std::cos(b) * radius, std::sin(b) * radius, -0.3f}, width, color);
         }
     };
+    // 反応装甲（計画書 p8 の F4）：構えている間は自機のまわりに水色の六角、防いだ瞬間は白く広がる。
+    {
+        const myEngine::Vector3 self = heroWorld_.resources.player_->GetWorldPosition();
+        if (heroWorld_.resources.player_->IsSurvivorGuardReady()) {
+            circle(self, 1.35f, 0.07f, {0.6f, 1.8f, 2.4f, 0.75f}, orbitAngle_ * 0.5f, 6);
+        }
+        if (guardFlash_ > 0.0f) {
+            const float t = 1.0f - guardFlash_ / 0.35f;
+            circle(self, 1.35f + 1.2f * t, 0.12f, {2.4f, 2.4f, 2.4f, 0.9f * (1.0f - t)}, 0.0f, 6);
+        }
+    }
     // 衛星：水色の球（輪を2つ重ねる）。覚醒では少し明るい。
     std::array<myEngine::Vector3, 4> balls{};
     const size_t count = OrbitPositions(balls);
@@ -510,7 +522,7 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer) cons
                 // 時間と筋の番号から、ゆらぎを作る。
                 const float wobble = std::sin(flameAge_ * 23.0f + static_cast<float>(n) * 2.7f);
                 const float a = base + half * (static_cast<float>(n) / 6.5f - 1.0f) + 0.08f * wobble;
-                const float length = t.range * (0.55f + 0.45f * std::fabs(std::sin(flameAge_ * 17.0f + static_cast<float>(n) * 1.3f)));
+                const float length = t.range * HeroAreaScale() * (0.55f + 0.45f * std::fabs(std::sin(flameAge_ * 17.0f + static_cast<float>(n) * 1.3f)));
                 const myEngine::Vector3 dir{std::cos(a), std::sin(a), 0.0f};
                 const myEngine::Vector3 start = self + dir * 0.9f;
                 const bool core = n % 3 == 1;

@@ -73,6 +73,11 @@ protected:
     {
         return 1.0f;
     }
+    /// @brief 大きな弾頭（計画書 p8 の F4）の、弾・爆発・炎・衝撃の輪の大きさの倍率。
+    float HeroAreaScale() const
+    {
+        return 1.0f + (HasPerk(survivor::PerkId::Area) ? PerkValue(survivor::PerkId::Area) : 0.0f);
+    }
     /// @brief 自機の移動の速さの土台の倍率（技・パークの倍率はこれに掛ける）。試作では1、遠征では調整ファイルの heroMoveScale。
     virtual float HeroBaseMoveScale() const
     {
@@ -264,6 +269,8 @@ protected:
     void UpdateSubWeapons(float dt);
     /// @brief 迫撃砲・随伴機・火炎放射・衝撃の輪（計画書 p8 の F3）。UpdateSubWeapons から呼ぶ。
     void UpdateNewSubWeapons(float dt);
+    /// @brief 共通パーク（計画書 p8 の F4）：会心・大きさを自機へ渡し、反応装甲を構え直し、予備の動力を持たせる。
+    void UpdateHeroPerks(float dt);
     /// @brief 衛星の球と置いた地雷を積む。QueueHeroVisuals から呼ぶ。
     void QueueSubWeapons(myEngine::NeonGridRenderer& renderer) const;
     /// @brief 衛星の球の位置（段で数と輪の半径が変わる）。
@@ -305,6 +312,11 @@ protected:
     myEngine::Vector3 flameDirection_{1.0f, 0.0f, 0.0f};
     // 衝撃の輪：次に出すまでの秒。
     float pulseTimer_ = 0.0f;
+    // 共通パーク（F4）：反応装甲を構え直すまでの秒・防いだ数（光らせる）・光る残り秒、予備の動力を渡したか。
+    float guardTimer_ = 0.0f;
+    uint32_t guardSeen_ = 0;
+    float guardFlash_ = 0.0f;
+    bool reviveGranted_ = false;
     // 副武器の記録（自動確認）：衛星で与えた量と消した弾、砲の発射数、地雷の爆発数。
     uint64_t orbitDamage_ = 0;
     int orbitBulletsCleared_ = 0;

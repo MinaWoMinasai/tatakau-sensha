@@ -123,7 +123,7 @@ std::string SurvivorRunController::OfferName(const ShopOffer& offer) const
     if (!offer.upgrade) {
         // 段のあるパークは、上げた後の Lv を付ける（計画書 p8 の F1）。
         const std::string name = survivor::GetPerkInfo(static_cast<PerkId>(offer.index)).name;
-        return config_.heroes.perkMaxTier > 1 ? name + " Lv" + std::to_string(perks_[static_cast<size_t>(offer.index)] + 1) : name;
+        return PerkMaxTierOf(static_cast<size_t>(offer.index)) > 1 ? name + " Lv" + std::to_string(perks_[static_cast<size_t>(offer.index)] + 1) : name;
     }
     return survivor::UpgradeOfferName(Hero(), offer.index, UpgradeTier(offer.index));
 }
@@ -143,9 +143,9 @@ std::string SurvivorRunController::OfferText(const ShopOffer& offer) const
     }
     if (!offer.upgrade) {
         const auto& info = survivor::GetPerkInfo(static_cast<PerkId>(offer.index));
-        if (config_.heroes.perkMaxTier > 1) {
+        if (PerkMaxTierOf(static_cast<size_t>(offer.index)) > 1) {
             const int next = perks_[static_cast<size_t>(offer.index)] + 1;
-            return std::string(info.text) + "\nLv" + std::to_string(next) + "/" + std::to_string(config_.heroes.perkMaxTier) + "：" +
+            return std::string(info.text) + "\nLv" + std::to_string(next) + "/" + std::to_string(PerkMaxTierOf(static_cast<size_t>(offer.index))) + "：" +
                    survivor::PerkTierText(static_cast<PerkId>(offer.index), config_.shop.perkValues[static_cast<size_t>(offer.index)], next);
         }
         return std::string(info.text) + (info.hero[0] != '\0' ? "（" + Hero().name + "だけ）" : std::string("（どの機体でも）"));
@@ -185,7 +185,7 @@ std::vector<SurvivorRunController::ShopOffer> SurvivorRunController::ShopOfferPo
         // 右クリック・Shift・E を使わない遊び方では、機体専用のパークと「連鎖の冷却」（技の待ち時間）は効かないので並べない。
         const bool locked = config_.heroes.onlyUltimate && (info.hero[0] != '\0' || static_cast<PerkId>(i) == PerkId::KillCooldown);
         const bool open = perks_[i] > 0 || !perksFull;
-        if (perks_[i] < config_.heroes.perkMaxTier && open && !locked && (info.hero[0] == '\0' || Hero().key == info.hero)) {
+        if (perks_[i] < PerkMaxTierOf(i) && open && !locked && (info.hero[0] == '\0' || Hero().key == info.hero)) {
             pool.push_back({false, static_cast<int>(i)});
         }
     }
@@ -262,7 +262,7 @@ void SurvivorRunController::ApplyOffer(const ShopOffer& offer)
         upgradeTiers_[static_cast<size_t>(offer.index)] = (std::min)(survivor::MaxUpgradeTier(Hero(), offer.index), UpgradeTier(offer.index) + 1);
     } else {
         int& tier = perks_[static_cast<size_t>(offer.index)];
-        tier = (std::min)(config_.heroes.perkMaxTier, tier + 1);
+        tier = (std::min)(PerkMaxTierOf(static_cast<size_t>(offer.index)), tier + 1);
     }
     RebuildHero(false);
 }

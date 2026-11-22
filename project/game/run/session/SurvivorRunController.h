@@ -840,6 +840,12 @@ private:
     {
         return config_.shop.perkValues[static_cast<size_t>(perk)] * static_cast<float>((std::max)(1, perks_[static_cast<size_t>(perk)]));
     }
+    /// @brief パークの段の上限（設定の perkMaxTier。予備の動力のような1回きりの物は、パークの maxTier まで。計画書 p8 の F4）。
+    int PerkMaxTierOf(size_t perk) const
+    {
+        const int own = survivor::GetPerkInfo(static_cast<survivor::PerkId>(perk)).maxTier;
+        return own > 0 ? (std::min)(own, config_.heroes.perkMaxTier) : config_.heroes.perkMaxTier;
+    }
     int HeroSkillTier(survivor::HeroSkill skill) const override
     {
         return HeroMode() ? heroSkillTiers_[static_cast<size_t>(skill)] : 0;
@@ -881,6 +887,11 @@ private:
     int shopSpent_ = 0;
     // パークの端数（吸い取る装甲の回復）と、主武器の威力の倍率（強化）・弾の爆発（強化の3段目）。
     float lifestealRemainder_ = 0.0f;
+    // 学習装置（計画書 p8 の F4）の経験値の端数と、増えた経験値の合計（記録用）。
+    float expRemainder_ = 0.0f;
+    int expBonus_ = 0;
+    // 自動確認の MYENGINE_SURVIVOR_DRAIN（負なら未読み）。
+    float autoDrainAt_ = -1.0f;
     float heroPrimaryDamage_ = 1.0f;
     float heroPrimaryBlast_ = 0.0f;
 

@@ -53,6 +53,13 @@ void HeroAbilityCore::ResetHeroState()
     flameTimer_ = 0.0f;
     flameWait_ = 0.5f;
     pulseTimer_ = 1.0f;
+    // 反応装甲は、取ったらすぐに構える（構え直すまでの秒を先に満たしておく）。
+    guardTimer_ = survivor::kGuardBaseCooldown;
+    guardSeen_ = heroWorld_.resources.player_->GetSurvivorGuardBlocks();
+    guardFlash_ = 0.0f;
+    reviveGranted_ = false;
+    heroWorld_.resources.player_->SetSurvivorGuardReady(false);
+    heroWorld_.resources.player_->SetSurvivorRevives(0, 0.5f);
     heroWorld_.resources.player_->SetSurvivorMoveScale(HeroBaseMoveScale());
 }
 
@@ -252,6 +259,7 @@ void HeroAbilityCore::UpdateHeroAbilities(float dt)
         UpdateFortress(dt, *fortress);
     }
     shockAge_ += dt;
+    UpdateHeroPerks(dt);
     UpdateSubWeapons(dt);
     // 押している間の入力は、次に UpdateHeroInput が見るまで離したことにする（持ち物の画面を開いている間など）。
     primaryHeld_ = false;
@@ -546,8 +554,47 @@ uint32_t HeroAbilityCore::DealHeroDamage(Collider* target, bool rival, uint32_t 
     if (enemy->IsDead()) {
         return 0;
     }
+    // 会心（計画書 p8 の F4）：衛星・火炎放射・衝撃の輪・光線など、弾を使わない削りにも効く。
+    const float crit = heroWorld_.resources.player_->RollSurvivorCrit();
+    if (crit > 1.0f) {
+        amount = static_cast<uint32_t>(std::round(static_cast<float>(amount) * crit));
+    }
     enemy->TakeDirectionalDamage(amount, from);
     return amount;
+}
+
+void HeroAbilityCore::UpdateHeroPerks(float dt)
+{
+    using survivor::PerkId;
+    auto& player = *heroWorld_.resources.player_;
+    Player::SurvivorPerkEffects effects;
+    effects.critChance = HasPerk(PerkId::Crit) ? (std::min)(0.9f, PerkValue(PerkId::Crit)) : 0.0f;
+    effects.critScale = survivor::kCritScale;
+    effects.areaScale = HeroAreaScale();
+    player.SetSurvivorPerkEffects(effects);
+    // 反応装甲：防いだら光らせ、間隔のあいだ待ってから構え直す。
+    if (player.GetSurvivorGuardBlocks() != guardSeen_) {
+        guardSeen_ = player.GetSurvivorGuardBlocks();
+        guardFlash_ = 0.35f;
+        guardTimer_ = 0.0f;
+    }
+    guardFlash_ = (std::max)(0.0f, guardFlash_ - dt);
+    if (HasPerk(PerkId::Guard) && !player.IsSurvivorGuardReady()) {
+        guardTimer_ += dt;
+        if (guardTimer_ >= survivor::GuardCooldown(PerkValue(PerkId::Guard))) {
+            guardTimer_ = 0.0f;
+            player.SetSurvivorGuardReady(true);
+        }
+    }
+    // 予備の動力：取ったときに1回ぶん渡す。立ち直ったら、まわりを押し返して敵の弾も消す。
+    if (HasPerk(PerkId::Revive) && !reviveGranted_) {
+        reviveGranted_ = true;
+        player.SetSurvivorRevives(1, PerkValue(PerkId::Revive));
+    }
+    if (player.ConsumeSurvivorRevived()) {
+        TriggerShockwave(player.GetWorldPosition(), 6.0f, HeroDamageUnit(3.0f), 1.2f, true);
+        heroWorld_.combatFlow->SetEventCallout("予備の動力で立ち直った", 1.5f);
+    }
 }
 
 void HeroAbilityCore::AddAbsorb(float amount)
@@ -805,6 +852,7 @@ void HeroAbilityCore::UpdateLance(float dt, const survivor::AbilityDefinition& a
 
 int HeroAbilityCore::TriggerShockwave(const myEngine::Vector3& origin, float radius, float damage, float strength, bool clearBullets)
 {
+    radius *= HeroAreaScale();
     shockCenter_ = origin;
     shockRadius_ = radius;
     shockAge_ = 0.0f;

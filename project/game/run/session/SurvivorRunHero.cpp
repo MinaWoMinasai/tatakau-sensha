@@ -46,7 +46,20 @@ void SurvivorRunController::StartHero()
     fillerMaxHp_ = 0;
     fillerPower_ = 0.0f;
     fillersTaken_ = 0;
+    expRemainder_ = 0.0f;
+    expBonus_ = 0;
     subWeaponTiers_.fill(0);
+    // 自動確認：MYENGINE_SURVIVOR_PERKS=1,1,1,1,1 のように、F4 で足したパーク（会心・大きさ・経験値・反応装甲・予備の動力）の段を始めから決める。
+    wchar_t newPerks[32]{};
+    if (autoTest_ != AutoTest::None && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_PERKS", newPerks, 32) > 0) {
+        size_t index = static_cast<size_t>(survivor::PerkId::Crit);
+        for (const wchar_t* c = newPerks; *c && index < perks_.size(); ++c) {
+            if (*c >= L'0' && *c <= L'9') {
+                perks_[index] = (std::min)(PerkMaxTierOf(index), static_cast<int>(*c - L'0'));
+                ++index;
+            }
+        }
+    }
     // 自動確認：MYENGINE_SURVIVOR_SUBS=0,0,0,1,1,5,5 のように、副武器の段を始めから決める（計画書 p8 の F3 の確認用）。
     wchar_t subs[64]{};
     if (autoTest_ != AutoTest::None && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_SUBS", subs, 64) > 0) {
