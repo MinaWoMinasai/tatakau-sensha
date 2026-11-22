@@ -389,6 +389,7 @@
     <ClInclude Include="game\run\hero\HeroAbilityCore.h" />
     <ClInclude Include="game\run\hero\ExpeditionHeroAbilities.h" />
     <ClInclude Include="game\run\SurvivorShop.h" />
+    <ClInclude Include="game\run\SurvivorSubWeapons.h" />
     <ClInclude Include="game\run\SurvivorHeroSave.h" />
     <ClInclude Include="game\run\SurvivorLoot.h" />
     <ClInclude Include="game\run\SurvivorSave.h" />
@@ -552,6 +553,7 @@
     <ClCompile Include="game\run\session\SurvivorRunBase.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunRest.cpp" />
     <ClCompile Include="game\run\hero\HeroAbilityCore.cpp" />
+    <ClCompile Include="game\run\hero\HeroSubWeapons.cpp" />
     <ClCompile Include="game\run\hero\HeroBarrier.cpp" />
     <ClCompile Include="game\run\hero\ExpeditionHeroAbilities.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunHero.cpp" />

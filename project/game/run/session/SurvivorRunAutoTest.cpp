@@ -64,10 +64,25 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             RequestCapture("hero_levelup");
             return;
         }
-        ChooseHeroLevelUp(0);
+        // 副武器（E4）を確かめるため、並んでいれば副武器を選ぶ。
+        size_t pick = 0;
+        for (size_t i = 0; i < heroLevelUpOffers_.size(); ++i) {
+            if (heroLevelUpOffers_[i].sub) {
+                pick = i;
+                break;
+            }
+        }
+        ChooseHeroLevelUp(pick);
         if (heroLevelUpOpen_) {
             RefreshHeroLevelUp();
         }
+        return;
+    }
+    // 副武器が2つ以上動き出したら、一度だけ画面を保存する。
+    if (!autoSubWeaponCaptured_ && world_.run.tankRunCapturePath_.empty() &&
+        std::count_if(subWeaponTiers_.begin(), subWeaponTiers_.end(), [](int tier) { return tier > 0; }) >= 2) {
+        autoSubWeaponCaptured_ = true;
+        RequestCapture("hero_subweapons");
         return;
     }
     // 拠点の画面：画面を保存し、4つ目の武器を3つ目の枠へ入れてから元に戻し（入れ替えの確認）、作る・進化を1回ずつ試して
@@ -1094,7 +1109,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << abilityUses_[3] << "],\"cooldownSeen\":[" << abilityCooldownSeen_[0] << "," << abilityCooldownSeen_[1] << ","
             << abilityCooldownSeen_[2] << "," << abilityCooldownSeen_[3] << "],\"sprintSeconds\":" << sprintSeconds_
             << ",\"walkSpeed\":" << autoMoveDistance_[0] / (std::max)(0.001f, autoMoveSeconds_[0]) << ",\"heroLevel\":" << level_
-            << ",\"heroLevelUps\":" << heroLevelUpLog_.size()
+            << ",\"heroLevelUps\":" << heroLevelUpLog_.size() << ",\"subWeaponTiers\":[" << subWeaponTiers_[0] << ","
+            << subWeaponTiers_[1] << "," << subWeaponTiers_[2] << "],\"orbitDamage\":" << orbitDamage_
+            << ",\"orbitBulletsCleared\":" << orbitBulletsCleared_ << ",\"turretShots\":" << turretShots_ << ",\"mineBlasts\":" << mineBlasts_
             << ",\"sprintSpeed\":" << autoMoveDistance_[1] / (std::max)(0.001f, autoMoveSeconds_[1]) << ",\"ultimateCharge\":" << ultimateCharge_
             << ",\"ultimateFullAt\":" << ultimateFullAt_ << ",\"ultimateFills\":" << ultimateFills_ << ",\"rocketBlasts\":" << rocketBlasts_
             << ",\"rocketKills\":" << rocketKills_ << ",\"healed\":" << healedByZone_ << ",\"healInsideSeconds\":" << healZoneInsideSeconds_

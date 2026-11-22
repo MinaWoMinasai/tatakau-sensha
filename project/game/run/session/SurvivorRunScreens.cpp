@@ -605,6 +605,17 @@ SurvivorItemScreen::View SurvivorRunController::HeroBuildView() const
             card.stats = line(0) + "\n" + line(1);
         } else if (c == 1) {
             card.stats = line(2) + "\n" + line(3);
+            // 副武器（計画書 p7 の E4）：持っている物を短い名前と段で。
+            std::string subs;
+            for (size_t i = 0; i < survivor::kSubWeaponCount; ++i) {
+                if (subWeaponTiers_[i] > 0) {
+                    subs += (subs.empty() ? "副武器 " : "・") + std::string(survivor::GetSubWeaponInfo(static_cast<survivor::SubWeapon>(i)).shortName) +
+                            std::to_string(subWeaponTiers_[i]);
+                }
+            }
+            if (!subs.empty()) {
+                card.stats += "\n" + subs;
+            }
         } else {
             // パークは3つごとに改行する（札の右端からはみ出さないように）。
             std::string perks;
@@ -645,10 +656,14 @@ void SurvivorRunController::RefreshHeroLevelUp()
                                                                                       "chip_collector", "chip_chainLightning"};
     for (size_t i = 0; i < heroLevelUpOffers_.size(); ++i) {
         const ShopOffer& offer = heroLevelUpOffers_[i];
-        const bool awaken = offer.upgrade && UpgradeTier(offer.index) == survivor::kMaxUpgradeTier - 1;
+        const bool awaken = OfferAwakens(offer);
         Item item;
-        item.icon = Icon(offer.upgrade ? kUpgradeIcons[static_cast<size_t>(offer.index)] : "chip_default");
-        item.color = awaken ? myEngine::Vector4{1.9f, 1.5f, 0.4f, 1.0f}
+        // 色：技の強化は水色、副武器は緑、パークは橙。覚醒の手前は金色。
+        item.icon = Icon(offer.sub       ? survivor::GetSubWeaponInfo(static_cast<survivor::SubWeapon>(offer.index)).icon
+                         : offer.upgrade ? kUpgradeIcons[static_cast<size_t>(offer.index)]
+                                         : "chip_default");
+        item.color = awaken          ? myEngine::Vector4{1.9f, 1.5f, 0.4f, 1.0f}
+                     : offer.sub     ? myEngine::Vector4{0.5f, 1.4f, 0.75f, 1.0f}
                      : offer.upgrade ? myEngine::Vector4{0.55f, 0.95f, 1.0f, 1.0f}
                                      : myEngine::Vector4{1.0f, 0.75f, 0.35f, 1.0f};
         item.count = static_cast<int>(i) + 1;

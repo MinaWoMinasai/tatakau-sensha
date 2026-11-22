@@ -797,6 +797,9 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         if (heroes.contains("levelUps") && heroes.at("levelUps").is_boolean()) {
             config.heroes.levelUps = heroes.at("levelUps").get<bool>();
         }
+        if (heroes.contains("subWeapons") && heroes.at("subWeapons").is_boolean()) {
+            config.heroes.subWeapons = heroes.at("subWeapons").get<bool>();
+        }
         for (const auto& item : heroes.items()) {
             if (!item.value().is_object()) {
                 continue;
@@ -1388,6 +1391,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     heroes["moveScale"] = round(config.heroes.moveScale);
     heroes["autoFire"] = config.heroes.autoFire;
     heroes["levelUps"] = config.heroes.levelUps;
+    heroes["subWeapons"] = config.heroes.subWeapons;
     for (const auto& hero : config.heroes.heroes) {
         auto& item = heroes[hero.key];
         item["name"] = hero.name;

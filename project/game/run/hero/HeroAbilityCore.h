@@ -3,6 +3,7 @@
 #include "game/run/SurvivorHeroes.h"
 #include "game/run/SurvivorShop.h"
 #include "game/run/SurvivorSpawnConfig.h"
+#include "game/run/SurvivorSubWeapons.h"
 #include <array>
 #include <cstdint>
 #include <string>
@@ -213,6 +214,34 @@ protected:
     bool beamChainOn_ = false;
     myEngine::Vector3 beamChainEnd_{};
     float orbScale_ = 1.0f;
+
+    // 副武器（計画書 p7 の E4）。HeroSubWeapons.cpp。段が0の副武器は動かない（遠征では全部0のまま）。
+    /// @brief 持っている副武器を動かす。UpdateHeroAbilities から呼ぶ。dt は区画の時間。
+    void UpdateSubWeapons(float dt);
+    /// @brief 衛星の球と置いた地雷を積む。QueueHeroVisuals から呼ぶ。
+    void QueueSubWeapons(myEngine::NeonGridRenderer& renderer) const;
+    /// @brief 衛星の球の位置（段で数と輪の半径が変わる）。
+    size_t OrbitPositions(std::array<myEngine::Vector3, 4>& out) const;
+    int SubWeaponTier(survivor::SubWeapon weapon) const
+    {
+        return subWeaponTiers_[static_cast<size_t>(weapon)];
+    }
+    std::array<int, survivor::kSubWeaponCount> subWeaponTiers_{};
+    // 衛星：回った角度・次に当てるまでの秒。見張りの砲：次に撃つまでの秒。地雷：次に置くまでの秒と、置いた地雷（位置と経った秒）。
+    float orbitAngle_ = 0.0f;
+    float orbitTick_ = 0.0f;
+    float turretTimer_ = 0.0f;
+    float mineTimer_ = 0.0f;
+    struct SubMine {
+        myEngine::Vector3 position{};
+        float age = 0.0f;
+    };
+    std::vector<SubMine> mines_;
+    // 副武器の記録（自動確認）：衛星で与えた量と消した弾、砲の発射数、地雷の爆発数。
+    uint64_t orbitDamage_ = 0;
+    int orbitBulletsCleared_ = 0;
+    int turretShots_ = 0;
+    int mineBlasts_ = 0;
 
     // バリアとスタミナ（計画書 p3 の X3）。HeroBarrier.cpp。武器の枠の遊び方（機体なし）でも使う。
     /// @brief スタミナを増減し、wanted で張っている間は敵の弾と敵を止める。dt は区画の時間。

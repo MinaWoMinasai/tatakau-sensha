@@ -131,6 +131,8 @@ struct HeroesConfig {
     bool autoFire = false;
     /// @brief 欠片でレベルが上がり、戦闘中に技の強化とパークの3択を選ぶか（計画書 p7 の E3。HoloCure と同じ。偽なら今までどおり欠片はレベルポイント）。
     bool levelUps = false;
+    /// @brief レベルアップの3択に副武器（勝手に動く武器。SurvivorSubWeapons.h）も並べるか（計画書 p7 の E4。levelUps のときだけ）。
+    bool subWeapons = false;
 };
 
 /// @brief 設定ファイルが無いときの機体。ソルジャー型（K1）・モイラ型（K2）・タンク型（K7。最初に解放する）。

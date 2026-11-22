@@ -730,15 +730,24 @@ private:
     int repairSpent_ = 0;
 
     // 波の間のショップ（計画書 p4 の K4）。SurvivorRunShop.cpp。
-    /// @brief 並んでいる物1つ。upgrade なら index は強化の対象（0 主武器、1〜4 技の枠）、そうでなければ survivor::PerkId。
+    /// @brief 並んでいる物1つ。upgrade なら index は強化の対象（0 主武器、1〜4 技の枠）、sub なら survivor::SubWeapon
+    /// （副武器。レベルアップの3択だけ。計画書 p7 の E4）、どちらでもなければ survivor::PerkId。
     struct ShopOffer {
         bool upgrade = false;
         int index = 0;
+        bool sub = false;
+        bool Same(const ShopOffer& other) const
+        {
+            return upgrade == other.upgrade && sub == other.sub && index == other.index;
+        }
     };
     /// @brief 設定の機体に、技の強化の段とパークを効かせて Hero() を作り直し、主武器・最大HPに入れ直す。heal なら HP を満タンにする。
     void RebuildHero(bool heal);
     /// @brief 並べられる物：3段まで上がっていない技の強化と、まだ持っていないパーク（共通と、この機体の物）。
-    std::vector<ShopOffer> ShopOfferPool() const;
+    /// withSubWeapons なら、3段まで上がっていない副武器も入れる（レベルアップの3択で、設定の heroes.subWeapons のとき）。
+    std::vector<ShopOffer> ShopOfferPool(bool withSubWeapons = false) const;
+    /// @brief 覚醒（3段目）の手前か（3択で優先して並べ、金色にする）。
+    bool OfferAwakens(const ShopOffer& offer) const;
     /// @brief offer を手に入れる（技の強化の段を1つ上げるか、パークを持つ）。機体の値を入れ直す。
     void ApplyOffer(const ShopOffer& offer);
     /// @brief 並ぶ物を引き直す（買えない物は並べない）。
@@ -757,6 +766,7 @@ private:
     // 選んだ物の記録（レベル:名前）。
     std::vector<std::string> heroLevelUpLog_;
     bool autoLevelUpCaptured_ = false;
+    bool autoSubWeaponCaptured_ = false;
     /// @brief 並んでいる offer 番目を買う。お金が足りなければ何もしない。買えたら真。
     bool BuyOffer(size_t offer);
     /// @brief 引き直す（値段は引くたびに上がる）。お金が足りなければ何もしない。引けたら真。

@@ -35,6 +35,10 @@ void HeroAbilityCore::ResetHeroState()
     chargeTimer_ = 0.0f;
     fortressTimer_ = 0.0f;
     shockAge_ = 10.0f;
+    orbitTick_ = 0.0f;
+    turretTimer_ = 0.5f;
+    mineTimer_ = 1.0f;
+    mines_.clear();
     heroWorld_.resources.player_->SetSurvivorMoveScale(HeroBaseMoveScale());
 }
 
@@ -231,6 +235,7 @@ void HeroAbilityCore::UpdateHeroAbilities(float dt)
         UpdateFortress(dt, *fortress);
     }
     shockAge_ += dt;
+    UpdateSubWeapons(dt);
     // 押している間の入力は、次に UpdateHeroInput が見るまで離したことにする（持ち物の画面を開いている間など）。
     primaryHeld_ = false;
     secondaryHeld_ = false;
@@ -481,6 +486,7 @@ void HeroAbilityCore::QueueHeroVisuals(myEngine::NeonGridRenderer& renderer, con
         const myEngine::Vector3 start = self + aim * 1.1f + lift, end = self + aim * lance->radius + lift;
         renderer.QueueContourLine(start, end, width, {1.7f, 0.8f, 2.2f, 0.95f}, cameraForward);
     }
+    QueueSubWeapons(renderer);
 }
 
 namespace {

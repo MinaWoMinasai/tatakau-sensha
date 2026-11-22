@@ -2,6 +2,7 @@
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 // 育つ戦車の試作の波の間のショップ（計画書 p4 の K4）：ランダムに並ぶ技の強化とパークを、レベルポイントで買う。
@@ -65,6 +66,10 @@ int SurvivorRunController::OfferPrice(const ShopOffer& offer) const
 
 std::string SurvivorRunController::OfferName(const ShopOffer& offer) const
 {
+    if (offer.sub) {
+        const auto weapon = static_cast<survivor::SubWeapon>(offer.index);
+        return survivor::SubWeaponOfferName(weapon, SubWeaponTier(weapon));
+    }
     if (!offer.upgrade) {
         return survivor::GetPerkInfo(static_cast<PerkId>(offer.index)).name;
     }
@@ -73,6 +78,10 @@ std::string SurvivorRunController::OfferName(const ShopOffer& offer) const
 
 std::string SurvivorRunController::OfferText(const ShopOffer& offer) const
 {
+    if (offer.sub) {
+        const auto weapon = static_cast<survivor::SubWeapon>(offer.index);
+        return survivor::SubWeaponOfferText(weapon, SubWeaponTier(weapon));
+    }
     if (!offer.upgrade) {
         const auto& info = survivor::GetPerkInfo(static_cast<PerkId>(offer.index));
         return std::string(info.text) + (info.hero[0] != '\0' ? "（" + Hero().name + "だけ）" : std::string("（どの機体でも）"));
@@ -80,7 +89,15 @@ std::string SurvivorRunController::OfferText(const ShopOffer& offer) const
     return survivor::UpgradeOfferText(Hero(), offer.index, UpgradeTier(offer.index));
 }
 
-std::vector<SurvivorRunController::ShopOffer> SurvivorRunController::ShopOfferPool() const
+bool SurvivorRunController::OfferAwakens(const ShopOffer& offer) const
+{
+    if (offer.sub) {
+        return SubWeaponTier(static_cast<survivor::SubWeapon>(offer.index)) == survivor::kMaxSubWeaponTier - 1;
+    }
+    return offer.upgrade && UpgradeTier(offer.index) == survivor::kMaxUpgradeTier - 1;
+}
+
+std::vector<SurvivorRunController::ShopOffer> SurvivorRunController::ShopOfferPool(bool withSubWeapons) const
 {
     // 候補：3段まで上がっていない技の強化と、まだ持っていないパーク（共通と、この機体の物）。
     std::vector<ShopOffer> pool;
@@ -96,11 +113,23 @@ std::vector<SurvivorRunController::ShopOffer> SurvivorRunController::ShopOfferPo
             pool.push_back({false, static_cast<int>(i)});
         }
     }
+    if (withSubWeapons) {
+        for (size_t i = 0; i < survivor::kSubWeaponCount; ++i) {
+            if (subWeaponTiers_[i] < survivor::kMaxSubWeaponTier) {
+                pool.push_back({false, static_cast<int>(i), true});
+            }
+        }
+    }
     return pool;
 }
 
 void SurvivorRunController::ApplyOffer(const ShopOffer& offer)
 {
+    if (offer.sub) {
+        int& tier = subWeaponTiers_[static_cast<size_t>(offer.index)];
+        tier = (std::min)(survivor::kMaxSubWeaponTier, tier + 1);
+        return;
+    }
     if (offer.upgrade) {
         upgradeTiers_[static_cast<size_t>(offer.index)] = (std::min)(survivor::kMaxUpgradeTier, UpgradeTier(offer.index) + 1);
     } else {
@@ -111,29 +140,32 @@ void SurvivorRunController::ApplyOffer(const ShopOffer& offer)
 
 void SurvivorRunController::OpenHeroLevelUp()
 {
-    std::vector<ShopOffer> pool = ShopOfferPool();
+    const bool subWeapons = config_.heroes.subWeapons;
+    std::vector<ShopOffer> pool = ShopOfferPool(subWeapons);
     if (pool.empty()) {
         // 全部そろったら、選ぶ物は無い（レベルは上がるが止めない）。
         heroPendingLevelUps_ = 0;
         heroLevelUpOpen_ = false;
         return;
     }
-    // 技の強化を2つ・パークを1つになるように寄せる（足りなければ残りから）。覚醒（3段目）の手前の技は優先して並べる。
+    // 種類ごとの数の上限まで寄せる（足りなければ残りから）。副武器が無いときは技の強化2つ・パーク1つ、
+    // あるときは技の強化・副武器・パークを1つずつ。覚醒（3段目）の手前の物は優先して並べる。
     std::shuffle(pool.begin(), pool.end(), random_);
     std::stable_sort(pool.begin(), pool.end(), [this](const ShopOffer& a, const ShopOffer& b) {
-        const bool aAwaken = a.upgrade && UpgradeTier(a.index) == survivor::kMaxUpgradeTier - 1;
-        const bool bAwaken = b.upgrade && UpgradeTier(b.index) == survivor::kMaxUpgradeTier - 1;
-        return aAwaken && !bAwaken;
+        return OfferAwakens(a) && !OfferAwakens(b);
     });
     heroLevelUpOffers_.clear();
-    int upgrades = 0, perks = 0;
+    // [0] 技の強化、[1] パーク、[2] 副武器。
+    const std::array<int, 3> limits = subWeapons ? std::array<int, 3>{1, 1, 1} : std::array<int, 3>{2, 1, 0};
+    std::array<int, 3> taken{};
     for (const ShopOffer& offer : pool) {
         if (heroLevelUpOffers_.size() >= 3) {
             break;
         }
-        if ((offer.upgrade && upgrades < 2) || (!offer.upgrade && perks < 1)) {
+        const size_t kind = offer.upgrade ? 0 : offer.sub ? 2 : 1;
+        if (taken[kind] < limits[kind]) {
             heroLevelUpOffers_.push_back(offer);
-            (offer.upgrade ? upgrades : perks)++;
+            ++taken[kind];
         }
     }
     for (const ShopOffer& offer : pool) {
@@ -141,7 +173,7 @@ void SurvivorRunController::OpenHeroLevelUp()
             break;
         }
         if (std::find_if(heroLevelUpOffers_.begin(), heroLevelUpOffers_.end(), [&](const ShopOffer& o) {
-                return o.upgrade == offer.upgrade && o.index == offer.index;
+                return o.Same(offer);
             }) == heroLevelUpOffers_.end()) {
             heroLevelUpOffers_.push_back(offer);
         }
