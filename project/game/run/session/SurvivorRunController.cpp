@@ -296,6 +296,12 @@ void SurvivorRunController::Initialize()
                     : mode[0] == L'1' ? AutoTest::Sector
                                       : AutoTest::None;
     }
+    // 速さの確認（MYENGINE_SURVIVOR_SPEED_TEST=1、auto なら20秒で書き出して終わる）。
+    wchar_t speedTest[8]{};
+    if (!world_.demo.titleDemo_ && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_SPEED_TEST", speedTest, 8) > 0) {
+        speedTest_ = true;
+        speedTestAutoQuit_ = std::wstring(speedTest) == L"auto";
+    }
     if (autoTest_ == AutoTest::Perf) {
         // 図形を200体に保ち、敵戦車8体と大五角3体を最初から出す。形態の2択と出口は出さない。
         config_.shapeTargetAlive = {{0.0f, 200.0f}};
@@ -532,8 +538,12 @@ void SurvivorRunController::Update(float dt)
         }
         {
             myEngine::RuntimeProfiler::CpuScope spawnScope("Survivor Spawns");
-            UpdateSpawns(gameDt);
-            UpdateTimeline();
+            if (speedTest_) {
+                UpdateSpeedTest(gameDt);
+            } else {
+                UpdateSpawns(gameDt);
+                UpdateTimeline();
+            }
         }
         myEngine::RuntimeProfiler::CpuScope shardScope("Survivor Shards / Q / Separation");
         AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
@@ -574,7 +584,7 @@ void SurvivorRunController::Update(float dt)
             separationSeconds_ += std::chrono::duration<double>(std::chrono::steady_clock::now() - separationStart).count();
             ++separationCalls_;
         }
-        if (gameDt > 0.0f) {
+        if (gameDt > 0.0f && !speedTest_) {
             UpdateElites(gameDt);
         }
         // 右クリックを押している間、バリアを張る（敵どうしの押し離しの後で押し返す）。

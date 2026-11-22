@@ -54,6 +54,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     // 部屋の中央の周りを回りながら近い敵を撃ち続け、近くの欠片は拾いに行く。4:00 を過ぎたら出口へ向かう
     // （レベルの曲線を4分で確かめるため、出口が開いてもすぐには入らない）。自機は無敵。
     auto& player = *world_.resources.player_;
+    // 速さの確認では、出撃した後のボットは何もしない（止まったまま）。
+    if (speedTest_ && !baseScreenOpen_ && hero_ >= 0) {
+        return;
+    }
     // 戦闘中のレベルアップの3択（計画書 p7 の E3）：1つ目を選ぶ。最初の1回は画面を保存してから。
     if (heroLevelUpOpen_) {
         if (!world_.run.tankRunCapturePath_.empty()) {

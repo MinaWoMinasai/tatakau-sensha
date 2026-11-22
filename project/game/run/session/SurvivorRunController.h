@@ -770,6 +770,20 @@ private:
     /// @brief prefab を position に湧かせ、HP を倍率に合わせ、speed で自機へ寄らせる。湧けたら敵を返す。
     ExpEnemy* SpawnChaser(const std::string& prefab, const myEngine::Vector3& position, float speed);
     // 次に起こす出来事の番号・起こした数。中ボス（敵の id と、倒したときに選べる3択の回数）・倒した数。
+    // 速さの確認（MYENGINE_SURVIVOR_SPEED_TEST=1。計画書 p7）：ふつうの湧き方・時間割・ボスを止め、四角・三角・五角を横に並べて
+    // 同時に右へ走らせる（寄ってくる動きと同じ加速・最高速度・慣性で、向きだけ右）。一番前が右の端に着いたら左からやり直す。
+    // 1秒ごとに、それぞれと自機が1秒で動いた距離を画面に出し、generated/tank_survivor/speed_test.json にも書く。
+    void UpdateSpeedTest(float dt);
+    bool speedTest_ = false;
+    bool speedTestAutoQuit_ = false;
+    std::array<uint64_t, 3> speedTestIds_{};
+    std::array<myEngine::Vector3, 4> speedTestLast_{};
+    std::array<float, 4> speedTestMoved_{};
+    float speedTestTimer_ = 0.0f;
+    float speedTestClock_ = 0.0f;
+    float speedTestStartX_ = 0.0f;
+    int speedTestRaces_ = 0;
+    std::string speedTestLog_;
     size_t timelineNext_ = 0;
     int timelineEvents_ = 0;
     std::vector<std::pair<uint64_t, int>> midBosses_;

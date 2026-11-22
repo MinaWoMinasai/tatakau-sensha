@@ -88,7 +88,8 @@ void SurvivorRunController::UpdateHeroInput()
     }
     world_.resources.player_->SetAutoFire(heroAutoFire_ && !bot);
     // 左クリック・右クリックを押しているか（押している間の技：吸い付く光線・自分を回復）。
-    primaryHeld_ = bot ? true : heroAutoFire_ || input.IsPress(input.GetMouseState().rgbButtons[0]);
+    // 速さの確認（speedTest_）では、ボットは撃たない（走らせている図形を押さないように）。
+    primaryHeld_ = bot ? !speedTest_ : heroAutoFire_ || input.IsPress(input.GetMouseState().rgbButtons[0]);
     secondaryHeld_ = bot ? autoSecondaryHold_ : input.IsPress(input.GetMouseState().rgbButtons[1]);
     // 右クリック：押している間の技（バリア）は UpdateBarrier で見る。押した瞬間の技（ロケット）はここで使う。
     if (!survivor::IsHeldAbility(Ability(AbilitySlot::Secondary).kind) &&

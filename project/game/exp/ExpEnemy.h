@@ -143,6 +143,13 @@ public:
         chaseMaxSpeed_ = maxSpeed;
     }
 
+    /// @brief 寄る向きを、自機ではなく決まった向き direction に固定する（速さの確認用。計画書 p7）。加速・最高速度・慣性はそのまま。
+    void SetChaseDirection(const myEngine::Vector3& direction)
+    {
+        chaseDirection_ = direction;
+        chaseFixedDirection_ = true;
+    }
+
     /// @brief 寄ってくる図形に突進を足す。interval 秒ごとに、windup 秒ほぼ止まって溜め、duration 秒だけ最高速度 lungeSpeed で迫る。
     /// @param phase 周期の始まりをずらす秒（群れが一斉に突進しないように）。SetPlayerChase と一緒に使う。
     void SetPlayerLunge(float interval, float windup, float duration, float lungeSpeed, float phase)
@@ -603,6 +610,8 @@ private:
     float sizeScale_ = 1.0f;
     float chaseAcceleration_ = 0.0f;
     float chaseMaxSpeed_ = 0.0f;
+    myEngine::Vector3 chaseDirection_{};
+    bool chaseFixedDirection_ = false;
     SurvivorRole survivorRole_ = SurvivorRole::None;
     float roleTimer_ = 0.0f;
     float warpDissolve_ = 0.0f;

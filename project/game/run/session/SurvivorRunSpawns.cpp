@@ -4,6 +4,9 @@
 #include "game/render/settings/ArenaCameraProfile.h"
 #include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
 
 // 育つ戦車の試作の湧き方・脅威の段階・宿敵・出口・敵どうしの押し離し。
 
@@ -215,6 +218,98 @@ void SurvivorRunController::RunTimelineEvent(const survivor::SpawnConfig::Timeli
     }
     if (!event.text.empty()) {
         world_.combatFlow->SetEventCallout(event.text, 1.4f);
+    }
+}
+
+void SurvivorRunController::UpdateSpeedTest(float dt)
+{
+    // ボスは出さない。自動で撃つは最初だけ切る（F で戻せる）。
+    config_.exitOpenSeconds = elapsed_ + 5999.0f;
+    if (speedTestClock_ <= 0.0f) {
+        heroAutoFire_ = false;
+    }
+    speedTestClock_ += dt;
+    auto find = [&](uint64_t id) -> ExpEnemy* {
+        for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (enemy && !enemy->IsDead() && enemy->GetCollisionId() == id) {
+                return enemy;
+            }
+        }
+        return nullptr;
+    };
+    static constexpr std::array<const char*, 3> kPrefabs{"Square", "Triangle", "Pentagon"};
+    static constexpr std::array<const char*, 3> kNames{"四角", "三角", "五角"};
+    // 3体そろっていない（倒した）か、一番前が右の端に着いたら、左から並べ直す。
+    bool restart = speedTestIds_[0] == 0;
+    float front = 0.0f;
+    for (size_t i = 0; i < 3 && !restart; ++i) {
+        const ExpEnemy* enemy = find(speedTestIds_[i]);
+        if (!enemy) {
+            restart = true;
+        } else {
+            front = (std::max)(front, enemy->GetWorldPosition().x);
+        }
+    }
+    // 走り出しは自機の左10で、高さは自機の 上4・下4・下8（自機と同じ高さには置かない。ぶつかって押し合うので）。40進むか右の端に着いたらやり直す。
+    if (restart || front > (std::min)(kSpawnMaxX - 3.0f, speedTestStartX_ + 40.0f)) {
+        world_.resources.enemyManager_->ClearRunActors();
+        const myEngine::Vector3 self = world_.resources.player_->GetWorldPosition();
+        speedTestStartX_ = (std::clamp)(self.x - 10.0f, kSpawnMinX + 2.0f, kSpawnMaxX - 20.0f);
+        const float centerY = (std::clamp)(self.y, kSpawnMinY + 6.0f, kSpawnMaxY - 6.0f);
+        for (size_t i = 0; i < 3; ++i) {
+            const myEngine::Vector3 position{speedTestStartX_, centerY + (i == 0 ? 4.0f : i == 1 ? -4.0f : -8.0f), 0.0f};
+            speedTestIds_[i] = 0;
+            if (!SpawnShape(kPrefabs[i], position, false)) {
+                continue;
+            }
+            ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
+            enemy->SetHp(1000000);
+            enemy->SetPlayerChase(config_.shapeChase[i].first, config_.shapeChase[i].second);
+            enemy->SetChaseDirection({1.0f, 0.0f, 0.0f});
+            speedTestIds_[i] = enemy->GetCollisionId();
+            speedTestLast_[i] = position;
+        }
+        ++speedTestRaces_;
+        speedTestMoved_.fill(0.0f);
+        speedTestTimer_ = 0.0f;
+        speedTestLast_[3] = world_.resources.player_->GetWorldPosition();
+        return;
+    }
+    // 動いた距離を足し、1秒ごとに出す。
+    for (size_t i = 0; i < 4; ++i) {
+        const ExpEnemy* enemy = i < 3 ? find(speedTestIds_[i]) : nullptr;
+        const myEngine::Vector3 position = i < 3 ? (enemy ? enemy->GetWorldPosition() : speedTestLast_[i]) : world_.resources.player_->GetWorldPosition();
+        speedTestMoved_[i] += myEngine::Length(myEngine::Vector3{position.x - speedTestLast_[i].x, position.y - speedTestLast_[i].y, 0.0f});
+        speedTestLast_[i] = position;
+    }
+    speedTestTimer_ += dt;
+    if (speedTestTimer_ < 1.0f) {
+        return;
+    }
+    std::ostringstream text, json;
+    text << std::fixed << std::setprecision(1);
+    json << std::fixed << std::setprecision(2) << (speedTestLog_.empty() ? "" : ",") << "{\"t\":" << speedTestClock_ << ",\"race\":" << speedTestRaces_;
+    static constexpr std::array<const char*, 4> kKeys{"square", "triangle", "pentagon", "player"};
+    for (size_t i = 0; i < 4; ++i) {
+        const float speed = speedTestMoved_[i] / speedTestTimer_;
+        // 「四角 2.6/2.6」のように、1秒の速さ／設定の最高速度。
+        text << (i ? "　" : "") << (i < 3 ? kNames[i] : "自機") << " " << speed;
+        if (i < 3) {
+            text << "/" << config_.shapeChase[i].second;
+        }
+        json << ",\"" << kKeys[i] << "\":" << speed;
+    }
+    json << "}";
+    speedTestLog_ += json.str();
+    world_.combatFlow->SetEventCallout(text.str(), 1.2f);
+    std::ofstream(std::string(kAutoTestDirectory) + "/speed_test.json") << "[" << speedTestLog_ << "]\n";
+    speedTestMoved_.fill(0.0f);
+    speedTestTimer_ = 0.0f;
+    if (speedTestAutoQuit_ && speedTestRaces_ == 1 && speedTestClock_ >= 6.0f && speedTestClock_ < 7.1f) {
+        RequestCapture("speed_test");
+    }
+    if (speedTestAutoQuit_ && speedTestClock_ >= 20.0f) {
+        PostQuitMessage(0);
     }
 }
 
