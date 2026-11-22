@@ -46,6 +46,13 @@ void HeroAbilityCore::ResetHeroState()
     turretTimer_ = 0.5f;
     mineTimer_ = 1.0f;
     mines_.clear();
+    mortarTimer_ = 1.5f;
+    mortarShells_.clear();
+    dronesPlaced_ = false;
+    droneTimer_ = 0.5f;
+    flameTimer_ = 0.0f;
+    flameWait_ = 0.5f;
+    pulseTimer_ = 1.0f;
     heroWorld_.resources.player_->SetSurvivorMoveScale(HeroBaseMoveScale());
 }
 

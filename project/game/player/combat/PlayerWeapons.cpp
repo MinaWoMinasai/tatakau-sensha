@@ -557,7 +557,7 @@ void PlayerWeapons::FireSurvivorShot(BulletManager* bullets, const Player::Survi
     if (shot.bulletHp > 0.0f) {
         param.bulletHp = (std::max)(param.bulletHp, shot.bulletHp);
     }
-    const myEngine::Vector3 muzzle = player_.GetWorldPosition() + aim * 1.2f;
+    const myEngine::Vector3 muzzle = shot.useOrigin ? shot.origin + aim * 0.4f : player_.GetWorldPosition() + aim * 1.2f;
     auto bullet = std::make_unique<Bullet>();
     bullet->Initialize(muzzle, aim * param.bulletSpeed, param.damage, kPlayer, false, param.bulletHp, param.bulletPenetration);
     bullet->ConfigureGrowth(0, param.actorPierceCount, 0);

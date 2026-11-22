@@ -83,12 +83,18 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         const bool perkFirst = pickSet && std::wstring(pickMode) == L"perk";
         // MYENGINE_SURVIVOR_PICK=skill なら、専用スキルを先に選ぶ（計画書 p8 の F2）。
         const bool skillFirst = pickSet && std::wstring(pickMode) == L"skill";
+        // MYENGINE_SURVIVOR_PICK=newsub なら、F3 で足した副武器（迫撃砲・随伴機・火炎放射・衝撃の輪）を先に選ぶ。
+        const bool newSubFirst = pickSet && std::wstring(pickMode) == L"newsub";
         size_t pick = 0;
         int best = 0;
         for (size_t i = 0; i < heroLevelUpOffers_.size(); ++i) {
             const ShopOffer& offer = heroLevelUpOffers_[i];
             const bool perk = !offer.upgrade && !offer.sub && !offer.skill && offer.filler == Filler::None;
-            const int score = (perkFirst && perk) || (skillFirst && offer.skill) ? 3 : offer.upgrade && offer.index == 0 ? 2 : offer.sub ? 1 : 0;
+            const bool newSub = offer.sub && offer.index >= static_cast<int>(survivor::SubWeapon::Mortar);
+            const int score = (perkFirst && perk) || (skillFirst && offer.skill) || (newSubFirst && newSub) ? 3
+                              : offer.upgrade && offer.index == 0                                          ? 2
+                              : offer.sub                                                                  ? 1
+                                                                                                           : 0;
             if (score > best) {
                 best = score;
                 pick = i;
@@ -110,8 +116,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         RequestCapture("timeline_" + std::to_string(autoTimelineSeen_));
         return;
     }
-    // 副武器が2つ以上動き出したら、一度だけ画面を保存する。
-    if (!autoSubWeaponCaptured_ && world_.run.tankRunCapturePath_.empty() &&
+    // 副武器が2つ以上動き出したら、一度だけ画面を保存する（出撃して15秒たってから。MYENGINE_SURVIVOR_SUBS で始めから持つときも、拠点の画面を撮らない）。
+    if (!autoSubWeaponCaptured_ && !baseScreenOpen_ && elapsed_ >= 15.0f && world_.run.tankRunCapturePath_.empty() &&
         std::count_if(subWeaponTiers_.begin(), subWeaponTiers_.end(), [](int tier) { return tier > 0; }) >= 2) {
         autoSubWeaponCaptured_ = true;
         RequestCapture("hero_subweapons");
@@ -1190,8 +1196,14 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                    }
                    return log.str();
                }() << "]"
-            << ",\"subWeaponTiers\":[" << subWeaponTiers_[0] << ","
-            << subWeaponTiers_[1] << "," << subWeaponTiers_[2] << "],\"orbitDamage\":" << orbitDamage_
+            << ",\"subWeaponTiers\":[" << [&] {
+                   std::ostringstream tiers;
+                   for (size_t i = 0; i < subWeaponTiers_.size(); ++i) {
+                       tiers << (i ? "," : "") << subWeaponTiers_[i];
+                   }
+                   return tiers.str();
+               }() << "],\"mortarBlasts\":" << mortarBlasts_ << ",\"droneShots\":" << droneShots_ << ",\"flameDamage\":" << flameDamage_
+            << ",\"pulses\":" << pulses_ << ",\"orbitDamage\":" << orbitDamage_
             << ",\"orbitBulletsCleared\":" << orbitBulletsCleared_ << ",\"turretShots\":" << turretShots_ << ",\"mineBlasts\":" << mineBlasts_ << ",\"timelineEvents\":" << timelineEvents_ << ",\"midBossKills\":" << midBossKills_ << ",\"burstShots\":" << burstShots_ << ",\"burstVolleys\":" << burstVolleys_
             << ",\"sprintSpeed\":" << autoMoveDistance_[1] / (std::max)(0.001f, autoMoveSeconds_[1]) << ",\"ultimateCharge\":" << ultimateCharge_
             << ",\"ultimateFullAt\":" << ultimateFullAt_ << ",\"ultimateFills\":" << ultimateFills_ << ",\"rocketBlasts\":" << rocketBlasts_

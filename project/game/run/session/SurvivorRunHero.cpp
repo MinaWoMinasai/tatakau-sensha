@@ -47,6 +47,16 @@ void SurvivorRunController::StartHero()
     fillerPower_ = 0.0f;
     fillersTaken_ = 0;
     subWeaponTiers_.fill(0);
+    // 自動確認：MYENGINE_SURVIVOR_SUBS=0,0,0,1,1,5,5 のように、副武器の段を始めから決める（計画書 p8 の F3 の確認用）。
+    wchar_t subs[64]{};
+    if (autoTest_ != AutoTest::None && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_SUBS", subs, 64) > 0) {
+        size_t index = 0;
+        for (const wchar_t* c = subs; *c && index < subWeaponTiers_.size(); ++c) {
+            if (*c >= L'0' && *c <= L'9') {
+                subWeaponTiers_[index++] = (std::min)(survivor::kMaxSubWeaponTier, static_cast<int>(*c - L'0'));
+            }
+        }
+    }
     // 枠は1つ目だけを使う（コモン・チップなし）。弾は数えない（LoadAmmoToPlayer）。
     for (size_t i = 0; i < weaponSlots_.size(); ++i) {
         runSlots_[i] = {};

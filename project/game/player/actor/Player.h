@@ -802,6 +802,9 @@ public:
         float burnSeconds = 0.0f;
         /// @brief 弾と軌跡の色（A が0なら今の主砲の色）。
         myEngine::Vector4 color{0.0f, 0.0f, 0.0f, 0.0f};
+        /// @brief 真なら、自機ではなく origin から撃つ（副武器の随伴機。計画書 p8 の F3）。
+        bool useOrigin = false;
+        myEngine::Vector3 origin{};
     };
     /// @brief 機体の技の弾を1発撃つ。熱は使わない。撃てたら真（弾の管理先が無ければ偽）。
     bool FireSurvivorShot(const SurvivorShot& shot);

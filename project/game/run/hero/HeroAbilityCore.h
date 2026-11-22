@@ -262,6 +262,8 @@ protected:
     // 副武器（計画書 p7 の E4）。HeroSubWeapons.cpp。段が0の副武器は動かない（遠征では全部0のまま）。
     /// @brief 持っている副武器を動かす。UpdateHeroAbilities から呼ぶ。dt は区画の時間。
     void UpdateSubWeapons(float dt);
+    /// @brief 迫撃砲・随伴機・火炎放射・衝撃の輪（計画書 p8 の F3）。UpdateSubWeapons から呼ぶ。
+    void UpdateNewSubWeapons(float dt);
     /// @brief 衛星の球と置いた地雷を積む。QueueHeroVisuals から呼ぶ。
     void QueueSubWeapons(myEngine::NeonGridRenderer& renderer) const;
     /// @brief 衛星の球の位置（段で数と輪の半径が変わる）。
@@ -281,11 +283,37 @@ protected:
         float age = 0.0f;
     };
     std::vector<SubMine> mines_;
+    // 迫撃砲（計画書 p8 の F3）：次に撃つまでの秒と、落ちてくる砲弾（落ちる所・落ちるまでの秒）。
+    float mortarTimer_ = 0.0f;
+    struct MortarShell {
+        myEngine::Vector3 position{};
+        float timer = 0.0f;
+        float radius = 0.0f;
+        float damage = 0.0f;
+    };
+    std::vector<MortarShell> mortarShells_;
+    // 随伴機：位置（自機を追う）・回る角度・次に撃つまでの秒。
+    std::array<myEngine::Vector3, 3> dronePositions_{};
+    bool dronesPlaced_ = false;
+    float droneAngle_ = 0.0f;
+    float droneTimer_ = 0.0f;
+    // 火炎放射：出している残り秒・次に出すまでの秒・次に当てるまでの秒・出している向きと経った秒（見た目）。
+    float flameTimer_ = 0.0f;
+    float flameWait_ = 0.0f;
+    float flameTick_ = 0.0f;
+    float flameAge_ = 0.0f;
+    myEngine::Vector3 flameDirection_{1.0f, 0.0f, 0.0f};
+    // 衝撃の輪：次に出すまでの秒。
+    float pulseTimer_ = 0.0f;
     // 副武器の記録（自動確認）：衛星で与えた量と消した弾、砲の発射数、地雷の爆発数。
     uint64_t orbitDamage_ = 0;
     int orbitBulletsCleared_ = 0;
     int turretShots_ = 0;
     int mineBlasts_ = 0;
+    int mortarBlasts_ = 0;
+    int droneShots_ = 0;
+    uint64_t flameDamage_ = 0;
+    int pulses_ = 0;
 
     // バリアとスタミナ（計画書 p3 の X3）。HeroBarrier.cpp。武器の枠の遊び方（機体なし）でも使う。
     /// @brief スタミナを増減し、wanted で張っている間は敵の弾と敵を止める。dt は区画の時間。

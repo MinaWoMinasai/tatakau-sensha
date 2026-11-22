@@ -143,6 +143,19 @@ public:
         chaseMaxSpeed_ = maxSpeed;
     }
 
+    /// @brief 燃やす（副武器の火炎放射。計画書 p8 の F3）。燃えている間は 0.5秒ごとに削られる。燃えていれば、時間を延ばし強い方の威力にする。
+    void ApplyBurn(float damagePerSecond, float seconds)
+    {
+        if (isDead_ || isRunResource_ || damagePerSecond <= 0.0f) {
+            return;
+        }
+        if (burnTimer_ <= 0.0f) {
+            burnTick_ = 0.5f;
+        }
+        burnTimer_ = (std::max)(burnTimer_, seconds);
+        burnDamagePerSecond_ = (std::max)(burnDamagePerSecond_, damagePerSecond);
+    }
+
     /// @brief 寄る向きを、自機ではなく決まった向き direction に固定する（速さの確認用。計画書 p7）。加速・最高速度・慣性はそのまま。
     void SetChaseDirection(const myEngine::Vector3& direction)
     {
