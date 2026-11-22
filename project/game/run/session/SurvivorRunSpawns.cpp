@@ -299,7 +299,13 @@ void SurvivorRunController::UpdateSpeedTest(float dt)
         }
         json << ",\"" << kKeys[i] << "\":" << speed;
     }
-    json << "}";
+    // 自機の最高速度の内訳：土台の速さ（毎秒）× 移動の倍率。コントローラーを使っているか（G）。
+    const auto& player = *world_.resources.player_;
+    const float base = player.GetStats().moveSpeed * myEngine::kFixedStepsPerSecond;
+    const float scale = player.GetSurvivorMoveScale();
+    const bool pad = world_.resources.input_->IsGamepadActive();
+    text << "（" << base << "×" << std::setprecision(2) << scale << (pad ? " G" : "") << "）";
+    json << ",\"playerBase\":" << base << ",\"playerScale\":" << scale << ",\"gamepad\":" << (pad ? "true" : "false") << "}";
     speedTestLog_ += json.str();
     world_.combatFlow->SetEventCallout(text.str(), 1.2f);
     std::ofstream(std::string(kAutoTestDirectory) + "/speed_test.json") << "[" << speedTestLog_ << "]\n";

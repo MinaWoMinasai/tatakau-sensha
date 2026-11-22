@@ -665,6 +665,10 @@ public:
     {
         survivorMoveScale_ = (std::max)(0.0f, scale);
     }
+    float GetSurvivorMoveScale() const
+    {
+        return survivorMoveScale_;
+    }
 
     /// @brief 機体の遊び方の体力の決まり（計画書 p4 の H6・H7）。enabled なら被弾の後の無敵時間を使わず、
     /// 1回の被弾・1秒に受ける量・同じ相手から当たる間隔に上限を付け、受けたダメージの一部を「傷」にする。
