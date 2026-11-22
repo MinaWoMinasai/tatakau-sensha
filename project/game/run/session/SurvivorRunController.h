@@ -802,6 +802,25 @@ private:
     int timelineEvents_ = 0;
     std::vector<std::pair<uint64_t, int>> midBosses_;
     int midBossKills_ = 0;
+    // 途中の回復（計画書 p8 の F5）。SurvivorRunHeals.cpp。床のスパナ（big は中ボスの物）と記録。
+    struct HealPickup {
+        myEngine::Vector3 position{};
+        float age = 0.0f;
+        bool big = false;
+    };
+    std::vector<HealPickup> healPickups_;
+    int healsDropped_ = 0;
+    int healsBigDropped_ = 0;
+    int healsCollected_ = 0;
+    int healedByPickups_ = 0;
+    /// @brief 倒した敵から、確率で（中ボスは必ず）スパナを落とす。衝突処理の途中から呼ばれるので、列に足すだけ。
+    void DropHealPickup(const ExpEnemy& enemy);
+    /// @brief スパナを自機へ寄せ、触れたら回復し、古い物を消す。dt は区画の時間。
+    void UpdateHealPickups(float dt);
+    /// @brief スパナを光る線で積む。
+    void QueueHealPickups(myEngine::NeonGridRenderer& renderer) const;
+    /// @brief position から maxDistance 以内で最も近いスパナ（自動確認のボットが拾いに行く）。
+    bool FindNearestHeal(const myEngine::Vector3& position, float maxDistance, myEngine::Vector3& out) const;
     // 自動確認：出来事が起きてから少し後に、出来事ごとに1回画面を保存する。
     int autoTimelineSeen_ = 0;
     float autoTimelineCaptureAt_ = -1.0f;
@@ -892,6 +911,8 @@ private:
     int expBonus_ = 0;
     // 自動確認の MYENGINE_SURVIVOR_DRAIN（負なら未読み）。
     float autoDrainAt_ = -1.0f;
+    bool autoHealPickupCaptured_ = false;
+    bool autoHealDemoDone_ = false;
     float heroPrimaryDamage_ = 1.0f;
     float heroPrimaryBlast_ = 0.0f;
 

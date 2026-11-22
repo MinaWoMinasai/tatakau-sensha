@@ -852,12 +852,20 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(heroes, "fillerHeal", config.heroes.fillerHeal);
         number(heroes, "fillerMaxHp", config.heroes.fillerMaxHp);
         number(heroes, "fillerPower", config.heroes.fillerPower);
+        number(heroes, "healDropChance", config.heroes.healDropChance);
+        number(heroes, "healDropHeal", config.heroes.healDropHeal);
+        number(heroes, "healDropLife", config.heroes.healDropLife);
+        number(heroes, "healDropMax", config.heroes.healDropMax);
         config.heroes.perkMaxTier = (std::clamp)(config.heroes.perkMaxTier, 1, 9);
         config.heroes.subWeaponSlots = (std::clamp)(config.heroes.subWeaponSlots, 0, 12);
         config.heroes.perkSlots = (std::clamp)(config.heroes.perkSlots, 0, 12);
         config.heroes.fillerHeal = (std::clamp)(config.heroes.fillerHeal, 0.0f, 1.0f);
         config.heroes.fillerMaxHp = (std::clamp)(config.heroes.fillerMaxHp, 0, 500);
         config.heroes.fillerPower = (std::clamp)(config.heroes.fillerPower, 0.0f, 1.0f);
+        config.heroes.healDropChance = (std::clamp)(config.heroes.healDropChance, 0.0f, 1.0f);
+        config.heroes.healDropHeal = (std::clamp)(config.heroes.healDropHeal, 0.0f, 1.0f);
+        config.heroes.healDropLife = (std::clamp)(config.heroes.healDropLife, 0.0f, 600.0f);
+        config.heroes.healDropMax = (std::clamp)(config.heroes.healDropMax, 0, 64);
         for (const auto& item : heroes.items()) {
             if (!item.value().is_object()) {
                 continue;
@@ -1505,6 +1513,12 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         heroes["fillerHeal"] = round(config.heroes.fillerHeal);
         heroes["fillerMaxHp"] = config.heroes.fillerMaxHp;
         heroes["fillerPower"] = round(config.heroes.fillerPower);
+    }
+    if (config.heroes.healDropHeal > 0.0f) {
+        heroes["healDropChance"] = round(config.heroes.healDropChance);
+        heroes["healDropHeal"] = round(config.heroes.healDropHeal);
+        heroes["healDropLife"] = round(config.heroes.healDropLife);
+        heroes["healDropMax"] = config.heroes.healDropMax;
     }
     for (const auto& hero : config.heroes.heroes) {
         auto& item = heroes[hero.key];

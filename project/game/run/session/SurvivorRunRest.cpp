@@ -35,6 +35,7 @@ void SurvivorRunController::StartNextStage()
     elapsed_ = 0.0f;
     timelineNext_ = 0;
     midBosses_.clear();
+    healPickups_.clear();
     cleared_ = false;
     exitOpen_ = false;
     rivalSpawned_ = false;

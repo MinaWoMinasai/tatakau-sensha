@@ -119,6 +119,21 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         RequestCapture("timeline_" + std::to_string(autoTimelineSeen_));
         return;
     }
+    // MYENGINE_SURVIVOR_HEALDEMO=1：出撃して5秒で、自機の左上に小さいスパナ、右上に中ボスのスパナを置く（まだ敵の少ない所で見た目を確かめる）。
+    if (HeroMode() && !autoHealDemoDone_ && !baseScreenOpen_ && elapsed_ >= 5.0f) {
+        autoHealDemoDone_ = true;
+        if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_HEALDEMO", nullptr, 0) > 0) {
+            const myEngine::Vector3 self = world_.resources.player_->GetWorldPosition();
+            healPickups_.push_back({self + myEngine::Vector3{-7.0f, 4.0f, 0.0f}, 0.0f, false});
+            healPickups_.push_back({self + myEngine::Vector3{7.0f, 4.0f, 0.0f}, 0.0f, true});
+        }
+    }
+    // スパナ（計画書 p8 の F5）が初めて落ちたら、少し後に一度だけ画面を保存する。
+    if (!autoHealPickupCaptured_ && !healPickups_.empty() && healPickups_.front().age >= 0.6f && world_.run.tankRunCapturePath_.empty()) {
+        autoHealPickupCaptured_ = true;
+        RequestCapture("heal_pickup");
+        return;
+    }
     // 副武器が2つ以上動き出したら、一度だけ画面を保存する（出撃して15秒たってから。MYENGINE_SURVIVOR_SUBS で始めから持つときも、拠点の画面を撮らない）。
     if (!autoSubWeaponCaptured_ && !baseScreenOpen_ && elapsed_ >= 15.0f && world_.run.tankRunCapturePath_.empty() &&
         std::count_if(subWeaponTiers_.begin(), subWeaponTiers_.end(), [](int tier) { return tier > 0; }) >= 2) {
@@ -425,6 +440,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         goal = distance > 0.1f ? rival + away * (8.0f / distance) : rival;
     } else if (WeaponMode() && lootField_.FindNearest(position, 14.0f, shard)) {
         // 落ちた物（弾・素材・チップ・武器）を、欠片より先に拾いに行く。
+        goal = shard;
+    } else if (HeroMode() && FindNearestHeal(position, 14.0f, shard)) {
+        // スパナ（計画書 p8 の F5）は欠片より先に拾いに行く。
         goal = shard;
     } else if (pickups_.FindNearest(position, 12.0f, shard)) {
         goal = shard;
@@ -1204,7 +1222,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"burstShotsPerVolleyMax\":" << burstShotsPerVolleyMax_ << ",\"fillers\":" << fillersTaken_ << ",\"fillerMaxHp\":" << fillerMaxHp_
             << ",\"fillerPower\":" << fillerPower_ << ",\"crits\":" << player.GetSurvivorCrits()
             << ",\"guardBlocks\":" << player.GetSurvivorGuardBlocks() << ",\"revivesUsed\":" << player.GetSurvivorRevivesUsed()
-            << ",\"expBonus\":" << expBonus_ << ",\"areaScale\":" << HeroAreaScale() << ",\"levelUpLog\":[" << [&] {
+            << ",\"expBonus\":" << expBonus_ << ",\"healsDropped\":" << healsDropped_ << ",\"healsBigDropped\":" << healsBigDropped_ << ",\"healsCollected\":" << healsCollected_
+            << ",\"healedByPickups\":" << healedByPickups_ << ",\"areaScale\":" << HeroAreaScale() << ",\"levelUpLog\":[" << [&] {
                    std::ostringstream log;
                    for (size_t i = 0; i < heroLevelUpLog_.size(); ++i) {
                        log << (i ? "," : "") << "\"" << heroLevelUpLog_[i] << "\"";

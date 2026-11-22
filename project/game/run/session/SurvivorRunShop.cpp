@@ -184,7 +184,9 @@ std::vector<SurvivorRunController::ShopOffer> SurvivorRunController::ShopOfferPo
         const auto& info = survivor::GetPerkInfo(static_cast<PerkId>(i));
         // 右クリック・Shift・E を使わない遊び方では、機体専用のパークと「連鎖の冷却」（技の待ち時間）は効かないので並べない。
         const bool locked = config_.heroes.onlyUltimate && (info.hero[0] != '\0' || static_cast<PerkId>(i) == PerkId::KillCooldown);
-        const bool open = perks_[i] > 0 || !perksFull;
+        const bool open = (perks_[i] > 0 || !perksFull) &&
+                          // スパナの落ちない設定では、整備の手配は効かないので並べない。
+                          (static_cast<PerkId>(i) != PerkId::HealDrop || (config_.heroes.healDropChance > 0.0f && config_.heroes.healDropHeal > 0.0f));
         if (perks_[i] < PerkMaxTierOf(i) && open && !locked && (info.hero[0] == '\0' || Hero().key == info.hero)) {
             pool.push_back({false, static_cast<int>(i)});
         }

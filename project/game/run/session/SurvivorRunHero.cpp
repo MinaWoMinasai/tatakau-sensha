@@ -48,6 +48,10 @@ void SurvivorRunController::StartHero()
     fillersTaken_ = 0;
     expRemainder_ = 0.0f;
     expBonus_ = 0;
+    healsDropped_ = 0;
+    healsBigDropped_ = 0;
+    healsCollected_ = 0;
+    healedByPickups_ = 0;
     subWeaponTiers_.fill(0);
     // 自動確認：MYENGINE_SURVIVOR_PERKS=1,1,1,1,1 のように、F4 で足したパーク（会心・大きさ・経験値・反応装甲・予備の動力）の段を始めから決める。
     wchar_t newPerks[32]{};

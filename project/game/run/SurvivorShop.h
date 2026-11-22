@@ -29,6 +29,7 @@ enum class PerkId {
     ExpGain, // 共通：レベルの経験値を value 倍だけ多く入れる（ポイントは増えない）
     Guard,   // 共通：(kGuardBaseCooldown - value) 秒ごとに1回、当たりを防ぐ
     Revive,  // 共通：1回だけ、倒れる当たりで HP を最大の value 倍にして立ち直る
+    HealDrop, // 共通：敵がスパナ（回復。計画書 p8 の F5）を落とす確率を value 倍だけ上げる
     Count
 };
 inline constexpr size_t kPerkCount = static_cast<size_t>(PerkId::Count);
@@ -68,6 +69,7 @@ inline const PerkInfo& GetPerkInfo(PerkId id)
         {"expGain", "学習装置", "レベルの経験値が多く入る", "", 150, 0.2f},
         {"guard", "反応装甲", "数秒ごとに1回だけ、当たりを防ぐ", "", 250, 6.0f},
         {"revive", "予備の動力", "倒れたとき1回だけ立ち直り、まわりを押し返す", "", 400, 0.5f, 1},
+        {"healDrop", "整備の手配", "敵がスパナ（回復）を落としやすくなる", "", 150, 1.0f},
     }};
     return kPerks[static_cast<size_t>(id)];
 }
@@ -122,6 +124,8 @@ inline std::string PerkTierText(PerkId id, float value, int tier)
         return "弾・爆発の大きさ +" + percent(total);
     case PerkId::ExpGain:
         return "経験値 +" + percent(total);
+    case PerkId::HealDrop:
+        return "スパナの落ちやすさ +" + percent(total);
     case PerkId::Guard:
         return std::to_string(static_cast<int>(std::round(GuardCooldown(total)))) + "秒ごとに1回、当たりを防ぐ";
     default:

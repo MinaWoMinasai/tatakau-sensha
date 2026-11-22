@@ -114,6 +114,8 @@ void SurvivorRunController::Initialize()
         }
         pickups_.Drop(enemy.GetWorldPosition(), value, random_);
         expDropped_ += static_cast<int>(value);
+        // 途中の回復（計画書 p8 の F5）：まれにスパナ、中ボスは必ず。
+        DropHealPickup(enemy);
         // 機体の遊び方では、お金（欠片）のほかは落とさない（計画書 p4 の H7）。
         if (WeaponMode() && !HeroMode()) {
             DropLoot(enemy);
@@ -137,6 +139,7 @@ void SurvivorRunController::Initialize()
     nextBigPentagon_ = config_.bigPentagon.from;
     timelineNext_ = 0;
     midBosses_.clear();
+    healPickups_.clear();
 
     myEngine::TextStyle style{};
     style.fontFamily = "Meiryo";
@@ -555,6 +558,9 @@ void SurvivorRunController::Update(float dt)
         if (WeaponMode()) {
             UpdateLoot(gameDt);
         }
+        if (HeroMode()) {
+            UpdateHealPickups(gameDt);
+        }
         if (gameDt > 0.0f && survivor::HasChange(partLevels_, survivor::PartId::Ram)) {
             UpdateSpikes();
         }
@@ -625,6 +631,7 @@ void SurvivorRunController::Update(float dt)
                 world_.presentation.playerSwapDissolve_ = 0.0f;
                 CloseChoices();
                 pickups_.Clear();
+                healPickups_.clear();
                 lootField_.Clear();
                 damageNumbers_.Clear();
                 world_.resources.enemyManager_->ClearRunActors();
@@ -826,6 +833,7 @@ void SurvivorRunController::QueueWorldVisuals()
     QueueBarrier(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
     QueueEliteRings(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
     QueueHeroVisuals(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
+    QueueHealPickups(*world_.resources.neonGridRenderer_);
     // 予告：輪は自機のまわりに、群れは湧く場所に、赤い破線の円を描く。湧く時刻が近いほど速く点滅する。
     for (const PendingWave& wave : pendingWaves_) {
         const float left = (std::max)(0.0f, wave.at - elapsed_);

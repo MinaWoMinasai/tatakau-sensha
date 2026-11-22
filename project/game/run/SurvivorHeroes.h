@@ -155,6 +155,12 @@ struct HeroesConfig {
     float fillerHeal = 0.0f;
     int fillerMaxHp = 0;
     float fillerPower = 0.0f;
+    /// @brief 途中の回復（計画書 p8 の F5）：敵が光るスパナを落とす確率（中ボスは必ず）・拾ったときの回復（最大HPに対する割合。
+    /// 中ボスの物は1.5倍。傷も同じだけ治す）・消えるまでの秒（中ボスの物は消えない。0 なら消えない）・床に置ける数。healDropHeal が0なら落とさない。
+    float healDropChance = 0.0f;
+    float healDropHeal = 0.0f;
+    float healDropLife = 45.0f;
+    int healDropMax = 6;
 };
 
 /// @brief 設定ファイルが無いときの機体。ソルジャー型（K1）・モイラ型（K2）・タンク型（K7。最初に解放する）。
