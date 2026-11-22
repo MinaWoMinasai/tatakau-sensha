@@ -66,7 +66,8 @@ public:
     /// @note 止めている間も、スロー演出ではないので画面の色は残す（GameplayQueries・CombatFramePipeline）。
     bool IsPaused() const
     {
-        return IsFormChoiceOpen() || inventoryOpen_ || baseScreenOpen_ || restRoomOpen_ || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro ||
+        return IsFormChoiceOpen() || inventoryOpen_ || baseScreenOpen_ || restRoomOpen_ || heroLevelUpOpen_ || (tuningOpen_ && tuningPause_) ||
+               cineMode_ == CineMode::RivalIntro ||
                cineMode_ == CineMode::Evolve;
     }
 
@@ -736,8 +737,26 @@ private:
     };
     /// @brief 設定の機体に、技の強化の段とパークを効かせて Hero() を作り直し、主武器・最大HPに入れ直す。heal なら HP を満タンにする。
     void RebuildHero(bool heal);
+    /// @brief 並べられる物：3段まで上がっていない技の強化と、まだ持っていないパーク（共通と、この機体の物）。
+    std::vector<ShopOffer> ShopOfferPool() const;
+    /// @brief offer を手に入れる（技の強化の段を1つ上げるか、パークを持つ）。機体の値を入れ直す。
+    void ApplyOffer(const ShopOffer& offer);
     /// @brief 並ぶ物を引き直す（買えない物は並べない）。
     void RollShop();
+
+    // 戦闘中のレベルアップ（計画書 p7 の E3。設定の heroes.levelUps）。欠片でレベルが上がると、止めて技の強化とパークの3択を無料で選ぶ。
+    /// @brief 3択を引いて開く（並べられる物が無ければ開かない）。
+    void OpenHeroLevelUp();
+    /// @brief index 番目を選ぶ。まだ選べるレベルが残っていれば引き直し、無ければ閉じる。
+    void ChooseHeroLevelUp(size_t index);
+    /// @brief 3択の画面を作る。
+    void RefreshHeroLevelUp();
+    bool heroLevelUpOpen_ = false;
+    int heroPendingLevelUps_ = 0;
+    std::vector<ShopOffer> heroLevelUpOffers_;
+    // 選んだ物の記録（レベル:名前）。
+    std::vector<std::string> heroLevelUpLog_;
+    bool autoLevelUpCaptured_ = false;
     /// @brief 並んでいる offer 番目を買う。お金が足りなければ何もしない。買えたら真。
     bool BuyOffer(size_t offer);
     /// @brief 引き直す（値段は引くたびに上がる）。お金が足りなければ何もしない。引けたら真。

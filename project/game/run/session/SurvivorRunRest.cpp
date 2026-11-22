@@ -87,6 +87,10 @@ void SurvivorRunController::StartNextStage()
                              : IsBossStage() ? std::string("ボスステージ")
                                              : "ステージ " + std::to_string(stage_ + 1);
     world_.combatFlow->SetEventCallout(name, 1.6f);
+    // 波の終わりで閉じたレベルアップの3択を、選べる回数が残っていれば開き直す。
+    if (HeroMode() && heroPendingLevelUps_ > 0) {
+        OpenHeroLevelUp();
+    }
 }
 
 void SurvivorRunController::LeaveRestRoom()

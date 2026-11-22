@@ -129,6 +129,8 @@ struct HeroesConfig {
     float moveScale = 1.0f;
     /// @brief 押さなくても向いている方へ主砲を撃ち続けるか（計画書 p7。HoloCure と同じ。遊んでいる間も F で切り替え）。
     bool autoFire = false;
+    /// @brief 欠片でレベルが上がり、戦闘中に技の強化とパークの3択を選ぶか（計画書 p7 の E3。HoloCure と同じ。偽なら今までどおり欠片はレベルポイント）。
+    bool levelUps = false;
 };
 
 /// @brief 設定ファイルが無いときの機体。ソルジャー型（K1）・モイラ型（K2）・タンク型（K7。最初に解放する）。

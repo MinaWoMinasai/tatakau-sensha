@@ -58,6 +58,8 @@ void SurvivorRunController::FinishWave()
     record.seconds = elapsed_;
     waveRecords_.push_back(record);
     // 更新の初めか演出の終わりなので、衝突処理の途中ではない。敵と弾を片付ける。
+    // レベルアップの3択を開いていれば閉じる（選べる回数は残り、次の波の始めに開く）。
+    heroLevelUpOpen_ = false;
     cleared_ = true;
     world_.presentation.playerSwapDissolve_ = 0.0f;
     CloseChoices();

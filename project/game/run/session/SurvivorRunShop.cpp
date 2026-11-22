@@ -80,7 +80,7 @@ std::string SurvivorRunController::OfferText(const ShopOffer& offer) const
     return survivor::UpgradeOfferText(Hero(), offer.index, UpgradeTier(offer.index));
 }
 
-void SurvivorRunController::RollShop()
+std::vector<SurvivorRunController::ShopOffer> SurvivorRunController::ShopOfferPool() const
 {
     // 候補：3段まで上がっていない技の強化と、まだ持っていないパーク（共通と、この機体の物）。
     std::vector<ShopOffer> pool;
@@ -96,6 +96,81 @@ void SurvivorRunController::RollShop()
             pool.push_back({false, static_cast<int>(i)});
         }
     }
+    return pool;
+}
+
+void SurvivorRunController::ApplyOffer(const ShopOffer& offer)
+{
+    if (offer.upgrade) {
+        upgradeTiers_[static_cast<size_t>(offer.index)] = (std::min)(survivor::kMaxUpgradeTier, UpgradeTier(offer.index) + 1);
+    } else {
+        perks_[static_cast<size_t>(offer.index)] = true;
+    }
+    RebuildHero(false);
+}
+
+void SurvivorRunController::OpenHeroLevelUp()
+{
+    std::vector<ShopOffer> pool = ShopOfferPool();
+    if (pool.empty()) {
+        // 全部そろったら、選ぶ物は無い（レベルは上がるが止めない）。
+        heroPendingLevelUps_ = 0;
+        heroLevelUpOpen_ = false;
+        return;
+    }
+    // 技の強化を2つ・パークを1つになるように寄せる（足りなければ残りから）。覚醒（3段目）の手前の技は優先して並べる。
+    std::shuffle(pool.begin(), pool.end(), random_);
+    std::stable_sort(pool.begin(), pool.end(), [this](const ShopOffer& a, const ShopOffer& b) {
+        const bool aAwaken = a.upgrade && UpgradeTier(a.index) == survivor::kMaxUpgradeTier - 1;
+        const bool bAwaken = b.upgrade && UpgradeTier(b.index) == survivor::kMaxUpgradeTier - 1;
+        return aAwaken && !bAwaken;
+    });
+    heroLevelUpOffers_.clear();
+    int upgrades = 0, perks = 0;
+    for (const ShopOffer& offer : pool) {
+        if (heroLevelUpOffers_.size() >= 3) {
+            break;
+        }
+        if ((offer.upgrade && upgrades < 2) || (!offer.upgrade && perks < 1)) {
+            heroLevelUpOffers_.push_back(offer);
+            (offer.upgrade ? upgrades : perks)++;
+        }
+    }
+    for (const ShopOffer& offer : pool) {
+        if (heroLevelUpOffers_.size() >= 3) {
+            break;
+        }
+        if (std::find_if(heroLevelUpOffers_.begin(), heroLevelUpOffers_.end(), [&](const ShopOffer& o) {
+                return o.upgrade == offer.upgrade && o.index == offer.index;
+            }) == heroLevelUpOffers_.end()) {
+            heroLevelUpOffers_.push_back(offer);
+        }
+    }
+    heroLevelUpOpen_ = true;
+    audio_.Play("ui_click");
+    RefreshHeroLevelUp();
+}
+
+void SurvivorRunController::ChooseHeroLevelUp(size_t index)
+{
+    if (!heroLevelUpOpen_ || index >= heroLevelUpOffers_.size()) {
+        return;
+    }
+    const ShopOffer offer = heroLevelUpOffers_[index];
+    heroLevelUpLog_.push_back(std::to_string(level_ - heroPendingLevelUps_ + 1) + ":" + OfferName(offer));
+    world_.combatFlow->SetEventCallout(OfferName(offer), 0.9f);
+    ApplyOffer(offer);
+    heroPendingLevelUps_ = (std::max)(0, heroPendingLevelUps_ - 1);
+    heroLevelUpOpen_ = false;
+    // まだ選べるレベルが残っていれば、続けて引き直す。
+    if (heroPendingLevelUps_ > 0) {
+        OpenHeroLevelUp();
+    }
+}
+
+void SurvivorRunController::RollShop()
+{
+    std::vector<ShopOffer> pool = ShopOfferPool();
     std::shuffle(pool.begin(), pool.end(), random_);
     if (pool.size() > static_cast<size_t>(config_.shop.offerCount)) {
         pool.resize(static_cast<size_t>(config_.shop.offerCount));
@@ -117,13 +192,8 @@ bool SurvivorRunController::BuyOffer(size_t index)
     shopLog_.push_back(std::to_string(stage_ + 1) + ":" + OfferName(offer) + ":" + std::to_string(price));
     bag_.money -= price;
     shopSpent_ += price;
-    if (offer.upgrade) {
-        upgradeTiers_[static_cast<size_t>(offer.index)] = (std::min)(survivor::kMaxUpgradeTier, UpgradeTier(offer.index) + 1);
-    } else {
-        perks_[static_cast<size_t>(offer.index)] = true;
-    }
     shopOffers_.erase(shopOffers_.begin() + static_cast<std::ptrdiff_t>(index));
-    RebuildHero(false);
+    ApplyOffer(offer);
     world_.combatFlow->SetEventCallout("買った：" + shopLog_.back().substr(shopLog_.back().find(':') + 1), 0.9f);
     return true;
 }

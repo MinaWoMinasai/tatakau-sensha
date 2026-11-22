@@ -414,6 +414,16 @@ void SurvivorRunController::HandleScreenEvent(const SurvivorItemScreen::Event& e
     const bool toCard = event.type == EventType::Drop && (event.target.zone == Zone::Card || event.target.zone == Zone::Socket);
     const size_t targetSlot = toCard ? static_cast<size_t>(event.target.index) : 0;
 
+    // 戦闘中のレベルアップの3択（計画書 p7 の E3）：並んでいる物をクリックで選ぶ（無料）。
+    if (heroLevelUpOpen_) {
+        if (event.type == EventType::Click && kind == ScreenItem::ShopOffer) {
+            ChooseHeroLevelUp(static_cast<size_t>(id));
+            if (heroLevelUpOpen_) {
+                RefreshHeroLevelUp();
+            }
+        }
+        return;
+    }
     // 機体の遊び方の拠点：札をクリックで機体を選び、ボタンで出撃・解放する（K6）。
     if (baseScreenOpen_ && HeroMode()) {
         if (event.type == EventType::Press && event.source.zone == Zone::Button) {
@@ -521,6 +531,18 @@ void SurvivorRunController::UpdateScreenInput()
         StartSortie();
         return;
     }
+    // 戦闘中のレベルアップの3択は、数字キー 1〜3 でも選べる。
+    if (heroLevelUpOpen_) {
+        for (size_t i = 0; i < 3; ++i) {
+            if (input.IsKeyTriggered(static_cast<uint8_t>(DIK_1 + i))) {
+                ChooseHeroLevelUp(i);
+                if (heroLevelUpOpen_) {
+                    RefreshHeroLevelUp();
+                }
+                return;
+            }
+        }
+    }
     const bool right = input.IsTrigger(input.GetMouseState().rgbButtons[1], input.GetPreMouseState().rgbButtons[1]);
     DriveScreenPointer(input.GetMousePosition(), input.IsPress(input.GetMouseState().rgbButtons[0]), right, static_cast<int>(input.GetMouseState().lZ));
     if (restRoomOpen_ && input.IsKeyTriggered(DIK_Z)) {
@@ -609,6 +631,35 @@ SurvivorItemScreen::View SurvivorRunController::HeroBuildView() const
     view.support.title = "Q " + std::to_string(static_cast<int>((std::min)(1.0f, ultimateCharge_ / Hero().ultimateCharge) * 100.0f)) + "%";
     view.support.body = "Q のゲージは、与えたダメージと回復した量で溜まる。満タンで " + Hero().abilities[3].name + " を使える。";
     return view;
+}
+
+void SurvivorRunController::RefreshHeroLevelUp()
+{
+    // ショップと同じ画面の形で、3つを無料で並べる。数字キー 1〜3 でも選べる（UpdateScreenInput）。
+    SurvivorItemScreen::View view = HeroBuildView();
+    view.title = "レベル " + std::to_string(level_) + "　─　強化を1つ選ぶ";
+    view.help = "クリック（または 1〜3）で選ぶ　／　技の強化は3段目で覚醒（挙動が変わる）" +
+                (heroPendingLevelUps_ > 1 ? "　／　あと " + std::to_string(heroPendingLevelUps_ - 1) + " 回選べる" : std::string());
+    view.gridTitle = "選べる強化";
+    static constexpr std::array<const char*, survivor::kUpgradeTargets> kUpgradeIcons{"chip_warhead", "chip_heavyWarhead", "chip_thruster",
+                                                                                      "chip_collector", "chip_chainLightning"};
+    for (size_t i = 0; i < heroLevelUpOffers_.size(); ++i) {
+        const ShopOffer& offer = heroLevelUpOffers_[i];
+        const bool awaken = offer.upgrade && UpgradeTier(offer.index) == survivor::kMaxUpgradeTier - 1;
+        Item item;
+        item.icon = Icon(offer.upgrade ? kUpgradeIcons[static_cast<size_t>(offer.index)] : "chip_default");
+        item.color = awaken ? myEngine::Vector4{1.9f, 1.5f, 0.4f, 1.0f}
+                     : offer.upgrade ? myEngine::Vector4{0.55f, 0.95f, 1.0f, 1.0f}
+                                     : myEngine::Vector4{1.0f, 0.75f, 0.35f, 1.0f};
+        item.count = static_cast<int>(i) + 1;
+        item.kind = static_cast<int>(ScreenItem::ShopOffer);
+        item.id = static_cast<int>(i);
+        item.title = std::to_string(i + 1) + "：" + OfferName(offer) + (awaken ? "　覚醒" : "");
+        item.body = OfferText(offer);
+        item.actions = "クリック：選ぶ";
+        view.grid.push_back(item);
+    }
+    itemScreen_.Show(view);
 }
 
 void SurvivorRunController::RefreshShop()

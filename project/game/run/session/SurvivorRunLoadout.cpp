@@ -22,6 +22,24 @@ void SurvivorRunController::AddExperience(int amount)
         bag_.money += amount;
         wavePoints_ += amount;
         pointsEarned_ += amount;
+        // 戦闘中のレベルアップ（計画書 p7 の E3）：同じ量でレベルも上がり、止めて技の強化とパークの3択を選ぶ。
+        if (config_.heroes.levelUps && level_ < config_.maxLevel) {
+            exp_ += amount;
+            int gained = 0;
+            while (level_ < config_.maxLevel && exp_ >= config_.ExpToNextLevel(level_)) {
+                exp_ -= config_.ExpToNextLevel(level_);
+                ++level_;
+                ++gained;
+                levelTimes_.push_back(elapsed_);
+            }
+            if (gained > 0) {
+                heroPendingLevelUps_ += gained;
+                world_.combatFlow->SetEventCallout("レベル " + std::to_string(level_), 0.8f);
+                if (!heroLevelUpOpen_) {
+                    OpenHeroLevelUp();
+                }
+            }
+        }
         return;
     }
     // 武器の枠を使う遊び方では、レベルを上げず、欠片はお金になる（W3）。

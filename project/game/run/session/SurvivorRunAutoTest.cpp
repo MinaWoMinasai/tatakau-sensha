@@ -54,6 +54,22 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     // 部屋の中央の周りを回りながら近い敵を撃ち続け、近くの欠片は拾いに行く。4:00 を過ぎたら出口へ向かう
     // （レベルの曲線を4分で確かめるため、出口が開いてもすぐには入らない）。自機は無敵。
     auto& player = *world_.resources.player_;
+    // 戦闘中のレベルアップの3択（計画書 p7 の E3）：1つ目を選ぶ。最初の1回は画面を保存してから。
+    if (heroLevelUpOpen_) {
+        if (!world_.run.tankRunCapturePath_.empty()) {
+            return;
+        }
+        if (heroLevelUpLog_.empty() && !autoLevelUpCaptured_) {
+            autoLevelUpCaptured_ = true;
+            RequestCapture("hero_levelup");
+            return;
+        }
+        ChooseHeroLevelUp(0);
+        if (heroLevelUpOpen_) {
+            RefreshHeroLevelUp();
+        }
+        return;
+    }
     // 拠点の画面：画面を保存し、4つ目の武器を3つ目の枠へ入れてから元に戻し（入れ替えの確認）、作る・進化を1回ずつ試して
     // 派生の木の画面を保存し、出撃する。区画の時間は進めない。
     if (baseScreenOpen_) {
@@ -1077,7 +1093,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << "\",\"primary\":\"" << formKey_ << "\",\"uses\":[" << abilityUses_[0] << "," << abilityUses_[1] << "," << abilityUses_[2] << ","
             << abilityUses_[3] << "],\"cooldownSeen\":[" << abilityCooldownSeen_[0] << "," << abilityCooldownSeen_[1] << ","
             << abilityCooldownSeen_[2] << "," << abilityCooldownSeen_[3] << "],\"sprintSeconds\":" << sprintSeconds_
-            << ",\"walkSpeed\":" << autoMoveDistance_[0] / (std::max)(0.001f, autoMoveSeconds_[0])
+            << ",\"walkSpeed\":" << autoMoveDistance_[0] / (std::max)(0.001f, autoMoveSeconds_[0]) << ",\"heroLevel\":" << level_
+            << ",\"heroLevelUps\":" << heroLevelUpLog_.size()
             << ",\"sprintSpeed\":" << autoMoveDistance_[1] / (std::max)(0.001f, autoMoveSeconds_[1]) << ",\"ultimateCharge\":" << ultimateCharge_
             << ",\"ultimateFullAt\":" << ultimateFullAt_ << ",\"ultimateFills\":" << ultimateFills_ << ",\"rocketBlasts\":" << rocketBlasts_
             << ",\"rocketKills\":" << rocketKills_ << ",\"healed\":" << healedByZone_ << ",\"healInsideSeconds\":" << healZoneInsideSeconds_

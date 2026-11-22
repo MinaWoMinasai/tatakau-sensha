@@ -478,7 +478,7 @@ void SurvivorRunController::Update(float dt)
     UpdateTuningPanel();
     UpdateCinematic(dt);
     SampleFps();
-    if (restRoomOpen_) {
+    if (restRoomOpen_ || heroLevelUpOpen_) {
         UpdateScreenInput();
     } else if (traitChoiceOpen_) {
         UpdateTraitChoiceInput();
@@ -932,7 +932,7 @@ void SurvivorRunController::DrawUi()
     }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     // 持ち物の画面と拠点の画面を開いている間は、ほかの HUD を描かずにその画面だけを出す（暗幕から透けて読みにくくならないように）。
-    if (inventoryOpen_ || baseScreenOpen_ || restRoomOpen_) {
+    if (inventoryOpen_ || baseScreenOpen_ || restRoomOpen_ || heroLevelUpOpen_) {
         itemScreen_.Draw();
         DrawCinematic();
         return;

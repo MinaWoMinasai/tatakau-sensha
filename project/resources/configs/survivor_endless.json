@@ -454,7 +454,8 @@
       }
     },
     "moveScale": 0.7,
-    "autoFire": true
+    "autoFire": true,
+    "levelUps": true
   },
   "loot": {
     "comment": "敵が落とす物（計画書 p3 の W3）。欠片はお金になり（経験値 × moneyPerExp）、自動で拾う。落ちている物は magnetRadius まで近づくと寄ってきて、触れると拾う。弾は ammoChance の確率で ammoAmount ずつ、予備は reserveMax まで（上限の弾は残る）。素材（倒した形の素材を materialChance、敵戦車はボスの素材を bossMaterialChance）・チップ（今の部品、chipChance）・武器（weaponChance）は出撃中の袋へ入る。確率は敵1体ごとで、大きな敵（敵戦車・大五角・重い四角）は bigScale 倍。チップと武器のレア度は rarityWeights の重みで選ぶ。弾と素材は lifetime 秒で消える。休憩部屋で売る値段は weaponPrice・chipPrice（レア度ごと）と materialPrice（素材1つごと）。",
