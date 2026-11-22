@@ -1222,7 +1222,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"burstShotsPerVolleyMax\":" << burstShotsPerVolleyMax_ << ",\"fillers\":" << fillersTaken_ << ",\"fillerMaxHp\":" << fillerMaxHp_
             << ",\"fillerPower\":" << fillerPower_ << ",\"crits\":" << player.GetSurvivorCrits()
             << ",\"guardBlocks\":" << player.GetSurvivorGuardBlocks() << ",\"revivesUsed\":" << player.GetSurvivorRevivesUsed()
-            << ",\"expBonus\":" << expBonus_ << ",\"healsDropped\":" << healsDropped_ << ",\"healsBigDropped\":" << healsBigDropped_ << ",\"healsCollected\":" << healsCollected_
+            << ",\"expBonus\":" << expBonus_ << ",\"growthSpawned\":" << growthSpawned_ << ",\"growthAliveMax\":" << growthAliveMax_
+            << ",\"surges\":" << surgesStarted_ << ",\"enemyHpScaleEnd\":" << EnemyHpScale() << ",\"enemySpeedScaleEnd\":" << EnemySpeedScale() << ",\"healsDropped\":" << healsDropped_ << ",\"healsBigDropped\":" << healsBigDropped_ << ",\"healsCollected\":" << healsCollected_
             << ",\"healedByPickups\":" << healedByPickups_ << ",\"areaScale\":" << HeroAreaScale() << ",\"levelUpLog\":[" << [&] {
                    std::ostringstream log;
                    for (size_t i = 0; i < heroLevelUpLog_.size(); ++i) {

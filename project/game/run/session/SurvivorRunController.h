@@ -119,6 +119,21 @@ private:
     void UpdateThreat();
     /// @brief 今の段階で、湧かせた敵のHPに掛ける倍率を返す。
     float EnemyHpScale() const;
+    /// @brief 湧くときの寄る速さの倍率（計画書 p8 の G1。足し続ける形でなければ1）。
+    float EnemySpeedScale() const
+    {
+        return config_.growth.SpeedScale(elapsed_);
+    }
+    /// @brief 今の、足し続ける湧きの値（時間割の大群を効かせた後）。
+    survivor::SpawnConfig::SpawnGrowth::Point CurrentGrowth() const;
+    /// @brief 足し続ける湧きの状態を区画の始めに戻す。
+    void ResetGrowth()
+    {
+        growthTimer_ = 0.0f;
+        growthRemainder_ = 0.0f;
+        growthPending_ = 0;
+        surges_.clear();
+    }
     /// @brief 最後に湧かせた敵のHPを、今の段階の倍率で上げる。
     void ScaleLastSpawnHp();
     /// @brief 包囲の輪：自機を中心とした輪の上に三角を並べ、寄らせる。
@@ -227,6 +242,20 @@ private:
     std::mt19937 random_{1};
     float elapsed_ = 0.0f;
     float spawnBudget_ = 0.0f;
+    // 足し続ける湧き（計画書 p8 の G1）：次に足すまでの秒・端数・まだ湧かせていない数、時間割の大群（終わる時刻と倍率）、記録。
+    float growthTimer_ = 0.0f;
+    float growthRemainder_ = 0.0f;
+    int growthPending_ = 0;
+    struct Surge {
+        float until = 0.0f;
+        float intervalScale = 1.0f;
+        float countScale = 1.0f;
+        int maxAliveAdd = 0;
+    };
+    std::vector<Surge> surges_;
+    int growthSpawned_ = 0;
+    int growthAliveMax_ = 0;
+    int surgesStarted_ = 0;
     float nextSwarm_ = 0.0f;
     float nextTank_ = 0.0f;
     float nextBigPentagon_ = 0.0f;

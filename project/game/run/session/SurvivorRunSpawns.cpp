@@ -65,7 +65,7 @@ void SurvivorRunController::UpdateSpawns(float dt)
             ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
             enemy->SetSizeScale(heavy.scale);
             enemy->SetHp(static_cast<int>(std::lround(static_cast<float>(enemy->GetMaxHp()) * heavy.hpScale)));
-            enemy->SetPlayerChase(heavy.acceleration, heavy.maxSpeed);
+            enemy->SetPlayerChase(heavy.acceleration * EnemySpeedScale(), heavy.maxSpeed * EnemySpeedScale());
             ++heavySpawned_;
         }
     }
@@ -103,6 +103,23 @@ void SurvivorRunController::UpdateSpawns(float dt)
 
     // 図形：生存数が目標に届くまで、予算の分だけ湧かせる。
     int missing = static_cast<int>(config_.ShapeTarget(elapsed_)) - alive.shapes;
+    // 足し続ける形（計画書 p8 の G1）：間隔ごとに数を足していき、生存数の上限までの分だけ湧かせる（予算は使わず、1回の更新で12体まで）。
+    const bool growth = config_.growth.enabled;
+    if (growth) {
+        const auto point = CurrentGrowth();
+        growthTimer_ -= dt;
+        while (growthTimer_ <= 0.0f) {
+            growthTimer_ += (std::max)(0.05f, point.interval);
+            growthRemainder_ += point.count;
+            const int add = static_cast<int>(growthRemainder_);
+            growthRemainder_ -= static_cast<float>(add);
+            growthPending_ += add;
+        }
+        const int cap = static_cast<int>(std::lround(point.maxAlive));
+        growthPending_ = (std::min)(growthPending_, (std::max)(0, cap));
+        growthAliveMax_ = (std::max)(growthAliveMax_, alive.shapes);
+        missing = (std::min)({growthPending_, (std::max)(0, cap - alive.shapes), 12});
+    }
     const auto& weights = config_.ShapeWeightsAt(elapsed_);
     std::discrete_distribution<int> pick(weights.begin(), weights.end());
     static constexpr std::array<const char*, 3> kShapes{"Square", "Triangle", "Pentagon"};
@@ -110,7 +127,7 @@ void SurvivorRunController::UpdateSpawns(float dt)
     std::uniform_real_distribution<float> chance(0.0f, 1.0f);
     std::uniform_real_distribution<float> phase(0.0f, (std::max)(0.1f, lunge.interval));
     int chasers = CountChasers();
-    while (missing > 0 && spawnBudget_ >= 1.0f) {
+    while (missing > 0 && (growth || spawnBudget_ >= 1.0f)) {
         const auto position = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance);
         if (!position) {
             break;
@@ -119,7 +136,12 @@ void SurvivorRunController::UpdateSpawns(float dt)
         const bool spawned = SpawnShape(kShapes[kind], *position, false);
         // 寄ってくる図形（計画書 p7 の E5。設定の shapes.chase）：形ごとの速さで自機へ寄る。
         if (spawned && config_.shapeChase[kind].second > 0.0f) {
-            world_.resources.enemyManager_->GetEnemyPtrs().back()->SetPlayerChase(config_.shapeChase[kind].first, config_.shapeChase[kind].second);
+            world_.resources.enemyManager_->GetEnemyPtrs().back()->SetPlayerChase(config_.shapeChase[kind].first * EnemySpeedScale(),
+                                                                                  config_.shapeChase[kind].second * EnemySpeedScale());
+        }
+        if (spawned && growth) {
+            --growthPending_;
+            ++growthSpawned_;
         }
         if (spawned && kind == 2 && threatStage_ >= lunge.fromStage && chasers < config_.telegraph.maxChasers &&
             chance(random_) < lunge.chance) {
@@ -130,9 +152,24 @@ void SurvivorRunController::UpdateSpawns(float dt)
             ++chasers;
             ++lungeSpawned_;
         }
-        spawnBudget_ -= 1.0f;
+        if (!growth) {
+            spawnBudget_ -= 1.0f;
+        }
         --missing;
     }
+}
+
+survivor::SpawnConfig::SpawnGrowth::Point SurvivorRunController::CurrentGrowth() const
+{
+    auto point = config_.growth.At(elapsed_);
+    for (const Surge& surge : surges_) {
+        if (surge.until <= 0.0f || elapsed_ < surge.until) {
+            point.interval *= (std::max)(0.05f, surge.intervalScale);
+            point.count *= (std::max)(0.0f, surge.countScale);
+            point.maxAlive += static_cast<float>(surge.maxAliveAdd);
+        }
+    }
+    return point;
 }
 
 ExpEnemy* SurvivorRunController::SpawnChaser(const std::string& prefab, const myEngine::Vector3& position, float speed)
@@ -142,7 +179,7 @@ ExpEnemy* SurvivorRunController::SpawnChaser(const std::string& prefab, const my
         return nullptr;
     }
     ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
-    enemy->SetPlayerChase(speed * 1.5f, speed);
+    enemy->SetPlayerChase(speed * 1.5f * EnemySpeedScale(), speed * EnemySpeedScale());
     return enemy;
 }
 
@@ -201,6 +238,12 @@ void SurvivorRunController::RunTimelineEvent(const survivor::SpawnConfig::Timeli
             const float angle = start + 6.2831853f * static_cast<float>(i) / static_cast<float>(count);
             SpawnChaser(event.shape, {player.x + std::cos(angle) * event.radius, player.y + std::sin(angle) * event.radius, 0.0f}, event.speed);
         }
+    } else if (event.kind == "surge") {
+        // 大群（計画書 p8 の G1）：しばらく、足し続ける湧きを速く・多くする。
+        surges_.push_back({event.duration > 0.0f ? elapsed_ + event.duration : 0.0f, event.intervalScale, event.countScale, event.maxAliveAdd});
+        ++surgesStarted_;
+        surges_.erase(std::remove_if(surges_.begin(), surges_.end(), [this](const Surge& s) { return s.until > 0.0f && elapsed_ >= s.until; }),
+                      surges_.end());
     } else if (event.kind == "midBoss") {
         // 中ボス：画面のすぐ外から、大きく硬い1体。
         const auto position = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance);
@@ -208,7 +251,7 @@ void SurvivorRunController::RunTimelineEvent(const survivor::SpawnConfig::Timeli
                                                                          static_cast<int>(std::lround(static_cast<float>((std::max)(1, event.hp)) * EnemyHpScale())))) {
             ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
             enemy->SetSizeScale(event.scale);
-            enemy->SetPlayerChase(event.speed * 1.5f, event.speed);
+            enemy->SetPlayerChase(event.speed * 1.5f * EnemySpeedScale(), event.speed * EnemySpeedScale());
             if (event.exp > 0) {
                 enemy->SetExpValue(static_cast<uint32_t>(event.exp));
             }
@@ -425,7 +468,7 @@ bool SurvivorRunController::SpawnShape(const char* prefab, const myEngine::Vecto
         // 段階が上がるほど速く寄る。加速度は最高速度と同じ割合で上げる。
         const float maxSpeed = config_.swarmMaxSpeed + config_.threat.swarmSpeedPerStage * static_cast<float>(threatStage_ - 1);
         const float acceleration = config_.swarmMaxSpeed > 0.0f ? config_.swarmAcceleration * maxSpeed / config_.swarmMaxSpeed : 0.0f;
-        world_.resources.enemyManager_->GetEnemyPtrs().back()->SetPlayerChase(acceleration, maxSpeed);
+        world_.resources.enemyManager_->GetEnemyPtrs().back()->SetPlayerChase(acceleration * EnemySpeedScale(), maxSpeed * EnemySpeedScale());
     }
     return true;
 }
@@ -434,7 +477,9 @@ float SurvivorRunController::EnemyHpScale() const
 {
     // 武器の枠を使う遊び方では、ステージごとの倍率もかける（W8）。
     const float stage = WeaponMode() ? StageEnemyHp() : 1.0f;
-    return (std::max)(0.1f, (1.0f + config_.threat.enemyHpPerStage * static_cast<float>(threatStage_ - 1)) * stage);
+    // 足し続ける形（計画書 p8 の G1）では、経過分ごとに指数で上がる倍率も掛ける。
+    return (std::max)(0.1f, (1.0f + config_.threat.enemyHpPerStage * static_cast<float>(threatStage_ - 1)) * stage *
+                                config_.growth.HpScale(elapsed_));
 }
 
 void SurvivorRunController::ScaleLastSpawnHp()

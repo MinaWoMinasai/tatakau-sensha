@@ -44,6 +44,7 @@ void SurvivorRunController::StartNextStage()
     rivalDefeatedAt_ = -1.0f;
     threatStage_ = 1;
     spawnBudget_ = 0.0f;
+    ResetGrowth();
     nextSwarm_ = config_.swarm.from;
     nextTank_ = config_.tanks.from;
     nextBigPentagon_ = config_.bigPentagon.from;

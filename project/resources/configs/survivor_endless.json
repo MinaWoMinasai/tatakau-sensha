@@ -38,6 +38,21 @@
       ]
     ],
     "overtimePerMinute": 15,
+    "growth": {
+      "comment": "湧きを足し続ける形（計画書 p8 の G1。HoloCure に寄せる）。enabled なら targetAlive は使わず、points の [秒, 足す間隔の秒, 一度に足す数, 生きている図形の上限] を直線でつないだ値で、間隔ごとに図形を足し続ける（上限に届いている間は待つ。倒しきれないと溜まる）。敵の HP は 経過分ごとに hpPerMinute 倍（指数。中ボスや大五角にも効く）、寄る速さは 1 + speedPerMinute × 経過分（speedMax まで。湧いたときに決まる）。時間割の surge で、しばらく間隔と数と上限を変えられる。",
+      "enabled": true,
+      "points": [
+        [0, 1.0, 3, 70],
+        [60, 0.9, 4, 100],
+        [180, 0.75, 5, 130],
+        [300, 0.65, 7, 145],
+        [420, 0.55, 8, 155],
+        [540, 0.5, 9, 160]
+      ],
+      "hpPerMinute": 1.14,
+      "speedPerMinute": 0.02,
+      "speedMax": 1.25
+    },
     "weights": [
       {
         "from": 0,
@@ -92,7 +107,7 @@
     "comment": "脅威の段階。stageSeconds ごとに1段上がる（最大 maxStage）。1段ごとに、湧く敵のHP +enemyHpPerStage（割合）、三角の群れの数 +swarmCountPerStage・間隔 ×swarmIntervalScalePerStage・最高速度 +swarmSpeedPerStage、敵戦車の同時の上限 +tankMaxAlivePerStage。ringFromStage 段からは ringInterval 秒ごとに、自機を中心とした半径 ringRadius の輪に三角を ringCount 体並べて寄らせる。",
     "stageSeconds": 60,
     "maxStage": 8,
-    "enemyHpPerStage": 0.25,
+    "enemyHpPerStage": 0,
     "swarmCountPerStage": 0,
     "swarmIntervalScalePerStage": 0.9,
     "swarmSpeedPerStage": 0.6,
@@ -1364,6 +1379,24 @@
   },
   "arenaMap": "resources/maps/survivor_open.csv",
   "timeline": [
+    {
+      "at": 240,
+      "kind": "surge",
+      "duration": 25,
+      "intervalScale": 0.5,
+      "countScale": 1.3,
+      "maxAliveAdd": 20,
+      "text": "大群が来る"
+    },
+    {
+      "at": 450,
+      "kind": "surge",
+      "duration": 30,
+      "intervalScale": 0.5,
+      "countScale": 1.3,
+      "maxAliveAdd": 20,
+      "text": "大群が来る"
+    },
     {
       "at": 90,
       "kind": "wall",

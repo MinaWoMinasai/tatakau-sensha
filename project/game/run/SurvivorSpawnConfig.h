@@ -50,6 +50,52 @@ struct SpawnConfig {
     float shapeOvertimePerMinute = 24.0f;
     std::vector<ShapeWeights> shapeWeights{ShapeWeights{}};
 
+    /// @brief 湧きを足し続ける形（計画書 p8 の G1。HoloCure に寄せる）。enabled なら、図形を「生存数の目標まで」湧かせるのではなく、
+    /// interval 秒ごとに count 体ずつ足し続ける（生きている図形が maxAlive に届いている間は待つ）。倒しきれないと溜まっていく。
+    /// 点の間は直線でつなぎ、最後の点より後は最後の値のまま。敵の HP は 経過分ごとに hpPerMinute 倍（指数）、
+    /// 寄る速さは 1 + speedPerMinute × 経過分（speedMax まで。湧いたときの値で決まる）。
+    struct SpawnGrowth {
+        struct Point {
+            float at = 0.0f;
+            float interval = 1.0f;
+            float count = 2.0f;
+            float maxAlive = 60.0f;
+        };
+        bool enabled = false;
+        std::vector<Point> points{Point{}};
+        float hpPerMinute = 1.0f;
+        float speedPerMinute = 0.0f;
+        float speedMax = 1.0f;
+
+        Point At(float seconds) const
+        {
+            if (points.empty()) {
+                return Point{};
+            }
+            if (seconds <= points.front().at) {
+                return points.front();
+            }
+            for (size_t i = 1; i < points.size(); ++i) {
+                const Point& a = points[i - 1];
+                const Point& b = points[i];
+                if (seconds <= b.at) {
+                    const float t = b.at > a.at ? (seconds - a.at) / (b.at - a.at) : 1.0f;
+                    return {seconds, a.interval + (b.interval - a.interval) * t, a.count + (b.count - a.count) * t,
+                            a.maxAlive + (b.maxAlive - a.maxAlive) * t};
+                }
+            }
+            return points.back();
+        }
+        float HpScale(float seconds) const
+        {
+            return enabled ? std::pow((std::max)(0.1f, hpPerMinute), seconds / 60.0f) : 1.0f;
+        }
+        float SpeedScale(float seconds) const
+        {
+            return enabled ? (std::min)((std::max)(1.0f, speedMax), 1.0f + speedPerMinute * seconds / 60.0f) : 1.0f;
+        }
+    } growth;
+
     Timed swarm{20.0f, 20.0f, 0};
     int swarmCount = 7;
     float swarmSpread = 3.0f;
@@ -295,6 +341,12 @@ struct SpawnConfig {
         float scale = 1.0f;
         int exp = 0;
         int rewards = 0;
+        /// @brief kind "surge"（計画書 p8 の G1）：duration 秒（0 なら区画の終わりまで）、足し続ける湧きの間隔に intervalScale、
+        /// 一度に足す数に countScale を掛け、生存数の上限に maxAliveAdd を足す。
+        float duration = 0.0f;
+        float intervalScale = 1.0f;
+        float countScale = 1.0f;
+        int maxAliveAdd = 0;
         std::string text;
     };
     std::vector<TimelineEvent> timeline;
@@ -476,6 +528,31 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             }
         }
         number(shapes, "overtimePerMinute", config.shapeOvertimePerMinute);
+        if (shapes.contains("growth") && shapes.at("growth").is_object()) {
+            const auto& growth = shapes.at("growth");
+            if (growth.contains("enabled") && growth.at("enabled").is_boolean()) {
+                config.growth.enabled = growth.at("enabled").get<bool>();
+            }
+            if (growth.contains("points") && growth.at("points").is_array()) {
+                std::vector<SpawnConfig::SpawnGrowth::Point> points;
+                for (const auto& point : growth.at("points")) {
+                    if (point.is_array() && point.size() == 4 && point[0].is_number() && point[1].is_number() && point[2].is_number() &&
+                        point[3].is_number()) {
+                        points.push_back({point[0].get<float>(), (std::max)(0.05f, point[1].get<float>()), (std::max)(0.0f, point[2].get<float>()),
+                                          (std::max)(0.0f, point[3].get<float>())});
+                    }
+                }
+                if (!points.empty()) {
+                    config.growth.points = std::move(points);
+                }
+            }
+            number(growth, "hpPerMinute", config.growth.hpPerMinute);
+            number(growth, "speedPerMinute", config.growth.speedPerMinute);
+            number(growth, "speedMax", config.growth.speedMax);
+            config.growth.hpPerMinute = (std::clamp)(config.growth.hpPerMinute, 0.5f, 3.0f);
+            config.growth.speedPerMinute = (std::clamp)(config.growth.speedPerMinute, 0.0f, 1.0f);
+            config.growth.speedMax = (std::clamp)(config.growth.speedMax, 1.0f, 3.0f);
+        }
         if (shapes.contains("weights") && shapes.at("weights").is_array()) {
             std::vector<SpawnConfig::ShapeWeights> weights;
             for (const auto& entry : shapes.at("weights")) {
@@ -963,6 +1040,10 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(item, "scale", event.scale);
             number(item, "exp", event.exp);
             number(item, "rewards", event.rewards);
+            number(item, "duration", event.duration);
+            number(item, "intervalScale", event.intervalScale);
+            number(item, "countScale", event.countScale);
+            number(item, "maxAliveAdd", event.maxAliveAdd);
             for (auto [key, target] : {std::pair<const char*, std::string*>{"kind", &event.kind}, {"shape", &event.shape}, {"side", &event.side},
                                        {"text", &event.text}}) {
                 if (item.contains(key) && item.at(key).is_string()) {
@@ -1330,6 +1411,17 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         shapes["targetAlive"].push_back({round(seconds), round(alive)});
     }
     shapes["overtimePerMinute"] = round(config.shapeOvertimePerMinute);
+    if (config.growth.enabled) {
+        auto& growth = shapes["growth"];
+        growth["enabled"] = true;
+        growth["points"] = nlohmann::json::array();
+        for (const auto& point : config.growth.points) {
+            growth["points"].push_back({round(point.at), round(point.interval), round(point.count), round(point.maxAlive)});
+        }
+        growth["hpPerMinute"] = round(config.growth.hpPerMinute);
+        growth["speedPerMinute"] = round(config.growth.speedPerMinute);
+        growth["speedMax"] = round(config.growth.speedMax);
+    }
     shapes["weights"] = nlohmann::json::array();
     for (const auto& entry : config.shapeWeights) {
         shapes["weights"].push_back({{"from", round(entry.from)},
@@ -1608,6 +1700,13 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
             timeline.push_back({{"at", round(event.at)}, {"kind", event.kind}, {"shape", event.shape}, {"side", event.side}, {"count", event.count},
                                 {"speed", round(event.speed)}, {"radius", round(event.radius)}, {"hp", event.hp}, {"scale", round(event.scale)},
                                 {"exp", event.exp}, {"rewards", event.rewards}, {"text", event.text}});
+            if (event.kind == "surge") {
+                auto& surge = timeline.back();
+                surge["duration"] = round(event.duration);
+                surge["intervalScale"] = round(event.intervalScale);
+                surge["countScale"] = round(event.countScale);
+                surge["maxAliveAdd"] = event.maxAliveAdd;
+            }
         }
     }
     auto& waves = section("waves");

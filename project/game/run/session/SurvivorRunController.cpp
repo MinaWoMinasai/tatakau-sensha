@@ -135,6 +135,10 @@ void SurvivorRunController::Initialize()
     });
 
     nextSwarm_ = config_.swarm.from;
+    ResetGrowth();
+    growthSpawned_ = 0;
+    growthAliveMax_ = 0;
+    surgesStarted_ = 0;
     nextTank_ = config_.tanks.from;
     nextBigPentagon_ = config_.bigPentagon.from;
     timelineNext_ = 0;
