@@ -54,16 +54,16 @@
     ],
     "chase": {
       "square": [
-        4.0,
-        2.6
+        5.5,
+        3.8
       ],
       "triangle": [
         7.0,
         4.5
       ],
       "pentagon": [
-        3.0,
-        2.2
+        5.0,
+        3.5
       ]
     }
   },
@@ -78,7 +78,7 @@
   },
   "tanks": {
     "comment": "敵戦車。同時にいる数は maxAlive まで。種類は expedition_content.json の id。",
-    "from": 30,
+    "from": 99999,
     "interval": 4,
     "maxAlive": 7,
     "types": [
@@ -96,7 +96,7 @@
     "swarmCountPerStage": 0,
     "swarmIntervalScalePerStage": 0.9,
     "swarmSpeedPerStage": 0.6,
-    "tankMaxAlivePerStage": 1,
+    "tankMaxAlivePerStage": 0,
     "ringFromStage": 99,
     "ringInterval": 30,
     "ringCount": 18,
@@ -120,7 +120,7 @@
   "lungePentagon": {
     "comment": "突進する五角。脅威 fromStage 段から、湧く五角の chance の割合が、ゆっくり寄りながら interval 秒ごとに windup 秒溜めて（ほぼ止まる）duration 秒だけ lungeSpeed で迫る。",
     "fromStage": 2,
-    "chance": 0.5,
+    "chance": 0,
     "acceleration": 4,
     "maxSpeed": 2,
     "lungeSpeed": 6.5,
@@ -686,7 +686,7 @@
   },
   "elites": {
     "comment": "ステージ fromStage（1から数える）から出る新しい敵（計画書 p3 の W9）。武器の枠を使う遊び方だけ。三角の群れと包囲の erraticRatio の割合が、ばらばらな軌道の水色の三角になる。緑の四角は healInterval 秒ごとに半径 healRadius の味方を最大HPの healRatio だけ回復する。紫の五角は warpInterval 秒ごとにディゾルブで消え、自機から warpDistance の所へ移る。橙の三角は layInterval 秒ごとに地雷（小さな赤い五角、HP mineHp）を置く。地雷は mineArmSeconds 秒たつと、自機が mineTriggerRadius に入るか mineLifeSeconds で爆発し、半径 mineBlastRadius に mineDamage を与える（バリアの中なら自機には届かない）。各敵はステージの始めから first 秒後、その後 interval 秒ごとに、同時に maxAlive 体まで湧く。hpScale はふつうの形のHPに掛ける。",
-    "fromStage": 2,
+    "fromStage": 99,
     "erraticRatio": 0.5,
     "erraticStrength": 1.6,
     "erraticFrequency": 5,
@@ -1335,7 +1335,7 @@
       "side": "leftRight",
       "shape": "Square",
       "count": 12,
-      "speed": 3.2,
+      "speed": 4.0,
       "text": "左右から壁が迫る"
     },
     {
@@ -1344,7 +1344,7 @@
       "shape": "Triangle",
       "count": 20,
       "radius": 16,
-      "speed": 3.5,
+      "speed": 4.2,
       "text": "包囲"
     },
     {
@@ -1364,7 +1364,7 @@
       "side": "topBottom",
       "shape": "Square",
       "count": 16,
-      "speed": 3.4,
+      "speed": 4.0,
       "text": "上下から壁が迫る"
     },
     {
@@ -1373,7 +1373,7 @@
       "shape": "Triangle",
       "count": 28,
       "radius": 16,
-      "speed": 3.8,
+      "speed": 4.2,
       "text": "包囲"
     },
     {
@@ -1382,7 +1382,7 @@
       "side": "leftRight",
       "shape": "Square",
       "count": 18,
-      "speed": 3.6,
+      "speed": 4.0,
       "text": "左右から壁が迫る"
     }
   ]
