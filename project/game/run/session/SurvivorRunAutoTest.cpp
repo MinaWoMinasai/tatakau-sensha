@@ -77,11 +77,15 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             return;
         }
         // 主武器の強化（E5 の拡散連射は7段）、次に副武器（E4）を確かめるため、並んでいればその順に選ぶ。
+        // MYENGINE_SURVIVOR_PICK=perk なら、パークを先に選ぶ（パークの段と埋め草を確かめる。計画書 p8 の F1）。
+        wchar_t pickMode[8]{};
+        const bool perkFirst = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_PICK", pickMode, 8) > 0 && std::wstring(pickMode) == L"perk";
         size_t pick = 0;
         int best = 0;
         for (size_t i = 0; i < heroLevelUpOffers_.size(); ++i) {
             const ShopOffer& offer = heroLevelUpOffers_[i];
-            const int score = offer.upgrade && offer.index == 0 ? 2 : offer.sub ? 1 : 0;
+            const bool perk = !offer.upgrade && !offer.sub && offer.filler == Filler::None;
+            const int score = perkFirst && perk ? 3 : offer.upgrade && offer.index == 0 ? 2 : offer.sub ? 1 : 0;
             if (score > best) {
                 best = score;
                 pick = i;
@@ -1173,7 +1177,15 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                    return "{\"player\":" + describe(autoPlayerSpeeds_) + ",\"square\":" + describe(autoShapeSpeeds_[0]) +
                           ",\"triangle\":" + describe(autoShapeSpeeds_[1]) + ",\"pentagon\":" + describe(autoShapeSpeeds_[2]) + "}";
                }() << ",\"heroLevel\":" << level_
-            << ",\"heroLevelUps\":" << heroLevelUpLog_.size() << ",\"subWeaponTiers\":[" << subWeaponTiers_[0] << ","
+            << ",\"heroLevelUps\":" << heroLevelUpLog_.size() << ",\"fillers\":" << fillersTaken_ << ",\"fillerMaxHp\":" << fillerMaxHp_
+            << ",\"fillerPower\":" << fillerPower_ << ",\"levelUpLog\":[" << [&] {
+                   std::ostringstream log;
+                   for (size_t i = 0; i < heroLevelUpLog_.size(); ++i) {
+                       log << (i ? "," : "") << "\"" << heroLevelUpLog_[i] << "\"";
+                   }
+                   return log.str();
+               }() << "]"
+            << ",\"subWeaponTiers\":[" << subWeaponTiers_[0] << ","
             << subWeaponTiers_[1] << "," << subWeaponTiers_[2] << "],\"orbitDamage\":" << orbitDamage_
             << ",\"orbitBulletsCleared\":" << orbitBulletsCleared_ << ",\"turretShots\":" << turretShots_ << ",\"mineBlasts\":" << mineBlasts_ << ",\"timelineEvents\":" << timelineEvents_ << ",\"midBossKills\":" << midBossKills_ << ",\"burstShots\":" << burstShots_ << ",\"burstVolleys\":" << burstVolleys_
             << ",\"sprintSpeed\":" << autoMoveDistance_[1] / (std::max)(0.001f, autoMoveSeconds_[1]) << ",\"ultimateCharge\":" << ultimateCharge_
@@ -1209,7 +1221,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                    std::string names;
                    for (size_t i = 0; i < survivor::kPerkCount; ++i) {
                        if (perks_[i]) {
-                           names += std::string(names.empty() ? "" : " ") + survivor::GetPerkInfo(static_cast<survivor::PerkId>(i)).key;
+                           names += std::string(names.empty() ? "" : " ") + survivor::GetPerkInfo(static_cast<survivor::PerkId>(i)).key +
+                                    (perks_[i] > 1 ? std::to_string(perks_[i]) : std::string());
                        }
                    }
                    return names;

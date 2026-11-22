@@ -33,6 +33,9 @@ void SurvivorRunController::RebuildHero(bool heal)
     if (HasPerk(PerkId::Armor) && heroDef_.maxHp > 0) {
         heroDef_.maxHp += static_cast<int>(PerkValue(PerkId::Armor));
     }
+    if (heroDef_.maxHp > 0) {
+        heroDef_.maxHp += fillerMaxHp_;
+    }
     auto& player = *world_.resources.player_;
     const int missing = player.GetMaxHp() - player.GetHp();
     player.SetSurvivorMaxHp(heroDef_.maxHp, heal);
@@ -75,26 +78,68 @@ int SurvivorRunController::OfferPrice(const ShopOffer& offer) const
     return config_.shop.perkPrices[static_cast<size_t>(offer.index)];
 }
 
+std::string SurvivorRunController::FillerName(Filler filler) const
+{
+    switch (filler) {
+    case Filler::Heal:
+        return "修理キット";
+    case Filler::MaxHp:
+        return "装甲の継ぎ足し";
+    case Filler::Power:
+        return "火薬の増量";
+    default:
+        return "";
+    }
+}
+
+std::string SurvivorRunController::FillerText(Filler filler) const
+{
+    switch (filler) {
+    case Filler::Heal:
+        return "HP を最大HPの " + std::to_string(static_cast<int>(std::round(config_.heroes.fillerHeal * 100.0f))) + "% 回復する（傷も同じだけ治る）";
+    case Filler::MaxHp:
+        return "最大HP +" + std::to_string(config_.heroes.fillerMaxHp) + "（今 +" + std::to_string(fillerMaxHp_) + "）";
+    case Filler::Power:
+        return "すべての威力 +" + std::to_string(static_cast<int>(std::round(config_.heroes.fillerPower * 100.0f))) + "%（今 +" +
+               std::to_string(static_cast<int>(std::round(fillerPower_ * 100.0f))) + "%）";
+    default:
+        return "";
+    }
+}
+
 std::string SurvivorRunController::OfferName(const ShopOffer& offer) const
 {
+    if (offer.filler != Filler::None) {
+        return FillerName(offer.filler);
+    }
     if (offer.sub) {
         const auto weapon = static_cast<survivor::SubWeapon>(offer.index);
         return survivor::SubWeaponOfferName(weapon, SubWeaponTier(weapon));
     }
     if (!offer.upgrade) {
-        return survivor::GetPerkInfo(static_cast<PerkId>(offer.index)).name;
+        // 段のあるパークは、上げた後の Lv を付ける（計画書 p8 の F1）。
+        const std::string name = survivor::GetPerkInfo(static_cast<PerkId>(offer.index)).name;
+        return config_.heroes.perkMaxTier > 1 ? name + " Lv" + std::to_string(perks_[static_cast<size_t>(offer.index)] + 1) : name;
     }
     return survivor::UpgradeOfferName(Hero(), offer.index, UpgradeTier(offer.index));
 }
 
 std::string SurvivorRunController::OfferText(const ShopOffer& offer) const
 {
+    if (offer.filler != Filler::None) {
+        return FillerText(offer.filler) + "\n（選ぶ物が残っていないときに並ぶ）";
+    }
     if (offer.sub) {
         const auto weapon = static_cast<survivor::SubWeapon>(offer.index);
         return survivor::SubWeaponOfferText(weapon, SubWeaponTier(weapon));
     }
     if (!offer.upgrade) {
         const auto& info = survivor::GetPerkInfo(static_cast<PerkId>(offer.index));
+        if (config_.heroes.perkMaxTier > 1) {
+            const int next = perks_[static_cast<size_t>(offer.index)] + 1;
+            return std::string(info.text) + "\nLv" + std::to_string(next) + "/" + std::to_string(config_.heroes.perkMaxTier) + "：" +
+                   survivor::PerkTierText(static_cast<PerkId>(offer.index), config_.shop.perkValues[static_cast<size_t>(offer.index)], next);
+        }
         return std::string(info.text) + (info.hero[0] != '\0' ? "（" + Hero().name + "だけ）" : std::string("（どの機体でも）"));
     }
     return survivor::UpgradeOfferText(Hero(), offer.index, UpgradeTier(offer.index));
@@ -118,17 +163,26 @@ std::vector<SurvivorRunController::ShopOffer> SurvivorRunController::ShopOfferPo
             pool.push_back({true, target});
         }
     }
+    // 枠（計画書 p8 の F1）：持っている数が枠に届いたら、持っていない物は並べない（持っている物の段上げだけ）。
+    int ownedPerks = 0;
+    for (const int tier : perks_) {
+        ownedPerks += tier > 0 ? 1 : 0;
+    }
+    const bool perksFull = config_.heroes.perkSlots > 0 && ownedPerks >= config_.heroes.perkSlots;
     for (size_t i = 0; i < survivor::kPerkCount; ++i) {
         const auto& info = survivor::GetPerkInfo(static_cast<PerkId>(i));
         // 右クリック・Shift・E を使わない遊び方では、機体専用のパークと「連鎖の冷却」（技の待ち時間）は効かないので並べない。
         const bool locked = config_.heroes.onlyUltimate && (info.hero[0] != '\0' || static_cast<PerkId>(i) == PerkId::KillCooldown);
-        if (!perks_[i] && !locked && (info.hero[0] == '\0' || Hero().key == info.hero)) {
+        const bool open = perks_[i] > 0 || !perksFull;
+        if (perks_[i] < config_.heroes.perkMaxTier && open && !locked && (info.hero[0] == '\0' || Hero().key == info.hero)) {
             pool.push_back({false, static_cast<int>(i)});
         }
     }
     if (withSubWeapons) {
+        const int ownedSubs = OwnedSubWeapons();
+        const bool subsFull = config_.heroes.subWeaponSlots > 0 && ownedSubs >= config_.heroes.subWeaponSlots;
         for (size_t i = 0; i < survivor::kSubWeaponCount; ++i) {
-            if (subWeaponTiers_[i] < survivor::kMaxSubWeaponTier) {
+            if (subWeaponTiers_[i] < survivor::kMaxSubWeaponTier && (subWeaponTiers_[i] > 0 || !subsFull)) {
                 pool.push_back({false, static_cast<int>(i), true});
             }
         }
@@ -136,8 +190,41 @@ std::vector<SurvivorRunController::ShopOffer> SurvivorRunController::ShopOfferPo
     return pool;
 }
 
+int SurvivorRunController::OwnedSubWeapons() const
+{
+    int owned = 0;
+    for (const int tier : subWeaponTiers_) {
+        owned += tier > 0 ? 1 : 0;
+    }
+    return owned;
+}
+
+int SurvivorRunController::OwnedPerks() const
+{
+    int owned = 0;
+    for (const int tier : perks_) {
+        owned += tier > 0 ? 1 : 0;
+    }
+    return owned;
+}
+
 void SurvivorRunController::ApplyOffer(const ShopOffer& offer)
 {
+    if (offer.filler != Filler::None) {
+        ++fillersTaken_;
+        auto& player = *world_.resources.player_;
+        if (offer.filler == Filler::Heal) {
+            const int amount = static_cast<int>(std::round(static_cast<float>(player.GetMaxHp()) * config_.heroes.fillerHeal));
+            player.ReduceSurvivorWound(static_cast<float>(amount));
+            player.HealRunPlayer(amount);
+        } else if (offer.filler == Filler::MaxHp) {
+            fillerMaxHp_ += config_.heroes.fillerMaxHp;
+            RebuildHero(false);
+        } else {
+            fillerPower_ += config_.heroes.fillerPower;
+        }
+        return;
+    }
     if (offer.sub) {
         int& tier = subWeaponTiers_[static_cast<size_t>(offer.index)];
         tier = (std::min)(survivor::kMaxSubWeaponTier, tier + 1);
@@ -146,7 +233,8 @@ void SurvivorRunController::ApplyOffer(const ShopOffer& offer)
     if (offer.upgrade) {
         upgradeTiers_[static_cast<size_t>(offer.index)] = (std::min)(survivor::MaxUpgradeTier(Hero(), offer.index), UpgradeTier(offer.index) + 1);
     } else {
-        perks_[static_cast<size_t>(offer.index)] = true;
+        int& tier = perks_[static_cast<size_t>(offer.index)];
+        tier = (std::min)(config_.heroes.perkMaxTier, tier + 1);
     }
     RebuildHero(false);
 }
@@ -155,7 +243,8 @@ void SurvivorRunController::OpenHeroLevelUp()
 {
     const bool subWeapons = config_.heroes.subWeapons;
     std::vector<ShopOffer> pool = ShopOfferPool(subWeapons);
-    if (pool.empty()) {
+    const bool fillers = config_.heroes.fillerHeal > 0.0f || config_.heroes.fillerMaxHp > 0 || config_.heroes.fillerPower > 0.0f;
+    if (pool.empty() && !fillers) {
         // 全部そろったら、選ぶ物は無い（レベルは上がるが止めない）。
         heroPendingLevelUps_ = 0;
         heroLevelUpOpen_ = false;
@@ -188,6 +277,20 @@ void SurvivorRunController::OpenHeroLevelUp()
         if (std::find_if(heroLevelUpOffers_.begin(), heroLevelUpOffers_.end(), [&](const ShopOffer& o) {
                 return o.Same(offer);
             }) == heroLevelUpOffers_.end()) {
+            heroLevelUpOffers_.push_back(offer);
+        }
+    }
+    // 3つに満たなければ、埋め草で足す（計画書 p8 の F1。HoloCure と同じく、全部そろっても選ぶ物は出る）。
+    const std::array<std::pair<Filler, bool>, 3> kFillers{{{Filler::Heal, config_.heroes.fillerHeal > 0.0f},
+                                                           {Filler::MaxHp, config_.heroes.fillerMaxHp > 0},
+                                                           {Filler::Power, config_.heroes.fillerPower > 0.0f}}};
+    for (const auto& [filler, on] : kFillers) {
+        if (heroLevelUpOffers_.size() >= 3) {
+            break;
+        }
+        if (on) {
+            ShopOffer offer;
+            offer.filler = filler;
             heroLevelUpOffers_.push_back(offer);
         }
     }

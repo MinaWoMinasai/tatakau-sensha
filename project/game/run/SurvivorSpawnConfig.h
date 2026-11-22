@@ -843,6 +843,18 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         if (heroes.contains("onlyUltimate") && heroes.at("onlyUltimate").is_boolean()) {
             config.heroes.onlyUltimate = heroes.at("onlyUltimate").get<bool>();
         }
+        number(heroes, "perkMaxTier", config.heroes.perkMaxTier);
+        number(heroes, "subWeaponSlots", config.heroes.subWeaponSlots);
+        number(heroes, "perkSlots", config.heroes.perkSlots);
+        number(heroes, "fillerHeal", config.heroes.fillerHeal);
+        number(heroes, "fillerMaxHp", config.heroes.fillerMaxHp);
+        number(heroes, "fillerPower", config.heroes.fillerPower);
+        config.heroes.perkMaxTier = (std::clamp)(config.heroes.perkMaxTier, 1, 9);
+        config.heroes.subWeaponSlots = (std::clamp)(config.heroes.subWeaponSlots, 0, 12);
+        config.heroes.perkSlots = (std::clamp)(config.heroes.perkSlots, 0, 12);
+        config.heroes.fillerHeal = (std::clamp)(config.heroes.fillerHeal, 0.0f, 1.0f);
+        config.heroes.fillerMaxHp = (std::clamp)(config.heroes.fillerMaxHp, 0, 500);
+        config.heroes.fillerPower = (std::clamp)(config.heroes.fillerPower, 0.0f, 1.0f);
         for (const auto& item : heroes.items()) {
             if (!item.value().is_object()) {
                 continue;
@@ -1474,6 +1486,20 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     }
     heroes["subWeapons"] = config.heroes.subWeapons;
     heroes["onlyUltimate"] = config.heroes.onlyUltimate;
+    if (config.heroes.perkMaxTier > 1) {
+        heroes["perkMaxTier"] = config.heroes.perkMaxTier;
+    }
+    if (config.heroes.subWeaponSlots > 0) {
+        heroes["subWeaponSlots"] = config.heroes.subWeaponSlots;
+    }
+    if (config.heroes.perkSlots > 0) {
+        heroes["perkSlots"] = config.heroes.perkSlots;
+    }
+    if (config.heroes.fillerHeal > 0.0f || config.heroes.fillerMaxHp > 0 || config.heroes.fillerPower > 0.0f) {
+        heroes["fillerHeal"] = round(config.heroes.fillerHeal);
+        heroes["fillerMaxHp"] = config.heroes.fillerMaxHp;
+        heroes["fillerPower"] = round(config.heroes.fillerPower);
+    }
     for (const auto& hero : config.heroes.heroes) {
         auto& item = heroes[hero.key];
         item["name"] = hero.name;

@@ -609,7 +609,11 @@ SurvivorItemScreen::View SurvivorRunController::HeroBuildView() const
             std::string subs;
             for (size_t i = 0; i < survivor::kSubWeaponCount; ++i) {
                 if (subWeaponTiers_[i] > 0) {
-                    subs += (subs.empty() ? "副武器 " : "・") + std::string(survivor::GetSubWeaponInfo(static_cast<survivor::SubWeapon>(i)).shortName) +
+                    subs += (subs.empty() ? "副武器" + (config_.heroes.subWeaponSlots > 0 ? std::to_string(OwnedSubWeapons()) + "/" +
+                                                                                             std::to_string(config_.heroes.subWeaponSlots)
+                                                                                       : std::string()) +
+                                                " "
+                                          : "・") + std::string(survivor::GetSubWeaponInfo(static_cast<survivor::SubWeapon>(i)).shortName) +
                             std::to_string(subWeaponTiers_[i]);
                 }
             }
@@ -622,11 +626,20 @@ SurvivorItemScreen::View SurvivorRunController::HeroBuildView() const
             int owned = 0;
             for (size_t i = 0; i < survivor::kPerkCount; ++i) {
                 if (perks_[i]) {
-                    perks += (owned == 0 ? "" : owned % 3 == 0 ? "\n" : "・") + std::string(survivor::GetPerkInfo(static_cast<survivor::PerkId>(i)).name);
+                    // 段のあるパークは Lv を付け、2つごとに改行する（計画書 p8 の F1）。
+                    const bool tiers = config_.heroes.perkMaxTier > 1;
+                    perks += (owned == 0 ? "" : owned % (tiers ? 2 : 3) == 0 ? "\n" : "・") +
+                             std::string(survivor::GetPerkInfo(static_cast<survivor::PerkId>(i)).name) + (tiers ? std::to_string(perks_[i]) : std::string());
                     ++owned;
                 }
             }
-            card.stats = line(4) + "\n" + (perks.empty() ? std::string("パークなし") : perks);
+            const std::string perkTitle = config_.heroes.perkSlots > 0
+                                              ? "パーク" + std::to_string(OwnedPerks()) + "/" + std::to_string(config_.heroes.perkSlots) + "\n"
+                                              : std::string();
+            card.stats = line(4) + "\n" + perkTitle + (perks.empty() ? std::string("パークなし") : perks);
+            if (fillersTaken_ > 0) {
+                card.stats += "\n埋め草 HP+" + std::to_string(fillerMaxHp_) + "・威力+" + std::to_string(static_cast<int>(std::round(fillerPower_ * 100.0f))) + "%";
+            }
         }
         card.item.body = card.stats;
     }
@@ -659,10 +672,14 @@ void SurvivorRunController::RefreshHeroLevelUp()
         const bool awaken = OfferAwakens(offer);
         Item item;
         // 色：技の強化は水色、副武器は緑、パークは橙。覚醒の手前は金色。
-        item.icon = Icon(offer.sub       ? survivor::GetSubWeaponInfo(static_cast<survivor::SubWeapon>(offer.index)).icon
+        const bool filler = offer.filler != Filler::None;
+        item.icon = Icon(filler          ? (offer.filler == Filler::Power ? "chip_warhead" : "chip_armor")
+                         : offer.sub     ? survivor::GetSubWeaponInfo(static_cast<survivor::SubWeapon>(offer.index)).icon
                          : offer.upgrade ? kUpgradeIcons[static_cast<size_t>(offer.index)]
                                          : "chip_default");
-        item.color = awaken          ? myEngine::Vector4{1.9f, 1.5f, 0.4f, 1.0f}
+        // 埋め草は白っぽく。
+        item.color = filler          ? myEngine::Vector4{0.85f, 0.85f, 0.9f, 1.0f}
+                     : awaken        ? myEngine::Vector4{1.9f, 1.5f, 0.4f, 1.0f}
                      : offer.sub     ? myEngine::Vector4{0.5f, 1.4f, 0.75f, 1.0f}
                      : offer.upgrade ? myEngine::Vector4{0.55f, 0.95f, 1.0f, 1.0f}
                                      : myEngine::Vector4{1.0f, 0.75f, 0.35f, 1.0f};

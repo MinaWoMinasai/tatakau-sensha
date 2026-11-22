@@ -41,7 +41,10 @@ void SurvivorRunController::StartHero()
     StripLockedAbilities();
     heroAutoFire_ = config_.heroes.autoFire;
     upgradeTiers_.fill(0);
-    perks_.fill(false);
+    perks_.fill(0);
+    fillerMaxHp_ = 0;
+    fillerPower_ = 0.0f;
+    fillersTaken_ = 0;
     subWeaponTiers_.fill(0);
     // 枠は1つ目だけを使う（コモン・チップなし）。弾は数えない（LoadAmmoToPlayer）。
     for (size_t i = 0; i < weaponSlots_.size(); ++i) {

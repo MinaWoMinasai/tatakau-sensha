@@ -61,6 +61,11 @@ protected:
         (void)perk;
         return 0.0f;
     }
+    /// @brief 機体の技・主武器・副武器の威力に掛ける倍率（試作のレベルアップの埋め草「威力」。計画書 p8 の F1）。
+    virtual float HeroPowerScale() const
+    {
+        return 1.0f;
+    }
     /// @brief 自機の移動の速さの土台の倍率（技・パークの倍率はこれに掛ける）。試作では1、遠征では調整ファイルの heroMoveScale。
     virtual float HeroBaseMoveScale() const
     {

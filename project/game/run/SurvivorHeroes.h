@@ -142,6 +142,17 @@ struct HeroesConfig {
     /// @brief 右クリック・Shift・E の技を使わず、主武器・副武器・Q（コントローラーは B）だけで遊ぶか（計画書 p7 の E5。ヴァンサバに寄せる）。
     /// 技の強化の候補からも外し、外した技に関わるパーク（機体専用と「連鎖の冷却」）も並べない。
     bool onlyUltimate = false;
+    /// @brief パークの段の上限（計画書 p8 の F1。HoloCure のアイテムと同じく段で強くなる）。1 なら今までどおり段なし。
+    /// 段ごとに、パークの強さ（shop.perks の value）が足される（Lv3 なら value×3）。
+    int perkMaxTier = 1;
+    /// @brief 持てる副武器・パークの数（計画書 p8 の F1）。0 なら上限なし。埋まったら、持っている物の強化だけ並ぶ。
+    int subWeaponSlots = 0;
+    int perkSlots = 0;
+    /// @brief 選ぶ物が無くなったときの埋め草（計画書 p8 の F1）。3択が3つに満たなければ足す。0 ならその埋め草は出さない。
+    /// fillerHeal は最大HPに対する回復の割合（傷も同じだけ治す）、fillerMaxHp は最大HPの増え方、fillerPower は威力の増え方（0.05 で +5%）。
+    float fillerHeal = 0.0f;
+    int fillerMaxHp = 0;
+    float fillerPower = 0.0f;
 };
 
 /// @brief 設定ファイルが無いときの機体。ソルジャー型（K1）・モイラ型（K2）・タンク型（K7。最初に解放する）。

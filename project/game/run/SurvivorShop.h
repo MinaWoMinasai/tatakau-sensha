@@ -72,6 +72,32 @@ inline PerkId FindPerk(const std::string& key)
 
 /// @brief 技の強化の対象：主武器と4つの技の枠（0 が主武器、1〜4 が右クリック・Shift・E・Q）。
 inline constexpr size_t kUpgradeTargets = 5;
+/// @brief パークの段（計画書 p8 の F1）での効き目の説明。value は1段ぶんの強さ、tier は上げた後の段（合計の値を出す）。
+inline std::string PerkTierText(PerkId id, float value, int tier)
+{
+    const float total = value * static_cast<float>(tier);
+    auto percent = [](float v) {
+        return std::to_string(static_cast<int>(std::round(v * 100.0f))) + "%";
+    };
+    switch (id) {
+    case PerkId::Lifesteal:
+        return "与えたダメージの " + std::to_string(static_cast<int>(std::round(total * 1000.0f)) / 10) + "." +
+               std::to_string(static_cast<int>(std::round(total * 1000.0f)) % 10) + "% で回復";
+    case PerkId::KillCooldown:
+        return "倒すたびに技の待ち時間 -" + std::to_string(total).substr(0, 4) + "秒";
+    case PerkId::Armor:
+        return "最大HP +" + std::to_string(static_cast<int>(std::round(total)));
+    case PerkId::Speed:
+        return "移動の速さ +" + percent(total);
+    case PerkId::Magnet:
+        return "欠片を引き寄せる範囲 +" + percent(total);
+    case PerkId::UltCharge:
+        return "Q のゲージの溜まり方 +" + percent(total);
+    default:
+        return GetPerkInfo(id).text;
+    }
+}
+
 /// @brief 技の強化の段の上限。3段目で挙動が変わる。
 inline constexpr int kMaxUpgradeTier = 3;
 

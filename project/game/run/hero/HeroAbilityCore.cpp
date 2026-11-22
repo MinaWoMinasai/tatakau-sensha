@@ -72,7 +72,7 @@ bool HeroAbilityCore::UseAbility(AbilitySlot slot)
         // 照準の方へ、大きく遅めの橙の弾を1発。当たると爆発する。
         Player::SurvivorShot shot;
         shot.direction = player.GetDirection();
-        shot.damageScale = ability.power;
+        shot.damageScale = ability.power * HeroPowerScale();
         shot.speedScale = 1.1f;
         shot.size = 1.7f;
         shot.blastRadius = ability.radius;
@@ -402,7 +402,7 @@ void HeroAbilityCore::UpdateBarrage(float dt, const survivor::AbilityDefinition&
         const myEngine::Vector3 target = targets[barrageTarget_++ % count].second;
         Player::SurvivorShot shot;
         shot.direction = myEngine::Vector3{target.x - origin.x, target.y - origin.y, 0.0f};
-        shot.damageScale = ability.power;
+        shot.damageScale = ability.power * HeroPowerScale();
         shot.speedScale = 1.8f;
         shot.size = 0.8f;
         shot.color = {2.2f, 1.7f, 0.35f, 1.0f};
@@ -519,7 +519,7 @@ float PlanarDistance(const myEngine::Vector3& a, const myEngine::Vector3& b)
 
 float HeroAbilityCore::HeroDamageUnit(float scale) const
 {
-    return heroWorld_.resources.player_->GetStats().bulletDamage * (std::max)(0.0f, scale);
+    return heroWorld_.resources.player_->GetStats().bulletDamage * (std::max)(0.0f, scale) * HeroPowerScale();
 }
 
 uint32_t HeroAbilityCore::DealHeroDamage(Collider* target, bool rival, uint32_t amount, const myEngine::Vector3& from)
@@ -948,7 +948,7 @@ void HeroAbilityCore::UpdateBurstGun(float dt, const survivor::AbilityDefinition
         const float c = std::cos(angle), s = std::sin(angle);
         Player::SurvivorShot shot;
         shot.direction = myEngine::Vector3{aim.x * c - aim.y * s, aim.x * s + aim.y * c, 0.0f};
-        shot.damageScale = stats.damage;
+        shot.damageScale = stats.damage * HeroPowerScale();
         shot.speedScale = 1.3f;
         shot.size = stats.size;
         shot.pierce = stats.pierce;

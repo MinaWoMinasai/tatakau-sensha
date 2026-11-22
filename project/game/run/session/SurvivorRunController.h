@@ -741,19 +741,25 @@ private:
     // 波の間のショップ（計画書 p4 の K4）。SurvivorRunShop.cpp。
     /// @brief 並んでいる物1つ。upgrade なら index は強化の対象（0 主武器、1〜4 技の枠）、sub なら survivor::SubWeapon
     /// （副武器。レベルアップの3択だけ。計画書 p7 の E4）、どちらでもなければ survivor::PerkId。
+    /// @brief 選ぶ物が無くなったときの埋め草（計画書 p8 の F1）。
+    enum class Filler { None, Heal, MaxHp, Power };
     struct ShopOffer {
         bool upgrade = false;
         int index = 0;
         bool sub = false;
+        Filler filler = Filler::None;
         bool Same(const ShopOffer& other) const
         {
-            return upgrade == other.upgrade && sub == other.sub && index == other.index;
+            return upgrade == other.upgrade && sub == other.sub && index == other.index && filler == other.filler;
         }
     };
     /// @brief 設定の機体に、技の強化の段とパークを効かせて Hero() を作り直し、主武器・最大HPに入れ直す。heal なら HP を満タンにする。
     void RebuildHero(bool heal);
     /// @brief 設定の heroes.onlyUltimate なら、右クリック・Shift・E の技を空きにする（計画書 p7 の E5。Q と主武器は残す）。
     void StripLockedAbilities();
+    /// @brief 持っている副武器・パークの数（枠と比べる。計画書 p8 の F1）。
+    int OwnedSubWeapons() const;
+    int OwnedPerks() const;
     /// @brief 並べられる物：3段まで上がっていない技の強化と、まだ持っていないパーク（共通と、この機体の物）。
     /// withSubWeapons なら、3段まで上がっていない副武器も入れる（レベルアップの3択で、設定の heroes.subWeapons のとき）。
     std::vector<ShopOffer> ShopOfferPool(bool withSubWeapons = false) const;
@@ -825,11 +831,17 @@ private:
     }
     bool HasPerk(survivor::PerkId perk) const override
     {
-        return HeroMode() && perks_[static_cast<size_t>(perk)];
+        return HeroMode() && perks_[static_cast<size_t>(perk)] > 0;
     }
+    /// @brief パークの強さ。段があれば（計画書 p8 の F1）、1段ぶんの強さ×段。
     float PerkValue(survivor::PerkId perk) const override
     {
-        return config_.shop.perkValues[static_cast<size_t>(perk)];
+        return config_.shop.perkValues[static_cast<size_t>(perk)] * static_cast<float>((std::max)(1, perks_[static_cast<size_t>(perk)]));
+    }
+    /// @brief 埋め草の「威力」で上がった倍率（計画書 p8 の F1）。
+    float HeroPowerScale() const override
+    {
+        return 1.0f + fillerPower_;
     }
     /// @brief 波の間のショップの画面を作る。
     void RefreshShop();
@@ -844,7 +856,15 @@ private:
     };
     HeroScore ComputeHeroScore() const;
     std::array<int, survivor::kUpgradeTargets> upgradeTiers_{};
-    std::array<bool, survivor::kPerkCount> perks_{};
+    /// @brief パークの段（0 は持っていない。計画書 p8 の F1 で段を付けた。段なしの設定では 0 か 1）。
+    std::array<int, survivor::kPerkCount> perks_{};
+    /// @brief 埋め草で増えた最大HPと威力（計画書 p8 の F1）。
+    int fillerMaxHp_ = 0;
+    float fillerPower_ = 0.0f;
+    int fillersTaken_ = 0;
+    /// @brief 埋め草の名前・説明。
+    std::string FillerName(Filler filler) const;
+    std::string FillerText(Filler filler) const;
     std::vector<ShopOffer> shopOffers_;
     int shopRerolls_ = 0;
     // ショップの記録：買った物（波:名前:値段）・引き直した回数・使ったポイント。

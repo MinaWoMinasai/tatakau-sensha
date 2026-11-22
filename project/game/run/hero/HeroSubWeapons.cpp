@@ -170,7 +170,7 @@ void HeroAbilityCore::UpdateSubWeapons(float dt)
                 for (size_t i = 0; i < (std::min)(found, static_cast<size_t>(t.targets)); ++i) {
                     Player::SurvivorShot shot;
                     shot.direction = myEngine::Vector3{targets[i].second.x - self.x, targets[i].second.y - self.y, 0.0f};
-                    shot.damageScale = t.damage;
+                    shot.damageScale = t.damage * HeroPowerScale();
                     shot.speedScale = 1.6f;
                     shot.size = 0.7f;
                     shot.pierce = t.pierce;
