@@ -748,9 +748,11 @@ private:
         int index = 0;
         bool sub = false;
         Filler filler = Filler::None;
+        /// @brief 機体専用スキル（index は HeroSkill。計画書 p8 の F2）。
+        bool skill = false;
         bool Same(const ShopOffer& other) const
         {
-            return upgrade == other.upgrade && sub == other.sub && index == other.index && filler == other.filler;
+            return upgrade == other.upgrade && sub == other.sub && index == other.index && filler == other.filler && skill == other.skill;
         }
     };
     /// @brief 設定の機体に、技の強化の段とパークを効かせて Hero() を作り直し、主武器・最大HPに入れ直す。heal なら HP を満タンにする。
@@ -838,6 +840,10 @@ private:
     {
         return config_.shop.perkValues[static_cast<size_t>(perk)] * static_cast<float>((std::max)(1, perks_[static_cast<size_t>(perk)]));
     }
+    int HeroSkillTier(survivor::HeroSkill skill) const override
+    {
+        return HeroMode() ? heroSkillTiers_[static_cast<size_t>(skill)] : 0;
+    }
     /// @brief 埋め草の「威力」で上がった倍率（計画書 p8 の F1）。
     float HeroPowerScale() const override
     {
@@ -861,6 +867,8 @@ private:
     /// @brief 埋め草で増えた最大HPと威力（計画書 p8 の F1）。
     int fillerMaxHp_ = 0;
     float fillerPower_ = 0.0f;
+    /// @brief 機体専用スキルの段（計画書 p8 の F2）。
+    std::array<int, survivor::kHeroSkillCount> heroSkillTiers_{};
     int fillersTaken_ = 0;
     /// @brief 埋め草の名前・説明。
     std::string FillerName(Filler filler) const;

@@ -145,6 +145,8 @@ struct HeroesConfig {
     /// @brief パークの段の上限（計画書 p8 の F1。HoloCure のアイテムと同じく段で強くなる）。1 なら今までどおり段なし。
     /// 段ごとに、パークの強さ（shop.perks の value）が足される（Lv3 なら value×3）。
     int perkMaxTier = 1;
+    /// @brief レベルアップの3択に機体専用スキル（SurvivorHeroSkills.h。計画書 p8 の F2）も並べるか（levelUps のときだけ）。
+    bool heroSkills = false;
     /// @brief 持てる副武器・パークの数（計画書 p8 の F1）。0 なら上限なし。埋まったら、持っている物の強化だけ並ぶ。
     int subWeaponSlots = 0;
     int perkSlots = 0;

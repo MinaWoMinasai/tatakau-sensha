@@ -603,6 +603,17 @@ SurvivorItemScreen::View SurvivorRunController::HeroBuildView() const
         };
         if (c == 0) {
             card.stats = line(0) + "\n" + line(1);
+            // 専用スキル（計画書 p8 の F2）：持っている物を名前と段で。
+            std::string skills;
+            for (size_t i = 0; i < survivor::kHeroSkillCount; ++i) {
+                if (heroSkillTiers_[i] > 0) {
+                    skills += (skills.empty() ? "専用 " : "・") + std::string(survivor::GetHeroSkillInfo(static_cast<survivor::HeroSkill>(i)).name) +
+                              std::to_string(heroSkillTiers_[i]);
+                }
+            }
+            if (!skills.empty()) {
+                card.stats += "\n" + skills;
+            }
         } else if (c == 1) {
             card.stats = line(2) + "\n" + line(3);
             // 副武器（計画書 p7 の E4）：持っている物を短い名前と段で。
@@ -674,12 +685,14 @@ void SurvivorRunController::RefreshHeroLevelUp()
         // 色：技の強化は水色、副武器は緑、パークは橙。覚醒の手前は金色。
         const bool filler = offer.filler != Filler::None;
         item.icon = Icon(filler          ? (offer.filler == Filler::Power ? "chip_warhead" : "chip_armor")
+                         : offer.skill   ? survivor::GetHeroSkillInfo(static_cast<survivor::HeroSkill>(offer.index)).icon
                          : offer.sub     ? survivor::GetSubWeaponInfo(static_cast<survivor::SubWeapon>(offer.index)).icon
                          : offer.upgrade ? kUpgradeIcons[static_cast<size_t>(offer.index)]
                                          : "chip_default");
         // 埋め草は白っぽく。
         item.color = filler          ? myEngine::Vector4{0.85f, 0.85f, 0.9f, 1.0f}
                      : awaken        ? myEngine::Vector4{1.9f, 1.5f, 0.4f, 1.0f}
+                     : offer.skill   ? myEngine::Vector4{1.0f, 0.6f, 1.4f, 1.0f}
                      : offer.sub     ? myEngine::Vector4{0.5f, 1.4f, 0.75f, 1.0f}
                      : offer.upgrade ? myEngine::Vector4{0.55f, 0.95f, 1.0f, 1.0f}
                                      : myEngine::Vector4{1.0f, 0.75f, 0.35f, 1.0f};

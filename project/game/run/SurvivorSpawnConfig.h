@@ -844,6 +844,9 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             config.heroes.onlyUltimate = heroes.at("onlyUltimate").get<bool>();
         }
         number(heroes, "perkMaxTier", config.heroes.perkMaxTier);
+        if (heroes.contains("heroSkills") && heroes.at("heroSkills").is_boolean()) {
+            config.heroes.heroSkills = heroes.at("heroSkills").get<bool>();
+        }
         number(heroes, "subWeaponSlots", config.heroes.subWeaponSlots);
         number(heroes, "perkSlots", config.heroes.perkSlots);
         number(heroes, "fillerHeal", config.heroes.fillerHeal);
@@ -1486,6 +1489,9 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     }
     heroes["subWeapons"] = config.heroes.subWeapons;
     heroes["onlyUltimate"] = config.heroes.onlyUltimate;
+    if (config.heroes.heroSkills) {
+        heroes["heroSkills"] = true;
+    }
     if (config.heroes.perkMaxTier > 1) {
         heroes["perkMaxTier"] = config.heroes.perkMaxTier;
     }

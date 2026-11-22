@@ -79,13 +79,16 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         // 主武器の強化（E5 の拡散連射は7段）、次に副武器（E4）を確かめるため、並んでいればその順に選ぶ。
         // MYENGINE_SURVIVOR_PICK=perk なら、パークを先に選ぶ（パークの段と埋め草を確かめる。計画書 p8 の F1）。
         wchar_t pickMode[8]{};
-        const bool perkFirst = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_PICK", pickMode, 8) > 0 && std::wstring(pickMode) == L"perk";
+        const bool pickSet = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_PICK", pickMode, 8) > 0;
+        const bool perkFirst = pickSet && std::wstring(pickMode) == L"perk";
+        // MYENGINE_SURVIVOR_PICK=skill なら、専用スキルを先に選ぶ（計画書 p8 の F2）。
+        const bool skillFirst = pickSet && std::wstring(pickMode) == L"skill";
         size_t pick = 0;
         int best = 0;
         for (size_t i = 0; i < heroLevelUpOffers_.size(); ++i) {
             const ShopOffer& offer = heroLevelUpOffers_[i];
-            const bool perk = !offer.upgrade && !offer.sub && offer.filler == Filler::None;
-            const int score = perkFirst && perk ? 3 : offer.upgrade && offer.index == 0 ? 2 : offer.sub ? 1 : 0;
+            const bool perk = !offer.upgrade && !offer.sub && !offer.skill && offer.filler == Filler::None;
+            const int score = (perkFirst && perk) || (skillFirst && offer.skill) ? 3 : offer.upgrade && offer.index == 0 ? 2 : offer.sub ? 1 : 0;
             if (score > best) {
                 best = score;
                 pick = i;
@@ -1177,7 +1180,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                    return "{\"player\":" + describe(autoPlayerSpeeds_) + ",\"square\":" + describe(autoShapeSpeeds_[0]) +
                           ",\"triangle\":" + describe(autoShapeSpeeds_[1]) + ",\"pentagon\":" + describe(autoShapeSpeeds_[2]) + "}";
                }() << ",\"heroLevel\":" << level_
-            << ",\"heroLevelUps\":" << heroLevelUpLog_.size() << ",\"fillers\":" << fillersTaken_ << ",\"fillerMaxHp\":" << fillerMaxHp_
+            << ",\"heroLevelUps\":" << heroLevelUpLog_.size() << ",\"skillTiers\":[" << heroSkillTiers_[0] << "," << heroSkillTiers_[1] << ","
+            << heroSkillTiers_[2] << "],\"steadyShots\":" << steadyShots_ << ",\"battleStacksMax\":" << battleStacksMax_
+            << ",\"burstShotsPerVolleyMax\":" << burstShotsPerVolleyMax_ << ",\"fillers\":" << fillersTaken_ << ",\"fillerMaxHp\":" << fillerMaxHp_
             << ",\"fillerPower\":" << fillerPower_ << ",\"levelUpLog\":[" << [&] {
                    std::ostringstream log;
                    for (size_t i = 0; i < heroLevelUpLog_.size(); ++i) {

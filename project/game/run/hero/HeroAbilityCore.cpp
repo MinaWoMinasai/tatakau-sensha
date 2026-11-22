@@ -38,6 +38,10 @@ void HeroAbilityCore::ResetHeroState()
     burstShotsLeft_ = 0;
     burstShotTimer_ = 0.0f;
     burstCooldown_ = 0.0f;
+    skillHasLastPosition_ = false;
+    steadyTimer_ = 0.0f;
+    battleStacks_ = 0;
+    battleTimer_ = 0.0f;
     orbitTick_ = 0.0f;
     turretTimer_ = 0.5f;
     mineTimer_ = 1.0f;
@@ -921,9 +925,44 @@ void HeroAbilityCore::UpdateFortress(float dt, const survivor::AbilityDefinition
     }
 }
 
+void HeroAbilityCore::OnHeroKill()
+{
+    const int max = survivor::BattleSenseMaxStacks(HeroSkillTier(survivor::HeroSkill::BattleSense));
+    if (max <= 0) {
+        return;
+    }
+    battleStacks_ = (std::min)(max, battleStacks_ + 1);
+    battleStacksMax_ = (std::max)(battleStacksMax_, battleStacks_);
+    battleTimer_ = survivor::kBattleSenseSeconds;
+}
+
 void HeroAbilityCore::UpdateBurstGun(float dt, const survivor::AbilityDefinition& ability)
 {
-    const survivor::BurstGunStats stats = survivor::BurstGunAt(ability, UpgradeTier(0));
+    survivor::BurstGunStats stats = survivor::BurstGunAt(ability, UpgradeTier(0));
+    // 専用スキル（計画書 p8 の F2）。
+    auto& self = *heroWorld_.resources.player_;
+    const myEngine::Vector3 position = self.GetWorldPosition();
+    if (skillHasLastPosition_ && dt > 0.0f) {
+        const float dx = position.x - skillLastPosition_.x, dy = position.y - skillLastPosition_.y;
+        const float speed = std::sqrt(dx * dx + dy * dy) / dt;
+        steadyTimer_ = speed < survivor::kSteadyAimSpeed ? steadyTimer_ + dt : 0.0f;
+    }
+    skillLastPosition_ = position;
+    skillHasLastPosition_ = true;
+    const int steadyTier = HeroSkillTier(survivor::HeroSkill::SteadyAim);
+    const bool steady = steadyTier > 0 && steadyTimer_ >= survivor::kSteadyAimDelay;
+    if (steady) {
+        stats.damage *= survivor::SteadyAimDamage(steadyTier);
+        if (steadyTier >= 3) {
+            stats.spreadDeg *= 0.5f;
+        }
+    }
+    stats.shots += survivor::AmmoBeltShots(HeroSkillTier(survivor::HeroSkill::AmmoBelt));
+    battleTimer_ -= dt;
+    if (battleTimer_ <= 0.0f) {
+        battleStacks_ = 0;
+    }
+    stats.rate *= 1.0f + survivor::kBattleSensePerStack * static_cast<float>(battleStacks_);
     burstCooldown_ = (std::max)(0.0f, burstCooldown_ - dt);
     if (burstShotsLeft_ <= 0) {
         // 待ち時間が明けて、押していれば次の連射を始める（自動で撃つなら押していることになる）。
@@ -933,6 +972,7 @@ void HeroAbilityCore::UpdateBurstGun(float dt, const survivor::AbilityDefinition
         burstShotsLeft_ = stats.shots;
         burstShotTimer_ = 0.0f;
         ++burstVolleys_;
+        burstShotsPerVolleyMax_ = (std::max)(burstShotsPerVolleyMax_, stats.shots);
     }
     auto& player = *heroWorld_.resources.player_;
     const myEngine::Vector3 aim = myEngine::NormalizeOr(player.GetDirection(), myEngine::Vector3{1.0f, 0.0f, 0.0f}, 0.001f);
@@ -960,6 +1000,7 @@ void HeroAbilityCore::UpdateBurstGun(float dt, const survivor::AbilityDefinition
         shot.burnSeconds = stats.burnSeconds;
         if (player.FireSurvivorShot(shot)) {
             ++burstShots_;
+            steadyShots_ += steady ? 1 : 0;
         }
         if (--burstShotsLeft_ <= 0) {
             burstCooldown_ = stats.cooldown;

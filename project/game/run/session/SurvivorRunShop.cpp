@@ -112,6 +112,10 @@ std::string SurvivorRunController::OfferName(const ShopOffer& offer) const
     if (offer.filler != Filler::None) {
         return FillerName(offer.filler);
     }
+    if (offer.skill) {
+        const auto skill = static_cast<survivor::HeroSkill>(offer.index);
+        return survivor::HeroSkillOfferName(skill, heroSkillTiers_[static_cast<size_t>(skill)]);
+    }
     if (offer.sub) {
         const auto weapon = static_cast<survivor::SubWeapon>(offer.index);
         return survivor::SubWeaponOfferName(weapon, SubWeaponTier(weapon));
@@ -128,6 +132,10 @@ std::string SurvivorRunController::OfferText(const ShopOffer& offer) const
 {
     if (offer.filler != Filler::None) {
         return FillerText(offer.filler) + "\n（選ぶ物が残っていないときに並ぶ）";
+    }
+    if (offer.skill) {
+        const auto skill = static_cast<survivor::HeroSkill>(offer.index);
+        return survivor::HeroSkillOfferText(skill, heroSkillTiers_[static_cast<size_t>(skill)]);
     }
     if (offer.sub) {
         const auto weapon = static_cast<survivor::SubWeapon>(offer.index);
@@ -147,6 +155,9 @@ std::string SurvivorRunController::OfferText(const ShopOffer& offer) const
 
 bool SurvivorRunController::OfferAwakens(const ShopOffer& offer) const
 {
+    if (offer.skill) {
+        return heroSkillTiers_[static_cast<size_t>(offer.index)] == survivor::kHeroSkillMaxTier - 1;
+    }
     if (offer.sub) {
         return SubWeaponTier(static_cast<survivor::SubWeapon>(offer.index)) == survivor::kMaxSubWeaponTier - 1;
     }
@@ -176,6 +187,18 @@ std::vector<SurvivorRunController::ShopOffer> SurvivorRunController::ShopOfferPo
         const bool open = perks_[i] > 0 || !perksFull;
         if (perks_[i] < config_.heroes.perkMaxTier && open && !locked && (info.hero[0] == '\0' || Hero().key == info.hero)) {
             pool.push_back({false, static_cast<int>(i)});
+        }
+    }
+    // 機体専用スキル（計画書 p8 の F2）：この機体の物で、3段まで上がっていない物。
+    if (config_.heroes.heroSkills && config_.heroes.levelUps) {
+        for (size_t i = 0; i < survivor::kHeroSkillCount; ++i) {
+            const auto& info = survivor::GetHeroSkillInfo(static_cast<survivor::HeroSkill>(i));
+            if (Hero().key == info.hero && heroSkillTiers_[i] < survivor::kHeroSkillMaxTier) {
+                ShopOffer offer;
+                offer.index = static_cast<int>(i);
+                offer.skill = true;
+                pool.push_back(offer);
+            }
         }
     }
     if (withSubWeapons) {
@@ -225,6 +248,11 @@ void SurvivorRunController::ApplyOffer(const ShopOffer& offer)
         }
         return;
     }
+    if (offer.skill) {
+        int& tier = heroSkillTiers_[static_cast<size_t>(offer.index)];
+        tier = (std::min)(survivor::kHeroSkillMaxTier, tier + 1);
+        return;
+    }
     if (offer.sub) {
         int& tier = subWeaponTiers_[static_cast<size_t>(offer.index)];
         tier = (std::min)(survivor::kMaxSubWeaponTier, tier + 1);
@@ -257,14 +285,14 @@ void SurvivorRunController::OpenHeroLevelUp()
         return OfferAwakens(a) && !OfferAwakens(b);
     });
     heroLevelUpOffers_.clear();
-    // [0] 技の強化、[1] パーク、[2] 副武器。
-    const std::array<int, 3> limits = subWeapons ? std::array<int, 3>{1, 1, 1} : std::array<int, 3>{2, 1, 0};
-    std::array<int, 3> taken{};
+    // [0] 技の強化、[1] パーク、[2] 副武器、[3] 専用スキル（計画書 p8 の F2）。種類ごとに1つまでで、並べた順に3つ。
+    const std::array<int, 4> limits = subWeapons ? std::array<int, 4>{1, 1, 1, 1} : std::array<int, 4>{2, 1, 0, 1};
+    std::array<int, 4> taken{};
     for (const ShopOffer& offer : pool) {
         if (heroLevelUpOffers_.size() >= 3) {
             break;
         }
-        const size_t kind = offer.upgrade ? 0 : offer.sub ? 2 : 1;
+        const size_t kind = offer.upgrade ? 0 : offer.sub ? 2 : offer.skill ? 3 : 1;
         if (taken[kind] < limits[kind]) {
             heroLevelUpOffers_.push_back(offer);
             ++taken[kind];

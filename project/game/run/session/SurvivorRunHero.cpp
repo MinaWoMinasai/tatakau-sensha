@@ -42,6 +42,7 @@ void SurvivorRunController::StartHero()
     heroAutoFire_ = config_.heroes.autoFire;
     upgradeTiers_.fill(0);
     perks_.fill(0);
+    heroSkillTiers_.fill(0);
     fillerMaxHp_ = 0;
     fillerPower_ = 0.0f;
     fillersTaken_ = 0;

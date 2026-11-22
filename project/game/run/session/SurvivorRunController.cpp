@@ -104,6 +104,7 @@ void SurvivorRunController::Initialize()
         // 機体の遊び方では、欠片の量は倒した敵の種類ごとのレベルポイント（H2）。
         if (HeroMode()) {
             value = static_cast<uint32_t>((std::max)(0, WavePoints(enemy)));
+            OnHeroKill();
             // パーク「連鎖の冷却」：倒すたびに、技の待ち時間を縮める。
             if (HasPerk(survivor::PerkId::KillCooldown)) {
                 for (float& cooldown : abilityCooldown_) {
@@ -499,7 +500,8 @@ void SurvivorRunController::Update(float dt)
             // 出撃前の拠点の画面。E（機体の遊び方では Tab。E は技）で持ち物の画面を開け閉めする。開いている間は、武器の操作を受け付けない。
             if (baseScreenOpen_) {
                 UpdateScreenInput();
-            } else if (world_.resources.input_->IsKeyTriggered(HeroMode() ? DIK_TAB : DIK_E)) {
+            } else if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(HeroMode() ? DIK_TAB : DIK_E)) {
+                // 自動確認の間は、本物のキーボードで開かない（隠した窓でもキーを読むので、Tab を押すと止まっていた）。
                 inventoryOpen_ ? CloseInventory() : OpenInventory();
             } else if (inventoryOpen_) {
                 UpdateScreenInput();

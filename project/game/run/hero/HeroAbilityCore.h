@@ -1,5 +1,6 @@
 #pragma once
 #include "Struct.h"
+#include "game/run/SurvivorHeroSkills.h"
 #include "game/run/SurvivorHeroes.h"
 #include "game/run/SurvivorShop.h"
 #include "game/run/SurvivorSpawnConfig.h"
@@ -60,6 +61,12 @@ protected:
     {
         (void)perk;
         return 0.0f;
+    }
+    /// @brief 機体専用スキルの段（0〜3。計画書 p8 の F2）。スキルの無いモードでは0。
+    virtual int HeroSkillTier(survivor::HeroSkill skill) const
+    {
+        (void)skill;
+        return 0;
     }
     /// @brief 機体の技・主武器・副武器の威力に掛ける倍率（試作のレベルアップの埋め草「威力」。計画書 p8 の F1）。
     virtual float HeroPowerScale() const
@@ -155,6 +162,22 @@ protected:
     uint32_t burstRandom_ = 0x9E3779B9u;
     int burstShots_ = 0;
     int burstVolleys_ = 0;
+    // 専用スキル（計画書 p8 の F2）：狙いすます（落ち着いている秒）と戦場の勘（重なり・残り秒）。
+    myEngine::Vector3 skillLastPosition_{};
+    bool skillHasLastPosition_ = false;
+    float steadyTimer_ = 0.0f;
+    int battleStacks_ = 0;
+    float battleTimer_ = 0.0f;
+    // 自動確認の記録：狙いすますが効いた弾・戦場の勘の一番多い重なり・連射の弾の一番多い数。
+    int steadyShots_ = 0;
+    int battleStacksMax_ = 0;
+    int burstShotsPerVolleyMax_ = 0;
+
+public:
+    /// @brief 機体の遊び方で、自機が敵を倒した（戦場の勘が重なる）。
+    void OnHeroKill();
+
+protected:
 
     /// @brief Q（アルティメット）が効いている間か。間は Q のゲージを溜めない。
     bool UltimateActive() const
