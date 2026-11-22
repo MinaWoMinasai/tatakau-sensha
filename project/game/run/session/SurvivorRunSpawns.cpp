@@ -132,6 +132,92 @@ void SurvivorRunController::UpdateSpawns(float dt)
     }
 }
 
+ExpEnemy* SurvivorRunController::SpawnChaser(const std::string& prefab, const myEngine::Vector3& position, float speed)
+{
+    if (position.x < kSpawnMinX || position.x > kSpawnMaxX || position.y < kSpawnMinY || position.y > kSpawnMaxY ||
+        world_.resources.stage_->IsCollisionWithAnyBlock(position, 1.2f) || !SpawnShape(prefab.c_str(), position, false)) {
+        return nullptr;
+    }
+    ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
+    enemy->SetPlayerChase(speed * 1.5f, speed);
+    return enemy;
+}
+
+void SurvivorRunController::UpdateTimeline()
+{
+    while (timelineNext_ < config_.timeline.size() && elapsed_ >= config_.timeline[timelineNext_].at) {
+        RunTimelineEvent(config_.timeline[timelineNext_++]);
+    }
+    // 中ボスが倒れたら（いなくなったら）、レベルアップの3択を rewards 回ぶん渡す。
+    for (auto it = midBosses_.begin(); it != midBosses_.end();) {
+        const auto& enemies = world_.resources.enemyManager_->GetEnemyPtrs();
+        const bool alive = std::any_of(enemies.begin(), enemies.end(), [&](const ExpEnemy* enemy) {
+            return enemy && !enemy->IsDead() && enemy->GetCollisionId() == it->first;
+        });
+        if (alive) {
+            ++it;
+            continue;
+        }
+        ++midBossKills_;
+        world_.combatFlow->SetEventCallout("中ボスを倒した", 1.4f);
+        if (HeroMode() && config_.heroes.levelUps && it->second > 0) {
+            heroPendingLevelUps_ += it->second;
+            if (!heroLevelUpOpen_) {
+                OpenHeroLevelUp();
+            }
+        }
+        it = midBosses_.erase(it);
+    }
+}
+
+void SurvivorRunController::RunTimelineEvent(const survivor::SpawnConfig::TimelineEvent& event)
+{
+    ++timelineEvents_;
+    const myEngine::Vector3 player = world_.resources.player_->GetWorldPosition();
+    const myEngine::Vector3 camera = world_.resources.camera->GetTranslate();
+    const float halfHeight = arenacamera::HalfViewHeight() + 2.0f;
+    const float halfWidth = arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f;
+    if (event.kind == "wall") {
+        // 壁：画面のすぐ外の両側に、縁に沿って等間隔に並べる。両側から挟むように寄ってくるので、どちらかを破って抜ける。
+        const bool vertical = event.side == "topBottom";
+        const int count = (std::max)(1, event.count);
+        for (const float sign : {-1.0f, 1.0f}) {
+            for (int i = 0; i < count; ++i) {
+                const float t = (static_cast<float>(i) + 0.5f) / static_cast<float>(count) * 2.0f - 1.0f;
+                const myEngine::Vector3 position = vertical ? myEngine::Vector3{camera.x + t * halfWidth, camera.y + sign * (halfHeight + 1.0f), 0.0f}
+                                                            : myEngine::Vector3{camera.x + sign * (halfWidth + 1.0f), camera.y + t * halfHeight, 0.0f};
+                SpawnChaser(event.shape, position, event.speed);
+            }
+        }
+    } else if (event.kind == "ring") {
+        // 輪：自機のまわりに等間隔に並べ、いっせいに寄らせる。
+        const int count = (std::max)(1, event.count);
+        std::uniform_real_distribution<float> turn(0.0f, 6.2831853f);
+        const float start = turn(random_);
+        for (int i = 0; i < count; ++i) {
+            const float angle = start + 6.2831853f * static_cast<float>(i) / static_cast<float>(count);
+            SpawnChaser(event.shape, {player.x + std::cos(angle) * event.radius, player.y + std::sin(angle) * event.radius, 0.0f}, event.speed);
+        }
+    } else if (event.kind == "midBoss") {
+        // 中ボス：画面のすぐ外から、大きく硬い1体。
+        const auto position = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance);
+        if (position && world_.resources.enemyManager_->SpawnLevelEnemy(*position, event.shape,
+                                                                         static_cast<int>(std::lround(static_cast<float>((std::max)(1, event.hp)) * EnemyHpScale())))) {
+            ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
+            enemy->SetSizeScale(event.scale);
+            enemy->SetPlayerChase(event.speed * 1.5f, event.speed);
+            if (event.exp > 0) {
+                enemy->SetExpValue(static_cast<uint32_t>(event.exp));
+            }
+            midBosses_.push_back({enemy->GetCollisionId(), event.rewards});
+            world_.combat.screenEffectDirector_.TriggerBossEntry();
+        }
+    }
+    if (!event.text.empty()) {
+        world_.combatFlow->SetEventCallout(event.text, 1.4f);
+    }
+}
+
 int SurvivorRunController::CountChasers() const
 {
     int count = 0;

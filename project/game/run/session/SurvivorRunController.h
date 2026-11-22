@@ -462,6 +462,10 @@ private:
     std::array<float, 2> autoMoveDistance_{};
     std::array<float, 2> autoMoveSeconds_{};
     myEngine::Vector3 autoLastPosition_{};
+    // 速さを測る（計画書 p7 の E6）：図形の種類ごと（四角・三角・五角）の毎フレームの速さと、自機の毎フレームの速さ（動こうとしている間）。
+    std::unordered_map<uint64_t, myEngine::Vector3> autoEnemyLast_;
+    std::array<std::vector<float>, 3> autoShapeSpeeds_;
+    std::vector<float> autoPlayerSpeeds_;
     /// @brief slot 番目の枠の武器を自機に入れる（すぐに替わる。切り替えの演出と待ちは StartSwap）。今の武器の弾は控えてから替える。
     void EquipWeapon(size_t slot);
     /// @brief ホイール・1〜3キー・R を見る。押した瞬間（ホイールは回した量）で判定する。
@@ -758,6 +762,21 @@ private:
     // 戦闘中のレベルアップ（計画書 p7 の E3。設定の heroes.levelUps）。欠片でレベルが上がると、止めて技の強化とパークの3択を無料で選ぶ。
     /// @brief 3択を引いて開く（並べられる物が無ければ開かない）。
     void OpenHeroLevelUp();
+
+    // 時間割（計画書 p7 の E6。設定の timeline）。SurvivorRunSpawns.cpp。
+    /// @brief 区画の時計が来た出来事を起こし、倒された中ボスのごほうびを渡す。
+    void UpdateTimeline();
+    void RunTimelineEvent(const survivor::SpawnConfig::TimelineEvent& event);
+    /// @brief prefab を position に湧かせ、HP を倍率に合わせ、speed で自機へ寄らせる。湧けたら敵を返す。
+    ExpEnemy* SpawnChaser(const std::string& prefab, const myEngine::Vector3& position, float speed);
+    // 次に起こす出来事の番号・起こした数。中ボス（敵の id と、倒したときに選べる3択の回数）・倒した数。
+    size_t timelineNext_ = 0;
+    int timelineEvents_ = 0;
+    std::vector<std::pair<uint64_t, int>> midBosses_;
+    int midBossKills_ = 0;
+    // 自動確認：出来事が起きてから少し後に、出来事ごとに1回画面を保存する。
+    int autoTimelineSeen_ = 0;
+    float autoTimelineCaptureAt_ = -1.0f;
     /// @brief index 番目を選ぶ。まだ選べるレベルが残っていれば引き直し、無ければ閉じる。
     void ChooseHeroLevelUp(size_t index);
     /// @brief 3択の画面を作る。

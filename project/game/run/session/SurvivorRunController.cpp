@@ -134,6 +134,8 @@ void SurvivorRunController::Initialize()
     nextSwarm_ = config_.swarm.from;
     nextTank_ = config_.tanks.from;
     nextBigPentagon_ = config_.bigPentagon.from;
+    timelineNext_ = 0;
+    midBosses_.clear();
 
     myEngine::TextStyle style{};
     style.fontFamily = "Meiryo";
@@ -531,6 +533,7 @@ void SurvivorRunController::Update(float dt)
         {
             myEngine::RuntimeProfiler::CpuScope spawnScope("Survivor Spawns");
             UpdateSpawns(gameDt);
+            UpdateTimeline();
         }
         myEngine::RuntimeProfiler::CpuScope shardScope("Survivor Shards / Q / Separation");
         AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
@@ -879,7 +882,10 @@ void SurvivorRunController::RefreshHud()
     } else {
         // 3ステージの流れ（W8）：今のステージと難しさの段。機体の遊び方では波の数（H1）。
         if (HeroMode()) {
-            text << (IsBossStage() ? std::string("ボスの波") : "波 " + std::to_string(stage_ + 1) + "/" + std::to_string(config_.waves.count))
+            // 波が無い（1つのステージ。E6）ときは「ステージ」と出す。
+            text << (config_.waves.count == 0 ? std::string("ステージ")
+                     : IsBossStage()          ? std::string("ボスの波")
+                                              : "波 " + std::to_string(stage_ + 1) + "/" + std::to_string(config_.waves.count))
                  << "   ";
         } else {
             text << "ステージ " << stage_ + 1 << "/" << StageCount() << "（" << (IsBossStage() ? "ボス・" : "") << "段" << config_.stages.tier

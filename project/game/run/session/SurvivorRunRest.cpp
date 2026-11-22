@@ -33,6 +33,8 @@ void SurvivorRunController::StartNextStage()
     ApplyStageSettings(stage_ + 1);
     // 区画の時計・湧き方・脅威・出口・宿敵・床の物を、区画の始めの状態へ戻す（拾った物の袋と枠の武器・弾はそのまま）。
     elapsed_ = 0.0f;
+    timelineNext_ = 0;
+    midBosses_.clear();
     cleared_ = false;
     exitOpen_ = false;
     rivalSpawned_ = false;

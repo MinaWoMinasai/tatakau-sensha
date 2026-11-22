@@ -81,6 +81,16 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
         return;
     }
+    // 時間割の出来事（E6）：起きた1.5秒後に画面を保存する（timeline_1.png から順に）。
+    if (timelineEvents_ > autoTimelineSeen_) {
+        autoTimelineSeen_ = timelineEvents_;
+        autoTimelineCaptureAt_ = elapsed_ + 1.5f;
+    }
+    if (autoTimelineCaptureAt_ >= 0.0f && elapsed_ >= autoTimelineCaptureAt_ && world_.run.tankRunCapturePath_.empty()) {
+        autoTimelineCaptureAt_ = -1.0f;
+        RequestCapture("timeline_" + std::to_string(autoTimelineSeen_));
+        return;
+    }
     // 副武器が2つ以上動き出したら、一度だけ画面を保存する。
     if (!autoSubWeaponCaptured_ && world_.run.tankRunCapturePath_.empty() &&
         std::count_if(subWeaponTiers_.begin(), subWeaponTiers_.end(), [](int tier) { return tier > 0; }) >= 2) {
@@ -530,9 +540,33 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 const size_t index = sprintTimer_ > 0.0f ? 1 : 0;
                 autoMoveDistance_[index] += distance;
                 autoMoveSeconds_[index] += dt;
+                if (autoPlayerSpeeds_.size() < 100000) {
+                    autoPlayerSpeeds_.push_back(distance / dt);
+                }
             }
         }
         autoLastPosition_ = position;
+        // 図形の速さ（寄ってくる四角・三角・五角）。資源・大きな跳び（押し飛ばし）は除く。
+        if (dt > 0.0f) {
+            std::unordered_map<uint64_t, myEngine::Vector3> seen;
+            for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+                if (!enemy || enemy->IsDead() || enemy->IsRunResource()) {
+                    continue;
+                }
+                const ExpEnemyType type = enemy->GetType();
+                const int kind = type == ExpEnemyType::Square ? 0 : type == ExpEnemyType::Triangle ? 1 : type == ExpEnemyType::Pentagon ? 2 : -1;
+                const myEngine::Vector3 p = enemy->GetWorldPosition();
+                if (const auto last = autoEnemyLast_.find(enemy->GetCollisionId()); kind >= 0 && last != autoEnemyLast_.end()) {
+                    const float speed = myEngine::Length(myEngine::Vector3{p.x - last->second.x, p.y - last->second.y, 0.0f}) / dt;
+                    auto& list = autoShapeSpeeds_[static_cast<size_t>(kind)];
+                    if (speed < 60.0f && list.size() < 200000) {
+                        list.push_back(speed);
+                    }
+                }
+                seen[enemy->GetCollisionId()] = p;
+            }
+            autoEnemyLast_ = std::move(seen);
+        }
         if (!autoHeroCaptured_ && sprintTimer_ > 1.0f && elapsed_ >= 10.0f && world_.run.tankRunCapturePath_.empty()) {
             RequestCapture("hero_sprint");
             autoHeroCaptured_ = true;
@@ -981,7 +1015,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         autoTestClearedTime_ = autoTestTime_;
     }
     // 機体の遊び方で波を全部通すときは、波の秒の合計とボスの分だけ長く待つ。
-    const float fullRunSeconds = HeroMode() ? config_.waves.seconds * static_cast<float>(config_.waves.count) + 300.0f : 360.0f;
+    const float fullRunSeconds =
+        HeroMode() ? config_.waves.seconds * static_cast<float>(config_.waves.count) + config_.waves.bossDelay + 300.0f : 360.0f;
     const bool timedOut = autoTestTime_ > kSectorAutoTestExitSeconds + (autoFullRun_ ? fullRunSeconds : 90.0f);
     if ((autoTestClearedTime_ >= 0.0f && autoTestTime_ - autoTestClearedTime_ > 1.5f) || timedOut) {
         if (!autoTestCaptureQueued_) {
@@ -1111,10 +1146,24 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << "\",\"primary\":\"" << formKey_ << "\",\"uses\":[" << abilityUses_[0] << "," << abilityUses_[1] << "," << abilityUses_[2] << ","
             << abilityUses_[3] << "],\"cooldownSeen\":[" << abilityCooldownSeen_[0] << "," << abilityCooldownSeen_[1] << ","
             << abilityCooldownSeen_[2] << "," << abilityCooldownSeen_[3] << "],\"sprintSeconds\":" << sprintSeconds_
-            << ",\"walkSpeed\":" << autoMoveDistance_[0] / (std::max)(0.001f, autoMoveSeconds_[0]) << ",\"heroLevel\":" << level_
+            << ",\"walkSpeed\":" << autoMoveDistance_[0] / (std::max)(0.001f, autoMoveSeconds_[0]) << ",\"speeds\":" << [&] {
+                   // 速さの分布（真ん中・9割・一番速い）：自機と、四角・三角・五角。
+                   auto describe = [](std::vector<float> values) {
+                       std::ostringstream text;
+                       if (values.empty()) {
+                           return std::string("null");
+                       }
+                       std::sort(values.begin(), values.end());
+                       text << "{\"median\":" << values[values.size() / 2] << ",\"p90\":" << values[values.size() * 9 / 10]
+                            << ",\"max\":" << values.back() << ",\"samples\":" << values.size() << "}";
+                       return text.str();
+                   };
+                   return "{\"player\":" + describe(autoPlayerSpeeds_) + ",\"square\":" + describe(autoShapeSpeeds_[0]) +
+                          ",\"triangle\":" + describe(autoShapeSpeeds_[1]) + ",\"pentagon\":" + describe(autoShapeSpeeds_[2]) + "}";
+               }() << ",\"heroLevel\":" << level_
             << ",\"heroLevelUps\":" << heroLevelUpLog_.size() << ",\"subWeaponTiers\":[" << subWeaponTiers_[0] << ","
             << subWeaponTiers_[1] << "," << subWeaponTiers_[2] << "],\"orbitDamage\":" << orbitDamage_
-            << ",\"orbitBulletsCleared\":" << orbitBulletsCleared_ << ",\"turretShots\":" << turretShots_ << ",\"mineBlasts\":" << mineBlasts_ << ",\"burstShots\":" << burstShots_ << ",\"burstVolleys\":" << burstVolleys_
+            << ",\"orbitBulletsCleared\":" << orbitBulletsCleared_ << ",\"turretShots\":" << turretShots_ << ",\"mineBlasts\":" << mineBlasts_ << ",\"timelineEvents\":" << timelineEvents_ << ",\"midBossKills\":" << midBossKills_ << ",\"burstShots\":" << burstShots_ << ",\"burstVolleys\":" << burstVolleys_
             << ",\"sprintSpeed\":" << autoMoveDistance_[1] / (std::max)(0.001f, autoMoveSeconds_[1]) << ",\"ultimateCharge\":" << ultimateCharge_
             << ",\"ultimateFullAt\":" << ultimateFullAt_ << ",\"ultimateFills\":" << ultimateFills_ << ",\"rocketBlasts\":" << rocketBlasts_
             << ",\"rocketKills\":" << rocketKills_ << ",\"healed\":" << healedByZone_ << ",\"healInsideSeconds\":" << healZoneInsideSeconds_

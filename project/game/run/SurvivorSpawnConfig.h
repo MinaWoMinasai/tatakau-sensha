@@ -278,6 +278,27 @@ struct SpawnConfig {
     };
     WaveConfig waves{};
 
+    /// @brief 時間割の出来事（計画書 p7 の E6）。区画の時計が at 秒になったら1回起こす。
+    /// kind：wall（side が leftRight なら左右、topBottom なら上下の画面のすぐ外に shape を count 体ずつ並べ、speed で寄らせる）、
+    /// ring（自機のまわり半径 radius に shape を count 体並べ、speed で寄らせる）、
+    /// midBoss（画面のすぐ外に大きな shape を1体。HP は hp×敵のHPの倍率、大きさ scale、速さ speed、欠片 exp。倒すとレベルアップの3択を rewards 回）。
+    /// text は起きたときに出す文。
+    struct TimelineEvent {
+        float at = 0.0f;
+        std::string kind;
+        std::string shape = "Square";
+        std::string side = "leftRight";
+        int count = 0;
+        float speed = 3.0f;
+        float radius = 16.0f;
+        int hp = 0;
+        float scale = 1.0f;
+        int exp = 0;
+        int rewards = 0;
+        std::string text;
+    };
+    std::vector<TimelineEvent> timeline;
+
     /// @brief 機体の遊び方の体力の決まり（計画書 p4 の H6〜H8）。全体の無敵時間は使わない。
     /// @note 1回の被弾は最大HPの maxHitRatio まで、1秒に受けるのは maxPerSecondRatio まで、同じ相手からは sameSourceSeconds 秒に1回まで。
     /// 受けたダメージの woundRatio は「傷」になり、治すまで HP はそこまでしか戻らない。波の間に HP は戻らず、修理（repairCost）で傷を全部と HP を repairHeal 治す。
@@ -902,6 +923,33 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             seconds = (std::max)(1.0f, seconds);
         }
     }
+    if (data.contains("timeline") && data.at("timeline").is_array()) {
+        config.timeline.clear();
+        for (const auto& item : data.at("timeline")) {
+            if (!item.is_object()) {
+                continue;
+            }
+            SpawnConfig::TimelineEvent event;
+            number(item, "at", event.at);
+            number(item, "count", event.count);
+            number(item, "speed", event.speed);
+            number(item, "radius", event.radius);
+            number(item, "hp", event.hp);
+            number(item, "scale", event.scale);
+            number(item, "exp", event.exp);
+            number(item, "rewards", event.rewards);
+            for (auto [key, target] : {std::pair<const char*, std::string*>{"kind", &event.kind}, {"shape", &event.shape}, {"side", &event.side},
+                                       {"text", &event.text}}) {
+                if (item.contains(key) && item.at(key).is_string()) {
+                    *target = item.at(key).get<std::string>();
+                }
+            }
+            config.timeline.push_back(event);
+        }
+        std::stable_sort(config.timeline.begin(), config.timeline.end(), [](const SpawnConfig::TimelineEvent& a, const SpawnConfig::TimelineEvent& b) {
+            return a.at < b.at;
+        });
+    }
     if (data.contains("waves") && data.at("waves").is_object()) {
         const auto& waves = data.at("waves");
         number(waves, "count", config.waves.count);
@@ -936,7 +984,8 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(score, "boss", config.waves.scoreBoss);
             number(score, "firstClear", config.waves.scoreFirstClear);
         }
-        config.waves.count = (std::clamp)(config.waves.count, 1, 20);
+        // 0 なら波は無く、始めからボスの波だけ（1つのステージを bossDelay 秒で遊ぶ。計画書 p7 の E6）。
+        config.waves.count = (std::clamp)(config.waves.count, 0, 20);
         config.waves.seconds = (std::max)(5.0f, config.waves.seconds);
         config.waves.bossDelay = (std::max)(0.0f, config.waves.bossDelay);
         if (config.waves.threatOffset.empty()) {
@@ -1501,6 +1550,15 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     stages["swarmScale"] = round(config.stages.swarmScale);
     stages["bossMaterials"] = config.stages.bossMaterials;
     stages["tier"] = config.stages.tier;
+    if (!config.timeline.empty()) {
+        auto& timeline = data["timeline"];
+        timeline = nlohmann::json::array();
+        for (const SpawnConfig::TimelineEvent& event : config.timeline) {
+            timeline.push_back({{"at", round(event.at)}, {"kind", event.kind}, {"shape", event.shape}, {"side", event.side}, {"count", event.count},
+                                {"speed", round(event.speed)}, {"radius", round(event.radius)}, {"hp", event.hp}, {"scale", round(event.scale)},
+                                {"exp", event.exp}, {"rewards", event.rewards}, {"text", event.text}});
+        }
+    }
     auto& waves = section("waves");
     waves["count"] = config.waves.count;
     waves["seconds"] = round(config.waves.seconds);
@@ -1687,11 +1745,11 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 40> kOrder{
+    static constexpr std::array<const char*, 41> kOrder{
         "schemaVersion", "comment",   "arenaMap", "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
         "heat",          "shield",    "forms",           "weapons",       "heroes",        "loot",          "crafting",      "stages",        "waves",         "health",        "shop",        "barrier",       "elites",        "audio",         "glow",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
-        "partTuning",    "bigPentagon", "damageNumbers"};
+        "partTuning",    "bigPentagon", "damageNumbers", "timeline"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
         if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {

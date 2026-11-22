@@ -6,7 +6,7 @@
   "spawnRing": {
     "minDistance": 24.0,
     "maxDistance": 32.0,
-    "maxPerSecond": 3.0,
+    "maxPerSecond": 6.0,
     "screenEdge": true
   },
   "shapes": {
@@ -14,26 +14,30 @@
     "targetAlive": [
       [
         0,
-        20
+        30
       ],
       [
         60,
-        35
-      ],
-      [
-        120,
         50
       ],
       [
-        240,
+        180,
         80
       ],
       [
-        420,
+        300,
         110
+      ],
+      [
+        420,
+        140
+      ],
+      [
+        540,
+        180
       ]
     ],
-    "overtimePerMinute": 10,
+    "overtimePerMinute": 15,
     "weights": [
       {
         "from": 0,
@@ -50,16 +54,16 @@
     ],
     "chase": {
       "square": [
-        3.0,
-        2.0
+        4.0,
+        2.6
       ],
       "triangle": [
-        6.0,
+        7.0,
         4.5
       ],
       "pentagon": [
-        2.5,
-        1.6
+        3.0,
+        2.2
       ]
     }
   },
@@ -127,7 +131,7 @@
   "rival": {
     "comment": "宿敵。exitOpenSeconds に出口の代わりに現れ、倒すと出口が開く。倒すと exp 分の欠片を落とし、宝箱の選択を1つ貯める。enabled が false なら時間で出口が開く。",
     "enabled": true,
-    "hp": 1500,
+    "hp": 4000,
     "exp": 600
   },
   "experience": {
@@ -560,23 +564,13 @@
   },
   "waves": {
     "comment": "機体の遊び方の出撃の流れ（計画書 p4 の H1）。seconds 秒の波を count 回、そのあとボスの波。波が終わると敵と弾を片付け、落ちている欠片は拾ったことにして、波の間の画面を開く。ボスの波では bossDelay 秒でボスが出て、倒すと出撃を終える。threatOffset と enemyHp は波ごと（最後がボスの波）の脅威の段階の上乗せと敵のHPの倍率（足りなければ最後の値）。points は倒した敵の種類ごとのレベルポイント（H2）：triangle 三角・square 四角・pentagon 五角・heavySquare 重い四角・bigPentagon 大五角・tank 敵戦車・boss ボス。score は結果画面のスコア＝解放ポイント（K6）：進んだ波1つごと perWave・稼いだポイント1ごと perPoint・ボス撃破 boss、その機体で初めてボスを倒すと firstClear を足す。",
-    "count": 5,
+    "count": 0,
     "seconds": 120,
-    "bossDelay": 10,
+    "bossDelay": 600,
     "threatOffset": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5
+      0
     ],
     "enemyHp": [
-      0.5,
-      0.6,
-      0.7,
-      0.8,
-      0.9,
       1.0
     ],
     "points": {
@@ -1332,5 +1326,63 @@
     "hp": 140,
     "exp": 160
   },
-  "arenaMap": "resources/maps/survivor_open.csv"
+  "arenaMap": "resources/maps/survivor_open.csv",
+  "timeline": [
+    {
+      "at": 90,
+      "kind": "wall",
+      "side": "leftRight",
+      "shape": "Square",
+      "count": 12,
+      "speed": 3.2,
+      "text": "左右から壁が迫る"
+    },
+    {
+      "at": 180,
+      "kind": "ring",
+      "shape": "Triangle",
+      "count": 20,
+      "radius": 16,
+      "speed": 3.5,
+      "text": "包囲"
+    },
+    {
+      "at": 300,
+      "kind": "midBoss",
+      "shape": "Pentagon",
+      "hp": 1500,
+      "scale": 3.2,
+      "speed": 2.0,
+      "exp": 300,
+      "rewards": 2,
+      "text": "中ボス出現"
+    },
+    {
+      "at": 390,
+      "kind": "wall",
+      "side": "topBottom",
+      "shape": "Square",
+      "count": 16,
+      "speed": 3.4,
+      "text": "上下から壁が迫る"
+    },
+    {
+      "at": 480,
+      "kind": "ring",
+      "shape": "Triangle",
+      "count": 28,
+      "radius": 16,
+      "speed": 3.8,
+      "text": "包囲"
+    },
+    {
+      "at": 540,
+      "kind": "wall",
+      "side": "leftRight",
+      "shape": "Square",
+      "count": 18,
+      "speed": 3.6,
+      "text": "左右から壁が迫る"
+    }
+  ]
 }
