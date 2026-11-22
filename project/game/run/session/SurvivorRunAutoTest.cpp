@@ -56,6 +56,14 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     auto& player = *world_.resources.player_;
     // 速さの確認では、出撃した後のボットは何もしない（止まったまま）。
     if (speedTest_ && !baseScreenOpen_ && hero_ >= 0) {
+        // 自機は右へ全力で走る（最高速度を測る）。右の端に近づいたら左へ戻る。
+        const float x = player.GetWorldPosition().x;
+        if (x > kSpawnMaxX - 8.0f) {
+            autoSpeedTestLeft_ = true;
+        } else if (x < kSpawnMinX + 8.0f) {
+            autoSpeedTestLeft_ = false;
+        }
+        player.SetDemoInput(true, {autoSpeedTestLeft_ ? -1.0f : 1.0f, 0.0f}, player.GetWorldPosition() + myEngine::Vector3{6.0f, 0.0f, 0.0f}, false, false);
         return;
     }
     // 戦闘中のレベルアップの3択（計画書 p7 の E3）：1つ目を選ぶ。最初の1回は画面を保存してから。

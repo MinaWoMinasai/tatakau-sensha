@@ -130,6 +130,9 @@ struct HeroesConfig {
     std::vector<HeroDefinition> heroes;
     /// @brief 機体の移動の速さの倍率（計画書 p7。敵とほぼ同じ速さにする。1 で今までと同じ）。
     float moveScale = 1.0f;
+    /// @brief 機体の歩きの最高速度（ワールド単位/秒）。0 より大きければ moveScale の代わりにこれを使う（計画書 p7。自機の土台の速さ
+    /// （毎秒17.4ほど）によらず、毎秒いくつと直接決める）。技とパークの倍率は、これに掛ける。
+    float walkSpeed = 0.0f;
     /// @brief 押さなくても向いている方へ主砲を撃ち続けるか（計画書 p7。HoloCure と同じ。遊んでいる間も F で切り替え）。
     bool autoFire = false;
     /// @brief 欠片でレベルが上がり、戦闘中に技の強化とパークの3択を選ぶか（計画書 p7 の E3。HoloCure と同じ。偽なら今までどおり欠片はレベルポイント）。

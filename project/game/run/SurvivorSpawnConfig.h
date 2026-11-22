@@ -832,6 +832,8 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         if (heroes.contains("autoFire") && heroes.at("autoFire").is_boolean()) {
             config.heroes.autoFire = heroes.at("autoFire").get<bool>();
         }
+        number(heroes, "walkSpeed", config.heroes.walkSpeed);
+        config.heroes.walkSpeed = (std::clamp)(config.heroes.walkSpeed, 0.0f, 40.0f);
         if (heroes.contains("levelUps") && heroes.at("levelUps").is_boolean()) {
             config.heroes.levelUps = heroes.at("levelUps").get<bool>();
         }
@@ -1467,6 +1469,9 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     heroes["moveScale"] = round(config.heroes.moveScale);
     heroes["autoFire"] = config.heroes.autoFire;
     heroes["levelUps"] = config.heroes.levelUps;
+    if (config.heroes.walkSpeed > 0.0f) {
+        heroes["walkSpeed"] = config.heroes.walkSpeed;
+    }
     heroes["subWeapons"] = config.heroes.subWeapons;
     heroes["onlyUltimate"] = config.heroes.onlyUltimate;
     for (const auto& hero : config.heroes.heroes) {

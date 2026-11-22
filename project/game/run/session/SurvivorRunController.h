@@ -430,6 +430,11 @@ private:
     }
     float HeroBaseMoveScale() const override
     {
+        // 歩きの最高速度（毎秒）が決まっていれば、自機の土台の速さで割って倍率にする。
+        const float base = world_.resources.player_->GetStats().moveSpeed * myEngine::kFixedStepsPerSecond;
+        if (config_.heroes.walkSpeed > 0.0f && base > 0.001f) {
+            return config_.heroes.walkSpeed / base;
+        }
         return config_.heroes.moveScale;
     }
     /// @brief 押さなくても向いている方へ主砲を撃ち続けるか（計画書 p7。最初は config_.heroes.autoFire、F で切り替え）。
@@ -782,6 +787,7 @@ private:
     float speedTestTimer_ = 0.0f;
     float speedTestClock_ = 0.0f;
     float speedTestStartX_ = 0.0f;
+    bool autoSpeedTestLeft_ = false;
     int speedTestRaces_ = 0;
     std::string speedTestLog_;
     size_t timelineNext_ = 0;
