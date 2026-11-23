@@ -986,10 +986,13 @@ private:
         survivor::SpawnConfig saving = config_;
         saving.exitOpenSeconds = fileExitOpenSeconds_;
         saving.rival.enabled = fileRivalEnabled_;
+        // 始めの機体は、前に選んだ機体や環境変数で替わっているので、ファイルの値のまま書く（調整パネルの保存で変わらないように）。
+        saving.heroes.start = fileHeroStart_;
         return saving;
     }
     float fileExitOpenSeconds_ = 180.0f;
     bool fileRivalEnabled_ = true;
+    std::string fileHeroStart_;
 
     // ステージ2から出る新しい敵（W9）。SurvivorRunElites.cpp。
     bool ElitesActive() const;

@@ -1102,7 +1102,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             loaded.loot.weaponPrice == config_.loot.weaponPrice && loaded.stages.swarmScale == config_.stages.swarmScale &&
                             loaded.barrier.radius == config_.barrier.radius && loaded.elites.healRatio == config_.elites.healRatio &&
                             loaded.crafting.branches.size() == config_.crafting.branches.size() && loaded.exitOpenSeconds == fileExitOpenSeconds_ &&
-                            loaded.rival.enabled == fileRivalEnabled_ && loaded.heroes.start == config_.heroes.start &&
+                            loaded.rival.enabled == fileRivalEnabled_ && loaded.heroes.start == fileHeroStart_ &&
                             loaded.heroes.heroes.size() == config_.heroes.heroes.size() && !config_.heroes.heroes.empty() &&
                             loaded.heroes.heroes[0].abilities[1].cooldown == config_.heroes.heroes[0].abilities[1].cooldown &&
                             loaded.heroes.heroes[0].abilities[1].kind == config_.heroes.heroes[0].abilities[1].kind &&

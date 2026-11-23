@@ -39,6 +39,7 @@ void SurvivorRunController::Initialize()
     }
     fileExitOpenSeconds_ = config_.exitOpenSeconds;
     fileRivalEnabled_ = config_.rival.enabled;
+    fileHeroStart_ = config_.heroes.start;
     // MYENGINE_SURVIVOR_WEAPONS=0：武器の枠を使わず、これまでの育つ戦車の試作（3択・レベル・形態の進化）で遊ぶ。
     wchar_t weaponsSwitch[4]{};
     if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_WEAPONS", weaponsSwitch, 4) > 0) {
@@ -787,6 +788,7 @@ void SurvivorRunController::UpdateTuningPanel()
             config_ = loaded;
             fileExitOpenSeconds_ = config_.exitOpenSeconds;
             fileRivalEnabled_ = config_.rival.enabled;
+            fileHeroStart_ = config_.heroes.start;
             if (WeaponMode()) {
                 ApplyStageSettings(stage_);
             }
