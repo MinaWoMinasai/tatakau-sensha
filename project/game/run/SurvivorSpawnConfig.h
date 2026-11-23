@@ -5,8 +5,11 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include "game/player/combat/PlayerHeat.h"
+#include "game/run/SurvivorAudioConfig.h"
 #include "game/run/SurvivorCrafting.h"
 #include "game/run/SurvivorForms.h"
+#include "game/run/SurvivorHeroes.h"
+#include "game/run/SurvivorShop.h"
 #include "game/run/SurvivorLoot.h"
 #include "game/run/SurvivorParts.h"
 #include "game/run/SurvivorWeapons.h"
@@ -32,14 +35,66 @@ struct SpawnConfig {
 
     float exitOpenSeconds = 180.0f;
     float exitRadius = 3.0f;
+    /// @brief 場のマップ（resources からの CSV。計画書 p7 の無限の場の試作では柱の無い広い部屋）。
+    std::string arenaMap = "resources/maps/survivor_arena.csv";
     float ringMinDistance = 26.0f;
     float ringMaxDistance = 36.0f;
     float maxSpawnsPerSecond = 10.0f;
+    /// @brief 湧く場所を、自機のまわりの輪ではなく、画面のすぐ外（上下左右の縁）からにするか（計画書 p7 の E5）。
+    bool ringScreenEdge = false;
+    /// @brief 図形（四角・三角・五角）が自機へ寄ってくる加速度と最高速度（ワールド単位/秒）。最高速度0なら寄ってこない（今まで通り）。
+    std::array<std::pair<float, float>, 3> shapeChase{};
 
     std::vector<std::pair<float, float>> shapeTargetAlive{
         {0.0f, 24.0f}, {60.0f, 45.0f}, {120.0f, 88.0f}, {180.0f, 100.0f}, {240.0f, 112.0f}};
     float shapeOvertimePerMinute = 24.0f;
     std::vector<ShapeWeights> shapeWeights{ShapeWeights{}};
+
+    /// @brief 湧きを足し続ける形（計画書 p8 の G1。HoloCure に寄せる）。enabled なら、図形を「生存数の目標まで」湧かせるのではなく、
+    /// interval 秒ごとに count 体ずつ足し続ける（生きている図形が maxAlive に届いている間は待つ）。倒しきれないと溜まっていく。
+    /// 点の間は直線でつなぎ、最後の点より後は最後の値のまま。敵の HP は 経過分ごとに hpPerMinute 倍（指数）、
+    /// 寄る速さは 1 + speedPerMinute × 経過分（speedMax まで。湧いたときの値で決まる）。
+    struct SpawnGrowth {
+        struct Point {
+            float at = 0.0f;
+            float interval = 1.0f;
+            float count = 2.0f;
+            float maxAlive = 60.0f;
+        };
+        bool enabled = false;
+        std::vector<Point> points{Point{}};
+        float hpPerMinute = 1.0f;
+        float speedPerMinute = 0.0f;
+        float speedMax = 1.0f;
+
+        Point At(float seconds) const
+        {
+            if (points.empty()) {
+                return Point{};
+            }
+            if (seconds <= points.front().at) {
+                return points.front();
+            }
+            for (size_t i = 1; i < points.size(); ++i) {
+                const Point& a = points[i - 1];
+                const Point& b = points[i];
+                if (seconds <= b.at) {
+                    const float t = b.at > a.at ? (seconds - a.at) / (b.at - a.at) : 1.0f;
+                    return {seconds, a.interval + (b.interval - a.interval) * t, a.count + (b.count - a.count) * t,
+                            a.maxAlive + (b.maxAlive - a.maxAlive) * t};
+                }
+            }
+            return points.back();
+        }
+        float HpScale(float seconds) const
+        {
+            return enabled ? std::pow((std::max)(0.1f, hpPerMinute), seconds / 60.0f) : 1.0f;
+        }
+        float SpeedScale(float seconds) const
+        {
+            return enabled ? (std::min)((std::max)(1.0f, speedMax), 1.0f + speedPerMinute * seconds / 60.0f) : 1.0f;
+        }
+    } growth;
 
     Timed swarm{20.0f, 20.0f, 0};
     int swarmCount = 7;
@@ -223,6 +278,8 @@ struct SpawnConfig {
     std::array<std::string, kWeaponSlots> startWeapons{"cannon", "grenade", "beam"};
     /// @brief 区画の始めに持っている予備の弾（ライト・ヘビー・エネルギー）。
     std::array<int, kAmmoTypeCount> startReserve{600, 40, 300};
+    // 機体（計画書 p4）。heroes.enabled なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、右クリック・Shift・E・Q は機体の技）。
+    HeroesConfig heroes{true, "soldier", DefaultHeroes()};
     /// @brief 敵が落とす物（お金・素材・弾・チップ・武器）の確率と量（W3）。
     LootConfig loot{};
     /// @brief 素材で作る・進化させる（派生の木）と、レア度の効き（W7）。
@@ -240,6 +297,74 @@ struct SpawnConfig {
         int tier = 1;
     };
     StageConfig stages{};
+
+    /// @brief 機体の遊び方の出撃の流れ（計画書 p4 の H1）：seconds 秒の波を count 回、そのあとボスの波。
+    /// @note 波が終わると敵と弾を片付けて、波の間の画面（K4 でショップ）を開く。ボスの波では bossDelay 秒でボス（宿敵）が出て、倒すと出撃を終える。
+    /// threatOffset と enemyHp は波ごと（最後がボスの波）の脅威の段階の上乗せと敵のHPの倍率。足りない分は最後の値を使う。
+    /// 倒した敵の種類ごとのレベルポイント（H2）：三角・四角・五角・重い四角・大五角・敵戦車・ボス。欠片として落ち、拾うと入る。
+    struct WaveConfig {
+        int count = 5;
+        float seconds = 90.0f;
+        float bossDelay = 10.0f;
+        std::vector<int> threatOffset{0, 1, 2, 3, 4, 5};
+        std::vector<float> enemyHp{0.8f, 0.9f, 1.0f, 1.1f, 1.2f, 1.3f};
+        int triangle = 5;
+        int square = 10;
+        int pentagon = 25;
+        int heavySquare = 40;
+        int bigPentagon = 80;
+        int tank = 80;
+        int boss = 500;
+        /// @brief 結果画面のスコア（K6 で解放ポイントにする。計画書 p4 の2章）：進んだ波1つごと・稼いだポイント1ごと・ボス撃破。
+        float scorePerWave = 100.0f;
+        float scorePerPoint = 0.2f;
+        float scoreBoss = 300.0f;
+        /// @brief その機体で初めてボスを倒したときに足す解放ポイント。
+        float scoreFirstClear = 500.0f;
+    };
+    WaveConfig waves{};
+
+    /// @brief 時間割の出来事（計画書 p7 の E6）。区画の時計が at 秒になったら1回起こす。
+    /// kind：wall（side が leftRight なら左右、topBottom なら上下の画面のすぐ外に shape を count 体ずつ並べ、speed で寄らせる）、
+    /// ring（自機のまわり半径 radius に shape を count 体並べ、speed で寄らせる）、
+    /// midBoss（画面のすぐ外に大きな shape を1体。HP は hp×敵のHPの倍率、大きさ scale、速さ speed、欠片 exp。倒すとレベルアップの3択を rewards 回）。
+    /// text は起きたときに出す文。
+    struct TimelineEvent {
+        float at = 0.0f;
+        std::string kind;
+        std::string shape = "Square";
+        std::string side = "leftRight";
+        int count = 0;
+        float speed = 3.0f;
+        float radius = 16.0f;
+        int hp = 0;
+        float scale = 1.0f;
+        int exp = 0;
+        int rewards = 0;
+        /// @brief kind "surge"（計画書 p8 の G1）：duration 秒（0 なら区画の終わりまで）、足し続ける湧きの間隔に intervalScale、
+        /// 一度に足す数に countScale を掛け、生存数の上限に maxAliveAdd を足す。
+        float duration = 0.0f;
+        float intervalScale = 1.0f;
+        float countScale = 1.0f;
+        int maxAliveAdd = 0;
+        std::string text;
+    };
+    std::vector<TimelineEvent> timeline;
+
+    /// @brief 機体の遊び方の体力の決まり（計画書 p4 の H6〜H8）。全体の無敵時間は使わない。
+    /// @note 1回の被弾は最大HPの maxHitRatio まで、1秒に受けるのは maxPerSecondRatio まで、同じ相手からは sameSourceSeconds 秒に1回まで。
+    /// 受けたダメージの woundRatio は「傷」になり、治すまで HP はそこまでしか戻らない。波の間に HP は戻らず、修理（repairCost）で傷を全部と HP を repairHeal 治す。
+    struct HealthConfig {
+        float maxHitRatio = 0.2f;
+        float maxPerSecondRatio = 0.3f;
+        float sameSourceSeconds = 0.5f;
+        float woundRatio = 0.3f;
+        int repairCost = 150;
+        int repairHeal = 30;
+    };
+    HealthConfig health{};
+    /// @brief 波の間のショップ（計画書 p4 の K4）。
+    ShopConfig shop{};
 
     /// @brief 右クリックのバリアとスタミナ（計画書 p3 の X3）。武器の枠を使う遊び方だけ。
     /// @note radius と arcDegrees は扇の半径と開き。張っている間は drainPerSecond ずつ減り、弾を止めると hitCost、敵に触れていると1体ごとに
@@ -293,6 +418,10 @@ struct SpawnConfig {
         int mineDamage = 8;
     };
     EliteConfig elites{};
+    /// @brief BGM と効果音（武器の枠を使う遊び方だけ）。
+    AudioConfig audio = DefaultAudioConfig();
+    /// @brief 光り方（武器の枠を使う遊び方だけ）。
+    GlowConfig glow{};
     static constexpr int kStageCount = 3;
 
     /// @brief レベル level から次へ上がるのに要る経験値を返す（base + growth × (level-1)^power、最低1）。
@@ -362,12 +491,28 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         value.interval = (std::max)(0.5f, value.interval);
     };
     number(data, "exitOpenSeconds", config.exitOpenSeconds);
+    if (data.contains("arenaMap") && data.at("arenaMap").is_string()) {
+        config.arenaMap = data.at("arenaMap").get<std::string>();
+    }
     number(data, "exitRadius", config.exitRadius);
     if (data.contains("spawnRing")) {
         const auto& ring = data.at("spawnRing");
         number(ring, "minDistance", config.ringMinDistance);
         number(ring, "maxDistance", config.ringMaxDistance);
         number(ring, "maxPerSecond", config.maxSpawnsPerSecond);
+        if (ring.contains("screenEdge") && ring.at("screenEdge").is_boolean()) {
+            config.ringScreenEdge = ring.at("screenEdge").get<bool>();
+        }
+    }
+    if (data.contains("shapes") && data.at("shapes").contains("chase") && data.at("shapes").at("chase").is_object()) {
+        static constexpr std::array<const char*, 3> kChaseKeys{"square", "triangle", "pentagon"};
+        const auto& chase = data.at("shapes").at("chase");
+        for (size_t i = 0; i < kChaseKeys.size(); ++i) {
+            if (chase.contains(kChaseKeys[i]) && chase.at(kChaseKeys[i]).is_array() && chase.at(kChaseKeys[i]).size() == 2 &&
+                chase.at(kChaseKeys[i])[0].is_number() && chase.at(kChaseKeys[i])[1].is_number()) {
+                config.shapeChase[i] = {chase.at(kChaseKeys[i])[0].get<float>(), chase.at(kChaseKeys[i])[1].get<float>()};
+            }
+        }
     }
     if (data.contains("shapes")) {
         const auto& shapes = data.at("shapes");
@@ -383,6 +528,31 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             }
         }
         number(shapes, "overtimePerMinute", config.shapeOvertimePerMinute);
+        if (shapes.contains("growth") && shapes.at("growth").is_object()) {
+            const auto& growth = shapes.at("growth");
+            if (growth.contains("enabled") && growth.at("enabled").is_boolean()) {
+                config.growth.enabled = growth.at("enabled").get<bool>();
+            }
+            if (growth.contains("points") && growth.at("points").is_array()) {
+                std::vector<SpawnConfig::SpawnGrowth::Point> points;
+                for (const auto& point : growth.at("points")) {
+                    if (point.is_array() && point.size() == 4 && point[0].is_number() && point[1].is_number() && point[2].is_number() &&
+                        point[3].is_number()) {
+                        points.push_back({point[0].get<float>(), (std::max)(0.05f, point[1].get<float>()), (std::max)(0.0f, point[2].get<float>()),
+                                          (std::max)(0.0f, point[3].get<float>())});
+                    }
+                }
+                if (!points.empty()) {
+                    config.growth.points = std::move(points);
+                }
+            }
+            number(growth, "hpPerMinute", config.growth.hpPerMinute);
+            number(growth, "speedPerMinute", config.growth.speedPerMinute);
+            number(growth, "speedMax", config.growth.speedMax);
+            config.growth.hpPerMinute = (std::clamp)(config.growth.hpPerMinute, 0.5f, 3.0f);
+            config.growth.speedPerMinute = (std::clamp)(config.growth.speedPerMinute, 0.0f, 1.0f);
+            config.growth.speedMax = (std::clamp)(config.growth.speedMax, 1.0f, 3.0f);
+        }
         if (shapes.contains("weights") && shapes.at("weights").is_array()) {
             std::vector<SpawnConfig::ShapeWeights> weights;
             for (const auto& entry : shapes.at("weights")) {
@@ -724,6 +894,116 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             weapon.reloadScale = (std::max)(0.05f, weapon.reloadScale);
         }
     }
+    if (data.contains("heroes") && data.at("heroes").is_object()) {
+        // 機体（計画書 p4）。キーが機体の名前、値が主武器と4つの技。知らないキーの機体は足す。
+        const auto& heroes = data.at("heroes");
+        if (heroes.contains("enabled") && heroes.at("enabled").is_boolean()) {
+            config.heroes.enabled = heroes.at("enabled").get<bool>();
+        }
+        if (heroes.contains("start") && heroes.at("start").is_string()) {
+            config.heroes.start = heroes.at("start").get<std::string>();
+        }
+        if (heroes.contains("moveScale") && heroes.at("moveScale").is_number()) {
+            config.heroes.moveScale = (std::clamp)(heroes.at("moveScale").get<float>(), 0.2f, 2.0f);
+        }
+        if (heroes.contains("autoFire") && heroes.at("autoFire").is_boolean()) {
+            config.heroes.autoFire = heroes.at("autoFire").get<bool>();
+        }
+        number(heroes, "walkSpeed", config.heroes.walkSpeed);
+        config.heroes.walkSpeed = (std::clamp)(config.heroes.walkSpeed, 0.0f, 40.0f);
+        if (heroes.contains("levelUps") && heroes.at("levelUps").is_boolean()) {
+            config.heroes.levelUps = heroes.at("levelUps").get<bool>();
+        }
+        if (heroes.contains("subWeapons") && heroes.at("subWeapons").is_boolean()) {
+            config.heroes.subWeapons = heroes.at("subWeapons").get<bool>();
+        }
+        if (heroes.contains("onlyUltimate") && heroes.at("onlyUltimate").is_boolean()) {
+            config.heroes.onlyUltimate = heroes.at("onlyUltimate").get<bool>();
+        }
+        number(heroes, "perkMaxTier", config.heroes.perkMaxTier);
+        if (heroes.contains("heroSkills") && heroes.at("heroSkills").is_boolean()) {
+            config.heroes.heroSkills = heroes.at("heroSkills").get<bool>();
+        }
+        number(heroes, "subWeaponSlots", config.heroes.subWeaponSlots);
+        number(heroes, "perkSlots", config.heroes.perkSlots);
+        number(heroes, "fillerHeal", config.heroes.fillerHeal);
+        number(heroes, "fillerMaxHp", config.heroes.fillerMaxHp);
+        number(heroes, "fillerPower", config.heroes.fillerPower);
+        number(heroes, "healDropChance", config.heroes.healDropChance);
+        number(heroes, "healDropHeal", config.heroes.healDropHeal);
+        number(heroes, "healDropLife", config.heroes.healDropLife);
+        number(heroes, "healDropMax", config.heroes.healDropMax);
+        config.heroes.perkMaxTier = (std::clamp)(config.heroes.perkMaxTier, 1, 9);
+        config.heroes.subWeaponSlots = (std::clamp)(config.heroes.subWeaponSlots, 0, 12);
+        config.heroes.perkSlots = (std::clamp)(config.heroes.perkSlots, 0, 12);
+        config.heroes.fillerHeal = (std::clamp)(config.heroes.fillerHeal, 0.0f, 1.0f);
+        config.heroes.fillerMaxHp = (std::clamp)(config.heroes.fillerMaxHp, 0, 500);
+        config.heroes.fillerPower = (std::clamp)(config.heroes.fillerPower, 0.0f, 1.0f);
+        config.heroes.healDropChance = (std::clamp)(config.heroes.healDropChance, 0.0f, 1.0f);
+        config.heroes.healDropHeal = (std::clamp)(config.heroes.healDropHeal, 0.0f, 1.0f);
+        config.heroes.healDropLife = (std::clamp)(config.heroes.healDropLife, 0.0f, 600.0f);
+        config.heroes.healDropMax = (std::clamp)(config.heroes.healDropMax, 0, 64);
+        for (const auto& item : heroes.items()) {
+            if (!item.value().is_object()) {
+                continue;
+            }
+            int index = FindHero(config.heroes.heroes, item.key());
+            if (index < 0) {
+                HeroDefinition added{};
+                added.key = item.key();
+                config.heroes.heroes.push_back(added);
+                index = static_cast<int>(config.heroes.heroes.size()) - 1;
+            }
+            auto& hero = config.heroes.heroes[static_cast<size_t>(index)];
+            const auto& value = item.value();
+            if (value.contains("name") && value.at("name").is_string()) {
+                hero.name = value.at("name").get<std::string>();
+            }
+            if (value.contains("primary") && value.at("primary").is_string()) {
+                hero.primary = value.at("primary").get<std::string>();
+            }
+            number(value, "ultimateCharge", hero.ultimateCharge);
+            number(value, "primaryHeatScale", hero.primaryHeatScale);
+            number(value, "maxHp", hero.maxHp);
+            number(value, "unlockCost", hero.unlockCost);
+            if (value.contains("unlockFirst") && value.at("unlockFirst").is_boolean()) {
+                hero.unlockFirst = value.at("unlockFirst").get<bool>();
+            }
+            hero.unlockCost = (std::max)(0, hero.unlockCost);
+            hero.maxHp = (std::max)(0, hero.maxHp);
+            hero.primaryHeatScale = (std::max)(0.0f, hero.primaryHeatScale);
+            hero.ultimateCharge = (std::max)(1.0f, hero.ultimateCharge);
+            // 技を1つ読む（主武器の部品 primaryAbility と、4つの枠で同じ書き方）。
+            auto readAbility = [&](const nlohmann::json& abilityValue, AbilityDefinition& ability) {
+                if (abilityValue.contains("kind") && abilityValue.at("kind").is_string()) {
+                    ability.kind = FindAbilityKind(abilityValue.at("kind").get<std::string>());
+                }
+                if (abilityValue.contains("name") && abilityValue.at("name").is_string()) {
+                    ability.name = abilityValue.at("name").get<std::string>();
+                }
+                number(abilityValue, "cooldown", ability.cooldown);
+                number(abilityValue, "duration", ability.duration);
+                number(abilityValue, "power", ability.power);
+                number(abilityValue, "radius", ability.radius);
+                number(abilityValue, "rate", ability.rate);
+                number(abilityValue, "size", ability.size);
+                number(abilityValue, "gain", ability.gain);
+                ability.cooldown = (std::max)(0.0f, ability.cooldown);
+                ability.duration = (std::max)(0.0f, ability.duration);
+                ability.size = (std::max)(0.0f, ability.size);
+                ability.gain = (std::max)(0.0f, ability.gain);
+            };
+            if (value.contains("primaryAbility") && value.at("primaryAbility").is_object()) {
+                readAbility(value.at("primaryAbility"), hero.primaryAbility);
+            }
+            for (size_t slot = 0; slot < kAbilitySlotCount; ++slot) {
+                const char* slotKey = AbilitySlotKey(static_cast<AbilitySlot>(slot));
+                if (value.contains(slotKey) && value.at(slotKey).is_object()) {
+                    readAbility(value.at(slotKey), hero.abilities[slot]);
+                }
+            }
+        }
+    }
     if (data.contains("stages") && data.at("stages").is_object()) {
         const auto& stages = data.at("stages");
         auto readArray = [&](const char* key, auto& values) {
@@ -745,6 +1025,123 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             seconds = (std::max)(1.0f, seconds);
         }
     }
+    if (data.contains("timeline") && data.at("timeline").is_array()) {
+        config.timeline.clear();
+        for (const auto& item : data.at("timeline")) {
+            if (!item.is_object()) {
+                continue;
+            }
+            SpawnConfig::TimelineEvent event;
+            number(item, "at", event.at);
+            number(item, "count", event.count);
+            number(item, "speed", event.speed);
+            number(item, "radius", event.radius);
+            number(item, "hp", event.hp);
+            number(item, "scale", event.scale);
+            number(item, "exp", event.exp);
+            number(item, "rewards", event.rewards);
+            number(item, "duration", event.duration);
+            number(item, "intervalScale", event.intervalScale);
+            number(item, "countScale", event.countScale);
+            number(item, "maxAliveAdd", event.maxAliveAdd);
+            for (auto [key, target] : {std::pair<const char*, std::string*>{"kind", &event.kind}, {"shape", &event.shape}, {"side", &event.side},
+                                       {"text", &event.text}}) {
+                if (item.contains(key) && item.at(key).is_string()) {
+                    *target = item.at(key).get<std::string>();
+                }
+            }
+            config.timeline.push_back(event);
+        }
+        std::stable_sort(config.timeline.begin(), config.timeline.end(), [](const SpawnConfig::TimelineEvent& a, const SpawnConfig::TimelineEvent& b) {
+            return a.at < b.at;
+        });
+    }
+    if (data.contains("waves") && data.at("waves").is_object()) {
+        const auto& waves = data.at("waves");
+        number(waves, "count", config.waves.count);
+        number(waves, "seconds", config.waves.seconds);
+        number(waves, "bossDelay", config.waves.bossDelay);
+        auto readList = [&](const char* key, auto& values) {
+            if (waves.contains(key) && waves.at(key).is_array()) {
+                values.clear();
+                for (const auto& value : waves.at(key)) {
+                    if (value.is_number()) {
+                        values.push_back(value.get<typename std::remove_reference_t<decltype(values)>::value_type>());
+                    }
+                }
+            }
+        };
+        readList("threatOffset", config.waves.threatOffset);
+        readList("enemyHp", config.waves.enemyHp);
+        if (waves.contains("points") && waves.at("points").is_object()) {
+            const auto& points = waves.at("points");
+            number(points, "triangle", config.waves.triangle);
+            number(points, "square", config.waves.square);
+            number(points, "pentagon", config.waves.pentagon);
+            number(points, "heavySquare", config.waves.heavySquare);
+            number(points, "bigPentagon", config.waves.bigPentagon);
+            number(points, "tank", config.waves.tank);
+            number(points, "boss", config.waves.boss);
+        }
+        if (waves.contains("score") && waves.at("score").is_object()) {
+            const auto& score = waves.at("score");
+            number(score, "perWave", config.waves.scorePerWave);
+            number(score, "perPoint", config.waves.scorePerPoint);
+            number(score, "boss", config.waves.scoreBoss);
+            number(score, "firstClear", config.waves.scoreFirstClear);
+        }
+        // 0 なら波は無く、始めからボスの波だけ（1つのステージを bossDelay 秒で遊ぶ。計画書 p7 の E6）。
+        config.waves.count = (std::clamp)(config.waves.count, 0, 20);
+        config.waves.seconds = (std::max)(5.0f, config.waves.seconds);
+        config.waves.bossDelay = (std::max)(0.0f, config.waves.bossDelay);
+        if (config.waves.threatOffset.empty()) {
+            config.waves.threatOffset.push_back(0);
+        }
+        if (config.waves.enemyHp.empty()) {
+            config.waves.enemyHp.push_back(1.0f);
+        }
+    }
+    if (data.contains("shop") && data.at("shop").is_object()) {
+        const auto& shop = data.at("shop");
+        number(shop, "offerCount", config.shop.offerCount);
+        number(shop, "rerollCost", config.shop.rerollCost);
+        number(shop, "rerollStep", config.shop.rerollStep);
+        if (shop.contains("upgradePrices") && shop.at("upgradePrices").is_array()) {
+            for (size_t i = 0; i < config.shop.upgradePrices.size() && i < shop.at("upgradePrices").size(); ++i) {
+                if (shop.at("upgradePrices")[i].is_number()) {
+                    config.shop.upgradePrices[i] = (std::max)(0, shop.at("upgradePrices")[i].get<int>());
+                }
+            }
+        }
+        if (shop.contains("perks") && shop.at("perks").is_object()) {
+            for (const auto& item : shop.at("perks").items()) {
+                const PerkId perk = FindPerk(item.key());
+                if (perk == PerkId::Count || !item.value().is_object()) {
+                    continue;
+                }
+                number(item.value(), "price", config.shop.perkPrices[static_cast<size_t>(perk)]);
+                number(item.value(), "value", config.shop.perkValues[static_cast<size_t>(perk)]);
+            }
+        }
+        config.shop.offerCount = (std::clamp)(config.shop.offerCount, 1, 8);
+        config.shop.rerollCost = (std::max)(0, config.shop.rerollCost);
+        config.shop.rerollStep = (std::max)(0, config.shop.rerollStep);
+    }
+    if (data.contains("health") && data.at("health").is_object()) {
+        const auto& health = data.at("health");
+        number(health, "maxHitRatio", config.health.maxHitRatio);
+        number(health, "maxPerSecondRatio", config.health.maxPerSecondRatio);
+        number(health, "sameSourceSeconds", config.health.sameSourceSeconds);
+        number(health, "woundRatio", config.health.woundRatio);
+        number(health, "repairCost", config.health.repairCost);
+        number(health, "repairHeal", config.health.repairHeal);
+        config.health.maxHitRatio = (std::clamp)(config.health.maxHitRatio, 0.01f, 1.0f);
+        config.health.maxPerSecondRatio = (std::clamp)(config.health.maxPerSecondRatio, 0.01f, 1.0f);
+        config.health.sameSourceSeconds = (std::max)(0.0f, config.health.sameSourceSeconds);
+        config.health.woundRatio = (std::clamp)(config.health.woundRatio, 0.0f, 1.0f);
+        config.health.repairCost = (std::max)(0, config.health.repairCost);
+        config.health.repairHeal = (std::max)(0, config.health.repairHeal);
+    }
     if (data.contains("barrier") && data.at("barrier").is_object()) {
         const auto& barrier = data.at("barrier");
         number(barrier, "radius", config.barrier.radius);
@@ -758,6 +1155,55 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(barrier, "exhaustedSeconds", config.barrier.exhaustedSeconds);
         config.barrier.radius = (std::max)(1.0f, config.barrier.radius);
         config.barrier.staminaMax = (std::max)(1.0f, config.barrier.staminaMax);
+    }
+    if (data.contains("audio") && data.at("audio").is_object()) {
+        const auto& audio = data.at("audio");
+        number(audio, "musicVolume", config.audio.musicVolume);
+        number(audio, "effectsVolume", config.audio.effectsVolume);
+        number(audio, "fadeSeconds", config.audio.fadeSeconds);
+        number(audio, "duckRatio", config.audio.duckRatio);
+        // 書いてある音だけを上書き・追加する（書いていない音は既定のまま）。
+        auto readCues = [&](const char* key, std::map<std::string, AudioCue>& cues) {
+            if (!audio.contains(key) || !audio.at(key).is_object()) {
+                return;
+            }
+            for (const auto& item : audio.at(key).items()) {
+                if (!item.value().is_object()) {
+                    continue;
+                }
+                AudioCue& cue = cues[item.key()];
+                if (item.value().contains("file") && item.value().at("file").is_string()) {
+                    cue.file = item.value().at("file").get<std::string>();
+                }
+                number(item.value(), "volume", cue.volume);
+                number(item.value(), "pitch", cue.pitch);
+                number(item.value(), "pitchJitter", cue.pitchJitter);
+                number(item.value(), "cooldown", cue.cooldown);
+                number(item.value(), "voices", cue.voices);
+            }
+        };
+        readCues("music", config.audio.music);
+        readCues("cues", config.audio.cues);
+    }
+    if (data.contains("glow") && data.at("glow").is_object()) {
+        const auto& glow = data.at("glow");
+        auto& out = config.glow;
+        number(glow, "trailBloomIntensity", out.trailBloomIntensity);
+        number(glow, "trailBloomGain", out.trailBloomGain);
+        number(glow, "trailBloomScatter", out.trailBloomScatter);
+        number(glow, "trailBloomRadius", out.trailBloomRadius);
+        number(glow, "trailTailBrightness", out.trailTailBrightness);
+        number(glow, "trailFadeCurve", out.trailFadeCurve);
+        number(glow, "trailTailWidth", out.trailTailWidth);
+        number(glow, "trailSeconds", out.trailSeconds);
+        number(glow, "lootRingRadius", out.lootRingRadius);
+        number(glow, "lootRingWidth", out.lootRingWidth);
+        number(glow, "lootTrailSeconds", out.lootTrailSeconds);
+        number(glow, "lootTrailWidth", out.lootTrailWidth);
+        number(glow, "collectFlashSeconds", out.collectFlashSeconds);
+        number(glow, "collectFlashRadius", out.collectFlashRadius);
+        out.trailBloomScatter = (std::clamp)(out.trailBloomScatter, 0.0f, 0.9f);
+        out.trailBloomRadius = (std::clamp)(out.trailBloomRadius, 0.25f, 2.0f);
     }
     if (data.contains("elites") && data.at("elites").is_object()) {
         const auto& elites = data.at("elites");
@@ -946,17 +1392,36 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     };
 
     data["exitOpenSeconds"] = round(config.exitOpenSeconds);
+    data["arenaMap"] = config.arenaMap;
     data["exitRadius"] = round(config.exitRadius);
     auto& ring = section("spawnRing");
     ring["minDistance"] = round(config.ringMinDistance);
     ring["maxDistance"] = round(config.ringMaxDistance);
     ring["maxPerSecond"] = round(config.maxSpawnsPerSecond);
+    ring["screenEdge"] = config.ringScreenEdge;
     auto& shapes = section("shapes");
+    if (config.shapeChase[0].second > 0.0f || config.shapeChase[1].second > 0.0f || config.shapeChase[2].second > 0.0f) {
+        static constexpr std::array<const char*, 3> kChaseKeys{"square", "triangle", "pentagon"};
+        for (size_t i = 0; i < kChaseKeys.size(); ++i) {
+            shapes["chase"][kChaseKeys[i]] = {round(config.shapeChase[i].first), round(config.shapeChase[i].second)};
+        }
+    }
     shapes["targetAlive"] = nlohmann::json::array();
     for (const auto& [seconds, alive] : config.shapeTargetAlive) {
         shapes["targetAlive"].push_back({round(seconds), round(alive)});
     }
     shapes["overtimePerMinute"] = round(config.shapeOvertimePerMinute);
+    if (config.growth.enabled) {
+        auto& growth = shapes["growth"];
+        growth["enabled"] = true;
+        growth["points"] = nlohmann::json::array();
+        for (const auto& point : config.growth.points) {
+            growth["points"].push_back({round(point.at), round(point.interval), round(point.count), round(point.maxAlive)});
+        }
+        growth["hpPerMinute"] = round(config.growth.hpPerMinute);
+        growth["speedPerMinute"] = round(config.growth.speedPerMinute);
+        growth["speedMax"] = round(config.growth.speedMax);
+    }
     shapes["weights"] = nlohmann::json::array();
     for (const auto& entry : config.shapeWeights) {
         shapes["weights"].push_back({{"from", round(entry.from)},
@@ -1113,6 +1578,67 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         }
         item["starter"] = weapon.starter;
     }
+    auto& heroes = section("heroes");
+    heroes["enabled"] = config.heroes.enabled;
+    heroes["start"] = config.heroes.start;
+    heroes["moveScale"] = round(config.heroes.moveScale);
+    heroes["autoFire"] = config.heroes.autoFire;
+    heroes["levelUps"] = config.heroes.levelUps;
+    if (config.heroes.walkSpeed > 0.0f) {
+        heroes["walkSpeed"] = config.heroes.walkSpeed;
+    }
+    heroes["subWeapons"] = config.heroes.subWeapons;
+    heroes["onlyUltimate"] = config.heroes.onlyUltimate;
+    if (config.heroes.heroSkills) {
+        heroes["heroSkills"] = true;
+    }
+    if (config.heroes.perkMaxTier > 1) {
+        heroes["perkMaxTier"] = config.heroes.perkMaxTier;
+    }
+    if (config.heroes.subWeaponSlots > 0) {
+        heroes["subWeaponSlots"] = config.heroes.subWeaponSlots;
+    }
+    if (config.heroes.perkSlots > 0) {
+        heroes["perkSlots"] = config.heroes.perkSlots;
+    }
+    if (config.heroes.fillerHeal > 0.0f || config.heroes.fillerMaxHp > 0 || config.heroes.fillerPower > 0.0f) {
+        heroes["fillerHeal"] = round(config.heroes.fillerHeal);
+        heroes["fillerMaxHp"] = config.heroes.fillerMaxHp;
+        heroes["fillerPower"] = round(config.heroes.fillerPower);
+    }
+    if (config.heroes.healDropHeal > 0.0f) {
+        heroes["healDropChance"] = round(config.heroes.healDropChance);
+        heroes["healDropHeal"] = round(config.heroes.healDropHeal);
+        heroes["healDropLife"] = round(config.heroes.healDropLife);
+        heroes["healDropMax"] = config.heroes.healDropMax;
+    }
+    for (const auto& hero : config.heroes.heroes) {
+        auto& item = heroes[hero.key];
+        item["name"] = hero.name;
+        item["primary"] = hero.primary;
+        item["ultimateCharge"] = round(hero.ultimateCharge);
+        item["primaryHeatScale"] = round(hero.primaryHeatScale);
+        item["maxHp"] = hero.maxHp;
+        item["unlockCost"] = hero.unlockCost;
+        item["unlockFirst"] = hero.unlockFirst;
+        auto writeAbility = [&](const AbilityDefinition& ability, nlohmann::json& abilityItem) {
+            abilityItem["kind"] = AbilityKindKey(ability.kind);
+            abilityItem["name"] = ability.name;
+            abilityItem["cooldown"] = round(ability.cooldown);
+            abilityItem["duration"] = round(ability.duration);
+            abilityItem["power"] = round(ability.power);
+            abilityItem["radius"] = round(ability.radius);
+            abilityItem["rate"] = round(ability.rate);
+            abilityItem["size"] = round(ability.size);
+            abilityItem["gain"] = round(ability.gain);
+        };
+        if (hero.primaryAbility.kind != AbilityKind::None || item.contains("primaryAbility")) {
+            writeAbility(hero.primaryAbility, item["primaryAbility"]);
+        }
+        for (size_t slot = 0; slot < kAbilitySlotCount; ++slot) {
+            writeAbility(hero.abilities[slot], item[AbilitySlotKey(static_cast<AbilitySlot>(slot))]);
+        }
+    }
     auto& parts = section("parts");
     for (const auto& part : config.parts) {
         parts[part.key]["perLevel"] = round(part.perLevel);
@@ -1167,6 +1693,67 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     stages["swarmScale"] = round(config.stages.swarmScale);
     stages["bossMaterials"] = config.stages.bossMaterials;
     stages["tier"] = config.stages.tier;
+    if (!config.timeline.empty()) {
+        auto& timeline = data["timeline"];
+        timeline = nlohmann::json::array();
+        for (const SpawnConfig::TimelineEvent& event : config.timeline) {
+            timeline.push_back({{"at", round(event.at)}, {"kind", event.kind}, {"shape", event.shape}, {"side", event.side}, {"count", event.count},
+                                {"speed", round(event.speed)}, {"radius", round(event.radius)}, {"hp", event.hp}, {"scale", round(event.scale)},
+                                {"exp", event.exp}, {"rewards", event.rewards}, {"text", event.text}});
+            if (event.kind == "surge") {
+                auto& surge = timeline.back();
+                surge["duration"] = round(event.duration);
+                surge["intervalScale"] = round(event.intervalScale);
+                surge["countScale"] = round(event.countScale);
+                surge["maxAliveAdd"] = event.maxAliveAdd;
+            }
+        }
+    }
+    auto& waves = section("waves");
+    waves["count"] = config.waves.count;
+    waves["seconds"] = round(config.waves.seconds);
+    waves["bossDelay"] = round(config.waves.bossDelay);
+    waves["threatOffset"] = nlohmann::json::array();
+    for (int offset : config.waves.threatOffset) {
+        waves["threatOffset"].push_back(offset);
+    }
+    waves["enemyHp"] = nlohmann::json::array();
+    for (float scale : config.waves.enemyHp) {
+        waves["enemyHp"].push_back(round(scale));
+    }
+    auto& points = waves["points"];
+    points["triangle"] = config.waves.triangle;
+    points["square"] = config.waves.square;
+    points["pentagon"] = config.waves.pentagon;
+    points["heavySquare"] = config.waves.heavySquare;
+    points["bigPentagon"] = config.waves.bigPentagon;
+    points["tank"] = config.waves.tank;
+    points["boss"] = config.waves.boss;
+    auto& score = waves["score"];
+    score["perWave"] = round(config.waves.scorePerWave);
+    score["perPoint"] = round(config.waves.scorePerPoint);
+    score["boss"] = round(config.waves.scoreBoss);
+    score["firstClear"] = round(config.waves.scoreFirstClear);
+    auto& health = section("health");
+    health["maxHitRatio"] = round(config.health.maxHitRatio);
+    health["maxPerSecondRatio"] = round(config.health.maxPerSecondRatio);
+    health["sameSourceSeconds"] = round(config.health.sameSourceSeconds);
+    health["woundRatio"] = round(config.health.woundRatio);
+    health["repairCost"] = config.health.repairCost;
+    health["repairHeal"] = config.health.repairHeal;
+    auto& shop = section("shop");
+    shop["offerCount"] = config.shop.offerCount;
+    shop["rerollCost"] = config.shop.rerollCost;
+    shop["rerollStep"] = config.shop.rerollStep;
+    shop["upgradePrices"] = nlohmann::json::array();
+    for (int price : config.shop.upgradePrices) {
+        shop["upgradePrices"].push_back(price);
+    }
+    for (size_t i = 0; i < kPerkCount; ++i) {
+        auto& perk = shop["perks"][GetPerkInfo(static_cast<PerkId>(i)).key];
+        perk["price"] = config.shop.perkPrices[i];
+        perk["value"] = round(config.shop.perkValues[i]);
+    }
     auto& barrier = section("barrier");
     barrier["radius"] = round(config.barrier.radius);
     barrier["arcDegrees"] = round(config.barrier.arcDegrees);
@@ -1177,6 +1764,35 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     barrier["regenPerSecond"] = round(config.barrier.regenPerSecond);
     barrier["regenDelay"] = round(config.barrier.regenDelay);
     barrier["exhaustedSeconds"] = round(config.barrier.exhaustedSeconds);
+    auto& audio = section("audio");
+    audio["musicVolume"] = round(config.audio.musicVolume);
+    audio["effectsVolume"] = round(config.audio.effectsVolume);
+    audio["fadeSeconds"] = round(config.audio.fadeSeconds);
+    audio["duckRatio"] = round(config.audio.duckRatio);
+    auto writeCues = [&](const char* key, const std::map<std::string, AudioCue>& cues) {
+        audio[key] = nlohmann::json::object();
+        for (const auto& [name, cue] : cues) {
+            audio[key][name] = {{"file", cue.file}, {"volume", round(cue.volume)}, {"pitch", round(cue.pitch)}, {"pitchJitter", round(cue.pitchJitter)},
+                                {"cooldown", round(cue.cooldown)}, {"voices", cue.voices}};
+        }
+    };
+    writeCues("music", config.audio.music);
+    writeCues("cues", config.audio.cues);
+    auto& glow = section("glow");
+    glow["trailBloomIntensity"] = round(config.glow.trailBloomIntensity);
+    glow["trailBloomGain"] = round(config.glow.trailBloomGain);
+    glow["trailBloomScatter"] = round(config.glow.trailBloomScatter);
+    glow["trailBloomRadius"] = round(config.glow.trailBloomRadius);
+    glow["trailTailBrightness"] = round(config.glow.trailTailBrightness);
+    glow["trailFadeCurve"] = round(config.glow.trailFadeCurve);
+    glow["trailTailWidth"] = round(config.glow.trailTailWidth);
+    glow["trailSeconds"] = round(config.glow.trailSeconds);
+    glow["lootRingRadius"] = round(config.glow.lootRingRadius);
+    glow["lootRingWidth"] = round(config.glow.lootRingWidth);
+    glow["lootTrailSeconds"] = round(config.glow.lootTrailSeconds);
+    glow["lootTrailWidth"] = round(config.glow.lootTrailWidth);
+    glow["collectFlashSeconds"] = round(config.glow.collectFlashSeconds);
+    glow["collectFlashRadius"] = round(config.glow.collectFlashRadius);
     auto& elites = section("elites");
     elites["fromStage"] = config.elites.fromStage;
     elites["erraticRatio"] = round(config.elites.erraticRatio);
@@ -1279,11 +1895,11 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 33> kOrder{
-        "schemaVersion", "comment",   "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
+    static constexpr std::array<const char*, 41> kOrder{
+        "schemaVersion", "comment",   "arenaMap", "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
-        "heat",          "shield",    "forms",           "weapons",       "loot",          "crafting",      "stages",        "barrier",       "elites",        "traits",        "relics",    "fusions",    "parts",       "heatVent",
-        "partTuning",    "bigPentagon", "damageNumbers"};
+        "heat",          "shield",    "forms",           "weapons",       "heroes",        "loot",          "crafting",      "stages",        "waves",         "health",        "shop",        "barrier",       "elites",        "audio",         "glow",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
+        "partTuning",    "bigPentagon", "damageNumbers", "timeline"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
         if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {

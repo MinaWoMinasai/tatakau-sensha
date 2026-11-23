@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <numeric>
 #include <optional>
+#include <set>
 #if defined(USE_IMGUI) || defined(USE_RUNTIME_PROFILER)
 #include "externals/imgui/imgui.h"
 #endif
@@ -218,6 +219,7 @@ myEngine::InitializationTask ExpeditionMapController::BuildInitialization()
     world_.run.tankExpedition_.OpenMap();
     world_.run.tankExpeditionTutorial_.Skip();
     world_.expeditionExperience->InitializeExpeditionExperience();
+    world_.expeditionOverdrive->Initialize();
     const auto initialNodes = world_.run.expeditionMapRun_.GetAvailableNodeIds();
     if (!initialNodes.empty()) {
         world_.run.expeditionMapSelection_ = initialNodes.front();
@@ -301,6 +303,16 @@ myEngine::InitializationTask ExpeditionMapController::BuildInitialization()
     while (!cards.Advance()) {
         co_await std::suspend_always{};
     }
+    // 機体で遊ぶとき（計画書 p5 の H2）、操作の説明は今の操作（右クリックのダッシュ）のままなので出さない。最初は説明をスキップを選んでおく。
+    if (world_.run.expeditionHeroMode_) {
+        for (const auto& id : world_.run.expeditionMapRun_.GetAvailableNodeIds()) {
+            if (const auto* n = tankexp::FindMapNode(world_.run.expeditionMapRun_.GetDefinition(), id);
+                n && n->role == tankexp::NodeRole::TutorialSkip) {
+                world_.run.expeditionMapSelection_ = id;
+                break;
+            }
+        }
+    }
     RefreshExpeditionMapUi();
 }
 
@@ -324,7 +336,10 @@ void ExpeditionMapController::RequestExpeditionMapNode(const std::string& id)
     if (world_.run.expeditionTransition_.IsActive() || world_.run.expeditionBuildChoice_) {
         return;
     }
-    if (!world_.run.expeditionMapRun_.CanSelectNode(id)) {
+    // 機体で遊ぶときは、操作の説明（今の操作のまま）を選べない（計画書 p5 の H2。チュートリアルは後で作り直す）。
+    const auto* requested = tankexp::FindMapNode(world_.run.expeditionMapRun_.GetDefinition(), id);
+    if (!world_.run.expeditionMapRun_.CanSelectNode(id) ||
+        (world_.run.expeditionHeroMode_ && requested && requested->role == tankexp::NodeRole::TutorialCombat)) {
         world_.run.expeditionUiErrorAge_ = 0.35f;
         world_.run.tankExpeditionAudio_.UiDenied();
         world_.run.expeditionMapStatus_ = "明るく光る、接続された地点を選んでください。";
@@ -697,6 +712,17 @@ bool ExpeditionMapController::StartAuthoredExpeditionRoom()
     // HasAuthoredDefinitionを確認し、個別設定の接触ダメージを全体値で上書きしない。
     world_.expeditionBalanceEditor->ApplyTankExpeditionRoomBalance();
     world_.depthEncounter->ConfigureNeonDepthEncounter();
+    {
+        // 増援の波と熱をこの区画用に用意する（操作訓練とボスには増援を呼ばない）。
+        std::vector<std::string> spawnTypes;
+        for (const auto& spawn : room->spawns) {
+            spawnTypes.push_back(spawn.type);
+        }
+        world_.expeditionOverdrive->BeginRoom(spawnTypes, node->combatStage, node->kind == NK::Elite,
+                                              node->role == tankexp::NodeRole::TutorialCombat, room->objective == "boss");
+        // ボス部屋では、ネオンボスの攻撃を新しい4つの攻撃に入れ替える（見た目と視点はそのまま）。
+        world_.expeditionBossDirector->Begin(room->objective == "boss");
+    }
     world_.combat.previousPlayerHp_ = world_.resources.player_->GetHp();
     world_.combat.previousBossHp_ = world_.resources.enemy_->GetHp();
     world_.combat.bossDefeatHandled_ = false;
@@ -750,13 +776,53 @@ void ExpeditionMapController::RefreshExpeditionServiceOffers()
             for (const unsigned char c : node->id) {
                 state = (state ^ c) * 16777619u;
             }
-            world_.run.expeditionServiceOffers_ =
-                tankcontent::BuildShopOffers(world_.run.expeditionContent_, world_.run.expeditionBuildStyle_,
-                                             world_.run.tankRun_.GetCardCounts(), world_.run.expeditionPurchases_, state);
+            world_.run.expeditionServiceOffers_ = BuildExpeditionShopOffers(state);
         }
     }
     world_.run.expeditionServicePage_ = (std::clamp)(world_.run.expeditionServicePage_, 0,
                                                      (std::max)(0, (static_cast<int>(world_.run.expeditionServiceOffers_.size()) - 1) / 3));
+}
+
+std::vector<std::string> ExpeditionMapController::BuildExpeditionShopOffers(uint32_t seed) const
+{
+    // 機体で遊ぶときは、機体の技の強化（覚醒）を2つまでと、全機体に効く共通の札から、合わせて3つ並べる（計画書 p5 の H4・覚醒）。
+    if (world_.run.expeditionHeroMode_) {
+        std::vector<std::string> offers;
+        const auto& hero = *world_.expeditionHeroAbilities;
+        if (hero.IsActive()) {
+            std::vector<int> targets;
+            for (int target = 0; target < static_cast<int>(survivor::kUpgradeTargets); ++target) {
+                if (hero.CanUpgrade(target)) {
+                    targets.push_back(target);
+                }
+            }
+            // 種で決まる順に並べ替え、先頭の2つを出す（同じ工房なら何度開いても同じ）。
+            uint32_t state = seed ? seed : 0x9e3779b9u;
+            for (size_t n = targets.size(); n > 1; --n) {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                std::swap(targets[n - 1], targets[state % static_cast<uint32_t>(n)]);
+            }
+            for (size_t i = 0; i < targets.size() && offers.size() < 2; ++i) {
+                offers.push_back(ExpeditionHeroAbilities::UpgradeOfferId(targets[i]));
+            }
+        }
+        tankcontent::Catalog heroCatalog = world_.run.expeditionContent_;
+        std::erase_if(heroCatalog.upgrades, [](const tankcontent::Upgrade& u) {
+            return !tankcontent::IsHeroModeUpgrade(u);
+        });
+        for (const auto& id : tankcontent::BuildShopOffers(heroCatalog, world_.run.expeditionBuildStyle_, world_.run.tankRun_.GetCardCounts(),
+                                                           world_.run.expeditionPurchases_, seed)) {
+            if (offers.size() >= 3) {
+                break;
+            }
+            offers.push_back(id);
+        }
+        return offers;
+    }
+    return tankcontent::BuildShopOffers(world_.run.expeditionContent_, world_.run.expeditionBuildStyle_,
+                                        world_.run.tankRun_.GetCardCounts(), world_.run.expeditionPurchases_, seed);
 }
 
 bool ExpeditionMapController::IsIntroExpeditionService() const
@@ -775,6 +841,9 @@ int ExpeditionMapController::ExpeditionServicePrice(const std::string& id) const
         return node->serviceCost;
     }
     if (node->kind == NK::Upgrade || node->kind == NK::Evolution) {
+        if (const int target = ExpeditionHeroAbilities::ParseUpgradeOfferId(id); target >= 0) {
+            return ExpeditionHeroAbilities::UpgradeOfferPrice(world_.expeditionHeroAbilities->UpgradeTier(target));
+        }
         const auto* u = tankcontent::FindUpgrade(world_.run.expeditionContent_, id);
         return (std::max)(u ? u->price : 0, node->serviceCost);
     }
@@ -863,12 +932,35 @@ void ExpeditionMapController::SelectExpeditionService(int option)
             return;
         }
         const auto id = world_.run.expeditionServiceOffers_[index];
-        if (node->kind == NK::Upgrade || node->kind == NK::Evolution) {
+        // 機体の技の強化（覚醒）：通貨を払って1段上げる。
+        if (const int target = ExpeditionHeroAbilities::ParseUpgradeOfferId(id);
+            target >= 0 && (node->kind == NK::Upgrade || node->kind == NK::Evolution)) {
+            auto& hero = *world_.expeditionHeroAbilities;
+            if (!hero.CanUpgrade(target)) {
+                world_.run.expeditionMapStatus_ = "この技はもう最後の段まで強くなっています。";
+                reject();
+                return;
+            }
+            const int price = ExpeditionServicePrice(id);
+            if (!world_.run.expeditionMapRun_.CanAfford(price)) {
+                world_.run.expeditionMapStatus_ = "通貨が足りません。別の強化を選ぶか次へ進めます。";
+                reject();
+                return;
+            }
+            const std::string name = survivor::UpgradeOfferName(hero.CurrentHero(), target, hero.UpgradeTier(target));
+            world_.run.expeditionMapRun_.TrySpendCurrency(price);
+            hero.BuyUpgrade(target);
+            ++world_.run.expeditionPurchases_[id];
+            ++world_.run.expeditionMapTestPurchases_;
+            world_.run.expeditionMapStatus_ = name + (hero.UpgradeTier(target) >= survivor::kMaxUpgradeTier ? "：覚醒しました" : "に強くしました");
+            complete = world_.run.expeditionMapRun_.CompleteService(false);
+        } else if (node->kind == NK::Upgrade || node->kind == NK::Evolution) {
             const auto* upgrade = tankcontent::FindUpgrade(world_.run.expeditionContent_, id);
             if (!upgrade) {
                 return;
             }
-            if (!tankcontent::EligibleUpgrade(*upgrade, world_.run.expeditionBuildStyle_, world_.run.tankRun_.GetCardCounts())) {
+            if (!tankcontent::EligibleUpgrade(*upgrade, world_.run.expeditionBuildStyle_, world_.run.tankRun_.GetCardCounts()) ||
+                (world_.run.expeditionHeroMode_ && !tankcontent::IsHeroModeUpgrade(*upgrade))) {
                 world_.run.expeditionMapStatus_ = "このスタイルには装備できない強化です。";
                 reject();
                 return;
@@ -967,11 +1059,14 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
         return;
     }
     if (world_.run.expeditionBuildChoice_ && !world_.run.tankRunPaused_) {
-        world_.run.expeditionMapTitle_->SetText("戦闘スタイルを選ぼう");
+        const bool heroMode = world_.run.expeditionHeroMode_;
+        world_.run.expeditionMapTitle_->SetText(heroMode ? "出撃する機体を選ぼう" : "戦闘スタイルを選ぼう");
         world_.run.expeditionMapTitle_->PrepareForDraw();
-        world_.run.expeditionMapSubtitle_->SetText("カーソルを合わせると攻撃方法を確認できます。");
+        world_.run.expeditionMapSubtitle_->SetText(heroMode ? "機体ごとに、左クリック・右クリック・Shift・E・Q の技が決まっています。"
+                                                            : "カーソルを合わせると攻撃方法を確認できます。");
         world_.run.expeditionMapSubtitle_->PrepareForDraw();
-        world_.run.tankRunDescription_->SetText("選んだスタイルに合う強化が工房に並びます。");
+        world_.run.tankRunDescription_->SetText(heroMode ? "主砲は向いている方へ自動で撃ち続けます。向きはマウスか右スティック（戦闘中に F で切り替え）。"
+                                                         : "選んだスタイルに合う強化が工房に並びます。");
         world_.run.tankRunDescription_->SetPosition({64, 209});
         world_.run.tankRunDescription_->PrepareForDraw();
         world_.expeditionBuildSelection->RefreshExpeditionBuildCards();
@@ -1069,7 +1164,7 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
         const bool reachable = world_.run.expeditionMapRun_.CanSelectNode(n.id), visited = world_.run.expeditionMapRun_.HasVisited(n.id);
         const bool selected = n.id == world_.run.expeditionMapSelection_;
         const bool intro = n.role == tankexp::NodeRole::TutorialCombat || n.role == tankexp::NodeRole::TutorialSkip;
-        const bool learning = reachable && n.role == tankexp::NodeRole::TutorialCombat;
+        const bool learning = reachable && n.role == tankexp::NodeRole::TutorialCombat && !world_.run.expeditionHeroMode_;
         const bool abandoned = !visited && !reachable && !future.contains(n.id) && current;
         auto tint = visited ? myEngine::Vector4{0.25f, 1.35f, 0.62f, 1} : NodeColor(n.kind);
         tint.w = abandoned ? 0.09f : reachable || selected ? 1.0f : visited ? 0.9f : 0.35f;
@@ -1104,7 +1199,7 @@ void ExpeditionMapController::RefreshExpeditionMapUi()
         const float captionX = intro ? (std::max)(112.0f, v.center.x) : v.center.x;
         v.label->SetPosition({captionX, v.center.y + 39});
         v.label->SetAlpha(abandoned ? 0.2f : reachable && intro ? 1.0f : 0.85f);
-        v.state->SetText(n.role == tankexp::NodeRole::TutorialCombat ? "初回プレイにおすすめ"
+        v.state->SetText(n.role == tankexp::NodeRole::TutorialCombat ? (world_.run.expeditionHeroMode_ ? "機体の説明は準備中" : "初回プレイにおすすめ")
                          : n.role == tankexp::NodeRole::TutorialSkip ? "操作を知っている人向け"
                                                                      : " ");
         v.state->SetPosition({captionX, v.center.y + 60});
@@ -1312,11 +1407,354 @@ void ExpeditionMapController::DrawExpeditionMapUi()
     world_.run.expeditionMapHelp_->Draw();
 }
 
+bool ExpeditionMapController::UpdateExpeditionHeroAutoTest()
+{
+    // 段：0 選ぶ画面を保存 → 1 機体を選ぶ → 2 マップを保存 → 3 マップを進んで最初の戦闘へ → 4 戦闘で技を使い、20秒で保存
+    // → 5 ボス戦へ移る（F7 と同じ）→ 6 ボスに技を当て、15秒で保存 → 7 結果を書いて終わる。
+    // 戦闘の間（4〜6）は偽を返し、ふつうの遠征の更新を止めない。
+    auto& run = world_.run;
+    auto& hero = *world_.expeditionHeroAbilities;
+    constexpr const char* kDirectory = "generated/expedition_hero";
+    const bool fighting = (run.expeditionHeroAutoStep_ >= 4 && run.expeditionHeroAutoStep_ <= 6) || run.expeditionHeroAutoStep_ == 10;
+    // 止まったときに見る記録（2秒ごとに上書き）：段・技の時計・戦闘中か・マップ・移り変わり・画面の保存待ち。
+    if (!run.expeditionHeroAutoReport_.is_object()) {
+        run.expeditionHeroAutoReport_ = nlohmann::json::object();
+    }
+    if (const int frame = run.expeditionHeroAutoReport_.value("frames", 0) + 1; (run.expeditionHeroAutoReport_["frames"] = frame, frame % 120 == 0)) {
+        run.expeditionHeroAutoReport_["trace"] = {{"step", run.expeditionHeroAutoStep_},
+                                                  {"clock", hero.PlayClock()},
+                                                  {"combat", run.tankExpedition_.IsCombat()},
+                                                  {"choosing", run.expeditionMapRun_.IsChoosing()},
+                                                  {"transition", run.expeditionTransition_.IsActive()},
+                                                  {"capturePending", !run.tankRunCapturePath_.empty()},
+                                                  {"menuAge", run.tankRunMenuAge_},
+                                                  {"flow", static_cast<int>(world_.combat.combatFlow_.GetState())},
+                                                  {"enemies", world_.resources.enemyManager_->GetEnemyCount()}};
+        std::ofstream(std::string(kDirectory) + "/progress.json") << std::setw(2) << run.expeditionHeroAutoReport_ << '\n';
+    }
+    // 画面の保存が終わるまで、と画面が落ち着くまでは待つ。
+    if (!run.tankRunCapturePath_.empty() || (!fighting && run.tankRunMenuAge_ < 0.8f)) {
+        return !fighting;
+    }
+    auto capture = [&](const char* name) {
+        std::filesystem::create_directories(kDirectory);
+        run.tankRunCapturePath_ = std::string(kDirectory) + "/" + name + ".png";
+    };
+    auto finish = [&](bool completed) {
+        const auto* selected = world_.expeditionBuildSelection->SelectedExpeditionHero();
+        run.expeditionHeroAutoReport_["completed"] = completed && selected != nullptr;
+        run.expeditionHeroAutoReport_["hero"] = selected ? selected->key : "";
+        run.expeditionHeroAutoReport_["style"] = tankbuild::Id(run.expeditionBuildStyle_);
+        run.expeditionHeroAutoReport_["abilities"] = hero.MakeReport();
+        run.expeditionHeroAutoReport_["bossHp"] = world_.resources.enemy_->GetHp();
+        run.expeditionHeroAutoReport_["cards"] = run.tankRun_.GetCardCounts();
+        // 工房の品ぞろえ：実際の抽選を64通りの種で引き、出た札をまとめる（機体のときは共通の札だけのはず）。
+        std::set<std::string> seen;
+        for (uint32_t seed = 1; seed <= 64; ++seed) {
+            for (const auto& id : BuildExpeditionShopOffers(seed * 2654435761u)) {
+                seen.insert(id);
+            }
+        }
+        run.expeditionHeroAutoReport_["shopSweep"] = seen;
+        run.expeditionHeroAutoReport_["endMaxHp"] = world_.resources.player_->GetMaxHp();
+        run.expeditionHeroAutoReport_["playerHp"] = world_.resources.player_->GetHp();
+        std::ofstream(std::string(kDirectory) + "/validation.json") << std::setw(2) << run.expeditionHeroAutoReport_ << '\n';
+        PostQuitMessage(completed && selected ? 0 : 4);
+        run.expeditionHeroAutoTest_ = -1;
+    };
+    // 工房：並んだ札を記録し、1回目は1枚目を買ってみる（買えなければ次で先へ）。2回目からは先へ進む。
+    auto visitShop = [&](const tankexp::MapNode& node) {
+        if (run.expeditionHeroAutoReport_.value("shopTried", "") != node.id) {
+            run.expeditionHeroAutoReport_["shopTried"] = node.id;
+            run.expeditionHeroAutoReport_["shops"].push_back({{"node", node.id},
+                                                              {"intro", IsIntroExpeditionService()},
+                                                              {"offers", run.expeditionServiceOffers_},
+                                                              {"maxHpBefore", world_.resources.player_->GetMaxHp()},
+                                                              {"currency", run.expeditionMapRun_.GetCurrency()}});
+            SelectExpeditionService(0);
+        } else {
+            SelectExpeditionService(3);
+        }
+    };
+    switch (run.expeditionHeroAutoStep_) {
+    case 0:
+        if (run.expeditionBuildChoice_) {
+            capture("hero_select");
+            run.expeditionHeroAutoStep_ = 1;
+        }
+        return true;
+    case 1:
+        world_.expeditionBuildSelection->SelectExpeditionBuildStyle(run.expeditionHeroAutoTest_);
+        run.expeditionHeroAutoStep_ = 2;
+        return true;
+    case 2:
+        if (!run.expeditionBuildChoice_ && run.expeditionMapRun_.IsChoosing()) {
+            const auto* selected = tankexp::FindMapNode(run.expeditionMapRun_.GetDefinition(), run.expeditionMapSelection_);
+            run.expeditionHeroAutoReport_ = {{"heroMode", run.expeditionHeroMode_},
+                                             {"heroes", run.expeditionHeroes_.size()},
+                                             {"buildChosen", run.expeditionBuildChosen_},
+                                             {"selectionIsTutorialSkip", selected && selected->role == tankexp::NodeRole::TutorialSkip},
+                                             {"startHp", world_.resources.player_->GetHp()},
+                                             {"startMaxHp", world_.resources.player_->GetMaxHp()}};
+            capture("hero_map");
+            run.expeditionHeroAutoStep_ = run.expeditionHeroAutoFull_ ? 10 : 3;
+            if (run.expeditionHeroAutoFull_) {
+                hero.SetBotEnabled(true);
+            }
+        }
+        return true;
+    case 10: {
+        // 通し（MYENGINE_EXPEDITION_HERO_FULL=1）：マップを最後まで進む。戦闘はボットが技を使って戦い、
+        // ふつうの部屋は12秒・ボスは30秒たったら残りを片付ける（時間を縮めるため。自機は無敵）。工房は1枚目を買ってみる。
+        auto& report = run.expeditionHeroAutoReport_;
+        report["fullFrames"] = report.value("fullFrames", 0) + 1;
+        if (run.expeditionMapRun_.IsComplete() || run.expeditionMapRun_.IsDead() || report["fullFrames"].get<int>() > 60 * 900) {
+            report["mapComplete"] = run.expeditionMapRun_.IsComplete();
+            report["mapDead"] = run.expeditionMapRun_.IsDead();
+            capture("hero_full_end");
+            run.expeditionHeroAutoStep_ = 11;
+            return false;
+        }
+        if (run.expeditionTransition_.IsActive()) {
+            return false;
+        }
+        if (run.expeditionMapRun_.IsChoosing()) {
+            if (run.tankRunMenuAge_ < 0.5f) {
+                return false;
+            }
+            std::string id, skip;
+            for (const auto& option : run.expeditionMapRun_.GetAvailableNodeIds()) {
+                const auto* n = tankexp::FindMapNode(run.expeditionMapRun_.GetDefinition(), option);
+                if (!n || n->role == tankexp::NodeRole::TutorialCombat) {
+                    continue;
+                }
+                if (n->role == tankexp::NodeRole::TutorialSkip) {
+                    skip = option;
+                } else if (id.empty()) {
+                    id = option;
+                }
+            }
+            id = !skip.empty() ? skip : id;
+            if (!id.empty()) {
+                RequestExpeditionMapNode(id);
+            }
+            return false;
+        }
+        const auto* node = run.expeditionMapRun_.GetActiveNode();
+        if (!node) {
+            return false;
+        }
+        if (tankexp::IsCombatNode(node->kind)) {
+            if (!run.tankExpedition_.IsCombat()) {
+                return false;
+            }
+            // 部屋に入った最初のフレームで記録を始める。
+            if (report.value("roomNode", "") != node->id) {
+                report["roomNode"] = node->id;
+                report["roomStart"] = hero.PlayClock();
+                report["rooms"].push_back({{"node", node->id},
+                                           {"kind", static_cast<int>(node->kind)},
+                                           {"hpAtStart", world_.resources.player_->GetHp()},
+                                           {"maxHp", world_.resources.player_->GetMaxHp()},
+                                           {"usesAtStart", hero.MakeReport()["uses"]},
+                                           {"damageAtStart", hero.MakeReport()["damageDealt"]}});
+                if (node->kind == tankexp::NodeKind::Boss) {
+                    capture("hero_full_boss");
+                }
+            }
+            const bool boss = node->kind == tankexp::NodeKind::Boss;
+            const float limit = boss ? 30.0f : 12.0f;
+            if (hero.PlayClock() - report.value("roomStart", 0.0f) > limit) {
+                for (auto* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+                    if (enemy && !enemy->IsDead()) {
+                        enemy->TakeDamageFromPlayer(100000);
+                    }
+                }
+                if (boss) {
+                    world_.resources.enemy_->TakeDamage(100000);
+                }
+            }
+            return false;
+        }
+        if (node->kind == tankexp::NodeKind::Upgrade || node->kind == tankexp::NodeKind::Evolution) {
+            visitShop(*node);
+        } else if (node->kind != tankexp::NodeKind::Currency) {
+            // 修理などは決まった1つ目、2回目からは先へ。
+            if (report.value("serviceTried", "") != node->id) {
+                report["serviceTried"] = node->id;
+                report["services"].push_back({{"node", node->id}, {"kind", static_cast<int>(node->kind)}, {"hp", world_.resources.player_->GetHp()}});
+                SelectExpeditionService(0);
+            } else {
+                SelectExpeditionService(3);
+            }
+        }
+        return false;
+    }
+    case 11:
+        run.expeditionHeroAutoReport_["finalHero"] = hero.MakeReport();
+        finish(run.expeditionHeroAutoReport_.value("mapComplete", false));
+        return true;
+    case 3: {
+        // 進み方の記録（止まったときに、どのマスで止まったかを見る）。
+        {
+            const auto* active = run.expeditionMapRun_.GetActiveNode();
+            const std::string state = std::string(run.expeditionMapRun_.IsChoosing() ? "choosing " : "active ") +
+                                      (active ? active->id + " kind=" + std::to_string(static_cast<int>(active->kind)) : "-") +
+                                      " combat=" + std::to_string(run.tankExpedition_.IsCombat());
+            if (run.expeditionHeroAutoReport_.value("lastState", "") != state) {
+                run.expeditionHeroAutoReport_["lastState"] = state;
+                run.expeditionHeroAutoReport_["route"].push_back(state);
+                std::ofstream(std::string(kDirectory) + "/progress.json") << std::setw(2) << run.expeditionHeroAutoReport_ << '\n';
+            }
+        }
+        // マップを進む：戦闘のマス（操作の説明は除く）があればそこへ、無ければ説明をスキップ、それも無ければ先頭。
+        if (run.expeditionMapRun_.IsChoosing()) {
+            const auto options = run.expeditionMapRun_.GetAvailableNodeIds();
+            std::string id, skip, other;
+            for (const auto& option : options) {
+                const auto* n = tankexp::FindMapNode(run.expeditionMapRun_.GetDefinition(), option);
+                if (!n || n->role == tankexp::NodeRole::TutorialCombat) {
+                    continue;
+                }
+                if (n->role == tankexp::NodeRole::TutorialSkip) {
+                    skip = option;
+                } else if (id.empty() && n->kind == tankexp::NodeKind::Combat) {
+                    id = option;
+                } else if (other.empty()) {
+                    other = option;
+                }
+            }
+            if (id.empty()) {
+                id = !skip.empty() ? skip : other;
+            }
+            if (!id.empty()) {
+                RequestExpeditionMapNode(id);
+            }
+            return true;
+        }
+        const auto* node = run.expeditionMapRun_.GetActiveNode();
+        if (!node) {
+            return true;
+        }
+        if (tankexp::IsCombatNode(node->kind)) {
+            if (run.tankExpedition_.IsCombat()) {
+                // MYENGINE_EXPEDITION_HERO_AUTOFIRE_ONLY=1：ボットは使わず、自機は止まったまま、自動で撃つ設定だけで撃つ（無敵）。
+                wchar_t aimOnly[4]{};
+                const bool autoFireOnly = GetEnvironmentVariableW(L"MYENGINE_EXPEDITION_HERO_AUTOFIRE_ONLY", aimOnly, 4) > 0 && aimOnly[0] == L'1';
+                run.expeditionHeroAutoReport_["autoFireOnly"] = autoFireOnly;
+                world_.presentation.debugPlayerNoDamage_ = true;
+                hero.SetBotEnabled(!autoFireOnly);
+                run.expeditionHeroAutoMark_ = hero.PlayClock();
+                run.expeditionHeroAutoStep_ = 4;
+            }
+            return false;
+        }
+        // 通貨のマス（説明をスキップを含む）は、ふつうの更新が受け取って先へ進める。
+        // 取引のマス：工房は何も買わずに先へ、ほかは決まった1つ目を選ぶ。どちらも、ふつうの更新は止めない。
+        if (node->kind == tankexp::NodeKind::Upgrade || node->kind == tankexp::NodeKind::Evolution) {
+            visitShop(*node);
+        } else if (node->kind != tankexp::NodeKind::Currency) {
+            SelectExpeditionService(0);
+        }
+        return false;
+    }
+    case 4:
+        // 止まったときに見る記録（1秒ごと）：技の時計・戦闘中か・流れ・ポーズ・自機・敵の数。
+        if (const int frame = run.expeditionHeroAutoReport_.value("step4Frames", 0) + 1; (run.expeditionHeroAutoReport_["step4Frames"] = frame, frame % 60 == 0)) {
+            run.expeditionHeroAutoReport_["step4Trace"].push_back(
+                {{"clock", hero.PlayClock()},
+                 {"combat", run.tankExpedition_.IsCombat()},
+                 {"flow", static_cast<int>(world_.combat.combatFlow_.GetState())},
+                 {"paused", run.tankRunPaused_},
+                 {"playerDead", world_.resources.player_->IsDead()},
+                 {"enemies", world_.resources.enemyManager_->GetEnemyCount()}});
+            std::ofstream(std::string(kDirectory) + "/progress.json") << std::setw(2) << run.expeditionHeroAutoReport_ << '\n';
+        }
+        // 戦闘の6秒で画面を保存し、20秒たつか、その前に部屋を片付けたら次へ。
+        if (!run.expeditionHeroAutoReport_.value("combatCaptured", false) && hero.PlayClock() - run.expeditionHeroAutoMark_ >= 6.0f) {
+            run.expeditionHeroAutoReport_["combatCaptured"] = true;
+            capture("hero_combat");
+            return false;
+        }
+        if (hero.PlayClock() - run.expeditionHeroAutoMark_ >= 20.0f ||
+            (!run.tankExpedition_.IsCombat() && hero.PlayClock() - run.expeditionHeroAutoMark_ >= 2.0f)) {
+            run.expeditionHeroAutoReport_["combat"] = hero.MakeReport();
+            run.expeditionHeroAutoStep_ = 5;
+        }
+        return false;
+    case 5:
+        // まだ部屋で戦っていれば残りの敵を片付け（数字はもう控えた）、マップに戻ってからボス戦へ移る。
+        if (run.tankExpedition_.IsCombat()) {
+            for (auto* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+                if (enemy && !enemy->IsDead()) {
+                    enemy->TakeDamageFromPlayer(100000);
+                }
+            }
+            return false;
+        }
+        // 戦闘の後、隣に工房があれば寄って、機体のときの札の抽選（導入ではない工房）を確かめてからボス戦へ。
+        if (run.expeditionHeroAutoReport_["shops"].size() < 2) {
+            if (run.expeditionMapRun_.IsChoosing()) {
+                for (const auto& option : run.expeditionMapRun_.GetAvailableNodeIds()) {
+                    const auto* n = tankexp::FindMapNode(run.expeditionMapRun_.GetDefinition(), option);
+                    run.expeditionHeroAutoReport_["afterCombatOptions"][option] = n ? static_cast<int>(n->kind) : -1;
+                    if (n && (n->kind == tankexp::NodeKind::Upgrade || n->kind == tankexp::NodeKind::Evolution)) {
+                        RequestExpeditionMapNode(option);
+                        return false;
+                    }
+                }
+            } else if (const auto* node = run.expeditionMapRun_.GetActiveNode();
+                       node && (node->kind == tankexp::NodeKind::Upgrade || node->kind == tankexp::NodeKind::Evolution)) {
+                visitShop(*node);
+                return false;
+            }
+        }
+        if (!run.expeditionMapRun_.IsChoosing() || run.expeditionTransition_.IsActive()) {
+            return false;
+        }
+        world_.bossPresentation->RequestNeonBossDeveloperEncounter();
+        run.expeditionHeroAutoMark_ = hero.PlayClock();
+        run.expeditionHeroAutoReport_["bossStartHp"] = -1;
+        run.expeditionHeroAutoStep_ = 6;
+        return false;
+    case 6:
+        // 技の時計は戦闘の間しか進まないので、待ちすぎはフレーム数で見る（約90秒）。
+        run.expeditionHeroAutoReport_["waitFrames"] = run.expeditionHeroAutoReport_.value("waitFrames", 0) + 1;
+        if (run.expeditionHeroAutoReport_["waitFrames"].get<int>() > 60 * 90) {
+            run.expeditionHeroAutoReport_["error"] = "boss did not start";
+            finish(false);
+            return false;
+        }
+        // 15秒たつ前にボスを倒したら、そこで終わる（強い組み立てでは早く倒れる）。
+        if (!hero.BossTargetActive() && run.expeditionHeroAutoReport_["bossStartHp"] != -1) {
+            run.expeditionHeroAutoReport_["bossDefeatedEarly"] = hero.PlayClock() - run.expeditionHeroAutoMark_;
+            run.expeditionHeroAutoStep_ = 7;
+            return false;
+        }
+        if (hero.BossTargetActive() && run.expeditionHeroAutoReport_["bossStartHp"] == -1) {
+            run.expeditionHeroAutoReport_["bossStartHp"] = world_.resources.enemy_->GetHp();
+            run.expeditionHeroAutoMark_ = hero.PlayClock();
+        }
+        if (hero.BossTargetActive() && hero.PlayClock() - run.expeditionHeroAutoMark_ >= 15.0f) {
+            capture("hero_boss");
+            run.expeditionHeroAutoStep_ = 7;
+        } else if (hero.PlayClock() - run.expeditionHeroAutoMark_ >= 60.0f) {
+            run.expeditionHeroAutoReport_["error"] = "boss did not start";
+            finish(false);
+        }
+        return false;
+    default:
+        finish(true);
+        return true;
+    }
+}
+
 void ExpeditionMapController::UpdateExpeditionMap(float dt)
 {
     if (world_.combat.phase_ != Phase::kMain) {
         return;
     }
+    world_.expeditionOverdrive->UpdatePresentation(dt);
     if (world_.specialValidation->UpdateSpecialValidation(dt)) {
         return;
     }
@@ -1344,6 +1782,10 @@ void ExpeditionMapController::UpdateExpeditionMap(float dt)
     world_.run.tankRunAutoTime_ += dt;
     if (world_.run.expeditionMapAutoTest_) {
         UpdateExpeditionMapValidation(dt);
+    }
+    if (world_.run.expeditionHeroAutoTest_ >= 0 && UpdateExpeditionHeroAutoTest()) {
+        world_.expeditionController->RefreshTankExpeditionUi();
+        return;
     }
     if (myEngine::kDeveloperTools && Press(world_.resources.input_, DIK_F10)) {
         world_.arenaRunController->RequestTankRunCapture("map_manual");
@@ -1614,7 +2056,7 @@ void ExpeditionMapController::UpdateExpeditionMap(float dt)
             !world_.run.expeditionGuideActive_ || world_.run.expeditionGuide_.IsCombatReadyToClear() || world_.run.expeditionMapAutoTest_;
         const auto kind = world_.run.tankExpedition_.GetRoomKind();
         if (ready && kind != tankexp::RoomKind::Boss && ThreatCount(world_.resources.enemyManager_.get()) == 0 &&
-            (kind != tankexp::RoomKind::Guard || world_.run.tankExpeditionNodes_ >= 3)) {
+            world_.expeditionOverdrive->WavesFinished() && (kind != tankexp::RoomKind::Guard || world_.run.tankExpeditionNodes_ >= 3)) {
             const auto* cleared = world_.run.expeditionMapRun_.GetActiveNode();
             // 完了演出より先に報酬通貨を一度だけ生成し、残る通貨の回収中は戦闘を停止する。
             if (!world_.run.expeditionClearRewardQueued_) {
@@ -1636,6 +2078,8 @@ void ExpeditionMapController::UpdateExpeditionMap(float dt)
         }
         world_.run.tankExpedition_.Update(dt);
         world_.run.tankRun_.Update(dt);
+        world_.expeditionOverdrive->UpdateCombat(dt);
+        world_.expeditionBossDirector->Update(dt);
         world_.run.tankExpeditionArrival_ += dt;
         world_.run.tankRunComboTime_ = (std::max)(0.0f, world_.run.tankRunComboTime_ - dt);
         for (auto& burst : world_.run.tankRunBursts_) {
@@ -1726,6 +2170,45 @@ void ExpeditionMapController::UpdateExpeditionMapValidation(float dt)
         return;
     }
     if (tankexp::IsCombatNode(node->kind)) {
+        // MYENGINE_TANK_MAP_BOSS_SOAK=秒：ボスをすぐ倒さず、その秒数だけ新しい攻撃を受け続けて、撮影と数の記録をする（開発用）。
+        char soakText[16]{};
+        const float soak = node->kind == NK::Boss && GetEnvironmentVariableA("MYENGINE_TANK_MAP_BOSS_SOAK", soakText, sizeof(soakText)) > 0
+                               ? static_cast<float>(std::atof(soakText))
+                               : 0.0f;
+        if (soak > 0.0f && world_.run.expeditionMapTestAge_ <= soak) {
+            world_.resources.player_->HealRunPlayer(1000);
+            auto& boss = *world_.resources.enemy_;
+            // 前半の一部は自機をボスの近く（刃の届く距離）に置き、回転切りが選ばれて当たるかを確かめる。
+            if (world_.run.expeditionMapTestAge_ > soak * 0.15f && world_.run.expeditionMapTestAge_ < soak * 0.4f) {
+                const auto core = boss.GetWorldPosition();
+                for (const float angle : {0.0f, 1.57f, 3.14f, 4.71f}) {
+                    const myEngine::Vector3 closeSpot{core.x + std::cos(angle) * 4.5f, core.y + std::sin(angle) * 4.5f, 0.0f};
+                    if (!world_.resources.stage_->IsCollisionWithAnyBlock(closeSpot, 1.2f)) {
+                        world_.resources.player_->SetWorldPosition(closeSpot);
+                        break;
+                    }
+                }
+            }
+            if (world_.run.expeditionMapTestAge_ > soak * 0.5f && !world_.expeditionBossDirector->IsPhaseTwo() && !boss.IsDead()) {
+                boss.TakeDamage(static_cast<uint32_t>((std::max)(1, boss.GetHp() - boss.GetMaxHp() * 2 / 5)));
+            }
+            const std::string state = world_.expeditionBossDirector->DebugStateName();
+            if (!state.empty() && std::find(world_.run.expeditionMapTestVisited_.begin(), world_.run.expeditionMapTestVisited_.end(),
+                                            "boss_" + state) == world_.run.expeditionMapTestVisited_.end()) {
+                world_.run.expeditionMapTestVisited_.push_back("boss_" + state);
+                world_.run.tankRunCapturePath_ = "generated/expedition_map/boss_" + state + ".png";
+            }
+            const auto& stats = world_.expeditionBossDirector->GetStats();
+            nlohmann::json soakReport = {{"age", world_.run.expeditionMapTestAge_}, {"phaseTwo", world_.expeditionBossDirector->IsPhaseTwo()},
+                                         {"bossHp", boss.GetHp()},       {"spins", stats.spins},
+                                         {"summons", stats.summons},     {"gatlings", stats.gatlings},
+                                         {"homings", stats.homings},     {"spinHits", stats.spinHits}, {"spinContacts", stats.spinContacts}, {"playerHits", world_.resources.player_->GetDamageTakenCount()},
+                                         {"bullets", stats.bullets},     {"orbs", stats.orbs},
+                                         {"orbHits", stats.orbHits},     {"orbWalls", stats.orbWalls},
+                                         {"summoned", stats.summoned},   {"summonExpired", stats.summonExpired}};
+            std::ofstream("generated/expedition_map/boss_soak.json") << std::setw(2) << soakReport << '\n';
+            return;
+        }
         if (world_.run.expeditionMapTestAge_ > 2.0f) {
             for (auto* e : world_.resources.enemyManager_->GetEnemyPtrs()) {
                 if (e && !e->IsDead()) {

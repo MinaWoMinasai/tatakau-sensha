@@ -38,6 +38,8 @@ public:
         uint64_t chainHits = 0, detonations = 0, burstTriggers = 0, burstChildren = 0, returns = 0, reflections = 0;
         uint64_t burstRepeats = 0; // 連鎖崩壊で破裂子弾がもう一度破裂した回数
         uint64_t impactBlasts = 0; // 試作の榴弾砲で、当たった場所が爆発した回数
+        uint64_t bulletBlasts = 0; // 弾ごとの爆発（機体のロケット）が起きた回数
+        uint64_t bulletBlastKills = 0; // 弾ごとの爆発を持つ弾（直撃と爆発）で倒した数
     };
 
     /// @brief 撃破時の破裂の子弾が、敵を倒したときにもう一度破裂できる回数を設定する（育つ戦車の試作の連鎖崩壊）。既定は0。

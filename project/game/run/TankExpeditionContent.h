@@ -104,7 +104,9 @@ inline constexpr std::array<const char*, tankrun::CardCount> kEffectIds{"Ricoche
                                                                         "HeavyBladeEdge",   "ChainLightning", "MarkDetonation",
                                                                         "BoomerangShell",   "KillBurst",      "DroneCharge",
                                                                         "DroneRebuildBomb", "TargetPainter",  "AutonomousSpread",
-                                                                        "DashSlash",        "SpinBlade",      "WallSmash"};
+                                                                        "DashSlash",        "SpinBlade",      "WallSmash",
+                                                                        "ThermalNova",      "ChainDetonation", "NovaBarrage",
+                                                                        "Overclock",        "Singularity"};
 inline constexpr std::array<const char*, tankrun::CardCount> kEffectNames{"壁反射",         "攻撃力",
                                                                           "攻撃速度",       "推進器",
                                                                           "蓄電池",         "装甲修復",
@@ -125,7 +127,10 @@ inline constexpr std::array<const char*, tankrun::CardCount> kEffectNames{"壁�
                                                                           "撃破バースト",   "突撃ドローン",
                                                                           "自爆再構築",     "ターゲットペインター",
                                                                           "自律分散モード", "ダッシュ斬り",
-                                                                          "回転ブレード",   "壁砕き"};
+                                                                          "回転ブレード",   "壁砕き",
+                                                                          "熱核解放",       "誘爆コア",
+                                                                          "全方位斉射",     "臨界駆動",
+                                                                          "重力崩壊"};
 inline constexpr std::array<const char*, 14> kBehaviorIds{"Square",     "Triangle",          "Pentagon",  "Shooter",     "Charger",
                                                           "Sniper",     "Skirmisher",        "Flanker",   "Suppressor",  "ShieldGuard",
                                                           "BladeGuard", "SummonerCommander", "EMPJammer", "ReflectArmor"};
@@ -224,6 +229,7 @@ inline unsigned EffectStyles(tankrun::CardId effect)
     case C::Ricochet:
     case C::Pierce:
     case C::Homing:
+    case C::Overclock:
         return 3;
     case C::Drones:
     case C::DroneFocus:
@@ -329,12 +335,31 @@ inline bool IsBehaviorUpgrade(const Upgrade& upgrade)
         case C::DashSlash:
         case C::SpinBlade:
         case C::WallSmash:
+        case C::ThermalNova:
+        case C::ChainDetonation:
+        case C::NovaBarrage:
+        case C::Overclock:
+        case C::Singularity:
             return true;
         default:
             break;
         }
     }
     return false;
+}
+
+/// @brief 機体で遊ぶとき（計画書 p5 の H4）にショップへ出す札か。今は全機体に効く共通のものだけにする
+/// （戦い方専用の札は機体の主武器や技と合わず、ダッシュ・ジャスト回避の札は機体ではダッシュが無いので効かない。機体専用の札は後で足す）。
+inline bool IsHeroModeUpgrade(const Upgrade& upgrade)
+{
+    using C = tankrun::CardId;
+    constexpr std::array<C, 5> allowed{C::Heavy, C::Rapid, C::Thrusters, C::Repair, C::ChainDetonation};
+    for (const auto effect : upgrade.effects) {
+        if (std::find(allowed.begin(), allowed.end(), effect) == allowed.end()) {
+            return false;
+        }
+    }
+    return !upgrade.effects.empty();
 }
 
 /// @brief Shop候補を組み立てる。
@@ -464,7 +489,12 @@ inline Catalog DefaultCatalog()
         "各ドローンが別の近い敵を狙う。\n左クリック中に自動で分散。\n1発の威力-18%。",
         "ダッシュ中の攻撃が突進斬りになる。\n通った敵に近接の1.2倍の威力。\n続けて2段目・3段目につながる。",
         "3段目の後も押し続けると回転斬り。\nスタミナ1で0.8秒、全方向を4回攻撃。\n移動速度低下。パリィブレード所持で弱い弾も切る。",
-        "吹き飛ばした敵が壁で衝撃波を起こす。\n追加威力は近接の1.75倍 / 半径2.8。\n周囲の敵にも40%の威力。"};
+        "吹き飛ばした敵が壁で衝撃波を起こす。\n追加威力は近接の1.75倍 / 半径2.8。\n周囲の敵にも40%の威力。",
+        "オーバーヒートした瞬間、周りを焼き尽くす大爆発。\n半径7.5 / 攻撃の10倍。\n代償：熱 +50%、オーバーヒート +0.8秒。",
+        "倒した敵が爆発し、周りの敵を巻き込んで連鎖する。\n半径3.4 / 攻撃の2.4倍。\n代償：爆発は自分も傷つけ、1回ごとに熱 +4。",
+        "攻撃4回ごとに、全方向へ16発の弾幕を放つ。\n1発は攻撃の70%、敵1体を貫通。\n代償：弾幕ごとに熱 +12、移動 -15%。",
+        "熱が高いほど主砲の威力が上がる（最大 +100%）。\n熱70%以上で倒すと周りに衝撃波。\n代償：冷える速さ -40%、過熱中は移動 -45%。",
+        "ダッシュの始めに周りの敵を吸い寄せ、\n0.4秒後にその場で大爆発（攻撃の5倍）。\n代償：ダッシュごとに熱 +38。過熱中は出ない。"};
     for (std::size_t i = 0; i < kEffectIds.size(); ++i) {
         if (!tankrun::IsAvailableCard(static_cast<tankrun::CardId>(i)) || static_cast<tankrun::CardId>(i) == tankrun::CardId::MeleeBlade) {
             continue;
@@ -490,6 +520,9 @@ inline Catalog DefaultCatalog()
         if (effect == tankrun::CardId::DroneRebuildBomb || effect == tankrun::CardId::AutonomousSpread ||
             effect == tankrun::CardId::WallSmash) {
             u.rarity = 4;
+        }
+        if (effect >= tankrun::CardId::ThermalNova) {
+            u.rarity = 3;
         }
         u.price = u.rarity == 4 ? 78 : u.rarity == 3 ? 58 : u.rarity == 2 ? 42 : u.rarity == 1 ? 28 : 24;
         u.compatibleStyles = EffectStyles(effect);

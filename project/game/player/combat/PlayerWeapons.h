@@ -69,6 +69,8 @@ public:
     void FireRailShot(BulletManager* bullets, float charge, float power);
     /// @brief 排熱砲の弾を1発撃つ。威力は 主砲1発 × heat × damagePerHeat。熱が多いほど太く、多くの敵を貫く。
     void FireHeatVent(BulletManager* bullets, float heat, float damagePerHeat);
+    /// @brief 機体の技の弾を1発撃つ（ロケット・弾幕）。熱は使わない。
+    void FireSurvivorShot(BulletManager* bullets, const Player::SurvivorShot& shot);
 
     /// @brief 遠征の初期射撃装備へ追加砲身・扇状配置・交互射撃の補正を反映し、必要なら描画装備を作り直す。
     void RefreshAdditiveArmaments();

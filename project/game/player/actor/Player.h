@@ -506,6 +506,18 @@ public:
         return demoInputEnabled_;
     }
 
+    /// @brief 自動で撃つ（遠征の機体、計画書 p6 の HoloCure の感想から）。有効なら、左クリックを押さなくても、向いている方へ主砲を撃ち続ける
+    /// （撃つ間隔と熱はふつうのまま）。向きはふつうどおりマウスか右スティックで決め、右スティックを離している間は動いている方を向く。
+    void SetAutoFire(bool enabled)
+    {
+        autoFireEnabled_ = enabled;
+    }
+    /// @brief 自動で撃っているか。
+    bool IsAutoFiring() const
+    {
+        return autoFireEnabled_;
+    }
+
     /// @brief デモ用の移動・ワールド座標の照準・射撃・ダッシュ入力を設定する。
     /// @note 有効にすると進化画面を閉じ、部屋移動後の入力解放待ちを解除する。
     void SetDemoInput(bool enabled, const myEngine::Vector2& move, const myEngine::Vector3& aimWorld, bool shoot, bool dash)
@@ -648,6 +660,151 @@ public:
     {
         shiftDashEnabled_ = enabled;
     }
+    /// @brief 移動の速さに掛ける倍率（育つ戦車の試作の機体の「走る」）。既定は1。
+    void SetSurvivorMoveScale(float scale)
+    {
+        survivorMoveScale_ = (std::max)(0.0f, scale);
+    }
+    float GetSurvivorMoveScale() const
+    {
+        return survivorMoveScale_;
+    }
+
+    /// @brief 機体の遊び方の体力の決まり（計画書 p4 の H6・H7）。enabled なら被弾の後の無敵時間を使わず、
+    /// 1回の被弾・1秒に受ける量・同じ相手から当たる間隔に上限を付け、受けたダメージの一部を「傷」にする。
+    struct SurvivorDamageRules {
+        bool enabled = false;
+        /// @brief 1回の被弾の上限（最大HPに対する割合）。
+        float maxHitRatio = 0.2f;
+        /// @brief 1秒に受けるダメージの上限（最大HPに対する割合）。
+        float maxPerSecondRatio = 0.3f;
+        /// @brief 同じ相手から当たる間隔（秒）。
+        float sameSourceSeconds = 0.5f;
+        /// @brief 受けたダメージのうち、傷になる割合（治すまで HP はそこまでしか戻らない）。
+        float woundRatio = 0.3f;
+    };
+    /// @brief 体力の決まりを入れ、傷と上限の記録を0に戻す。
+    void ConfigureSurvivorDamageRules(const SurvivorDamageRules& rules);
+    /// @brief source（当たり判定の id）から amount の被弾。同じ相手から当たる間隔を見る（体力の決まりが無効なら TakeDamage と同じ）。
+    void TakeSurvivorHit(uint64_t source, uint32_t amount);
+    /// @brief 今の傷（HP の上限から引かれる量）。
+    int GetSurvivorWound() const
+    {
+        return static_cast<int>(survivorWound_);
+    }
+    /// @brief 体力の決まりを通った最後の被弾の相手の名前（死因。機体の遊び方だけ記録する）。
+    const std::string& GetSurvivorLastHit() const
+    {
+        return survivorLastHit_;
+    }
+    /// @brief 機体の遊び方で、実際に戻った HP の合計（記録用）。
+    uint64_t GetSurvivorHealed() const
+    {
+        return survivorHealed_;
+    }
+    /// @brief 傷を全部治す（ショップの修理）。
+    void ClearSurvivorWound()
+    {
+        survivorWound_ = 0.0f;
+    }
+    /// @brief 体力の決まりを通った被弾の合計（無敵の自動確認でも数える）、上限で削った量、当たった回数、間隔で弾いた回数。
+    uint64_t GetSurvivorDamageTaken() const
+    {
+        return survivorDamageTaken_;
+    }
+    uint64_t GetSurvivorDamageCapped() const
+    {
+        return survivorDamageCapped_;
+    }
+    uint32_t GetSurvivorHits() const
+    {
+        return survivorHits_;
+    }
+    uint32_t GetSurvivorSameSourceBlocked() const
+    {
+        return survivorSameSourceBlocked_;
+    }
+    /// @brief 最大HPを hp にする（機体の最大HP。0 なら元の値に戻す）。heal なら満タンにし、そうでなければ今の HP を保つ。
+    void SetSurvivorMaxHp(int hp, bool heal = true);
+    /// @brief 傷を amount だけ治す（回復の場のパークや、自分を回復の3段目）。
+    void ReduceSurvivorWound(float amount)
+    {
+        survivorWound_ = (std::max)(0.0f, survivorWound_ - amount);
+    }
+    /// @brief 機体の「消える移動」：seconds 秒、敵・敵の弾・床の危険に触れても押されず、傷つかない。
+    void StartSurvivorPhase(float seconds)
+    {
+        survivorPhaseTimer_ = (std::max)(survivorPhaseTimer_, seconds);
+        survivorPhaseTouched_.clear();
+    }
+
+    bool IsSurvivorPhased() const
+    {
+        return survivorPhaseTimer_ > 0.0f;
+    }
+
+    /// @brief 消える移動の間に、すり抜けた敵・敵の弾・床の危険の数（同じ相手は1回の移動で1回だけ数える）。
+    uint32_t GetSurvivorPhaseAvoided() const
+    {
+        return survivorPhaseAvoided_;
+    }
+
+    /// @brief 機体の遊び方の共通パーク（計画書 p8 の F4）：会心の確率と倍率、技の弾と爆発の大きさの倍率。既定では何も変えない。
+    struct SurvivorPerkEffects {
+        float critChance = 0.0f;
+        float critScale = 2.0f;
+        float areaScale = 1.0f;
+    };
+    void SetSurvivorPerkEffects(const SurvivorPerkEffects& effects)
+    {
+        survivorPerkEffects_ = effects;
+    }
+    const SurvivorPerkEffects& GetSurvivorPerkEffects() const
+    {
+        return survivorPerkEffects_;
+    }
+    /// @brief 会心を引く。出たら critScale を返して数え、出なければ1（確率が0なら乱数を引かない）。
+    float RollSurvivorCrit();
+    /// @brief パークの会心が出た回数（自動確認用）。
+    uint32_t GetSurvivorCrits() const
+    {
+        return survivorCrits_;
+    }
+    /// @brief 反応装甲：ready なら、次の当たりを1回だけ防ぐ（防いだら0.5秒の無敵）。
+    void SetSurvivorGuardReady(bool ready)
+    {
+        survivorGuardReady_ = ready;
+    }
+    bool IsSurvivorGuardReady() const
+    {
+        return survivorGuardReady_;
+    }
+    uint32_t GetSurvivorGuardBlocks() const
+    {
+        return survivorGuardBlocks_;
+    }
+    /// @brief 予備の動力：count 回、倒れる当たりで HP を最大の hpRatio 倍にして立ち直る（2秒の無敵）。
+    void SetSurvivorRevives(int count, float hpRatio)
+    {
+        survivorRevives_ = (std::max)(0, count);
+        survivorReviveHp_ = hpRatio;
+    }
+    int GetSurvivorRevives() const
+    {
+        return survivorRevives_;
+    }
+    uint32_t GetSurvivorRevivesUsed() const
+    {
+        return survivorRevivesUsed_;
+    }
+    /// @brief 立ち直った直後なら真を返し、偽に戻す（演出を一度だけ出す）。
+    bool ConsumeSurvivorRevived()
+    {
+        const bool revived = survivorRevived_;
+        survivorRevived_ = false;
+        return revived;
+    }
+
     /// @brief 自動操作で、右クリック（形態の技）を押し続けているかを渡す。
     void SetDemoSpecialHold(bool held)
     {
@@ -682,8 +839,41 @@ public:
     /// @return 放った熱。弾を撃てなかったら（弾の管理が無いなど）0 で、熱も減らさない。
     /// @note オーバーヒート中でも使え、熱を0に戻すので、オーバーヒートも解ける。
     float FireSurvivorHeatVent(float damagePerHeat);
+    /// @brief 機体の技の弾（ロケット・弾幕）。威力と弾速は今の主砲1発に対する倍率。
+    struct SurvivorShot {
+        myEngine::Vector3 direction{1.0f, 0.0f, 0.0f};
+        float damageScale = 1.0f;
+        float speedScale = 1.0f;
+        /// @brief 弾の大きさと軌跡の太さの倍率（0.5〜2）。
+        float size = 1.0f;
+        /// @brief 当たった場所の爆発（半径0なら無し）と、当たった敵・まわりの敵への倍率。
+        float blastRadius = 0.0f;
+        float blastCenter = 1.0f;
+        float blastSplash = 0.8f;
+        int pierce = 0;
+        /// @brief 敵の弾とぶつかったときの弾の耐久（0 なら今の主砲のまま）。大きいほど敵の弾を多く貫く。
+        float bulletHp = 0.0f;
+        /// @brief 当たった敵を燃やす毎秒の威力（主砲1発に対する倍率。0 なら燃やさない）と秒。
+        float burnScale = 0.0f;
+        float burnSeconds = 0.0f;
+        /// @brief 弾と軌跡の色（A が0なら今の主砲の色）。
+        myEngine::Vector4 color{0.0f, 0.0f, 0.0f, 0.0f};
+        /// @brief 真なら、自機ではなく origin から撃つ（副武器の随伴機。計画書 p8 の F3）。
+        bool useOrigin = false;
+        myEngine::Vector3 origin{};
+    };
+    /// @brief 機体の技の弾を1発撃つ。熱は使わない。撃てたら真（弾の管理先が無ければ偽）。
+    bool FireSurvivorShot(const SurvivorShot& shot);
     /// @brief 自機の位置で爆発を起こす（緊急放出）。威力は 主砲1発 × damageScale。衝撃放電と同じ爆発の仕組みを使う。
     void TriggerSurvivorBlast(float radius, float damageScale);
+    /// @brief 指定位置で爆発を起こす（遠征の派手な強化）。威力は 主砲1発 × damageScale。fuse 秒後に敵へ当たる。
+    void TriggerBlastAt(const myEngine::Vector3& position, float radius, float damageScale, const myEngine::Vector4& color,
+                        float fuse = 0.06f);
+    /// @brief 熱を amount だけ足す（遠征の強化の代償）。熱が無効なら何もしない。
+    void AddHeat(float amount)
+    {
+        heat_.AddHeat(amount);
+    }
 
     /// @brief 育つ戦車の試作の部品による、撃ち方・守りの挙動の変化。既定では何も変えない。
     struct SurvivorPartEffects {
@@ -1168,6 +1358,41 @@ private:
     int survivorRounds_ = -1;
     int survivorRailCost_ = 1;
     bool survivorFireLocked_ = false;
+    // 機体の「走る」の間の、移動の速さの倍率。
+    float survivorMoveScale_ = 1.0f;
+    // 機体の遊び方の体力の決まりと、傷・時計・最近当たった相手（id と時刻）・最近1秒の被弾（時刻と量）・記録。
+    SurvivorDamageRules survivorDamageRules_{};
+    float survivorWound_ = 0.0f;
+    float survivorClock_ = 0.0f;
+    uint64_t survivorDamageSource_ = 0;
+    // 今受けている被弾の相手の名前（OnCollision と ReceiveHostileHazard が入れる）と、通った最後の被弾の相手の名前。
+    std::string survivorPendingHit_;
+    std::string survivorLastHit_;
+    uint64_t survivorHealed_ = 0;
+    std::vector<std::pair<uint64_t, float>> survivorRecentSources_;
+    std::vector<std::pair<float, uint32_t>> survivorRecentDamage_;
+    uint64_t survivorDamageTaken_ = 0;
+    uint64_t survivorDamageCapped_ = 0;
+    uint32_t survivorHits_ = 0;
+    uint32_t survivorSameSourceBlocked_ = 0;
+    int survivorMaxHp_ = 0;
+    /// @brief 体力の決まりで amount を削る（同じ相手の間隔・1回の上限・1秒の上限）。当たらないなら0。
+    uint32_t LimitSurvivorDamage(uint32_t amount);
+    // 機体の「消える移動」の残りの秒・すり抜けた数・今の移動ですり抜けた相手。
+    float survivorPhaseTimer_ = 0.0f;
+    uint32_t survivorPhaseAvoided_ = 0;
+    // 共通パーク（計画書 p8 の F4）：会心・大きさ、反応装甲、予備の動力の残りと立ち直る HP の割合、記録。
+    SurvivorPerkEffects survivorPerkEffects_{};
+    uint32_t survivorCrits_ = 0;
+    bool survivorGuardReady_ = false;
+    uint32_t survivorGuardBlocks_ = 0;
+    int survivorRevives_ = 0;
+    float survivorReviveHp_ = 0.5f;
+    uint32_t survivorRevivesUsed_ = 0;
+    bool survivorRevived_ = false;
+    std::vector<uint64_t> survivorPhaseTouched_;
+    /// @brief 消える移動の間なら、すり抜けた相手を数えて真を返す（id 0 は床の危険）。
+    bool AvoidBySurvivorPhase(uint64_t id);
     SurvivorPartEffects partEffects_{};
     float loaderRamp_ = 0.0f;
     uint32_t critShots_ = 0;
@@ -1276,6 +1501,8 @@ private:
     std::string runStarterBranch_ = "Twin";
     PlayerClassConfig runStarterConfig_{};
     bool demoInputEnabled_ = false, demoShoot_ = false, demoDash_ = false;
+    // 自動で撃つ（SetAutoFire）。
+    bool autoFireEnabled_ = false;
     myEngine::Vector2 demoMove_{};
     myEngine::Vector3 demoAim_{};
     myEngine::Vector3 runAimWorld_{};

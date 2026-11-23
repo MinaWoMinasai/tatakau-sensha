@@ -34,6 +34,8 @@ void BossPresentation::UpdateNeonBossVisual(float deltaTime)
     input.damageFeedback = world_.resources.enemy_->GetDamageFeedbackRatio();
     input.depthEncounter = world_.resources.enemy_->IsNeonDepthEncounterEnabled();
     input.depth = world_.resources.enemy_->GetNeonDepthSnapshot();
+    // 遠征のネオンボスは攻撃を ExpeditionBossDirector が行うので、ポーズもその攻撃に合わせる。
+    world_.expeditionBossDirector->OverrideVisual(input.depth);
     const auto rival = world_.resources.enemy_->GetRivalCombatStatus();
     BossVisualBridgeInput bridgeInput;
     bridgeInput.encounterGeneration = world_.resources.enemy_->GetEncounterGeneration();
@@ -81,11 +83,6 @@ void BossPresentation::DrawNeonBossVisual()
     }
 }
 
-#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-namespace {
-constexpr const char* kBossCaptureDirectory = "generated/neon_boss_gameplay";
-}
-
 void BossPresentation::RequestNeonBossDeveloperEncounter()
 {
     if (world_.demo.titleDemo_ || !world_.run.expeditionMapEnabled_ || world_.combat.phase_ == Phase::kFadeOut ||
@@ -113,6 +110,7 @@ void BossPresentation::StartNeonBossDeveloperEncounter()
             "Developer encounter requires a living player; restart from the result screen.");
         return;
     }
+    world_.combat.screenEffectDirector_.SetUpgradeMenuOpen(false);
     // 作成済みのボス部屋を、メモリ上の1ノードだけのランへコピーする。通常の
     // 部屋への入場・出現の経路を使い、プレイヤーのマップや部屋定義は上書き保存しない。
     const auto& definition = world_.run.expeditionMapRun_.GetDefinition();
@@ -151,15 +149,21 @@ void BossPresentation::StartNeonBossDeveloperEncounter()
     world_.run.expeditionMapPreview_ = false;
     world_.run.tankExpeditionBalanceEditorOpen_ = world_.run.expeditionRoomEditorOpen_ = world_.run.expeditionMapEditorOpen_ =
         world_.run.expeditionContentEditorOpen_ = false;
-    world_.presentation.developerBloomFreeze_ = world_.resources.neonBossDeveloperFreeze_ = false;
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    world_.presentation.developerBloomFreeze_ = false;
+#endif
+    world_.resources.neonBossDeveloperFreeze_ = false;
     world_.run.expeditionTransition_ = {};
     world_.run.expeditionCollectAll_ = false;
     world_.combat.combatFlow_.Reset();
     world_.combat.bossDefeatHandled_ = false;
     world_.run.tankRunMenuAge_ = 1;
     world_.expeditionMapController->EnterExpeditionMapNode(node.id);
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+    // 開発用の構成では、見た目の確認のために自機を無敵にする。講評会の Release ではふつうに被弾する。
     world_.presentation.debugPlayerNoDamage_ = true;
     world_.resources.player_->SetDebugNoDamage(true);
+#endif
     if (world_.resources.neonBossAutoTest_) {
         world_.run.tankExpeditionMusicEnabled_ = world_.run.tankExpeditionEffectsEnabled_ = false;
         world_.run.tankExpeditionAudio_.SetMusicVolume(0);
@@ -175,6 +179,19 @@ void BossPresentation::StartNeonBossDeveloperEncounter()
     world_.resources.neonBossVisualEnabled_ = true;
     UpdateNeonBossVisual(0);
     world_.expeditionController->RefreshTankExpeditionUi();
+}
+
+void BossPresentation::UpdateNeonBossQuickStart()
+{
+    if (world_.resources.neonBossDeveloperStartPending_ && world_.combat.phase_ == Phase::kMain) {
+        world_.resources.neonBossDeveloperStartPending_ = false;
+        StartNeonBossDeveloperEncounter();
+    }
+}
+
+#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+namespace {
+constexpr const char* kBossCaptureDirectory = "generated/neon_boss_gameplay";
 }
 
 nlohmann::json BossPresentation::MakeNeonBossMetadata() const

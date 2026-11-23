@@ -21,15 +21,14 @@ public:
     void DrawNeonBossDeveloperTools();
 #endif
 
-#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    /// @brief 開発者用のボス戦の開始を予約する。
+    /// @brief ボス戦への移動（F7）を予約する。講評会の Release でも使う。
     void RequestNeonBossDeveloperEncounter();
-#endif
 
-#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    /// @brief 開発者用のボス戦を開始する。
+    /// @brief ボス戦へ移る。開発用の構成では自機を無敵にし、それ以外ではふつうに被弾する。
     void StartNeonBossDeveloperEncounter();
-#endif
+
+    /// @brief 予約したボス戦への移動を、戦闘中の画面になったら行う（開発用の検証を持たない構成で使う）。
+    void UpdateNeonBossQuickStart();
 
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     /// @brief 開発者用のボス表示の検証を進める。

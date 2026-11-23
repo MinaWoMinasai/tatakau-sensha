@@ -167,8 +167,9 @@ private:
     std::array<Cell, kColumns * kRows> gridCells_;
     std::array<std::unique_ptr<myEngine::Sprite>, 4> tabPanels_;
     std::array<std::unique_ptr<myEngine::TextLabel>, 4> tabLabels_;
-    std::array<std::unique_ptr<myEngine::Sprite>, 3> buttonPanels_;
-    std::array<std::unique_ptr<myEngine::TextLabel>, 3> buttonLabels_;
+    // ボタンは2列に4つまで（左上・右上・左下・右下の順）。
+    std::array<std::unique_ptr<myEngine::Sprite>, 4> buttonPanels_;
+    std::array<std::unique_ptr<myEngine::TextLabel>, 4> buttonLabels_;
     std::unique_ptr<myEngine::Sprite> hoverMark_;
     bool showHoverMark_ = false;
     std::unique_ptr<myEngine::Sprite> ghost_;

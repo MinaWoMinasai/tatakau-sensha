@@ -86,10 +86,13 @@ void SurvivorRunController::UpdateLoot(float dt)
     }
 
     // 袋の一行。文字が変わったときだけ作り直す。
+    // 機体の遊び方ではお金が欠片ごとに細かく増えるので、0.5秒に1回まで（文字が変わるたびに文字の画像が増えて解放されないため）。
+    lootTextWait_ = (std::max)(0.0f, lootTextWait_ - dt);
     const std::string bag = DescribeBag();
-    if (lootText_ && bag != lootTextShown_) {
+    if (lootText_ && bag != lootTextShown_ && (!HeroMode() || lootTextWait_ <= 0.0f)) {
         lootText_->SetText(bag);
         lootTextShown_ = bag;
+        lootTextWait_ = 0.5f;
     }
 }
 
@@ -131,6 +134,11 @@ std::string SurvivorRunController::DescribeChips(const survivor::BaseWeapon& own
 std::string SurvivorRunController::DescribeBag() const
 {
     std::ostringstream text;
+    // 機体の遊び方では、お金はレベルポイントで、素材・チップ・武器は落ちない。
+    if (HeroMode()) {
+        text << "レベルポイント " << bag_.money;
+        return text.str();
+    }
     text << "お金 " << bag_.money << "　　素材 四角 " << bag_.materials[0] << "・三角 " << bag_.materials[1] << "・五角 " << bag_.materials[2]
          << "・ボス " << bag_.materials[3] << "　　チップ " << bag_.chips.size() << "　　武器 " << bag_.weapons.size();
     return text.str();

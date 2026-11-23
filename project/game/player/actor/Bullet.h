@@ -157,6 +157,41 @@ public:
         colorOverride_ = color;
     }
 
+    /// @brief 敵に当たった場所で爆発する弾にする（育つ戦車の試作の機体のロケット）。radius が0なら爆発しない（既定）。
+    /// @param centerScale 当たった敵に足す威力の倍率（弾の威力に対する）。splashScale はまわりの敵への倍率。
+    void ConfigureBlast(float radius, float centerScale, float splashScale)
+    {
+        blastRadius_ = (std::max)(0.0f, radius);
+        blastCenter_ = centerScale;
+        blastSplash_ = splashScale;
+    }
+    float GetBlastRadius() const
+    {
+        return blastRadius_;
+    }
+    /// @brief 当たった敵を燃やす弾にする（計画書 p7 の E5。拡散連射の覚醒）。damagePerSecond が0なら燃やさない（既定）。
+    void ConfigureBurn(float damagePerSecond, float seconds)
+    {
+        burnDamagePerSecond_ = (std::max)(0.0f, damagePerSecond);
+        burnSeconds_ = (std::max)(0.0f, seconds);
+    }
+    float GetBurnDamagePerSecond() const
+    {
+        return burnDamagePerSecond_;
+    }
+    float GetBurnSeconds() const
+    {
+        return burnSeconds_;
+    }
+    float GetBlastCenter() const
+    {
+        return blastCenter_;
+    }
+    float GetBlastSplash() const
+    {
+        return blastSplash_;
+    }
+
     void ConfigureVisualScale(float size, float trail)
     {
         radius_ = .5f * (std::clamp)(size, .5f, 2.0f);
@@ -371,6 +406,13 @@ private:
     static inline const float kHeight = 1.6f;
 
     float radius_ = 0.5f;
+    // 当たった場所での爆発（ConfigureBlast。半径0なら無し）。
+    float blastRadius_ = 0.0f;
+    float blastCenter_ = 1.0f;
+    float blastSplash_ = 0.8f;
+    // 当たった敵を燃やす（ConfigureBurn。毎秒の威力が0なら無し）。
+    float burnDamagePerSecond_ = 0.0f;
+    float burnSeconds_ = 0.0f;
 
     // 反射するか
     bool isReflectable_ = false;

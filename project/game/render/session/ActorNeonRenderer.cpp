@@ -258,6 +258,8 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
 
     if (world_.presentation.playerNeonRenderMode_ == 1 && world_.resources.player_ && !world_.resources.player_->IsDead()) {
         myEngine::Vector4 color = world_.presentation.playerGridColor_;
+        // 遠征の熱が高まるほど、自機の輪郭を赤く灼けた色へ寄せる。
+        color = lerpColor(color, {2.2f, 0.32f, 0.22f, color.w}, (std::clamp)(world_.presentation.heatTint_, 0.0f, 1.0f) * 0.65f);
         const float feedback = world_.resources.player_->GetDamageFeedbackRatio();
         const float pulse = std::sin(feedback * 3.14159265f) * 0.10f;
         color = lerpColor(color, {1.8f, 1.8f, 1.8f, color.w}, feedback * feedback * 0.75f);
@@ -290,7 +292,7 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};
             const float radius = world_.presentation.playerNeonBillboardRadius_;
             auto queueSegmentedArc = [&](float arcRadius, float centerAngle, float span, int segments, float ratio,
-                                         const myEngine::Vector4& lit, float thickness) {
+                                         const myEngine::Vector4& lit, float thickness, int grayFrom = 1 << 30) {
                 const float step = span / static_cast<float>(segments);
                 const int litSegments =
                     static_cast<int>(std::ceil((std::clamp)(ratio, 0.0f, 1.0f) * static_cast<float>(segments) - 0.001f));
@@ -301,7 +303,10 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                     const myEngine::Vector3 middle = center + radial * arcRadius;
                     const float half = arcRadius * step * 0.36f;
                     const bool on = i < litSegments;
-                    const myEngine::Vector4 segmentColor = on ? lit : myEngine::Vector4{lit.x * 0.18f, lit.y * 0.18f, lit.z * 0.18f, 0.45f};
+                    // grayFrom 番目からは灰色（機体の遊び方の傷：治すまで戻らない分）。
+                    const myEngine::Vector4 segmentColor = i >= grayFrom ? myEngine::Vector4{0.55f, 0.55f, 0.6f, 0.9f}
+                                                           : on          ? lit
+                                                                         : myEngine::Vector4{lit.x * 0.18f, lit.y * 0.18f, lit.z * 0.18f, 0.45f};
                     world_.resources.neonGridRenderer_->QueueLine(middle - tangent * half, middle + tangent * half, thickness,
                                                                   segmentColor);
                 }
@@ -311,7 +316,17 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             myEngine::Vector4 hpColor = world_.presentation.playerGridColor_;
             hpColor = lerpColor({hpColor.x * 1.25f, hpColor.y * 1.25f, hpColor.z * 1.25f, 1.0f}, {1.9f, 0.35f, 0.25f, 1.0f},
                                 hpRatio < 0.3f ? 0.75f : 0.0f);
-            queueSegmentedArc(radius * 1.55f, 0.0f, 2.05f, 12, hpRatio, hpColor, radius * 0.30f);
+            // 機体の遊び方（Q のゲージを出している間）：残りに応じて緑 → 黄 → 赤へ変える（計画書 p4 の K5）。
+            // 遠征の機体（計画書 p5 の H3）でも同じ（Q のゲージを出しているのは機体のときだけ）。
+            if ((world_.run.IsSurvivorRun() || world_.run.IsExpeditionRun()) && world_.presentation.heroUltimateRatio_ >= 0.0f) {
+                const myEngine::Vector4 green{0.45f, 1.9f, 0.7f, 1.0f}, yellow{1.9f, 1.6f, 0.35f, 1.0f}, red{1.9f, 0.3f, 0.22f, 1.0f};
+                hpColor = hpRatio > 0.5f ? lerpColor(yellow, green, (hpRatio - 0.5f) * 2.0f)
+                                         : lerpColor(red, yellow, (std::max)(0.0f, hpRatio - 0.15f) / 0.35f);
+            }
+            const float woundRatio = static_cast<float>(world_.resources.player_->GetSurvivorWound()) /
+                                     static_cast<float>((std::max)(1, world_.resources.player_->GetMaxHp()));
+            const int woundSegments = woundRatio > 0.0f ? static_cast<int>(std::ceil(woundRatio * 12.0f - 0.001f)) : 0;
+            queueSegmentedArc(radius * 1.55f, 0.0f, 2.05f, 12, hpRatio, hpColor, radius * 0.30f, 12 - woundSegments);
             // シールドはHPの弧のすぐ外側に、細い水色の弧として重ねる（試作のモードだけ）。
             const float shieldMax = world_.resources.player_->GetShieldMax();
             if (shieldMax > 0.0f) {
@@ -319,10 +334,29 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                                   {0.55f, 1.35f, 1.95f, 1.0f}, radius * 0.13f);
             }
             // スタミナはシールドと同じ場所に、細い黄緑の弧として出す（尽きて張れない間は赤）。
-            if (world_.run.IsSurvivorRun() && world_.presentation.playerStaminaRatio_ >= 0.0f) {
+            if ((world_.run.IsSurvivorRun() || world_.run.IsExpeditionRun()) && world_.presentation.playerStaminaRatio_ >= 0.0f) {
                 const myEngine::Vector4 staminaColor = world_.presentation.playerStaminaExhausted_ ? myEngine::Vector4{1.9f, 0.3f, 0.25f, 1.0f}
                                                                                                     : myEngine::Vector4{0.85f, 1.8f, 0.55f, 1.0f};
                 queueSegmentedArc(radius * 1.82f, 0.0f, 2.05f, 12, world_.presentation.playerStaminaRatio_, staminaColor, radius * 0.13f);
+            }
+            // 機体の技（計画書 p4 の K0）：本体の上側に、左から右クリック・Shift・E の短い弧（使えると水色で全部光る）と、
+            // その外側に Q のゲージの弧（満タンで金色に脈打つ）。
+            if (world_.run.IsSurvivorRun() || (world_.run.IsExpeditionRun() && world_.presentation.heroUltimateRatio_ >= 0.0f)) {
+                static constexpr std::array<float, 3> kAbilityAngles{3.14159265f + 0.78f, 3.14159265f, 3.14159265f - 0.78f};
+                for (size_t i = 0; i < kAbilityAngles.size(); ++i) {
+                    const float ready = world_.presentation.heroAbilityReady_[i];
+                    if (ready < 0.0f) {
+                        continue;
+                    }
+                    const myEngine::Vector4 lit = ready >= 1.0f ? myEngine::Vector4{0.45f, 1.55f, 2.0f, 1.0f} : myEngine::Vector4{0.95f, 0.95f, 1.05f, 0.85f};
+                    queueSegmentedArc(radius * 1.55f, kAbilityAngles[i], 0.62f, 4, ready, lit, radius * 0.22f);
+                }
+                const float ultimate = world_.presentation.heroUltimateRatio_;
+                if (ultimate >= 0.0f) {
+                    const float glow = ultimate >= 1.0f ? world_.presentation.heroUltimateGlow_ : 0.75f;
+                    const myEngine::Vector4 lit{2.2f * glow, 1.6f * glow, 0.35f * glow, 1.0f};
+                    queueSegmentedArc(radius * 1.82f, 3.14159265f, 2.05f, 16, ultimate, lit, radius * (ultimate >= 1.0f ? 0.18f : 0.13f));
+                }
             }
             // 熱は主砲のまわりの輪。真上から時計回りに、熱の割合だけ光る。オーバーヒートの間は赤く点滅する。
             const PlayerHeat& heat = world_.resources.player_->GetHeat();
@@ -583,8 +617,23 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
                 continue;
             }
             if (enemy->IsExpeditionCombatRole()) {
+                // 遠征の増援で現れる戦闘員は、塗りも線と同じディゾルブで現す。
+                const bool dissolving = enemy->GetWarpDissolve() > 0.0f;
+                if (dissolving) {
+                    myEngine::NeonGridRenderer::LineDissolve dissolve{};
+                    dissolve.origin = enemy->GetWorldPosition();
+                    dissolve.direction = myEngine::Normalize(cameraRight - cameraUp);
+                    dissolve.extent = (std::max)(0.8f, enemy->GetRadius()) * 2.0f;
+                    dissolve.progress = enemy->GetWarpDissolve();
+                    dissolve.pieceLength = (std::max)(0.05f, enemy->GetRadius() * 0.3f);
+                    dissolve.edgeColor = {1.9f, 0.5f, 1.9f, 1.0f};
+                    world_.resources.neonGridRenderer_->BeginLineDissolve(dissolve);
+                }
                 enemy->QueueCombatVisuals(*world_.resources.neonGridRenderer_, cameraRight, cameraUp, cameraForward,
                                           world_.presentation.expEnemyNeonLineWidth_, true);
+                if (dissolving) {
+                    world_.resources.neonGridRenderer_->EndLineDissolve();
+                }
                 continue;
             }
             const auto type = enemy->GetType();

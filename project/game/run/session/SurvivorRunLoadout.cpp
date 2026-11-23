@@ -17,6 +17,38 @@ void SurvivorRunController::AddExperience(int amount)
         return;
     }
     expCollected_ += amount;
+    // 機体の遊び方では、欠片はそのままレベルポイントになる（倒した敵の種類で量が決まる。H2）。
+    if (HeroMode()) {
+        bag_.money += amount;
+        wavePoints_ += amount;
+        pointsEarned_ += amount;
+        // 戦闘中のレベルアップ（計画書 p7 の E3）：同じ量でレベルも上がり、止めて技の強化とパークの3択を選ぶ。
+        if (config_.heroes.levelUps && level_ < config_.maxLevel) {
+            // 学習装置（計画書 p8 の F4）：レベルの経験値だけ増える（ポイントは増えない）。端数は次へ持ち越す。
+            const float gain = static_cast<float>(amount) *
+                                   (HasPerk(survivor::PerkId::ExpGain) ? 1.0f + PerkValue(survivor::PerkId::ExpGain) : 1.0f) +
+                               expRemainder_;
+            const int whole = static_cast<int>(gain);
+            expRemainder_ = gain - static_cast<float>(whole);
+            expBonus_ += whole - amount;
+            exp_ += whole;
+            int gained = 0;
+            while (level_ < config_.maxLevel && exp_ >= config_.ExpToNextLevel(level_)) {
+                exp_ -= config_.ExpToNextLevel(level_);
+                ++level_;
+                ++gained;
+                levelTimes_.push_back(elapsed_);
+            }
+            if (gained > 0) {
+                heroPendingLevelUps_ += gained;
+                world_.combatFlow->SetEventCallout("レベル " + std::to_string(level_), 0.8f);
+                if (!heroLevelUpOpen_) {
+                    OpenHeroLevelUp();
+                }
+            }
+        }
+        return;
+    }
     // 武器の枠を使う遊び方では、レベルを上げず、欠片はお金になる（W3）。
     if (WeaponMode()) {
         moneyRemainder_ += static_cast<float>(amount) * config_.loot.moneyPerExp;
@@ -807,7 +839,8 @@ void SurvivorRunController::UpdateWeaponTimers(float dt)
             StartReload();
         }
     }
-    player.SetSurvivorFireLocked(swapTarget_ >= 0 || reloadTimer_ >= 0.0f);
+    // 主武器が技の部品（吸い付く光線・拡散連射）の機体は、主武器の武器の弾を撃たない（UpdateDrainBeam・UpdateBurstGun が出す）。
+    player.SetSurvivorFireLocked(swapTarget_ >= 0 || reloadTimer_ >= 0.0f || HeroPrimaryLocked());
 }
 
 void SurvivorRunController::SyncAmmoFromPlayer()
@@ -830,7 +863,8 @@ void SurvivorRunController::LoadAmmoToPlayer()
     if (!weapon) {
         return;
     }
-    const int rounds = weapon->magazine > 0 ? magazines_[activeSlot_] : reserves_[static_cast<size_t>(weapon->ammo)];
+    // 機体の主武器は弾を数えない（熱だけで撃つ、計画書 p4 の H4）。
+    const int rounds = HeroMode() ? -1 : weapon->magazine > 0 ? magazines_[activeSlot_] : reserves_[static_cast<size_t>(weapon->ammo)];
     world_.resources.player_->SetSurvivorAmmo(rounds, weapon->railAmmoCost);
 }
 

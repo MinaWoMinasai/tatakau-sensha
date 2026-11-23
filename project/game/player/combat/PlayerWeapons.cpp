@@ -46,13 +46,16 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
     player_.heat_.Update(deltaTime);
     if (player_.partEffects_.loaderRamp) {
         // 3秒撃ち続けると最大。撃つのをやめると0.5秒で戻る。
-        const bool firing = (player_.demoInputEnabled_ ? player_.demoShoot_ : player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[0])) &&
+        const bool firing = (player_.demoInputEnabled_ ? player_.demoShoot_
+                                                       : player_.IsAutoFiring() || player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[0])) &&
                             player_.heat_.CanFire();
         player_.loaderRamp_ = (std::clamp)(player_.loaderRamp_ + (firing ? deltaTime / 3.0f : -deltaTime * 2.0f), 0.0f, 1.0f);
     }
 
-    bool wantsPrimaryAttack =
-        player_.demoInputEnabled_ ? player_.demoShoot_ : player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[0]);
+    // 自動で撃つ（遠征の機体）ときは、押さなくても向いている方へずっと撃つ。
+    bool wantsPrimaryAttack = player_.demoInputEnabled_
+                                  ? player_.demoShoot_
+                                  : player_.IsAutoFiring() || player_.input_->IsPress(player_.input_->GetMouseState().rgbButtons[0]);
 #if defined(USE_IMGUI) && !defined(NDEBUG)
     wantsPrimaryAttack = wantsPrimaryAttack || player_.debugAutoFireEnabled_;
 #endif
@@ -92,6 +95,10 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
                 return;
             }
             if (player_.bulletCoolTime > 0.0f) {
+                return;
+            }
+            // オーバーヒートの間は斬れない（熱が無効なモードでは常に斬れる）。
+            if (!player_.heat_.CanFire()) {
                 return;
             }
             if (TryStartSpinBlade(wantsPrimaryAttack)) {
@@ -155,6 +162,8 @@ void PlayerWeapons::Attack(BulletManager* bulletManager, float deltaTime)
             player_.specialWaveEmitted_ = false;
             player_.specialPerfectFeedback_ = false;
             player_.specialParriedBullets_.clear();
+            // 斬撃も熱を生む（遠征。熱が無効なら何もしない）。
+            player_.heat_.AddShot(1.3f);
             player_.meleeComboStep_ = dashSlash ? 1 : (step + 1) % 3;
             player_.finisherSpinReady_ = !dashSlash && step == 2;
             player_.bulletCoolTime = event.windupDuration + event.duration + event.recoveryDuration;
@@ -532,6 +541,43 @@ void PlayerWeapons::FireHeatVent(BulletManager* bullets, float heat, float damag
         player_.pendingSpecialCombatEvents_.push_back({SpecialEventKind::RailShot, muzzle, aim, (std::min)(fullness, 1.0f)});
     }
     player_.velocity_ += aim * (-.08f - .08f * (std::min)(fullness, 1.0f));
+}
+
+void PlayerWeapons::FireSurvivorShot(BulletManager* bullets, const Player::SurvivorShot& shot)
+{
+    // 砲身の数によらず、車体の中心から1発だけ撃つ。威力と弾速は今の主砲を基準にする。
+    const auto* config = player_.GetCurrentClassConfig();
+    const myEngine::Vector3 aim = myEngine::NormalizeOr(shot.direction, myEngine::Vector3{1, 0, 0}, .001f);
+    AttackParam param{};
+    param.damage = static_cast<uint32_t>(
+        (std::max)(1.0f, std::round(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * (std::max)(0.0f, shot.damageScale))));
+    param.bulletSpeed = player_.stats_.bulletSpeed * (std::max)(0.05f, shot.speedScale);
+    ApplyRunProjectileRules(param);
+    param.actorPierceCount = (std::max)(shot.pierce, param.actorPierceCount);
+    if (shot.bulletHp > 0.0f) {
+        param.bulletHp = (std::max)(param.bulletHp, shot.bulletHp);
+    }
+    // 共通パーク（計画書 p8 の F4）：会心で威力2倍（弾は金色で少し大きく）、大きな弾頭で弾と当たった所の爆発が大きくなる。
+    const auto& perks = player_.survivorPerkEffects_;
+    const float crit = player_.RollSurvivorCrit();
+    if (crit > 1.0f) {
+        param.damage = static_cast<uint32_t>(std::round(static_cast<float>(param.damage) * crit));
+    }
+    const float size = (std::min)(2.4f, shot.size * perks.areaScale * (crit > 1.0f ? 1.2f : 1.0f));
+    const myEngine::Vector4 color = crit > 1.0f ? myEngine::Vector4{2.2f, 1.8f, 0.6f, 1.0f} : shot.color;
+    const myEngine::Vector3 muzzle = shot.useOrigin ? shot.origin + aim * 0.4f : player_.GetWorldPosition() + aim * 1.2f;
+    auto bullet = std::make_unique<Bullet>();
+    bullet->Initialize(muzzle, aim * param.bulletSpeed, param.damage, kPlayer, false, param.bulletHp, param.bulletPenetration);
+    bullet->ConfigureGrowth(0, param.actorPierceCount, 0);
+    bullet->ConfigureShooterAbilities(param.shooterChain, param.shooterMark, param.shooterBoomerang, param.shooterKillBurst,
+                                      param.shooterChainPower, param.shooterMarkPower, param.shooterBoomerangPower, param.shooterKillBurstPower);
+    bullet->ConfigureVisualScale(size, size);
+    bullet->ConfigureBlast(shot.blastRadius * perks.areaScale, shot.blastCenter, shot.blastSplash);
+    if (shot.burnScale > 0.0f) {
+        bullet->ConfigureBurn(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * shot.burnScale, shot.burnSeconds);
+    }
+    bullet->SetColorOverride(color);
+    bullets->Add(std::move(bullet));
 }
 
 void PlayerWeapons::FireRailShot(BulletManager* bullets, float charge, float power)

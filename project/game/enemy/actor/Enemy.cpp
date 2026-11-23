@@ -608,6 +608,30 @@ void Enemy::UpdateRivalCombat(float deltaTime)
     }
 }
 
+void Enemy::FireBossBullet(const myEngine::Vector3& direction, float speed, uint32_t damage)
+{
+    if (!bulletManager_ || isDead_ || hp_ <= 0) {
+        return;
+    }
+    myEngine::Vector3 aim = direction;
+    aim.z = 0.0f;
+    if (myEngine::Length(aim) < 0.001f) {
+        return;
+    }
+    aim = myEngine::Normalize(aim);
+    ++shotsFired_;
+    AttackParam param{};
+    param.bulletCount = 1;
+    param.randomSpread = false;
+    param.bulletSpeed = speed;
+    param.damage = damage;
+    // 遠征のネオンボスの弾（ガトリング）は、ふつうの敵弾と同じく自機の弾1発で消せる強さにする。
+    param.bulletHp = tankspecial::kOrdinaryEnemyBulletHp * 0.5f;
+    param.bulletPenetration = 1.0f;
+    param.reflect = param.penetrate = param.canClaimRunResource = false;
+    attackController_.FireFromMuzzle(GetWorldPosition() + aim * 1.9f, aim, param, BulletOwner::kEnemy);
+}
+
 void Enemy::UpdatePrototypeCombat(float deltaTime)
 {
     if (!player_ || !bulletManager_ || isDead_ || hp_ <= 0) {

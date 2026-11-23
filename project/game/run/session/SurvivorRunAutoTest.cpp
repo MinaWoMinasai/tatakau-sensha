@@ -54,10 +54,137 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     // 部屋の中央の周りを回りながら近い敵を撃ち続け、近くの欠片は拾いに行く。4:00 を過ぎたら出口へ向かう
     // （レベルの曲線を4分で確かめるため、出口が開いてもすぐには入らない）。自機は無敵。
     auto& player = *world_.resources.player_;
+    // 速さの確認では、出撃した後のボットは何もしない（止まったまま）。
+    if (speedTest_ && !baseScreenOpen_ && hero_ >= 0) {
+        // 自機は右へ全力で走る（最高速度を測る）。右の端に近づいたら左へ戻る。
+        const float x = player.GetWorldPosition().x;
+        if (x > kSpawnMaxX - 8.0f) {
+            autoSpeedTestLeft_ = true;
+        } else if (x < kSpawnMinX + 8.0f) {
+            autoSpeedTestLeft_ = false;
+        }
+        player.SetDemoInput(true, {autoSpeedTestLeft_ ? -1.0f : 1.0f, 0.0f}, player.GetWorldPosition() + myEngine::Vector3{6.0f, 0.0f, 0.0f}, false, false);
+        return;
+    }
+    // 戦闘中のレベルアップの3択（計画書 p7 の E3）：1つ目を選ぶ。最初の1回は画面を保存してから。
+    if (heroLevelUpOpen_) {
+        if (!world_.run.tankRunCapturePath_.empty()) {
+            return;
+        }
+        if (heroLevelUpLog_.empty() && !autoLevelUpCaptured_) {
+            autoLevelUpCaptured_ = true;
+            RequestCapture("hero_levelup");
+            return;
+        }
+        // 主武器の強化（E5 の拡散連射は7段）、次に副武器（E4）を確かめるため、並んでいればその順に選ぶ。
+        // MYENGINE_SURVIVOR_PICK=perk なら、パークを先に選ぶ（パークの段と埋め草を確かめる。計画書 p8 の F1）。
+        wchar_t pickMode[8]{};
+        const bool pickSet = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_PICK", pickMode, 8) > 0;
+        const bool perkFirst = pickSet && std::wstring(pickMode) == L"perk";
+        // MYENGINE_SURVIVOR_PICK=skill なら、専用スキルを先に選ぶ（計画書 p8 の F2）。
+        const bool skillFirst = pickSet && std::wstring(pickMode) == L"skill";
+        // MYENGINE_SURVIVOR_PICK=newsub なら、F3 で足した副武器（迫撃砲・随伴機・火炎放射・衝撃の輪）を先に選ぶ。
+        const bool newSubFirst = pickSet && std::wstring(pickMode) == L"newsub";
+        // MYENGINE_SURVIVOR_PICK=newperk なら、F4 で足したパーク（会心・大きさ・経験値・反応装甲・予備の動力）を先に選ぶ。
+        const bool newPerkFirst = pickSet && std::wstring(pickMode) == L"newperk";
+        size_t pick = 0;
+        int best = 0;
+        for (size_t i = 0; i < heroLevelUpOffers_.size(); ++i) {
+            const ShopOffer& offer = heroLevelUpOffers_[i];
+            const bool perk = !offer.upgrade && !offer.sub && !offer.skill && offer.filler == Filler::None;
+            const bool newSub = offer.sub && offer.index >= static_cast<int>(survivor::SubWeapon::Mortar);
+            const bool newPerk = perk && offer.index >= static_cast<int>(survivor::PerkId::Crit);
+            const int score = (perkFirst && perk) || (skillFirst && offer.skill) || (newSubFirst && newSub) || (newPerkFirst && newPerk) ? 3
+                              : offer.upgrade && offer.index == 0                                          ? 2
+                              : offer.sub                                                                  ? 1
+                                                                                                           : 0;
+            if (score > best) {
+                best = score;
+                pick = i;
+            }
+        }
+        ChooseHeroLevelUp(pick);
+        if (heroLevelUpOpen_) {
+            RefreshHeroLevelUp();
+        }
+        return;
+    }
+    // 時間割の出来事（E6）：起きた1.5秒後に画面を保存する（timeline_1.png から順に）。
+    if (timelineEvents_ > autoTimelineSeen_) {
+        autoTimelineSeen_ = timelineEvents_;
+        autoTimelineCaptureAt_ = elapsed_ + 1.5f;
+    }
+    if (autoTimelineCaptureAt_ >= 0.0f && elapsed_ >= autoTimelineCaptureAt_ && world_.run.tankRunCapturePath_.empty()) {
+        autoTimelineCaptureAt_ = -1.0f;
+        RequestCapture("timeline_" + std::to_string(autoTimelineSeen_));
+        return;
+    }
+    // MYENGINE_SURVIVOR_HEALDEMO=1：出撃して5秒で、自機の左上に小さいスパナ、右上に中ボスのスパナを置く（まだ敵の少ない所で見た目を確かめる）。
+    if (HeroMode() && !autoHealDemoDone_ && !baseScreenOpen_ && elapsed_ >= 5.0f) {
+        autoHealDemoDone_ = true;
+        if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_HEALDEMO", nullptr, 0) > 0) {
+            const myEngine::Vector3 self = world_.resources.player_->GetWorldPosition();
+            healPickups_.push_back({self + myEngine::Vector3{-7.0f, 4.0f, 0.0f}, 0.0f, false});
+            healPickups_.push_back({self + myEngine::Vector3{7.0f, 4.0f, 0.0f}, 0.0f, true});
+        }
+    }
+    // スパナ（計画書 p8 の F5）が初めて落ちたら、少し後に一度だけ画面を保存する。
+    if (!autoHealPickupCaptured_ && !healPickups_.empty() && healPickups_.front().age >= 0.6f && world_.run.tankRunCapturePath_.empty()) {
+        autoHealPickupCaptured_ = true;
+        RequestCapture("heal_pickup");
+        return;
+    }
+    // 副武器が2つ以上動き出したら、一度だけ画面を保存する（出撃して15秒たってから。MYENGINE_SURVIVOR_SUBS で始めから持つときも、拠点の画面を撮らない）。
+    if (!autoSubWeaponCaptured_ && !baseScreenOpen_ && elapsed_ >= 15.0f && world_.run.tankRunCapturePath_.empty() &&
+        std::count_if(subWeaponTiers_.begin(), subWeaponTiers_.end(), [](int tier) { return tier > 0; }) >= 2) {
+        autoSubWeaponCaptured_ = true;
+        RequestCapture("hero_subweapons");
+        return;
+    }
     // 拠点の画面：画面を保存し、4つ目の武器を3つ目の枠へ入れてから元に戻し（入れ替えの確認）、作る・進化を1回ずつ試して
     // 派生の木の画面を保存し、出撃する。区画の時間は進めない。
     if (baseScreenOpen_) {
         if (!world_.run.tankRunCapturePath_.empty()) {
+            return;
+        }
+        // 機体の遊び方の拠点（K6）：画面を保存し、解放ポイントを足して最初の候補の機体を解放してみてから、
+        // 決めた機体（設定の start か MYENGINE_SURVIVOR_HERO）を選び直して画面を保存し、出撃する。
+        if (HeroMode()) {
+            auto click = [this](const SurvivorItemScreen::Hit& hit) {
+                const myEngine::Vector2 at = itemScreen_.CenterOf(hit);
+                DriveScreenPointer(at, false, false, 0);
+                DriveScreenPointer(at, true, false, 0);
+                DriveScreenPointer(at, false, false, 0);
+            };
+            const std::string start = config_.heroes.start;
+            if (autoHeroBaseState_ == 0) {
+                RequestCapture("hero_select");
+                autoHeroBaseState_ = 1;
+            } else if (autoHeroBaseState_ == 1) {
+                const std::vector<int> candidates = survivor::HeroUnlockCandidates(heroSave_, config_.heroes.heroes);
+                if (!candidates.empty()) {
+                    const survivor::HeroDefinition& target = config_.heroes.heroes[static_cast<size_t>(candidates.front())];
+                    heroSave_.points = (std::max)(heroSave_.points, target.unlockCost);
+                    const std::vector<int> order = HeroCardOrder();
+                    const auto card = std::find(order.begin(), order.end(), candidates.front());
+                    if (card != order.end()) {
+                        click({SurvivorItemScreen::Zone::Card, static_cast<int>(card - order.begin())});
+                        click({SurvivorItemScreen::Zone::Button, 1});
+                    }
+                    autoUnlockOk_ = survivor::IsHeroUnlocked(heroSave_, target) && heroSave_.points == 0;
+                }
+                // 決めた機体を選び直す（解放で選び替わったので）。
+                const std::vector<int> order = HeroCardOrder();
+                const int wanted = survivor::FindHero(config_.heroes.heroes, start);
+                const auto card = std::find(order.begin(), order.end(), wanted);
+                if (card != order.end()) {
+                    click({SurvivorItemScreen::Zone::Card, static_cast<int>(card - order.begin())});
+                }
+                RequestCapture("hero_select_after");
+                autoHeroBaseState_ = 2;
+            } else {
+                click({SurvivorItemScreen::Zone::Button, 0});
+            }
             return;
         }
         if (autoBaseState_ == 0) {
@@ -174,8 +301,40 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             return;
         }
         if (autoRestState_ == 0) {
-            RequestCapture("rest_room");
+            RequestCapture(HeroMode() ? "wave_break" : "rest_room");
             autoRestState_ = 1;
+        } else if ((autoRestState_ == 1 || autoRestState_ == 4) && HeroMode()) {
+            // 機体の遊び方の波の間（ショップ）：修理を押せれば押し（体力の決まりの確認で傷が付いている）、
+            // 買える物を安い順に買い、残りが多ければ3回まで引き直してまた買う。画面を保存する（波の間ごとに毎回）。
+            auto click = [this](const SurvivorItemScreen::Hit& hit) {
+                const myEngine::Vector2 at = itemScreen_.CenterOf(hit);
+                DriveScreenPointer(at, false, false, 0);
+                DriveScreenPointer(at, true, false, 0);
+                DriveScreenPointer(at, false, false, 0);
+            };
+            click({SurvivorItemScreen::Zone::Button, 2});
+            auto buyAll = [&] {
+                for (int guard = 0; guard < 12; ++guard) {
+                    int cheapest = -1;
+                    for (size_t i = 0; i < shopOffers_.size(); ++i) {
+                        const int price = OfferPrice(shopOffers_[i]);
+                        if (price <= bag_.money && (cheapest < 0 || price < OfferPrice(shopOffers_[static_cast<size_t>(cheapest)]))) {
+                            cheapest = static_cast<int>(i);
+                        }
+                    }
+                    if (cheapest < 0) {
+                        return;
+                    }
+                    click({SurvivorItemScreen::Zone::Grid, cheapest});
+                }
+            };
+            buyAll();
+            for (int reroll = 0; reroll < 3 && bag_.money >= RerollPrice() + 150; ++reroll) {
+                click({SurvivorItemScreen::Zone::Button, 3});
+                buyAll();
+            }
+            RequestCapture("wave_break_after");
+            autoRestState_ = 2;
         } else if (autoRestState_ == 1) {
             using Zone = SurvivorItemScreen::Zone;
             auto drag = [this](const SurvivorItemScreen::Hit& from, const SurvivorItemScreen::Hit& to) {
@@ -282,6 +441,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     } else if (WeaponMode() && lootField_.FindNearest(position, 14.0f, shard)) {
         // 落ちた物（弾・素材・チップ・武器）を、欠片より先に拾いに行く。
         goal = shard;
+    } else if (HeroMode() && FindNearestHeal(position, 14.0f, shard)) {
+        // スパナ（計画書 p8 の F5）は欠片より先に拾いに行く。
+        goal = shard;
     } else if (pickups_.FindNearest(position, 12.0f, shard)) {
         goal = shard;
     } else {
@@ -333,6 +495,129 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     }
     // バリア：20秒のうち10秒押し続ける（途中でスタミナが尽きるかも見る）。弾を止めた瞬間の画面を1回保存する。
     autoBarrierWanted_ = WeaponMode() && std::fmod(autoTestTime_, 20.0f) < 10.0f;
+    // 機体（計画書 p4 の K0）：Shift と E は使えるたびに、Q はゲージが満タンになったら押す（次の更新で使う）。
+    // 走っている間とそうでない間の、実際の移動の速さの一番大きい値を控え、走っている間の画面を1回保存する。
+    if (HeroMode()) {
+        using survivor::AbilitySlot;
+        autoHeroPress_[static_cast<size_t>(AbilitySlot::Mobility)] = abilityCooldown_[static_cast<size_t>(AbilitySlot::Mobility)] <= 0.0f;
+        autoHeroPress_[static_cast<size_t>(AbilitySlot::Skill)] = abilityCooldown_[static_cast<size_t>(AbilitySlot::Skill)] <= 0.0f;
+        autoHeroPress_[static_cast<size_t>(AbilitySlot::Ultimate)] = ultimateCharge_ >= Hero().ultimateCharge;
+        // 右クリック（押した瞬間の技）：使えて、近くに敵がいれば撃つ。
+        autoHeroPress_[static_cast<size_t>(AbilitySlot::Secondary)] = abilityCooldown_[static_cast<size_t>(AbilitySlot::Secondary)] <= 0.0f &&
+                                                                       world_.resources.enemyManager_->FindNearestEnemy(position, 15.0f) != nullptr;
+        // 回復の場の確認：初めて置く前に HP を半分にする（自動確認は無敵なので、そのままでは回復する分が無い）。
+        if (FindAbility(survivor::AbilityKind::HealZone) && abilityUses_[static_cast<size_t>(AbilitySlot::Skill)] == 0 &&
+            autoHeroPress_[static_cast<size_t>(AbilitySlot::Skill)] && player.GetHp() == player.GetMaxHp() && player.IsDebugNoDamage()) {
+            player.SpendRunHealth(player.GetMaxHp() / 2);
+        }
+        // 体力の決まり（H6・H7）：5秒で一度だけ無敵を外し、同じ相手から2回・別の相手から2回当てて、1回の上限・同じ相手の間隔・
+        // 1秒の上限で削られるか、傷の分だけ HP が戻らないかを見る（消える移動の間は待つ）。
+        if (!autoHealthChecked_ && autoTestTime_ >= 5.0f && !player.IsSurvivorPhased()) {
+            autoHealthChecked_ = true;
+            ApplyHeroHealthRules();
+            const int maxHp = player.GetMaxHp();
+            player.HealRunPlayer(maxHp);
+            player.SetDebugNoDamage(false);
+            std::array<int, 4> taken{};
+            const std::array<std::pair<uint64_t, uint32_t>, 4> hits{{{0xA1, 1000}, {0xA1, 5}, {0xA2, 1000}, {0xA3, 5}}};
+            for (size_t i = 0; i < hits.size(); ++i) {
+                const int before = player.GetHp();
+                player.TakeSurvivorHit(hits[i].first, hits[i].second);
+                taken[i] = before - player.GetHp();
+            }
+            player.SetDebugNoDamage(true);
+            const int wound = player.GetSurvivorWound();
+            player.HealRunPlayer(maxHp);
+            autoHealthCheck_ << "{\"maxHp\":" << maxHp << ",\"taken\":[" << taken[0] << "," << taken[1] << "," << taken[2] << ","
+                             << taken[3] << "],\"wound\":" << wound << ",\"hpAfterHeal\":" << player.GetHp() << "}";
+        }
+        // 自分を回復（モイラ型）：吸収ゲージがほぼ満タンで HP も満タンなら HP を半分にし（自動確認は無敵なので）、
+        // HP が減っていてゲージがあれば押し続ける。
+        if (const survivor::AbilityDefinition* heal = FindAbility(survivor::AbilityKind::SelfHeal)) {
+            if (absorb_ >= heal->duration * 0.95f && player.GetHp() == player.GetMaxHp() && player.IsDebugNoDamage()) {
+                player.SpendRunHealth(player.GetMaxHp() / 2);
+            }
+            autoSecondaryHold_ = absorb_ > 0.0f && player.GetHp() < player.GetMaxHp();
+        }
+        // 技の画面（タンク型）：突進・衝撃波・大きな盾を、それぞれ1回ずつ保存する。
+        if (world_.run.tankRunCapturePath_.empty() && FindAbility(survivor::AbilityKind::Fortress)) {
+            if (!autoChargeCaptured_ && chargeTimer_ > 0.1f && elapsed_ >= 10.0f) {
+                RequestCapture("hero_charge");
+                autoChargeCaptured_ = true;
+            } else if (!autoShockCaptured_ && shockAge_ > 0.05f && shockAge_ < 0.25f && elapsed_ >= 10.0f) {
+                RequestCapture("hero_shockwave");
+                autoShockCaptured_ = true;
+            } else if (!autoFortressCaptured_ && fortressTimer_ > 1.0f && fortressTimer_ < 4.0f) {
+                RequestCapture("hero_fortress");
+                autoFortressCaptured_ = true;
+            }
+        }
+        // 技の画面（モイラ型）：吸い付いた光線・跳ねる球・太い光線・消える移動を、それぞれ1回ずつ保存する。
+        if (world_.run.tankRunCapturePath_.empty() && HeroBeamPrimary()) {
+            if (!autoBeamCaptured_ && beamTarget_ != 0 && elapsed_ >= 6.0f) {
+                RequestCapture("hero_beam");
+                autoBeamCaptured_ = true;
+            } else if (!autoOrbCaptured_ && orbTimer_ > 0.0f && orbTimer_ < 2.5f) {
+                RequestCapture("hero_orb");
+                autoOrbCaptured_ = true;
+            } else if (!autoLanceCaptured_ && lanceTimer_ > 0.0f && lanceTimer_ < 2.5f) {
+                RequestCapture("hero_lance");
+                autoLanceCaptured_ = true;
+            } else if (!autoPhaseCaptured_ && phaseTimer_ > 0.3f && elapsed_ >= 10.0f) {
+                RequestCapture("hero_phase");
+                autoPhaseCaptured_ = true;
+            }
+        }
+        // 技の画面：回復の場と弾幕を、それぞれ効いている途中で1回ずつ保存する。
+        if (world_.run.tankRunCapturePath_.empty()) {
+            if (!autoHealCaptured_ && healZoneTimer_ > 0.0f && healZoneTimer_ < 3.5f) {
+                RequestCapture("hero_heal");
+                autoHealCaptured_ = true;
+            } else if (!autoBarrageCaptured_ && barrageTimer_ > 0.0f && barrageTimer_ < 3.0f) {
+                RequestCapture("hero_barrage");
+                autoBarrageCaptured_ = true;
+            }
+        }
+        // 動こうとしている間（目標が遠い）だけ、動いた距離を走っている間とそうでない間に分けて足す。
+        if (dt > 0.0f && autoTestTime_ > 1.0f && length > 2.0f) {
+            const float distance = myEngine::Length(myEngine::Vector3{position.x - autoLastPosition_.x, position.y - autoLastPosition_.y, 0.0f});
+            // 部屋を移ったときの飛びは数えない。
+            if (distance < dt * 100.0f) {
+                const size_t index = sprintTimer_ > 0.0f ? 1 : 0;
+                autoMoveDistance_[index] += distance;
+                autoMoveSeconds_[index] += dt;
+                if (autoPlayerSpeeds_.size() < 100000) {
+                    autoPlayerSpeeds_.push_back(distance / dt);
+                }
+            }
+        }
+        autoLastPosition_ = position;
+        // 図形の速さ（寄ってくる四角・三角・五角）。資源・大きな跳び（押し飛ばし）は除く。
+        if (dt > 0.0f) {
+            std::unordered_map<uint64_t, myEngine::Vector3> seen;
+            for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+                if (!enemy || enemy->IsDead() || enemy->IsRunResource()) {
+                    continue;
+                }
+                const ExpEnemyType type = enemy->GetType();
+                const int kind = type == ExpEnemyType::Square ? 0 : type == ExpEnemyType::Triangle ? 1 : type == ExpEnemyType::Pentagon ? 2 : -1;
+                const myEngine::Vector3 p = enemy->GetWorldPosition();
+                if (const auto last = autoEnemyLast_.find(enemy->GetCollisionId()); kind >= 0 && last != autoEnemyLast_.end()) {
+                    const float speed = myEngine::Length(myEngine::Vector3{p.x - last->second.x, p.y - last->second.y, 0.0f}) / dt;
+                    auto& list = autoShapeSpeeds_[static_cast<size_t>(kind)];
+                    if (speed < 60.0f && list.size() < 200000) {
+                        list.push_back(speed);
+                    }
+                }
+                seen[enemy->GetCollisionId()] = p;
+            }
+            autoEnemyLast_ = std::move(seen);
+        }
+        if (!autoHeroCaptured_ && sprintTimer_ > 1.0f && elapsed_ >= 10.0f && world_.run.tankRunCapturePath_.empty()) {
+            RequestCapture("hero_sprint");
+            autoHeroCaptured_ = true;
+        }
+    }
     // 新しい敵：それぞれが自機の近くにいる画面を1回ずつ保存する（ワープする敵は消えている途中、ばらばらな三角は役割なしで見分ける）。
     if (ElitesActive() && world_.run.tankRunCapturePath_.empty()) {
         for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
@@ -360,7 +645,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
     }
     // 不動砲台を持っていれば、6秒のうち2秒は止まって撃つ（止まっている間の威力の確認）。
-    const bool standStill = relics_[static_cast<size_t>(survivor::RelicId::FixedTurret)] && std::fmod(autoTestTime_, 6.0f) < 2.0f;
+    // 機体の回復の場を置いている間も、場の中で止まって撃つ（回復の確認）。
+    const bool standStill = (relics_[static_cast<size_t>(survivor::RelicId::FixedTurret)] && std::fmod(autoTestTime_, 6.0f) < 2.0f) ||
+                            (HeroMode() && healZoneTimer_ > 0.0f && !exitOpen_);
     player.SetDemoInput(true, standStill ? myEngine::Vector2{} : myEngine::Vector2{move.x, move.y}, aim, true, dash);
     autoMaxHeat_ = (std::max)(autoMaxHeat_, player.GetHeat().GetHeat());
 
@@ -712,7 +999,20 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     if (!player.IsDead() && elapsed_ >= autoDeathAt_) {
         world_.presentation.debugPlayerNoDamage_ = false;
         player.SetDebugNoDamage(false);
-        player.TakeDamage(1000000, 0.0f);
+        // 機体の遊び方では1回の被弾に上限があるので、無敵を外して敵に倒されるのを待つ（死因も本物になる）。
+        if (!HeroMode()) {
+            player.TakeDamage(1000000, 0.0f);
+        }
+    }
+    // MYENGINE_SURVIVOR_DRAIN=秒：その時刻から、無敵を外して毎フレーム自機を削る（予備の動力と反応装甲の確認。計画書 p8 の F4）。
+    if (autoDrainAt_ < 0.0f) {
+        wchar_t drain[16]{};
+        autoDrainAt_ = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_DRAIN", drain, 16) > 0 ? static_cast<float>(_wtof(drain)) : 1.0e9f;
+    }
+    if (!player.IsDead() && elapsed_ >= autoDrainAt_) {
+        world_.presentation.debugPlayerNoDamage_ = false;
+        player.SetDebugNoDamage(false);
+        player.TakeDamage(10, 0.0f);
     }
     if (player.IsDead() && IsResultVisible() && autoTestClearedTime_ < 0.0f) {
         autoTestClearedTime_ = autoTestTime_;
@@ -770,7 +1070,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     if (cleared_ && !restRoomOpen_ && autoTestClearedTime_ < 0.0f) {
         autoTestClearedTime_ = autoTestTime_;
     }
-    const bool timedOut = autoTestTime_ > kSectorAutoTestExitSeconds + (autoFullRun_ ? 360.0f : 90.0f);
+    // 機体の遊び方で波を全部通すときは、波の秒の合計とボスの分だけ長く待つ。
+    const float fullRunSeconds =
+        HeroMode() ? config_.waves.seconds * static_cast<float>(config_.waves.count) + config_.waves.bossDelay + 300.0f : 360.0f;
+    const bool timedOut = autoTestTime_ > kSectorAutoTestExitSeconds + (autoFullRun_ ? fullRunSeconds : 90.0f);
     if ((autoTestClearedTime_ >= 0.0f && autoTestTime_ - autoTestClearedTime_ > 1.5f) || timedOut) {
         if (!autoTestCaptureQueued_) {
             RequestCapture(cleared_ ? "cleared" : "timeout");
@@ -785,7 +1088,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         {
             const std::string path = std::string(kAutoTestDirectory) + "/config_roundtrip.json";
             std::error_code ignored;
-            std::filesystem::copy_file(kConfigPath, path, std::filesystem::copy_options::overwrite_existing, ignored);
+            std::filesystem::copy_file(ConfigPath(), path, std::filesystem::copy_options::overwrite_existing, ignored);
             std::string error;
             survivor::SpawnConfig loaded;
             if (survivor::SaveSpawnConfig(path, ConfigForSaving(), error) && survivor::LoadSpawnConfig(path, loaded, error)) {
@@ -799,7 +1102,13 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             loaded.loot.weaponPrice == config_.loot.weaponPrice && loaded.stages.swarmScale == config_.stages.swarmScale &&
                             loaded.barrier.radius == config_.barrier.radius && loaded.elites.healRatio == config_.elites.healRatio &&
                             loaded.crafting.branches.size() == config_.crafting.branches.size() && loaded.exitOpenSeconds == fileExitOpenSeconds_ &&
-                            loaded.rival.enabled == fileRivalEnabled_;
+                            loaded.rival.enabled == fileRivalEnabled_ && loaded.heroes.start == fileHeroStart_ &&
+                            loaded.heroes.heroes.size() == config_.heroes.heroes.size() && !config_.heroes.heroes.empty() &&
+                            loaded.heroes.heroes[0].abilities[1].cooldown == config_.heroes.heroes[0].abilities[1].cooldown &&
+                            loaded.heroes.heroes[0].abilities[1].kind == config_.heroes.heroes[0].abilities[1].kind &&
+                            loaded.heroes.heroes[0].ultimateCharge == config_.heroes.heroes[0].ultimateCharge &&
+                            loaded.heroes.heroes.back().abilities[3].rate == config_.heroes.heroes.back().abilities[3].rate &&
+                            loaded.heroes.heroes.back().abilities[2].radius == config_.heroes.heroes.back().abilities[2].radius;
             }
         }
         // 拠点：結果画面で持ち帰ってセーブした物を読み直し、同じになるかを見る。
@@ -817,6 +1126,15 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"breaks\":" << barrierBreaks_ << ",\"staminaMin\":" << autoStaminaMin_ << ",\"staminaEnd\":" << barrierStamina_
             << ",\"netSegments\":" << BarrierNetSegmentCount() << ",\"dashes\":" << player.GetDashStartedCount() << "}"
             << ",\"warperOffset\":[" << autoWarperOffset_.x << "," << autoWarperOffset_.y << "," << autoWarperOffset_.z << "]"
+            << ",\"audio\":{\"loaded\":" << audio_.GetLoadedFiles() << ",\"missing\":" << audio_.GetMissingFiles() << ",\"plays\":{" << [&] {
+                   std::ostringstream plays;
+                   bool first = true;
+                   for (const auto& [cue, count] : audio_.GetPlayCounts()) {
+                       plays << (first ? "" : ",") << "\"" << cue << "\":" << count;
+                       first = false;
+                   }
+                   return plays.str();
+               }() << "}}"
             << ",\"homingTurns\":" << autoHomingTurns_ << ",\"elites\":{\"erratic\":" << eliteStats_.erratic << ",\"healers\":" << eliteStats_.spawned[0] << ",\"warpers\":" << eliteStats_.spawned[1]
             << ",\"layers\":" << eliteStats_.spawned[2] << ",\"heals\":" << eliteStats_.heals << ",\"healedHp\":" << eliteStats_.healedHp << ",\"warps\":" << eliteStats_.warps
             << ",\"minesLaid\":" << eliteStats_.minesLaid << ",\"mineExplosions\":" << eliteStats_.mineExplosions << ",\"mineHits\":" << eliteStats_.mineHits << "}"
@@ -880,6 +1198,105 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"burstChildren\":" << autoBurstStats_[2] << ",\"repeatsWhileFused\":" << autoRepeatsWhileFused_
             << ",\"damageNumbers\":" << damageNumbers_.GetSpawnedCount() << ",\"fusedSeconds\":" << autoFusedSeconds_ << ",\"chainHits\":" << autoChainHits_ << ",\"criticalBlasts\":" << criticalBlasts_
             << ",\"partsAtEnd\":\"" << DescribeParts(99) << "\""
+            << ",\"hero\":{\"enabled\":" << (HeroMode() ? "true" : "false") << ",\"key\":\"" << (HeroMode() ? Hero().key : std::string())
+            << "\",\"primary\":\"" << formKey_ << "\",\"uses\":[" << abilityUses_[0] << "," << abilityUses_[1] << "," << abilityUses_[2] << ","
+            << abilityUses_[3] << "],\"cooldownSeen\":[" << abilityCooldownSeen_[0] << "," << abilityCooldownSeen_[1] << ","
+            << abilityCooldownSeen_[2] << "," << abilityCooldownSeen_[3] << "],\"sprintSeconds\":" << sprintSeconds_
+            << ",\"walkSpeed\":" << autoMoveDistance_[0] / (std::max)(0.001f, autoMoveSeconds_[0]) << ",\"speeds\":" << [&] {
+                   // 速さの分布（真ん中・9割・一番速い）：自機と、四角・三角・五角。
+                   auto describe = [](std::vector<float> values) {
+                       std::ostringstream text;
+                       if (values.empty()) {
+                           return std::string("null");
+                       }
+                       std::sort(values.begin(), values.end());
+                       text << "{\"median\":" << values[values.size() / 2] << ",\"p90\":" << values[values.size() * 9 / 10]
+                            << ",\"max\":" << values.back() << ",\"samples\":" << values.size() << "}";
+                       return text.str();
+                   };
+                   return "{\"player\":" + describe(autoPlayerSpeeds_) + ",\"square\":" + describe(autoShapeSpeeds_[0]) +
+                          ",\"triangle\":" + describe(autoShapeSpeeds_[1]) + ",\"pentagon\":" + describe(autoShapeSpeeds_[2]) + "}";
+               }() << ",\"heroLevel\":" << level_
+            << ",\"heroLevelUps\":" << heroLevelUpLog_.size() << ",\"skillTiers\":[" << heroSkillTiers_[0] << "," << heroSkillTiers_[1] << ","
+            << heroSkillTiers_[2] << "],\"steadyShots\":" << steadyShots_ << ",\"battleStacksMax\":" << battleStacksMax_
+            << ",\"burstShotsPerVolleyMax\":" << burstShotsPerVolleyMax_ << ",\"fillers\":" << fillersTaken_ << ",\"fillerMaxHp\":" << fillerMaxHp_
+            << ",\"fillerPower\":" << fillerPower_ << ",\"crits\":" << player.GetSurvivorCrits()
+            << ",\"guardBlocks\":" << player.GetSurvivorGuardBlocks() << ",\"revivesUsed\":" << player.GetSurvivorRevivesUsed()
+            << ",\"expBonus\":" << expBonus_ << ",\"growthSpawned\":" << growthSpawned_ << ",\"growthAliveMax\":" << growthAliveMax_
+            << ",\"surges\":" << surgesStarted_ << ",\"enemyHpScaleEnd\":" << EnemyHpScale() << ",\"enemySpeedScaleEnd\":" << EnemySpeedScale() << ",\"healsDropped\":" << healsDropped_ << ",\"healsBigDropped\":" << healsBigDropped_ << ",\"healsCollected\":" << healsCollected_
+            << ",\"healedByPickups\":" << healedByPickups_ << ",\"areaScale\":" << HeroAreaScale() << ",\"levelUpLog\":[" << [&] {
+                   std::ostringstream log;
+                   for (size_t i = 0; i < heroLevelUpLog_.size(); ++i) {
+                       log << (i ? "," : "") << "\"" << heroLevelUpLog_[i] << "\"";
+                   }
+                   return log.str();
+               }() << "]"
+            << ",\"subWeaponTiers\":[" << [&] {
+                   std::ostringstream tiers;
+                   for (size_t i = 0; i < subWeaponTiers_.size(); ++i) {
+                       tiers << (i ? "," : "") << subWeaponTiers_[i];
+                   }
+                   return tiers.str();
+               }() << "],\"mortarBlasts\":" << mortarBlasts_ << ",\"droneShots\":" << droneShots_ << ",\"flameDamage\":" << flameDamage_
+            << ",\"pulses\":" << pulses_ << ",\"orbitDamage\":" << orbitDamage_
+            << ",\"orbitBulletsCleared\":" << orbitBulletsCleared_ << ",\"turretShots\":" << turretShots_ << ",\"mineBlasts\":" << mineBlasts_ << ",\"timelineEvents\":" << timelineEvents_ << ",\"midBossKills\":" << midBossKills_ << ",\"burstShots\":" << burstShots_ << ",\"burstVolleys\":" << burstVolleys_
+            << ",\"sprintSpeed\":" << autoMoveDistance_[1] / (std::max)(0.001f, autoMoveSeconds_[1]) << ",\"ultimateCharge\":" << ultimateCharge_
+            << ",\"ultimateFullAt\":" << ultimateFullAt_ << ",\"ultimateFills\":" << ultimateFills_ << ",\"rocketBlasts\":" << rocketBlasts_
+            << ",\"rocketKills\":" << rocketKills_ << ",\"healed\":" << healedByZone_ << ",\"healInsideSeconds\":" << healZoneInsideSeconds_
+            << ",\"barrageShots\":" << barrageShots_ << ",\"barrageSeconds\":" << barrageSeconds_ << ",\"overheats\":" << player.GetHeat().GetOverheatCount()
+            << ",\"roundsCounted\":" << (player.GetSurvivorRounds() >= 0 ? "true" : "false")
+            << ",\"bulletDamage\":" << player.GetStats().bulletDamage << ",\"drainDamage\":" << drainDamage_
+            << ",\"beamLockedSeconds\":" << beamLockedSeconds_ << ",\"absorbGained\":" << absorbGained_ << ",\"absorb\":" << absorb_
+            << ",\"selfHealed\":" << selfHealed_ << ",\"selfHealSeconds\":" << selfHealSeconds_
+            << ",\"phaseAvoided\":" << player.GetSurvivorPhaseAvoided() << ",\"orbDamage\":" << orbDamage_
+            << ",\"orbBounces\":" << orbBounces_ << ",\"lanceDamage\":" << lanceDamage_ << ",\"lanceMaxHits\":" << lanceMaxHits_
+            << ",\"primaryShots\":" << player.GetPrimaryAttackCount() << ",\"barrierBlocked\":" << barrierBlocked_
+            << ",\"barrierPushes\":" << barrierPushes_ << ",\"chargePushes\":" << chargePushes_ << ",\"shockwavePushes\":" << shockwavePushes_
+            << ",\"fortressBlocked\":" << fortressBlocked_ << ",\"fortressBlasts\":" << fortressBlasts_ << ",\"fortressDamage\":" << fortressDamage_
+            << "}"
+            << ",\"waves\":{\"count\":" << config_.waves.count << ",\"seconds\":" << config_.waves.seconds << ",\"maxHp\":" << player.GetMaxHp()
+            << ",\"damageTaken\":" << player.GetSurvivorDamageTaken() << ",\"damageCapped\":" << player.GetSurvivorDamageCapped()
+            << ",\"hits\":" << player.GetSurvivorHits() << ",\"sameSourceBlocked\":" << player.GetSurvivorSameSourceBlocked()
+            << ",\"repairs\":" << repairs_ << ",\"repairSpent\":" << repairSpent_ << ",\"points\":" << bag_.money
+            << ",\"healthCheck\":" << (autoHealthCheck_.tellp() > 0 ? autoHealthCheck_.str() : std::string("null")) << ",\"records\":[" << [&] {
+                   std::ostringstream records;
+                   for (size_t i = 0; i < waveRecords_.size(); ++i) {
+                       const WaveRecord& r = waveRecords_[i];
+                       records << (i ? "," : "") << "{\"wave\":" << r.wave << ",\"points\":" << r.points << ",\"damage\":" << r.damage
+                               << ",\"capped\":" << r.capped << ",\"wound\":" << r.wound << ",\"hp\":" << r.hp << ",\"maxHp\":" << r.maxHp
+                               << ",\"seconds\":" << r.seconds << "}";
+                   }
+                   return records.str();
+               }() << "]}"
+            << ",\"shop\":{\"spent\":" << shopSpent_ << ",\"rerolls\":" << shopRerollsTotal_ << ",\"tiers\":[" << upgradeTiers_[0] << ","
+            << upgradeTiers_[1] << "," << upgradeTiers_[2] << "," << upgradeTiers_[3] << "," << upgradeTiers_[4] << "],\"perks\":\"" << [&] {
+                   std::string names;
+                   for (size_t i = 0; i < survivor::kPerkCount; ++i) {
+                       if (perks_[i]) {
+                           names += std::string(names.empty() ? "" : " ") + survivor::GetPerkInfo(static_cast<survivor::PerkId>(i)).key +
+                                    (perks_[i] > 1 ? std::to_string(perks_[i]) : std::string());
+                       }
+                   }
+                   return names;
+               }() << "\",\"bought\":[" << [&] {
+                   std::ostringstream bought;
+                   for (size_t i = 0; i < shopLog_.size(); ++i) {
+                       bought << (i ? "," : "") << "\"" << shopLog_[i] << "\"";
+                   }
+                   return bought.str();
+               }() << "],\"maxHp\":" << player.GetMaxHp() << "}"
+            << ",\"result\":{\"lastHit\":\"" << player.GetSurvivorLastHit() << "\",\"dead\":" << (player.IsDead() ? "true" : "false")
+            << ",\"pointsEarned\":" << pointsEarned_ << ",\"score\":" << (HeroMode() ? ComputeHeroScore().total : 0) << "}"
+            // 機体のセーブ（K6）：書いて読み直し、同じになるか。解放の確認・結果画面で足した解放ポイント・次の機体まで。
+            << ",\"heroSave\":{\"roundTrip\":" << [&] {
+                   std::string error;
+                   survivor::HeroSave loaded;
+                   const bool same = survivor::SaveHeroSave(HeroSavePath(), heroSave_, error) &&
+                                     survivor::LoadHeroSave(HeroSavePath(), loaded, error) && loaded == heroSave_;
+                   return same ? "true" : "false";
+               }() << ",\"unlockOk\":" << (autoUnlockOk_ ? "true" : "false") << ",\"points\":" << heroSave_.points
+            << ",\"gained\":" << heroAwardGained_ << ",\"bonus\":" << heroAwardBonus_ << ",\"unlocked\":" << heroSave_.unlocked.size()
+            << ",\"selected\":\"" << heroSave_.selected << "\",\"sorties\":" << heroSave_.sorties << ",\"next\":\"" << NextHeroText() << "\"}"
             << ",\"weaponMode\":" << (WeaponMode() ? "true" : "false") << ",\"weaponSwaps\":" << weaponSwaps_ << ",\"reloads\":" << reloads_ << ",\"lockedAttacks\":" << autoLockedAttacks_
             << ",\"lockedSeconds\":" << autoLockedSeconds_ << ",\"emptyAttacks\":" << autoEmptyAttacks_ << ",\"emptySeconds\":" << autoEmptySeconds_
             << ",\"reserves\":[" << reserves_[0] << "," << reserves_[1] << "," << reserves_[2] << "],\"swapMeasured\":[" << autoSwapMeasured_[0] << ","

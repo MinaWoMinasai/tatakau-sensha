@@ -4,6 +4,9 @@
 #include "game/render/settings/ArenaCameraProfile.h"
 #include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
 
 // 育つ戦車の試作の湧き方・脅威の段階・宿敵・出口・敵どうしの押し離し。
 
@@ -62,7 +65,7 @@ void SurvivorRunController::UpdateSpawns(float dt)
             ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
             enemy->SetSizeScale(heavy.scale);
             enemy->SetHp(static_cast<int>(std::lround(static_cast<float>(enemy->GetMaxHp()) * heavy.hpScale)));
-            enemy->SetPlayerChase(heavy.acceleration, heavy.maxSpeed);
+            enemy->SetPlayerChase(heavy.acceleration * EnemySpeedScale(), heavy.maxSpeed * EnemySpeedScale());
             ++heavySpawned_;
         }
     }
@@ -100,6 +103,23 @@ void SurvivorRunController::UpdateSpawns(float dt)
 
     // 図形：生存数が目標に届くまで、予算の分だけ湧かせる。
     int missing = static_cast<int>(config_.ShapeTarget(elapsed_)) - alive.shapes;
+    // 足し続ける形（計画書 p8 の G1）：間隔ごとに数を足していき、生存数の上限までの分だけ湧かせる（予算は使わず、1回の更新で12体まで）。
+    const bool growth = config_.growth.enabled;
+    if (growth) {
+        const auto point = CurrentGrowth();
+        growthTimer_ -= dt;
+        while (growthTimer_ <= 0.0f) {
+            growthTimer_ += (std::max)(0.05f, point.interval);
+            growthRemainder_ += point.count;
+            const int add = static_cast<int>(growthRemainder_);
+            growthRemainder_ -= static_cast<float>(add);
+            growthPending_ += add;
+        }
+        const int cap = static_cast<int>(std::lround(point.maxAlive));
+        growthPending_ = (std::min)(growthPending_, (std::max)(0, cap));
+        growthAliveMax_ = (std::max)(growthAliveMax_, alive.shapes);
+        missing = (std::min)({growthPending_, (std::max)(0, cap - alive.shapes), 12});
+    }
     const auto& weights = config_.ShapeWeightsAt(elapsed_);
     std::discrete_distribution<int> pick(weights.begin(), weights.end());
     static constexpr std::array<const char*, 3> kShapes{"Square", "Triangle", "Pentagon"};
@@ -107,13 +127,23 @@ void SurvivorRunController::UpdateSpawns(float dt)
     std::uniform_real_distribution<float> chance(0.0f, 1.0f);
     std::uniform_real_distribution<float> phase(0.0f, (std::max)(0.1f, lunge.interval));
     int chasers = CountChasers();
-    while (missing > 0 && spawnBudget_ >= 1.0f) {
+    while (missing > 0 && (growth || spawnBudget_ >= 1.0f)) {
         const auto position = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance);
         if (!position) {
             break;
         }
         const size_t kind = static_cast<size_t>(pick(random_));
-        if (SpawnShape(kShapes[kind], *position, false) && kind == 2 && threatStage_ >= lunge.fromStage && chasers < config_.telegraph.maxChasers &&
+        const bool spawned = SpawnShape(kShapes[kind], *position, false);
+        // 寄ってくる図形（計画書 p7 の E5。設定の shapes.chase）：形ごとの速さで自機へ寄る。
+        if (spawned && config_.shapeChase[kind].second > 0.0f) {
+            world_.resources.enemyManager_->GetEnemyPtrs().back()->SetPlayerChase(config_.shapeChase[kind].first * EnemySpeedScale(),
+                                                                                  config_.shapeChase[kind].second * EnemySpeedScale());
+        }
+        if (spawned && growth) {
+            --growthPending_;
+            ++growthSpawned_;
+        }
+        if (spawned && kind == 2 && threatStage_ >= lunge.fromStage && chasers < config_.telegraph.maxChasers &&
             chance(random_) < lunge.chance) {
             // 突進する五角：ゆっくり寄り、周期ごとに溜めてから速く迫る。周期は個体ごとにずらす。
             ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
@@ -122,8 +152,213 @@ void SurvivorRunController::UpdateSpawns(float dt)
             ++chasers;
             ++lungeSpawned_;
         }
-        spawnBudget_ -= 1.0f;
+        if (!growth) {
+            spawnBudget_ -= 1.0f;
+        }
         --missing;
+    }
+}
+
+survivor::SpawnConfig::SpawnGrowth::Point SurvivorRunController::CurrentGrowth() const
+{
+    auto point = config_.growth.At(elapsed_);
+    for (const Surge& surge : surges_) {
+        if (surge.until <= 0.0f || elapsed_ < surge.until) {
+            point.interval *= (std::max)(0.05f, surge.intervalScale);
+            point.count *= (std::max)(0.0f, surge.countScale);
+            point.maxAlive += static_cast<float>(surge.maxAliveAdd);
+        }
+    }
+    return point;
+}
+
+ExpEnemy* SurvivorRunController::SpawnChaser(const std::string& prefab, const myEngine::Vector3& position, float speed)
+{
+    if (position.x < kSpawnMinX || position.x > kSpawnMaxX || position.y < kSpawnMinY || position.y > kSpawnMaxY ||
+        world_.resources.stage_->IsCollisionWithAnyBlock(position, 1.2f) || !SpawnShape(prefab.c_str(), position, false)) {
+        return nullptr;
+    }
+    ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
+    enemy->SetPlayerChase(speed * 1.5f * EnemySpeedScale(), speed * EnemySpeedScale());
+    return enemy;
+}
+
+void SurvivorRunController::UpdateTimeline()
+{
+    while (timelineNext_ < config_.timeline.size() && elapsed_ >= config_.timeline[timelineNext_].at) {
+        RunTimelineEvent(config_.timeline[timelineNext_++]);
+    }
+    // 中ボスが倒れたら（いなくなったら）、レベルアップの3択を rewards 回ぶん渡す。
+    for (auto it = midBosses_.begin(); it != midBosses_.end();) {
+        const auto& enemies = world_.resources.enemyManager_->GetEnemyPtrs();
+        const bool alive = std::any_of(enemies.begin(), enemies.end(), [&](const ExpEnemy* enemy) {
+            return enemy && !enemy->IsDead() && enemy->GetCollisionId() == it->first;
+        });
+        if (alive) {
+            ++it;
+            continue;
+        }
+        ++midBossKills_;
+        world_.combatFlow->SetEventCallout("中ボスを倒した", 1.4f);
+        if (HeroMode() && config_.heroes.levelUps && it->second > 0) {
+            heroPendingLevelUps_ += it->second;
+            if (!heroLevelUpOpen_) {
+                OpenHeroLevelUp();
+            }
+        }
+        it = midBosses_.erase(it);
+    }
+}
+
+void SurvivorRunController::RunTimelineEvent(const survivor::SpawnConfig::TimelineEvent& event)
+{
+    ++timelineEvents_;
+    const myEngine::Vector3 player = world_.resources.player_->GetWorldPosition();
+    const myEngine::Vector3 camera = world_.resources.camera->GetTranslate();
+    const float halfHeight = arenacamera::HalfViewHeight() + 2.0f;
+    const float halfWidth = arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f;
+    if (event.kind == "wall") {
+        // 壁：画面のすぐ外の両側に、縁に沿って等間隔に並べる。両側から挟むように寄ってくるので、どちらかを破って抜ける。
+        const bool vertical = event.side == "topBottom";
+        const int count = (std::max)(1, event.count);
+        for (const float sign : {-1.0f, 1.0f}) {
+            for (int i = 0; i < count; ++i) {
+                const float t = (static_cast<float>(i) + 0.5f) / static_cast<float>(count) * 2.0f - 1.0f;
+                const myEngine::Vector3 position = vertical ? myEngine::Vector3{camera.x + t * halfWidth, camera.y + sign * (halfHeight + 1.0f), 0.0f}
+                                                            : myEngine::Vector3{camera.x + sign * (halfWidth + 1.0f), camera.y + t * halfHeight, 0.0f};
+                SpawnChaser(event.shape, position, event.speed);
+            }
+        }
+    } else if (event.kind == "ring") {
+        // 輪：自機のまわりに等間隔に並べ、いっせいに寄らせる。
+        const int count = (std::max)(1, event.count);
+        std::uniform_real_distribution<float> turn(0.0f, 6.2831853f);
+        const float start = turn(random_);
+        for (int i = 0; i < count; ++i) {
+            const float angle = start + 6.2831853f * static_cast<float>(i) / static_cast<float>(count);
+            SpawnChaser(event.shape, {player.x + std::cos(angle) * event.radius, player.y + std::sin(angle) * event.radius, 0.0f}, event.speed);
+        }
+    } else if (event.kind == "surge") {
+        // 大群（計画書 p8 の G1）：しばらく、足し続ける湧きを速く・多くする。
+        surges_.push_back({event.duration > 0.0f ? elapsed_ + event.duration : 0.0f, event.intervalScale, event.countScale, event.maxAliveAdd});
+        ++surgesStarted_;
+        surges_.erase(std::remove_if(surges_.begin(), surges_.end(), [this](const Surge& s) { return s.until > 0.0f && elapsed_ >= s.until; }),
+                      surges_.end());
+    } else if (event.kind == "midBoss") {
+        // 中ボス：画面のすぐ外から、大きく硬い1体。
+        const auto position = FindSpawnPosition(config_.ringMinDistance, config_.ringMaxDistance);
+        if (position && world_.resources.enemyManager_->SpawnLevelEnemy(*position, event.shape,
+                                                                         static_cast<int>(std::lround(static_cast<float>((std::max)(1, event.hp)) * EnemyHpScale())))) {
+            ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
+            enemy->SetSizeScale(event.scale);
+            enemy->SetPlayerChase(event.speed * 1.5f * EnemySpeedScale(), event.speed * EnemySpeedScale());
+            if (event.exp > 0) {
+                enemy->SetExpValue(static_cast<uint32_t>(event.exp));
+            }
+            midBosses_.push_back({enemy->GetCollisionId(), event.rewards});
+            world_.combat.screenEffectDirector_.TriggerBossEntry();
+        }
+    }
+    if (!event.text.empty()) {
+        world_.combatFlow->SetEventCallout(event.text, 1.4f);
+    }
+}
+
+void SurvivorRunController::UpdateSpeedTest(float dt)
+{
+    // ボスは出さない。自動で撃つは最初だけ切る（F で戻せる）。
+    config_.exitOpenSeconds = elapsed_ + 5999.0f;
+    if (speedTestClock_ <= 0.0f) {
+        heroAutoFire_ = false;
+    }
+    speedTestClock_ += dt;
+    auto find = [&](uint64_t id) -> ExpEnemy* {
+        for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (enemy && !enemy->IsDead() && enemy->GetCollisionId() == id) {
+                return enemy;
+            }
+        }
+        return nullptr;
+    };
+    static constexpr std::array<const char*, 3> kPrefabs{"Square", "Triangle", "Pentagon"};
+    static constexpr std::array<const char*, 3> kNames{"四角", "三角", "五角"};
+    // 3体そろっていない（倒した）か、一番前が右の端に着いたら、左から並べ直す。
+    bool restart = speedTestIds_[0] == 0;
+    float front = 0.0f;
+    for (size_t i = 0; i < 3 && !restart; ++i) {
+        const ExpEnemy* enemy = find(speedTestIds_[i]);
+        if (!enemy) {
+            restart = true;
+        } else {
+            front = (std::max)(front, enemy->GetWorldPosition().x);
+        }
+    }
+    // 走り出しは自機の左10で、高さは自機の 上4・下4・下8（自機と同じ高さには置かない。ぶつかって押し合うので）。40進むか右の端に着いたらやり直す。
+    if (restart || front > (std::min)(kSpawnMaxX - 3.0f, speedTestStartX_ + 40.0f)) {
+        world_.resources.enemyManager_->ClearRunActors();
+        const myEngine::Vector3 self = world_.resources.player_->GetWorldPosition();
+        speedTestStartX_ = (std::clamp)(self.x - 10.0f, kSpawnMinX + 2.0f, kSpawnMaxX - 20.0f);
+        const float centerY = (std::clamp)(self.y, kSpawnMinY + 6.0f, kSpawnMaxY - 6.0f);
+        for (size_t i = 0; i < 3; ++i) {
+            const myEngine::Vector3 position{speedTestStartX_, centerY + (i == 0 ? 4.0f : i == 1 ? -4.0f : -8.0f), 0.0f};
+            speedTestIds_[i] = 0;
+            if (!SpawnShape(kPrefabs[i], position, false)) {
+                continue;
+            }
+            ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
+            enemy->SetHp(1000000);
+            enemy->SetPlayerChase(config_.shapeChase[i].first, config_.shapeChase[i].second);
+            enemy->SetChaseDirection({1.0f, 0.0f, 0.0f});
+            speedTestIds_[i] = enemy->GetCollisionId();
+            speedTestLast_[i] = position;
+        }
+        ++speedTestRaces_;
+        speedTestMoved_.fill(0.0f);
+        speedTestTimer_ = 0.0f;
+        speedTestLast_[3] = world_.resources.player_->GetWorldPosition();
+        return;
+    }
+    // 動いた距離を足し、1秒ごとに出す。
+    for (size_t i = 0; i < 4; ++i) {
+        const ExpEnemy* enemy = i < 3 ? find(speedTestIds_[i]) : nullptr;
+        const myEngine::Vector3 position = i < 3 ? (enemy ? enemy->GetWorldPosition() : speedTestLast_[i]) : world_.resources.player_->GetWorldPosition();
+        speedTestMoved_[i] += myEngine::Length(myEngine::Vector3{position.x - speedTestLast_[i].x, position.y - speedTestLast_[i].y, 0.0f});
+        speedTestLast_[i] = position;
+    }
+    speedTestTimer_ += dt;
+    if (speedTestTimer_ < 1.0f) {
+        return;
+    }
+    std::ostringstream text, json;
+    text << std::fixed << std::setprecision(1);
+    json << std::fixed << std::setprecision(2) << (speedTestLog_.empty() ? "" : ",") << "{\"t\":" << speedTestClock_ << ",\"race\":" << speedTestRaces_;
+    static constexpr std::array<const char*, 4> kKeys{"square", "triangle", "pentagon", "player"};
+    for (size_t i = 0; i < 4; ++i) {
+        const float speed = speedTestMoved_[i] / speedTestTimer_;
+        // 「四角 2.6/2.6」のように、1秒の速さ／設定の最高速度。
+        text << (i ? "　" : "") << (i < 3 ? kNames[i] : "自機") << " " << speed;
+        if (i < 3) {
+            text << "/" << config_.shapeChase[i].second;
+        }
+        json << ",\"" << kKeys[i] << "\":" << speed;
+    }
+    // 自機の最高速度の内訳：土台の速さ（毎秒）× 移動の倍率。コントローラーを使っているか（G）。
+    const auto& player = *world_.resources.player_;
+    const float base = player.GetStats().moveSpeed * myEngine::kFixedStepsPerSecond;
+    const float scale = player.GetSurvivorMoveScale();
+    const bool pad = world_.resources.input_->IsGamepadActive();
+    text << "（" << base << "×" << std::setprecision(2) << scale << (pad ? " G" : "") << "）";
+    json << ",\"playerBase\":" << base << ",\"playerScale\":" << scale << ",\"gamepad\":" << (pad ? "true" : "false") << "}";
+    speedTestLog_ += json.str();
+    world_.combatFlow->SetEventCallout(text.str(), 1.2f);
+    std::ofstream(std::string(kAutoTestDirectory) + "/speed_test.json") << "[" << speedTestLog_ << "]\n";
+    speedTestMoved_.fill(0.0f);
+    speedTestTimer_ = 0.0f;
+    if (speedTestAutoQuit_ && speedTestRaces_ == 1 && speedTestClock_ >= 6.0f && speedTestClock_ < 7.1f) {
+        RequestCapture("speed_test");
+    }
+    if (speedTestAutoQuit_ && speedTestClock_ >= 20.0f) {
+        PostQuitMessage(0);
     }
 }
 
@@ -183,6 +418,28 @@ std::optional<myEngine::Vector3> SurvivorRunController::FindSpawnPosition(float 
     std::uniform_real_distribution<float> angle(0.0f, 6.2831853f);
     std::uniform_real_distribution<float> distance(minDistance, maxDistance);
     std::uniform_real_distribution<float> anyX(kSpawnMinX, kSpawnMaxX), anyY(kSpawnMinY, kSpawnMaxY);
+    // 画面のすぐ外から（計画書 p7 の E5。設定の spawnRing.screenEdge）：上下左右の縁を、縁の長さに比例して選び、縁に沿ってばらける。
+    if (config_.ringScreenEdge) {
+        std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+        for (int attempt = 0; attempt < 16; ++attempt) {
+            const float along = unit(random_) * (halfWidth + halfHeight) * 2.0f;
+            const float sideOut = 1.0f + unit(random_) * 2.0f;
+            myEngine::Vector3 position{};
+            if (along < halfWidth * 2.0f) {
+                const float y = unit(random_) < 0.5f ? -(halfHeight + sideOut) : halfHeight + sideOut;
+                position = {camera.x - halfWidth + along, camera.y + y, 0.0f};
+            } else {
+                const float x = unit(random_) < 0.5f ? -(halfWidth + sideOut) : halfWidth + sideOut;
+                position = {camera.x + x, camera.y - halfHeight + (along - halfWidth * 2.0f), 0.0f};
+            }
+            position.x = (std::clamp)(position.x, kSpawnMinX, kSpawnMaxX);
+            position.y = (std::clamp)(position.y, kSpawnMinY, kSpawnMaxY);
+            const bool offScreen = std::abs(position.x - camera.x) > halfWidth || std::abs(position.y - camera.y) > halfHeight;
+            if (offScreen && !world_.resources.stage_->IsCollisionWithAnyBlock(position, 1.2f)) {
+                return position;
+            }
+        }
+    }
     for (int attempt = 0; attempt < 24; ++attempt) {
         myEngine::Vector3 position{};
         if (attempt < 16) {
@@ -211,7 +468,7 @@ bool SurvivorRunController::SpawnShape(const char* prefab, const myEngine::Vecto
         // 段階が上がるほど速く寄る。加速度は最高速度と同じ割合で上げる。
         const float maxSpeed = config_.swarmMaxSpeed + config_.threat.swarmSpeedPerStage * static_cast<float>(threatStage_ - 1);
         const float acceleration = config_.swarmMaxSpeed > 0.0f ? config_.swarmAcceleration * maxSpeed / config_.swarmMaxSpeed : 0.0f;
-        world_.resources.enemyManager_->GetEnemyPtrs().back()->SetPlayerChase(acceleration, maxSpeed);
+        world_.resources.enemyManager_->GetEnemyPtrs().back()->SetPlayerChase(acceleration * EnemySpeedScale(), maxSpeed * EnemySpeedScale());
     }
     return true;
 }
@@ -219,8 +476,10 @@ bool SurvivorRunController::SpawnShape(const char* prefab, const myEngine::Vecto
 float SurvivorRunController::EnemyHpScale() const
 {
     // 武器の枠を使う遊び方では、ステージごとの倍率もかける（W8）。
-    const float stage = WeaponMode() ? config_.stages.enemyHp[static_cast<size_t>((std::clamp)(stage_, 0, 2))] : 1.0f;
-    return (std::max)(0.1f, (1.0f + config_.threat.enemyHpPerStage * static_cast<float>(threatStage_ - 1)) * stage);
+    const float stage = WeaponMode() ? StageEnemyHp() : 1.0f;
+    // 足し続ける形（計画書 p8 の G1）では、経過分ごとに指数で上がる倍率も掛ける。
+    return (std::max)(0.1f, (1.0f + config_.threat.enemyHpPerStage * static_cast<float>(threatStage_ - 1)) * stage *
+                                config_.growth.HpScale(elapsed_));
 }
 
 void SurvivorRunController::ScaleLastSpawnHp()
@@ -236,7 +495,7 @@ void SurvivorRunController::ScaleLastSpawnHp()
 void SurvivorRunController::UpdateThreat()
 {
     // 武器の枠を使う遊び方では、ステージごとに脅威の段階を上乗せする（W8）。
-    const int offset = WeaponMode() ? config_.stages.threatOffset[static_cast<size_t>((std::clamp)(stage_, 0, 2))] : 0;
+    const int offset = WeaponMode() ? StageThreatOffset() : 0;
     const int stage = (std::clamp)(config_.ThreatStage(elapsed_) + offset, 1, (std::max)(1, config_.threat.maxStage));
     if (stage != threatStage_) {
         threatStage_ = stage;
@@ -428,6 +687,12 @@ void SurvivorRunController::FinishRivalDefeat()
     const myEngine::Vector3 position = cineAnchor_;
     pickups_.Drop(position, static_cast<uint32_t>((std::max)(0, config_.rival.exp)), random_);
     expDropped_ += (std::max)(0, config_.rival.exp);
+    // 機体の遊び方のボス：レベルポイントを入れて、出撃を終える（K3）。
+    if (HeroMode()) {
+        AddExperience((std::max)(0, config_.waves.boss));
+        FinishWave();
+        return;
+    }
     // 武器の枠を使う遊び方のボス：3択の代わりに、ボスの素材と武器を1つ落とす（W8）。
     if (WeaponMode()) {
         for (int i = 0; i < config_.stages.bossMaterials; ++i) {

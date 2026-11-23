@@ -494,12 +494,10 @@ myEngine::InitializationTask SessionBootstrap::Build()
         if (world_.resources.enemy_->IsNeonDepthEncounterEnabled()) {
             world_.resources.neonBossVisual_->SetDepthProfile(world_.resources.neonDepthConfig_.visual);
         }
-#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
         world_.resources.neonBossDeveloperStartPending_ = world_.resources.neonBossAutoTest_;
         if (world_.run.expeditionMapEnabled_ && GameStartSession::ConsumeDeveloperBossStart()) {
             world_.resources.neonBossDeveloperStartPending_ = true;
         }
-#endif
     }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     world_.gameplayScenarioRunner->InitializeGameplayScenario();

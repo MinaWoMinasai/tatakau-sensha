@@ -143,6 +143,26 @@ public:
         chaseMaxSpeed_ = maxSpeed;
     }
 
+    /// @brief 燃やす（副武器の火炎放射。計画書 p8 の F3）。燃えている間は 0.5秒ごとに削られる。燃えていれば、時間を延ばし強い方の威力にする。
+    void ApplyBurn(float damagePerSecond, float seconds)
+    {
+        if (isDead_ || isRunResource_ || damagePerSecond <= 0.0f) {
+            return;
+        }
+        if (burnTimer_ <= 0.0f) {
+            burnTick_ = 0.5f;
+        }
+        burnTimer_ = (std::max)(burnTimer_, seconds);
+        burnDamagePerSecond_ = (std::max)(burnDamagePerSecond_, damagePerSecond);
+    }
+
+    /// @brief 寄る向きを、自機ではなく決まった向き direction に固定する（速さの確認用。計画書 p7）。加速・最高速度・慣性はそのまま。
+    void SetChaseDirection(const myEngine::Vector3& direction)
+    {
+        chaseDirection_ = direction;
+        chaseFixedDirection_ = true;
+    }
+
     /// @brief 寄ってくる図形に突進を足す。interval 秒ごとに、windup 秒ほぼ止まって溜め、duration 秒だけ最高速度 lungeSpeed で迫る。
     /// @param phase 周期の始まりをずらす秒（群れが一斉に突進しないように）。SetPlayerChase と一緒に使う。
     void SetPlayerLunge(float interval, float windup, float duration, float lungeSpeed, float phase)
@@ -603,6 +623,8 @@ private:
     float sizeScale_ = 1.0f;
     float chaseAcceleration_ = 0.0f;
     float chaseMaxSpeed_ = 0.0f;
+    myEngine::Vector3 chaseDirection_{};
+    bool chaseFixedDirection_ = false;
     SurvivorRole survivorRole_ = SurvivorRole::None;
     float roleTimer_ = 0.0f;
     float warpDissolve_ = 0.0f;
@@ -615,6 +637,10 @@ private:
     float lungeDuration_ = 0.0f;
     float lungeSpeed_ = 0.0f;
     float lungeTimer_ = 0.0f;
+    // 燃えている（計画書 p7 の E5）：残りの秒・毎秒の威力・次に削るまでの秒。
+    float burnTimer_ = 0.0f;
+    float burnDamagePerSecond_ = 0.0f;
+    float burnTick_ = 0.0f;
     ExpEnemyType type_ = ExpEnemyType::Square;
     bool hasAuthoredDefinition_ = false;
     uint32_t authoredContactDamage_ = 0, authoredBulletDamage_ = 1;

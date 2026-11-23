@@ -128,6 +128,9 @@ struct TankRunTuning {
     int impactSplitCount = 0;
 };
 
+/// @brief 遠征で、自機（ドローンを含む）の弾の耐久と敵弾を打ち消す力に掛ける倍率。
+inline constexpr float kExpeditionPlayerBulletScale = 3.0f;
+
 /// @brief 戦車遠征調整値を作成して返す。
 inline constexpr TankRunTuning MakeTankRunTuning(const TankRunModifiers& modifiers, const TankRunGrowth& growth = {})
 {
@@ -138,6 +141,11 @@ inline constexpr TankRunTuning MakeTankRunTuning(const TankRunModifiers& modifie
     // 敵弾の打ち消しは、敵に与えたダメージとは独立している。
     result.bulletHp = 1.0f;
     result.bulletInterception = modifiers.pierce ? 1.0f + 2.0f * TankEffectPower(modifiers, tankrun::CardId::Pierce) : 1.0f;
+    if (modifiers.expedition) {
+        // 遠征では自機の弾を強くする：耐久と敵弾を打ち消す力を3倍（ふつうの敵弾なら1発で消せる）。
+        result.bulletHp *= kExpeditionPlayerBulletScale;
+        result.bulletInterception *= kExpeditionPlayerBulletScale;
+    }
     result.dashSpeed = 1.85f;
     result.reflects = modifiers.ricochet || modifiers.core == TankRunCore::Ricochet;
     if (modifiers.expedition) {
@@ -333,6 +341,10 @@ inline constexpr TankDroneTuning MakeTankDroneTuning(const TankRunModifiers& mod
     if (modifiers.droneGuard) {
         result.bulletHp = 1.0f + 2.0f * TankEffectPower(modifiers, tankrun::CardId::DroneGuard);
         result.interception = result.bulletHp;
+    }
+    if (modifiers.expedition) {
+        result.bulletHp *= kExpeditionPlayerBulletScale;
+        result.interception *= kExpeditionPlayerBulletScale;
     }
     return result;
 }

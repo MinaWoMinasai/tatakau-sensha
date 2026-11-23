@@ -2,6 +2,9 @@
 #if defined(USE_IMGUI)
 #include "externals/imgui/imgui.h"
 #endif
+#include <algorithm>
+#include <cfloat>
+#include <cstdio>
 #include <iomanip>
 #include <sstream>
 
@@ -49,6 +52,9 @@ bool DrawSpawns(SpawnConfig& config)
     }
     changed |= ImGui::DragFloat("出口が開く（秒）", &config.exitOpenSeconds, 1.0f, 10.0f, 900.0f, "%.0f");
     changed |= ImGui::DragFloat("1秒に湧く上限", &config.maxSpawnsPerSecond, 0.5f, 0.5f, 200.0f, "%.1f");
+    if (config.growth.enabled) {
+        ImGui::TextColored({1.0f, 0.8f, 0.3f, 1.0f}, "足し続ける湧き（上の「無限の場：かんたん調整」）の間は、下の生存数の目標は使わない");
+    }
     ImGui::SeparatorText("図形の生存数の目標（秒, 数）");
     for (size_t i = 0; i < config.shapeTargetAlive.size(); ++i) {
         ImGui::PushID(static_cast<int>(i));
@@ -306,6 +312,107 @@ bool DrawCost(CraftCost& cost)
     return changed;
 }
 
+/// @brief 技1つの値（計画書 p4 の K8）。種類ごとに使う値だけ意味がある（設定の heroes の説明を参照）。
+bool DrawAbility(const char* label, AbilityDefinition& ability)
+{
+    if (ability.kind == AbilityKind::None) {
+        return false;
+    }
+    bool changed = false;
+    ImGui::PushID(label);
+    if (ImGui::TreeNode((std::string(label) + "：" + ability.name + "（" + AbilityKindKey(ability.kind) + "）").c_str())) {
+        changed |= ImGui::DragFloat("待ち時間（秒）", &ability.cooldown, 0.05f, 0.0f, 60.0f, "%.2f");
+        changed |= ImGui::DragFloat("効く時間（秒）", &ability.duration, 0.02f, 0.0f, 30.0f, "%.2f");
+        changed |= ImGui::DragFloat("強さ（power）", &ability.power, 0.01f, 0.0f, 50.0f, "%.3f");
+        changed |= ImGui::DragFloat("半径・長さ（radius）", &ability.radius, 0.05f, 0.0f, 40.0f, "%.2f");
+        changed |= ImGui::DragFloat("毎秒・速さ・押す強さ（rate）", &ability.rate, 0.01f, 0.0f, 60.0f, "%.2f");
+        changed |= ImGui::DragFloat("太さ・大きさ（size）", &ability.size, 0.01f, 0.0f, 10.0f, "%.2f");
+        changed |= ImGui::DragFloat("吸収ゲージの溜まり方（gain）", &ability.gain, 0.0005f, 0.0f, 1.0f, "%.4f");
+        ImGui::TreePop();
+    }
+    ImGui::PopID();
+    return changed;
+}
+
+/// @brief 機体の値（計画書 p4 の K8）。変えるとすぐ今の機体に入れ直す（ショップの強化は掛け直す）。
+bool DrawHeroes(SpawnConfig& config)
+{
+    bool changed = false;
+    if (!config.heroes.enabled || !ImGui::CollapsingHeader("機体", ImGuiTreeNodeFlags_DefaultOpen)) {
+        return false;
+    }
+    ImGui::TextDisabled("出撃している機体にすぐ効く。最大HPは満タンに戻さない。");
+    static constexpr std::array<const char*, kAbilitySlotCount> kSlots{"右クリック", "Shift", "E", "Q"};
+    for (auto& hero : config.heroes.heroes) {
+        ImGui::PushID(hero.key.c_str());
+        if (ImGui::TreeNode(hero.name.c_str())) {
+            changed |= ImGui::DragInt("最大HP（0は自機の値）", &hero.maxHp, 0.5f, 0, 1000);
+            changed |= ImGui::DragFloat("Q のゲージの量", &hero.ultimateCharge, 5.0f, 1.0f, 20000.0f, "%.0f");
+            changed |= ImGui::DragFloat("主武器の熱の倍率（0は武器の値）", &hero.primaryHeatScale, 0.01f, 0.0f, 8.0f, "%.2f");
+            changed |= ImGui::DragInt("解放の値段（0は最初から）", &hero.unlockCost, 10.0f, 0, 100000);
+            changed |= DrawAbility("左クリック", hero.primaryAbility);
+            for (size_t i = 0; i < kAbilitySlotCount; ++i) {
+                changed |= DrawAbility(kSlots[i], hero.abilities[i]);
+            }
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+    }
+    return changed;
+}
+
+/// @brief 波・稼ぎ・体力の決まり・ショップの値（計画書 p4 の K8）。
+bool DrawWavesAndShop(SpawnConfig& config)
+{
+    bool changed = false;
+    if (!config.heroes.enabled || !ImGui::CollapsingHeader("波・稼ぎ・体力・ショップ")) {
+        return false;
+    }
+    ImGui::SeparatorText("波");
+    changed |= ImGui::DragInt("波の数", &config.waves.count, 0.05f, 1, 20);
+    changed |= ImGui::DragFloat("1つの波（秒）", &config.waves.seconds, 0.5f, 5.0f, 600.0f, "%.0f");
+    changed |= ImGui::DragFloat("ボスが出るまで（秒）", &config.waves.bossDelay, 0.5f, 0.0f, 120.0f, "%.0f");
+    ImGui::SeparatorText("倒した敵のレベルポイント");
+    changed |= ImGui::DragInt("三角", &config.waves.triangle, 0.1f, 0, 1000);
+    changed |= ImGui::DragInt("四角", &config.waves.square, 0.1f, 0, 1000);
+    changed |= ImGui::DragInt("五角", &config.waves.pentagon, 0.1f, 0, 1000);
+    changed |= ImGui::DragInt("重い四角", &config.waves.heavySquare, 0.2f, 0, 1000);
+    changed |= ImGui::DragInt("大五角", &config.waves.bigPentagon, 0.2f, 0, 1000);
+    changed |= ImGui::DragInt("敵戦車", &config.waves.tank, 0.2f, 0, 1000);
+    changed |= ImGui::DragInt("ボス", &config.waves.boss, 1.0f, 0, 10000);
+    ImGui::SeparatorText("スコア（解放ポイント）");
+    changed |= ImGui::DragFloat("進んだ波1つ", &config.waves.scorePerWave, 1.0f, 0.0f, 10000.0f, "%.0f");
+    changed |= ImGui::DragFloat("稼いだポイント1", &config.waves.scorePerPoint, 0.01f, 0.0f, 10.0f, "%.2f");
+    changed |= ImGui::DragFloat("ボス撃破", &config.waves.scoreBoss, 1.0f, 0.0f, 10000.0f, "%.0f");
+    changed |= ImGui::DragFloat("初クリア", &config.waves.scoreFirstClear, 1.0f, 0.0f, 10000.0f, "%.0f");
+    ImGui::SeparatorText("体力の決まり");
+    changed |= ImGui::DragFloat("1回の被弾の上限（最大HPの割合）", &config.health.maxHitRatio, 0.005f, 0.01f, 1.0f, "%.3f");
+    changed |= ImGui::DragFloat("1秒の上限（最大HPの割合）", &config.health.maxPerSecondRatio, 0.005f, 0.01f, 1.0f, "%.3f");
+    changed |= ImGui::DragFloat("同じ相手の間隔（秒）", &config.health.sameSourceSeconds, 0.01f, 0.0f, 5.0f, "%.2f");
+    changed |= ImGui::DragFloat("傷になる割合", &config.health.woundRatio, 0.01f, 0.0f, 1.0f, "%.2f");
+    changed |= ImGui::DragInt("修理の値段", &config.health.repairCost, 1.0f, 0, 10000);
+    changed |= ImGui::DragInt("修理で戻る HP", &config.health.repairHeal, 0.5f, 0, 1000);
+    ImGui::SeparatorText("ショップ");
+    changed |= ImGui::DragInt("並ぶ数", &config.shop.offerCount, 0.05f, 1, 8);
+    changed |= ImGui::DragInt("引き直し", &config.shop.rerollCost, 1.0f, 0, 10000);
+    changed |= ImGui::DragInt("引き直しの上がり幅", &config.shop.rerollStep, 1.0f, 0, 10000);
+    for (size_t i = 0; i < config.shop.upgradePrices.size(); ++i) {
+        changed |= ImGui::DragInt(("強化 " + std::to_string(i + 1) + " 段目").c_str(), &config.shop.upgradePrices[i], 1.0f, 0, 10000);
+    }
+    if (ImGui::TreeNode("パーク")) {
+        for (size_t i = 0; i < kPerkCount; ++i) {
+            const PerkInfo& info = GetPerkInfo(static_cast<PerkId>(i));
+            ImGui::PushID(info.key);
+            ImGui::TextUnformatted((std::string(info.name) + (info.hero[0] != '\0' ? std::string("（") + info.hero + "）" : std::string())).c_str());
+            changed |= ImGui::DragInt("値段", &config.shop.perkPrices[i], 1.0f, 0, 10000);
+            changed |= ImGui::DragFloat("強さ", &config.shop.perkValues[i], 0.01f, 0.0f, 100.0f, "%.3f");
+            ImGui::PopID();
+        }
+        ImGui::TreePop();
+    }
+    return changed;
+}
+
 /// @brief 武器の値（カスタマイズシューティング、計画書 p3 の W11）。
 bool DrawWeapons(SpawnConfig& config)
 {
@@ -466,6 +573,34 @@ bool DrawStagesAndEnemies(SpawnConfig& config)
     return changed;
 }
 
+/// @brief 弾の軌跡のにじみと、拾い物の光り方。
+bool DrawGlow(SpawnConfig& config)
+{
+    bool changed = false;
+    if (!ImGui::CollapsingHeader("光り方")) {
+        return false;
+    }
+    auto& glow = config.glow;
+    ImGui::SeparatorText("弾の軌跡のにじみ");
+    changed |= ImGui::DragFloat("強さ", &glow.trailBloomIntensity, 0.02f, 0.0f, 8.0f, "%.2f");
+    changed |= ImGui::DragFloat("明るさ", &glow.trailBloomGain, 0.02f, 0.0f, 4.0f, "%.2f");
+    changed |= ImGui::DragFloat("広がり", &glow.trailBloomScatter, 0.01f, 0.0f, 0.9f, "%.2f");
+    changed |= ImGui::DragFloat("半径", &glow.trailBloomRadius, 0.01f, 0.25f, 2.0f, "%.2f");
+    ImGui::SeparatorText("弾の軌跡の尾");
+    changed |= ImGui::DragFloat("尾の明るさ（先端に対して）", &glow.trailTailBrightness, 0.01f, 0.0f, 2.0f, "x%.2f");
+    changed |= ImGui::DragFloat("薄れ方（大きいほど尾まで色を保つ）", &glow.trailFadeCurve, 0.02f, 0.2f, 6.0f, "%.2f");
+    changed |= ImGui::DragFloat("尾の太さ（先端に対して）", &glow.trailTailWidth, 0.01f, 0.0f, 2.0f, "x%.2f");
+    changed |= ImGui::DragFloat("軌跡が残る秒", &glow.trailSeconds, 0.005f, 0.02f, 1.5f, "%.3f");
+    ImGui::SeparatorText("拾い物");
+    changed |= ImGui::DragFloat("輪の半径（0 で無し）", &glow.lootRingRadius, 0.01f, 0.0f, 2.0f, "%.2f");
+    changed |= ImGui::DragFloat("輪の太さ", &glow.lootRingWidth, 0.005f, 0.0f, 0.5f, "%.3f");
+    changed |= ImGui::DragFloat("光の尾の秒（0 で無し）", &glow.lootTrailSeconds, 0.005f, 0.0f, 1.0f, "%.3f");
+    changed |= ImGui::DragFloat("光の尾の太さ", &glow.lootTrailWidth, 0.005f, 0.0f, 1.0f, "%.3f");
+    changed |= ImGui::DragFloat("拾った光の秒（0 で無し）", &glow.collectFlashSeconds, 0.005f, 0.0f, 2.0f, "%.3f");
+    changed |= ImGui::DragFloat("拾った光の半径", &glow.collectFlashRadius, 0.02f, 0.0f, 6.0f, "%.2f");
+    return changed;
+}
+
 /// @brief ステージ2からの新しい敵。
 bool DrawElites(SpawnConfig& config)
 {
@@ -508,6 +643,266 @@ bool DrawElites(SpawnConfig& config)
     changed |= ImGui::DragInt("爆発のダメージ", &elites.mineDamage, 0.1f, 0, 500);
     return changed;
 }
+/// @brief 無限の場のかんたん調整（計画書 p8 の G2）。速さ・湧き方・敵の固さ・大群・経験値・スパナを1か所にまとめる。
+bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& timelineChanged)
+{
+    bool changed = false;
+    auto& growth = config.growth;
+    if (!growth.enabled || !ImGui::CollapsingHeader("無限の場：かんたん調整", ImGuiTreeNodeFlags_DefaultOpen)) {
+        return false;
+    }
+    const ImVec4 kRed{1.0f, 0.45f, 0.4f, 1.0f};
+    const ImVec4 kGreen{0.5f, 1.0f, 0.6f, 1.0f};
+    ImGui::TextDisabled("ドラッグで変える（Ctrl+クリックで数字を打てる）。変えた値はすぐ効く。");
+
+    ImGui::SeparatorText("今の様子");
+    const float perSecond = snapshot.growthCount / (std::max)(0.05f, snapshot.growthInterval);
+    ImGui::Text("敵 %d / 上限 %.0f    %.2f秒ごとに %.1f体（毎秒 %.1f体）", snapshot.alive, snapshot.growthMaxAlive, snapshot.growthInterval,
+                snapshot.growthCount, perSecond);
+    ImGui::Text("敵の HP ×%.2f    敵の速さ ×%.2f（これから湧く敵）    Lv %d", snapshot.enemyHpScale, snapshot.enemySpeedScale, snapshot.level);
+
+    // 速さ：自機の歩きと、図形ごとの寄る速さ。自機より速いかを横に出す。
+    ImGui::SeparatorText("速さ（毎秒。ワールド単位）");
+    changed |= ImGui::SliderFloat("自機の歩き", &config.heroes.walkSpeed, 1.0f, 10.0f, "%.2f");
+    ImGui::TextDisabled("パーク（軽い足回り）の倍率はこれに掛かる");
+    static constexpr std::array<const char*, 3> kShapes{"四角", "三角", "五角"};
+    for (size_t i = 0; i < kShapes.size(); ++i) {
+        ImGui::PushID(static_cast<int>(i));
+        auto& chase = config.shapeChase[i];
+        char label[64];
+        std::snprintf(label, sizeof(label), "%s の最高速度", kShapes[i]);
+        changed |= ImGui::SliderFloat(label, &chase.second, 0.0f, 10.0f, "%.2f");
+        ImGui::SameLine();
+        const float now = chase.second * snapshot.enemySpeedScale;
+        if (now >= config.heroes.walkSpeed) {
+            ImGui::TextColored(kRed, "自機より速い（今 %.2f）", now);
+        } else {
+            ImGui::TextColored(kGreen, "自機より遅い（今 %.2f）", now);
+        }
+        std::snprintf(label, sizeof(label), "%s の加速（大きいほど急に向きを変える）", kShapes[i]);
+        changed |= ImGui::DragFloat(label, &chase.first, 0.1f, 0.0f, 40.0f, "%.1f");
+        ImGui::PopID();
+    }
+    float speedPercent = growth.speedPerMinute * 100.0f;
+    if (ImGui::DragFloat("時間で速くなる（1分ごと）", &speedPercent, 0.1f, 0.0f, 30.0f, "+%.1f%%")) {
+        growth.speedPerMinute = (std::max)(0.0f, speedPercent / 100.0f);
+        changed = true;
+    }
+    changed |= ImGui::DragFloat("速くなる上限", &growth.speedMax, 0.01f, 1.0f, 3.0f, "×%.2f");
+    ImGui::TextDisabled("速さの倍率：3分 ×%.2f  5分 ×%.2f  10分 ×%.2f（湧いたときに決まり、今いる敵は変わらない）", growth.SpeedScale(180.0f),
+                        growth.SpeedScale(300.0f), growth.SpeedScale(600.0f));
+    for (size_t i = 0; i < kShapes.size(); ++i) {
+        const float speed = config.shapeChase[i].second;
+        if (speed <= 0.0f) {
+            continue;
+        }
+        if (speed >= config.heroes.walkSpeed) {
+            ImGui::TextColored(kRed, "  %s：始めから自機より速い", kShapes[i]);
+            continue;
+        }
+        // 1 + speedPerMinute × 分 = walk / speed になる時刻。上限で届かなければ追いつかない。
+        const float need = config.heroes.walkSpeed / speed;
+        if (growth.speedPerMinute <= 0.0f || need > (std::max)(1.0f, growth.speedMax)) {
+            ImGui::TextColored(kGreen, "  %s：ずっと自機より遅い", kShapes[i]);
+        } else {
+            ImGui::TextColored(kRed, "  %s：%s から自機より速い", kShapes[i], Clock((need - 1.0f) / growth.speedPerMinute * 60.0f).c_str());
+        }
+    }
+
+    // 敵の固さ
+    ImGui::SeparatorText("敵の固さ");
+    changed |= ImGui::DragFloat("HP の伸び（1分ごとの倍率）", &growth.hpPerMinute, 0.005f, 1.0f, 2.0f, "×%.3f");
+    ImGui::TextDisabled("HP：3分 ×%.2f  5分 ×%.2f  10分 ×%.2f", growth.HpScale(180.0f), growth.HpScale(300.0f), growth.HpScale(600.0f));
+
+    // 湧き方：点の表と、まとめて変えるボタン。
+    ImGui::SeparatorText("湧き方（時刻ごとの点を直線でつなぐ）");
+    ImGui::TextDisabled("間隔ごとに「一度に」の数を足す。生きている敵が上限に届くと待つ（倒しきれないと上限まで溜まる）。");
+    auto scalePoints = [&](int column, float scale) {
+        for (auto& point : growth.points) {
+            if (column == 0) {
+                point.interval = (std::clamp)(point.interval * scale, 0.05f, 30.0f);
+            } else if (column == 1) {
+                point.count = (std::clamp)(point.count * scale, 0.0f, 100.0f);
+            } else {
+                point.maxAlive = (std::clamp)(std::round(point.maxAlive * scale), 0.0f, 600.0f);
+            }
+        }
+        changed = true;
+    };
+    ImGui::TextUnformatted("まとめて：");
+    ImGui::SameLine();
+    if (ImGui::SmallButton("数 ×0.8")) {
+        scalePoints(1, 0.8f);
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("数 ×1.25")) {
+        scalePoints(1, 1.25f);
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("上限 ×0.8")) {
+        scalePoints(2, 0.8f);
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("上限 ×1.25")) {
+        scalePoints(2, 1.25f);
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("間隔 ×1.25")) {
+        scalePoints(0, 1.25f);
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("間隔 ×0.8")) {
+        scalePoints(0, 0.8f);
+    }
+    if (ImGui::BeginTable("growthPoints", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
+        ImGui::TableSetupColumn("時刻（秒）");
+        ImGui::TableSetupColumn("間隔（秒）");
+        ImGui::TableSetupColumn("一度に");
+        ImGui::TableSetupColumn("上限");
+        ImGui::TableSetupColumn("毎秒");
+        ImGui::TableSetupColumn("");
+        ImGui::TableHeadersRow();
+        for (size_t i = 0; i < growth.points.size(); ++i) {
+            auto& point = growth.points[i];
+            ImGui::PushID(static_cast<int>(i));
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            changed |= ImGui::DragFloat("##at", &point.at, 1.0f, 0.0f, 1800.0f, "%.0f");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                std::stable_sort(growth.points.begin(), growth.points.end(), [](const auto& a, const auto& b) { return a.at < b.at; });
+            }
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            changed |= ImGui::DragFloat("##interval", &point.interval, 0.01f, 0.05f, 30.0f, "%.2f");
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            changed |= ImGui::DragFloat("##count", &point.count, 0.05f, 0.0f, 100.0f, "%.1f");
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            changed |= ImGui::DragFloat("##maxAlive", &point.maxAlive, 1.0f, 0.0f, 600.0f, "%.0f");
+            ImGui::TableNextColumn();
+            ImGui::Text("%.1f", point.count / (std::max)(0.05f, point.interval));
+            ImGui::TableNextColumn();
+            bool erased = false;
+            if (growth.points.size() > 1 && ImGui::SmallButton("消す")) {
+                growth.points.erase(growth.points.begin() + static_cast<std::ptrdiff_t>(i));
+                changed = true;
+                erased = true;
+            }
+            ImGui::PopID();
+            if (erased) {
+                break;
+            }
+        }
+        ImGui::EndTable();
+    }
+    if (ImGui::SmallButton("点を足す")) {
+        auto point = growth.points.empty() ? SpawnConfig::SpawnGrowth::Point{} : growth.points.back();
+        point.at += 60.0f;
+        growth.points.push_back(point);
+        changed = true;
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("上限は160くらいまで（220ではコマ数が35まで落ちた）");
+    float caps[61]{};
+    float rates[61]{};
+    for (int i = 0; i <= 60; ++i) {
+        const auto point = growth.At(static_cast<float>(i) * 10.0f);
+        caps[i] = point.maxAlive;
+        rates[i] = point.count / (std::max)(0.05f, point.interval);
+    }
+    ImGui::PlotLines("##caps", caps, 61, 0, "上限 0:00〜10:00", 0.0f, 260.0f, {0.0f, 60.0f});
+    ImGui::PlotLines("##rates", rates, 61, 0, "毎秒の湧き 0:00〜10:00", 0.0f, 25.0f, {0.0f, 60.0f});
+
+    // 大群：時間割の surge。
+    ImGui::SeparatorText("大群（その間だけ、間隔・数・上限を変える）");
+    ImGui::TextDisabled("時刻を過ぎた大群は、変えても今の出撃では起きない");
+    for (size_t i = 0; i < config.timeline.size(); ++i) {
+        auto& event = config.timeline[i];
+        if (event.kind != "surge") {
+            continue;
+        }
+        ImGui::PushID(static_cast<int>(i));
+        ImGui::Text("%s から %.0f 秒", Clock(event.at).c_str(), event.duration);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("消す")) {
+            config.timeline.erase(config.timeline.begin() + static_cast<std::ptrdiff_t>(i));
+            changed = true;
+            timelineChanged = true;
+            ImGui::PopID();
+            break;
+        }
+        changed |= ImGui::DragFloat("時刻（秒）", &event.at, 1.0f, 0.0f, 1800.0f, "%.0f");
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            timelineChanged = true;
+        }
+        changed |= ImGui::DragFloat("長さ（秒）", &event.duration, 0.5f, 0.0f, 300.0f, "%.0f");
+        changed |= ImGui::DragFloat("間隔の倍率（小さいほど多い）", &event.intervalScale, 0.01f, 0.05f, 2.0f, "×%.2f");
+        changed |= ImGui::DragFloat("一度に足す数の倍率", &event.countScale, 0.01f, 0.0f, 5.0f, "×%.2f");
+        changed |= ImGui::DragInt("上限に足す", &event.maxAliveAdd, 0.5f, -200, 300);
+        ImGui::PopID();
+    }
+    if (ImGui::SmallButton("大群を足す")) {
+        SpawnConfig::TimelineEvent event;
+        event.kind = "surge";
+        event.at = 120.0f;
+        for (const auto& other : config.timeline) {
+            if (other.kind == "surge") {
+                event.at = (std::max)(event.at, other.at + 120.0f);
+            }
+        }
+        event.duration = 25.0f;
+        event.intervalScale = 0.5f;
+        event.countScale = 1.3f;
+        event.maxAliveAdd = 20;
+        event.text = "大群が来る";
+        config.timeline.push_back(event);
+        changed = true;
+        timelineChanged = true;
+    }
+
+    // 強化のしやすさ：敵ごとの経験値とレベルの曲線。
+    ImGui::SeparatorText("強化のしやすさ（経験値）");
+    changed |= ImGui::DragInt("三角の経験値", &config.waves.triangle, 0.2f, 0, 1000);
+    changed |= ImGui::DragInt("四角の経験値", &config.waves.square, 0.2f, 0, 1000);
+    changed |= ImGui::DragInt("五角の経験値", &config.waves.pentagon, 0.2f, 0, 1000);
+    ImGui::TextDisabled("次のレベルまで = base + growth × (Lv-1)^power");
+    changed |= ImGui::DragFloat("base（Lv1→2 に要る量）", &config.levelBase, 0.5f, 1.0f, 1000.0f, "%.1f");
+    changed |= ImGui::DragFloat("growth（Lv が上がるほど増える量）", &config.levelGrowth, 0.5f, 0.0f, 1000.0f, "%.1f");
+    changed |= ImGui::DragFloat("power（後半の重さ）", &config.levelPower, 0.01f, 0.5f, 3.0f, "%.2f");
+    changed |= ImGui::DragFloat("欠片を引き寄せる半径", &config.magnetRadius, 0.05f, 0.5f, 30.0f, "%.2f");
+    {
+        const int square = (std::max)(1, config.waves.square);
+        int total = 0;
+        std::ostringstream text;
+        text << "要る四角の数：";
+        for (int level = 1; level < 20; ++level) {
+            total += config.ExpToNextLevel(level);
+            if (level + 1 == 5 || level + 1 == 10 || level + 1 == 15 || level + 1 == 20) {
+                text << "Lv" << level + 1 << " まで " << (total + square - 1) / square << "体  ";
+            }
+        }
+        ImGui::TextUnformatted(text.str().c_str());
+    }
+
+    // スパナ
+    if (config.heroes.healDropHeal > 0.0f || config.heroes.healDropChance > 0.0f) {
+        ImGui::SeparatorText("スパナ（途中の回復）");
+        float chance = config.heroes.healDropChance * 100.0f;
+        if (ImGui::SliderFloat("落ちる確率", &chance, 0.0f, 5.0f, "%.2f%%")) {
+            config.heroes.healDropChance = (std::clamp)(chance / 100.0f, 0.0f, 1.0f);
+            changed = true;
+        }
+        float heal = config.heroes.healDropHeal * 100.0f;
+        if (ImGui::SliderFloat("回復（最大HPに対して）", &heal, 0.0f, 100.0f, "%.0f%%")) {
+            config.heroes.healDropHeal = (std::clamp)(heal / 100.0f, 0.0f, 1.0f);
+            changed = true;
+        }
+    }
+    return changed;
+}
+
 } // namespace
 #endif
 
@@ -529,7 +924,7 @@ TuningPanelResult DrawTuningPanel(SpawnConfig& config, bool& open, bool& pauseWh
     ImGui::Text("熱 %.0f / %.0f   オーバーヒート %d 回   生存数の目標 %.0f", snapshot.heat, snapshot.heatMax, snapshot.overheats,
                 config.ShapeTarget(snapshot.elapsed));
     ImGui::Checkbox("開いている間は止める", &pauseWhileOpen);
-    ImGui::TextDisabled("変えた値はすぐ効く。保存で survivor_proto.json に書く。");
+    ImGui::TextDisabled("変えた値はすぐ効く。保存で %s に書く。", snapshot.configPath.empty() ? "設定ファイル" : snapshot.configPath.c_str());
     if (ImGui::Button("保存")) {
         result.saveRequested = true;
     }
@@ -541,12 +936,16 @@ TuningPanelResult DrawTuningPanel(SpawnConfig& config, bool& open, bool& pauseWh
         ImGui::SameLine();
         ImGui::TextUnformatted(status.c_str());
     }
+    result.changed |= DrawEndless(config, snapshot, result.timelineChanged);
     if (config.weaponsEnabled) {
+        result.changed |= DrawHeroes(config);
+        result.changed |= DrawWavesAndShop(config);
         result.changed |= DrawWeapons(config);
         result.changed |= DrawLoot(config);
         result.changed |= DrawCrafting(config);
         result.changed |= DrawStagesAndEnemies(config);
         result.changed |= DrawElites(config);
+        result.changed |= DrawGlow(config);
         ImGui::SeparatorText("ここから下は、これまでの遊び方と共通の値");
     }
     result.changed |= DrawHeatAndShield(config);

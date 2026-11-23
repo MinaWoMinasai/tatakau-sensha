@@ -69,6 +69,31 @@ struct LootConfig {
     std::array<int, kMaterialCount> materialPrice{2, 2, 3, 20};
 };
 
+/// @brief 光り方（武器の枠を使う遊び方だけ）。弾の軌跡のにじみと、拾い物の輪・光の尾・拾ったときの光。
+struct GlowConfig {
+    /// @brief 弾の軌跡のにじみ（強さ・明るさ・広がり 0〜0.9・半径 0.25〜2）。
+    float trailBloomIntensity = 2.4f;
+    float trailBloomGain = 1.9f;
+    float trailBloomScatter = 0.72f;
+    float trailBloomRadius = 1.5f;
+    /// @brief 弾の軌跡の尾。tailBrightness は先端に対する尾の明るさ（1 で先端と同じ色合い）、
+    /// fadeCurve は色と不透明さの薄れ方（1 で一定に薄れ、大きいほど尾の近くまで先端の色を保って最後に消える）、
+    /// tailWidth は先端に対する尾の太さ、seconds は軌跡が残る秒。
+    float trailTailBrightness = 1.0f;
+    float trailFadeCurve = 2.2f;
+    float trailTailWidth = 0.35f;
+    float trailSeconds = 0.24f;
+    /// @brief 拾い物を囲む輪の半径と太さ（0 で輪を描かない）。敵と見分けるための印。
+    float lootRingRadius = 0.5f;
+    float lootRingWidth = 0.05f;
+    /// @brief 吸い込まれる物の光の尾（残る秒と、根元の太さ）。
+    float lootTrailSeconds = 0.14f;
+    float lootTrailWidth = 0.2f;
+    /// @brief 拾ったときに広がる光の輪（秒と、最後の半径）。
+    float collectFlashSeconds = 0.25f;
+    float collectFlashRadius = 1.3f;
+};
+
 /// @brief 床に落ちる物1つの中身。id は弾の種類・素材・部品・武器の番号（kind による）。
 struct LootItem {
     LootKind kind = LootKind::Ammo;

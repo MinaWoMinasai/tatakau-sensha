@@ -1,7 +1,10 @@
 #pragma once
 #include "game/session/GameWorld.h"
 #include "game/run/SurvivorSave.h"
+#include "game/run/SurvivorHeroSave.h"
 #include "game/run/SurvivorSpawnConfig.h"
+#include "game/run/hero/HeroAbilityCore.h"
+#include "game/run/session/SurvivorAudio.h"
 #include "game/run/session/SurvivorLootField.h"
 #include "game/run/session/SurvivorPickups.h"
 #include "game/ui/session/SurvivorChoiceHud.h"
@@ -20,9 +23,9 @@ namespace gameplay {
 /// @note 1区画の流れ（時間で増える湧き方と、3:00 で開く出口）、経験値の欠片・レベル、毎レベルの部品の3択を持つ。
 /// 実装は役割ごとに分けてある：中心（SurvivorRunController.cpp）、湧き方・脅威・宿敵（SurvivorRunSpawns.cpp）、
 /// 部品と選択（SurvivorRunLoadout.cpp）、結果画面と記録（SurvivorRunResult.cpp）、自動確認（SurvivorRunAutoTest.cpp）。
-class SurvivorRunController {
+class SurvivorRunController : private HeroAbilityCore {
 public:
-    explicit SurvivorRunController(GameWorld& world) : world_(world) {}
+    explicit SurvivorRunController(GameWorld& world) : HeroAbilityCore(world), world_(world) {}
 
     /// @brief 試作の見た目と自機の設定を整え、試作用の部屋と湧き方の設定を読み込み、敵のいないアリーナから始める。
     void Initialize();
@@ -63,7 +66,8 @@ public:
     /// @note 止めている間も、スロー演出ではないので画面の色は残す（GameplayQueries・CombatFramePipeline）。
     bool IsPaused() const
     {
-        return IsFormChoiceOpen() || inventoryOpen_ || baseScreenOpen_ || restRoomOpen_ || (tuningOpen_ && tuningPause_) || cineMode_ == CineMode::RivalIntro ||
+        return IsFormChoiceOpen() || inventoryOpen_ || baseScreenOpen_ || restRoomOpen_ || heroLevelUpOpen_ || (tuningOpen_ && tuningPause_) ||
+               cineMode_ == CineMode::RivalIntro ||
                cineMode_ == CineMode::Evolve;
     }
 
@@ -115,6 +119,21 @@ private:
     void UpdateThreat();
     /// @brief 今の段階で、湧かせた敵のHPに掛ける倍率を返す。
     float EnemyHpScale() const;
+    /// @brief 湧くときの寄る速さの倍率（計画書 p8 の G1。足し続ける形でなければ1）。
+    float EnemySpeedScale() const
+    {
+        return config_.growth.SpeedScale(elapsed_);
+    }
+    /// @brief 今の、足し続ける湧きの値（時間割の大群を効かせた後）。
+    survivor::SpawnConfig::SpawnGrowth::Point CurrentGrowth() const;
+    /// @brief 足し続ける湧きの状態を区画の始めに戻す。
+    void ResetGrowth()
+    {
+        growthTimer_ = 0.0f;
+        growthRemainder_ = 0.0f;
+        growthPending_ = 0;
+        surges_.clear();
+    }
     /// @brief 最後に湧かせた敵のHPを、今の段階の倍率で上げる。
     void ScaleLastSpawnHp();
     /// @brief 包囲の輪：自機を中心とした輪の上に三角を並べ、寄らせる。
@@ -223,6 +242,20 @@ private:
     std::mt19937 random_{1};
     float elapsed_ = 0.0f;
     float spawnBudget_ = 0.0f;
+    // 足し続ける湧き（計画書 p8 の G1）：次に足すまでの秒・端数・まだ湧かせていない数、時間割の大群（終わる時刻と倍率）、記録。
+    float growthTimer_ = 0.0f;
+    float growthRemainder_ = 0.0f;
+    int growthPending_ = 0;
+    struct Surge {
+        float until = 0.0f;
+        float intervalScale = 1.0f;
+        float countScale = 1.0f;
+        int maxAliveAdd = 0;
+    };
+    std::vector<Surge> surges_;
+    int growthSpawned_ = 0;
+    int growthAliveMax_ = 0;
+    int surgesStarted_ = 0;
     float nextSwarm_ = 0.0f;
     float nextTank_ = 0.0f;
     float nextBigPentagon_ = 0.0f;
@@ -399,6 +432,74 @@ private:
     {
         return config_.weaponsEnabled;
     }
+
+    // 機体（計画書 p4 の K0）。SurvivorRunHero.cpp。武器の枠の遊び方の上で、枠を主武器1つにし、
+    // ホイール・リロード・拠点の画面・落とす物（お金以外）を止め、右クリック・Shift・E・Q を機体の技にする。
+    /// @brief 機体の遊び方か。
+    bool HeroMode() const
+    {
+        return config_.weaponsEnabled && config_.heroes.enabled && hero_ >= 0;
+    }
+    // 土台（HeroAbilityCore）へ渡す、試作での答え。
+    bool HeroActive() const override
+    {
+        return HeroMode();
+    }
+    bool HeroBossTargetActive() const override
+    {
+        return IsRivalActive();
+    }
+    float HeroClock() const override
+    {
+        return elapsed_;
+    }
+    const survivor::SpawnConfig::BarrierConfig& HeroBarrierSettings() const override
+    {
+        return config_.barrier;
+    }
+    float HeroBaseMoveScale() const override
+    {
+        // 歩きの最高速度（毎秒）が決まっていれば、自機の土台の速さで割って倍率にする。
+        const float base = world_.resources.player_->GetStats().moveSpeed * myEngine::kFixedStepsPerSecond;
+        if (config_.heroes.walkSpeed > 0.0f && base > 0.001f) {
+            return config_.heroes.walkSpeed / base;
+        }
+        return config_.heroes.moveScale;
+    }
+    /// @brief 押さなくても向いている方へ主砲を撃ち続けるか（計画書 p7。最初は config_.heroes.autoFire、F で切り替え）。
+    bool heroAutoFire_ = false;
+    // 技を使う・進める・当てる・見た目・バリアは土台の HeroAbilityCore（game/run/hero）。ここは試作に固有の所だけ持つ。
+    /// @brief 設定の start の機体を選び、主武器を1つ目の枠に入れて構える（弾は数えない）。見つからなければ機体を使わない。
+    void StartHero();
+    /// @brief Shift・E・Q を押した瞬間で技を使う。右クリック（押している間の技）は UpdateHeroAbilities で見る。
+    void UpdateHeroInput();
+    /// @brief 右クリックの技がバリアで、バリアを張りたいか（自動確認ではボットの指示）。
+    bool HeroBarrierWanted() const;
+    /// @brief 操作の案内の一行（機体の技の名前から作る）。
+    std::string HeroControlsText() const;
+    int hero_ = -1;
+    bool autoChargeCaptured_ = false;
+    bool autoShockCaptured_ = false;
+    bool autoFortressCaptured_ = false;
+    // 自動確認のボットが、このフレームに押したことにする技の枠。
+    std::array<bool, survivor::kAbilitySlotCount> autoHeroPress_{};
+    // 自動確認のボットが、右クリック（押している間の技）を押し続けているか。
+    bool autoSecondaryHold_ = false;
+    bool autoOrbCaptured_ = false;
+    bool autoLanceCaptured_ = false;
+    bool autoBeamCaptured_ = false;
+    bool autoPhaseCaptured_ = false;
+    // 走っている間の画面を保存したか。走っている間とそうでない間に動いた距離と秒（平均の速さを出す。ワールド単位）。
+    bool autoHeroCaptured_ = false;
+    bool autoHealCaptured_ = false;
+    bool autoBarrageCaptured_ = false;
+    std::array<float, 2> autoMoveDistance_{};
+    std::array<float, 2> autoMoveSeconds_{};
+    myEngine::Vector3 autoLastPosition_{};
+    // 速さを測る（計画書 p7 の E6）：図形の種類ごと（四角・三角・五角）の毎フレームの速さと、自機の毎フレームの速さ（動こうとしている間）。
+    std::unordered_map<uint64_t, myEngine::Vector3> autoEnemyLast_;
+    std::array<std::vector<float>, 3> autoShapeSpeeds_;
+    std::vector<float> autoPlayerSpeeds_;
     /// @brief slot 番目の枠の武器を自機に入れる（すぐに替わる。切り替えの演出と待ちは StartSwap）。今の武器の弾は控えてから替える。
     void EquipWeapon(size_t slot);
     /// @brief ホイール・1〜3キー・R を見る。押した瞬間（ホイールは回した量）で判定する。
@@ -475,6 +576,8 @@ private:
     std::array<int, survivor::kAmmoTypeCount> ammoPicked_{};
     std::unique_ptr<myEngine::TextLabel> lootText_;
     std::string lootTextShown_;
+    // 袋の一行を次に書き換えてよいまでの秒（機体の遊び方。お金が細かく増えるたびに文字の画像を作らない）。
+    float lootTextWait_ = 0.0f;
 
     // E の持ち物の画面（W4）。開いている間は区画を止める（IsPaused）。戦闘中は見るだけ。
     /// @brief 持ち物の画面を開く（文字はここで1回だけ作る）。
@@ -491,7 +594,8 @@ private:
         Material,
         Recipe,
         TreeNode,
-        TreeBranch
+        TreeBranch,
+        ShopOffer
     };
     /// @brief 読み込んでおくアイコンの画像の場所。
     std::vector<std::string> ScreenIconPaths() const;
@@ -545,6 +649,34 @@ private:
     void CommitRunToBase();
     survivor::BaseInventory base_;
     bool baseScreenOpen_ = false;
+
+    // 機体の遊び方の拠点（計画書 p4 の K6）：機体を選ぶ・解放する。出撃の外に残るのは解放と記録だけ。SurvivorRunUnlock.cpp。
+    std::string HeroSavePath() const;
+    /// @brief 機体のセーブを読む（無ければ・自動確認では新しく）。
+    void LoadHeroSaveFile();
+    void SaveHeroSaveFile();
+    /// @brief 拠点の札に並べる機体の番号（使える機体が先、まだの機体は後）。
+    std::vector<int> HeroCardOrder() const;
+    /// @brief 札の番号の機体を選ぶ。使える機体なら、その機体で出撃の準備をし直す。
+    void SelectHeroCard(int card);
+    /// @brief 選んでいる札の機体を解放する。候補で、解放ポイントが足りれば解放する。解放したら真。
+    bool UnlockHeroCard();
+    /// @brief 機体を選ぶ画面を作る（SurvivorRunScreens.cpp）。
+    void RefreshHeroSelect();
+    /// @brief 結果画面の最初に、スコアと初クリアのボーナスを解放ポイントに足して保存する（1回だけ）。
+    void AwardHeroPoints();
+    /// @brief 「次の機体まであと○○」の一行。
+    std::string NextHeroText() const;
+    survivor::HeroSave heroSave_{};
+    std::string heroSaveError_;
+    int heroCard_ = 0;
+    bool heroStartFromEnv_ = false;
+    bool heroAwarded_ = false;
+    int heroAwardGained_ = 0;
+    int heroAwardBonus_ = 0;
+    // 自動確認：拠点の画面の段階と、解放の確認の結果。
+    int autoHeroBaseState_ = 0;
+    bool autoUnlockOk_ = false;
     int baseCursor_ = 0;
     // 右の欄（0 武器・1 作る・2 派生の木）。baseCursor_ は派生の木で見ている武器。作った数・進化させた数（自動確認と記録）。
     int basePage_ = 0;
@@ -592,19 +724,275 @@ private:
     void StartNextStage();
     bool IsBossStage() const
     {
-        return WeaponMode() && stage_ == survivor::SpawnConfig::kStageCount - 1;
+        return WeaponMode() && stage_ == StageCount() - 1;
     }
+    /// @brief ステージ（機体の遊び方では波）の数。機体の遊び方は波 count 回＋ボスの波（計画書 p4 の H1）。
+    int StageCount() const
+    {
+        return HeroMode() ? config_.waves.count + 1 : survivor::SpawnConfig::kStageCount;
+    }
+    /// @brief 今のステージ（波）の、脅威の段階の上乗せと敵のHPの倍率。
+    int StageThreatOffset() const;
+    float StageEnemyHp() const;
     int stage_ = 0;
+    // 機体の遊び方の波（計画書 p4 の K3）。SurvivorRunWaves.cpp。
+    /// @brief 波の時間が終わった・ボスを倒した：落ちている欠片を拾ったことにし、敵と弾を片付け、波の間の画面（ボスの波なら結果画面）へ。
+    void FinishWave();
+    /// @brief 倒した敵の種類ごとのレベルポイント（H2）。
+    int WavePoints(const ExpEnemy& enemy) const;
+    /// @brief 波の間の修理（H8）：傷を全部と HP を治す。レベルポイントが足りなければ何もしない。治したら真。
+    bool RepairHero();
+    /// @brief 機体の遊び方の体力の決まり（H6・H7）を自機に入れる。
+    void ApplyHeroHealthRules();
+    // 波ごとの記録（自動確認と遊んだ記録）：稼いだポイント・通った被弾・傷・終わりの HP。
+    struct WaveRecord {
+        int wave = 0;
+        int points = 0;
+        uint64_t damage = 0;
+        uint64_t capped = 0;
+        int wound = 0;
+        int hp = 0;
+        int maxHp = 0;
+        float seconds = 0.0f;
+    };
+    std::vector<WaveRecord> waveRecords_;
+    int wavePoints_ = 0;
+    // 出撃で稼いだレベルポイントの合計（使った分も含む。スコアに使う）。
+    int pointsEarned_ = 0;
+    // 遊んだ記録（K8）：与えたダメージの合計と、出撃で戦っていた秒（波の間の画面は数えない）。
+    uint64_t damageDealt_ = 0;
+    float runSeconds_ = 0.0f;
+    uint64_t waveDamageStart_ = 0;
+    uint64_t waveCappedStart_ = 0;
+    int repairs_ = 0;
+    int repairSpent_ = 0;
+
+    // 波の間のショップ（計画書 p4 の K4）。SurvivorRunShop.cpp。
+    /// @brief 並んでいる物1つ。upgrade なら index は強化の対象（0 主武器、1〜4 技の枠）、sub なら survivor::SubWeapon
+    /// （副武器。レベルアップの3択だけ。計画書 p7 の E4）、どちらでもなければ survivor::PerkId。
+    /// @brief 選ぶ物が無くなったときの埋め草（計画書 p8 の F1）。
+    enum class Filler { None, Heal, MaxHp, Power };
+    struct ShopOffer {
+        bool upgrade = false;
+        int index = 0;
+        bool sub = false;
+        Filler filler = Filler::None;
+        /// @brief 機体専用スキル（index は HeroSkill。計画書 p8 の F2）。
+        bool skill = false;
+        bool Same(const ShopOffer& other) const
+        {
+            return upgrade == other.upgrade && sub == other.sub && index == other.index && filler == other.filler && skill == other.skill;
+        }
+    };
+    /// @brief 設定の機体に、技の強化の段とパークを効かせて Hero() を作り直し、主武器・最大HPに入れ直す。heal なら HP を満タンにする。
+    void RebuildHero(bool heal);
+    /// @brief 設定の heroes.onlyUltimate なら、右クリック・Shift・E の技を空きにする（計画書 p7 の E5。Q と主武器は残す）。
+    void StripLockedAbilities();
+    /// @brief 持っている副武器・パークの数（枠と比べる。計画書 p8 の F1）。
+    int OwnedSubWeapons() const;
+    int OwnedPerks() const;
+    /// @brief 並べられる物：3段まで上がっていない技の強化と、まだ持っていないパーク（共通と、この機体の物）。
+    /// withSubWeapons なら、3段まで上がっていない副武器も入れる（レベルアップの3択で、設定の heroes.subWeapons のとき）。
+    std::vector<ShopOffer> ShopOfferPool(bool withSubWeapons = false) const;
+    /// @brief 覚醒（3段目）の手前か（3択で優先して並べ、金色にする）。
+    bool OfferAwakens(const ShopOffer& offer) const;
+    /// @brief offer を手に入れる（技の強化の段を1つ上げるか、パークを持つ）。機体の値を入れ直す。
+    void ApplyOffer(const ShopOffer& offer);
+    /// @brief 並ぶ物を引き直す（買えない物は並べない）。
+    void RollShop();
+
+    // 戦闘中のレベルアップ（計画書 p7 の E3。設定の heroes.levelUps）。欠片でレベルが上がると、止めて技の強化とパークの3択を無料で選ぶ。
+    /// @brief 3択を引いて開く（並べられる物が無ければ開かない）。
+    void OpenHeroLevelUp();
+
+    // 時間割（計画書 p7 の E6。設定の timeline）。SurvivorRunSpawns.cpp。
+    /// @brief 区画の時計が来た出来事を起こし、倒された中ボスのごほうびを渡す。
+    void UpdateTimeline();
+    void RunTimelineEvent(const survivor::SpawnConfig::TimelineEvent& event);
+    /// @brief prefab を position に湧かせ、HP を倍率に合わせ、speed で自機へ寄らせる。湧けたら敵を返す。
+    ExpEnemy* SpawnChaser(const std::string& prefab, const myEngine::Vector3& position, float speed);
+    // 次に起こす出来事の番号・起こした数。中ボス（敵の id と、倒したときに選べる3択の回数）・倒した数。
+    // 速さの確認（MYENGINE_SURVIVOR_SPEED_TEST=1。計画書 p7）：ふつうの湧き方・時間割・ボスを止め、四角・三角・五角を横に並べて
+    // 同時に右へ走らせる（寄ってくる動きと同じ加速・最高速度・慣性で、向きだけ右）。一番前が右の端に着いたら左からやり直す。
+    // 1秒ごとに、それぞれと自機が1秒で動いた距離を画面に出し、generated/tank_survivor/speed_test.json にも書く。
+    void UpdateSpeedTest(float dt);
+    bool speedTest_ = false;
+    bool speedTestAutoQuit_ = false;
+    std::array<uint64_t, 3> speedTestIds_{};
+    std::array<myEngine::Vector3, 4> speedTestLast_{};
+    std::array<float, 4> speedTestMoved_{};
+    float speedTestTimer_ = 0.0f;
+    float speedTestClock_ = 0.0f;
+    float speedTestStartX_ = 0.0f;
+    bool autoSpeedTestLeft_ = false;
+    int speedTestRaces_ = 0;
+    std::string speedTestLog_;
+    size_t timelineNext_ = 0;
+    int timelineEvents_ = 0;
+    std::vector<std::pair<uint64_t, int>> midBosses_;
+    int midBossKills_ = 0;
+    // 途中の回復（計画書 p8 の F5）。SurvivorRunHeals.cpp。床のスパナ（big は中ボスの物）と記録。
+    struct HealPickup {
+        myEngine::Vector3 position{};
+        float age = 0.0f;
+        bool big = false;
+    };
+    std::vector<HealPickup> healPickups_;
+    int healsDropped_ = 0;
+    int healsBigDropped_ = 0;
+    int healsCollected_ = 0;
+    int healedByPickups_ = 0;
+    /// @brief 倒した敵から、確率で（中ボスは必ず）スパナを落とす。衝突処理の途中から呼ばれるので、列に足すだけ。
+    void DropHealPickup(const ExpEnemy& enemy);
+    /// @brief スパナを自機へ寄せ、触れたら回復し、古い物を消す。dt は区画の時間。
+    void UpdateHealPickups(float dt);
+    /// @brief スパナを光る線で積む。
+    void QueueHealPickups(myEngine::NeonGridRenderer& renderer) const;
+    /// @brief position から maxDistance 以内で最も近いスパナ（自動確認のボットが拾いに行く）。
+    bool FindNearestHeal(const myEngine::Vector3& position, float maxDistance, myEngine::Vector3& out) const;
+    // 自動確認：出来事が起きてから少し後に、出来事ごとに1回画面を保存する。
+    int autoTimelineSeen_ = 0;
+    float autoTimelineCaptureAt_ = -1.0f;
+    /// @brief index 番目を選ぶ。まだ選べるレベルが残っていれば引き直し、無ければ閉じる。
+    void ChooseHeroLevelUp(size_t index);
+    /// @brief 3択の画面を作る。
+    void RefreshHeroLevelUp();
+    bool heroLevelUpOpen_ = false;
+    int heroPendingLevelUps_ = 0;
+    std::vector<ShopOffer> heroLevelUpOffers_;
+    // 選んだ物の記録（レベル:名前）。
+    std::vector<std::string> heroLevelUpLog_;
+    bool autoLevelUpCaptured_ = false;
+    bool autoSubWeaponCaptured_ = false;
+    /// @brief 並んでいる offer 番目を買う。お金が足りなければ何もしない。買えたら真。
+    bool BuyOffer(size_t offer);
+    /// @brief 引き直す（値段は引くたびに上がる）。お金が足りなければ何もしない。引けたら真。
+    bool RerollShop();
+    int RerollPrice() const;
+    int OfferPrice(const ShopOffer& offer) const;
+    std::string OfferName(const ShopOffer& offer) const;
+    std::string OfferText(const ShopOffer& offer) const;
+    /// @brief 強化の対象の名前（主武器・右クリック…）と、技の部品。
+    const survivor::AbilityDefinition& UpgradeAbility(int target) const;
+    /// @brief 強化の段（0〜3）。
+    int UpgradeTier(int target) const override
+    {
+        return upgradeTiers_[static_cast<size_t>(target)];
+    }
+    bool HasPerk(survivor::PerkId perk) const override
+    {
+        return HeroMode() && perks_[static_cast<size_t>(perk)] > 0;
+    }
+    /// @brief パークの強さ。段があれば（計画書 p8 の F1）、1段ぶんの強さ×段。
+    float PerkValue(survivor::PerkId perk) const override
+    {
+        return config_.shop.perkValues[static_cast<size_t>(perk)] * static_cast<float>((std::max)(1, perks_[static_cast<size_t>(perk)]));
+    }
+    /// @brief パークの段の上限（設定の perkMaxTier。予備の動力のような1回きりの物は、パークの maxTier まで。計画書 p8 の F4）。
+    int PerkMaxTierOf(size_t perk) const
+    {
+        const int own = survivor::GetPerkInfo(static_cast<survivor::PerkId>(perk)).maxTier;
+        return own > 0 ? (std::min)(own, config_.heroes.perkMaxTier) : config_.heroes.perkMaxTier;
+    }
+    int HeroSkillTier(survivor::HeroSkill skill) const override
+    {
+        return HeroMode() ? heroSkillTiers_[static_cast<size_t>(skill)] : 0;
+    }
+    /// @brief 埋め草の「威力」で上がった倍率（計画書 p8 の F1）。
+    float HeroPowerScale() const override
+    {
+        return 1.0f + fillerPower_;
+    }
+    /// @brief 波の間のショップの画面を作る。
+    void RefreshShop();
+    /// @brief 機体の今の組み立て（左の3枚に技の段とパーク、左下に HP と Q）を入れた画面の土台。ショップと Tab の画面で使う。
+    SurvivorItemScreen::View HeroBuildView() const;
+    /// @brief 結果画面のスコアの内訳（進んだ波・稼いだポイント・ボス）と合計。
+    struct HeroScore {
+        int waves = 0;
+        int points = 0;
+        bool boss = false;
+        int total = 0;
+    };
+    HeroScore ComputeHeroScore() const;
+    std::array<int, survivor::kUpgradeTargets> upgradeTiers_{};
+    /// @brief パークの段（0 は持っていない。計画書 p8 の F1 で段を付けた。段なしの設定では 0 か 1）。
+    std::array<int, survivor::kPerkCount> perks_{};
+    /// @brief 埋め草で増えた最大HPと威力（計画書 p8 の F1）。
+    int fillerMaxHp_ = 0;
+    float fillerPower_ = 0.0f;
+    /// @brief 機体専用スキルの段（計画書 p8 の F2）。
+    std::array<int, survivor::kHeroSkillCount> heroSkillTiers_{};
+    int fillersTaken_ = 0;
+    /// @brief 埋め草の名前・説明。
+    std::string FillerName(Filler filler) const;
+    std::string FillerText(Filler filler) const;
+    std::vector<ShopOffer> shopOffers_;
+    int shopRerolls_ = 0;
+    // ショップの記録：買った物（波:名前:値段）・引き直した回数・使ったポイント。
+    std::vector<std::string> shopLog_;
+    int shopRerollsTotal_ = 0;
+    int shopSpent_ = 0;
+    // パークの端数（吸い取る装甲の回復）と、主武器の威力の倍率（強化）・弾の爆発（強化の3段目）。
+    float lifestealRemainder_ = 0.0f;
+    // 学習装置（計画書 p8 の F4）の経験値の端数と、増えた経験値の合計（記録用）。
+    float expRemainder_ = 0.0f;
+    int expBonus_ = 0;
+    // 自動確認の MYENGINE_SURVIVOR_DRAIN（負なら未読み）。
+    float autoDrainAt_ = -1.0f;
+    bool autoHealPickupCaptured_ = false;
+    bool autoHealDemoDone_ = false;
+    float heroPrimaryDamage_ = 1.0f;
+    float heroPrimaryBlast_ = 0.0f;
+
+    // BGM と効果音。SurvivorRunAudio.cpp。毎フレームの回数の増え方から鳴らし、場面で曲を替える。
+    struct AudioCounters {
+        uint32_t shots = 0;
+        size_t hits = 0;
+        int kills = 0;
+        uint64_t blasts = 0;
+        int hp = 0;
+        int reloads = 0;
+        bool swapping = false;
+        bool barrierOn = false;
+        int blocked = 0;
+        int breaks = 0;
+        int ammoPicked = 0;
+        int rarePicked = 0;
+        int mines = 0;
+        int warps = 0;
+        int heals = 0;
+        int sales = 0;
+        int crafted = 0;
+        int evolved = 0;
+        int sorties = 0;
+        bool cleared = false;
+        bool bossSpawned = false;
+        bool bossDefeated = false;
+        std::array<int, survivor::kAbilitySlotCount> abilityUses{};
+        int ultimateFills = 0;
+        int barrageShots = 0;
+        uint64_t rocketBlasts = 0;
+    };
+    AudioCounters ReadAudioCounters() const;
+    /// @brief 回数の増え方から効果音を鳴らし、場面の曲を流す。dt は実時間（止めている間も曲を合わせる）。
+    void UpdateAudio(float dt);
+    SurvivorAudio audio_;
+    AudioCounters audioCounters_{};
+    bool audioCountersReady_ = false;
     /// @brief 設定ファイルへ書く形：ステージが動かす値（出口の秒・宿敵を出すか）を、読んだときの値へ戻したもの。
     survivor::SpawnConfig ConfigForSaving() const
     {
         survivor::SpawnConfig saving = config_;
         saving.exitOpenSeconds = fileExitOpenSeconds_;
         saving.rival.enabled = fileRivalEnabled_;
+        // 始めの機体は、前に選んだ機体や環境変数で替わっているので、ファイルの値のまま書く（調整パネルの保存で変わらないように）。
+        saving.heroes.start = fileHeroStart_;
         return saving;
     }
     float fileExitOpenSeconds_ = 180.0f;
     bool fileRivalEnabled_ = true;
+    std::string fileHeroStart_;
 
     // ステージ2から出る新しい敵（W9）。SurvivorRunElites.cpp。
     bool ElitesActive() const;
@@ -641,27 +1029,7 @@ private:
     };
     EliteStats eliteStats_{};
 
-    // バリアとスタミナ（X3）。SurvivorRunBarrier.cpp。
-    /// @brief スタミナを増減し、wanted で張っている間は敵の弾と敵を止める。dt は区画の時間。
-    void UpdateBarrier(float dt, bool wanted);
-    /// @brief 位置が（margin の分だけ広げた）扇の中か。
-    bool IsInsideBarrier(const myEngine::Vector3& position, float margin) const;
-    /// @brief 張っている間、サッカーボールの網目の扇を積む。
-    void QueueBarrier(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraForward) const;
-    /// @brief 網目の線の数（自動確認）。
-    size_t BarrierNetSegmentCount() const;
-    float barrierStamina_ = 0.0f;
-    float barrierRegenWait_ = 0.0f;
-    float barrierExhausted_ = 0.0f;
-    float barrierFlash_ = 0.0f;
-    float barrierAge_ = 0.0f;
-    bool barrierOn_ = false;
-    bool barrierAwaitRelease_ = false;
-    // 張った秒・止めた弾・押し返した回数・尽きた回数（自動確認と記録）。
-    float barrierSeconds_ = 0.0f;
-    int barrierBlocked_ = 0;
-    int barrierPushes_ = 0;
-    int barrierBreaks_ = 0;
+    // バリアとスタミナ（X3）は土台の HeroAbilityCore（game/run/hero/HeroBarrier.cpp）。
     bool restRoomOpen_ = false;
     // 休憩部屋でしたこと（自動確認と記録）。
     int restEquips_ = 0;
@@ -733,6 +1101,9 @@ private:
     uint32_t autoSampleShots_ = 0;
     int autoShieldStep_ = 0;
     std::ostringstream autoShieldLog_;
+    // 体力の決まりの確認（機体の遊び方）を済ませたかと、その結果。
+    bool autoHealthChecked_ = false;
+    std::ostringstream autoHealthCheck_;
     // 形態の確認。MYENGINE_SURVIVOR_FORM=twin なら連装、それ以外は長砲身を選ぶ。
     size_t autoFormIndex_ = static_cast<size_t>(survivor::FormId::LongBarrel);
     float autoFormTimer_ = 0.0f;

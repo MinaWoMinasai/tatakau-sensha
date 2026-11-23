@@ -92,11 +92,35 @@ void SurvivorRunController::SyncSlotWeapons()
                                                                   config_.crafting)
                                             : survivor::WeaponDefinition{};
     }
+    // 機体の主武器は、機体の熱の倍率で上書きする（弾を数えないので、撃ち続けられる長さをここで決める）。
+    if (HeroMode() && weaponSlots_[0] >= 0 && Hero().primaryHeatScale > 0.0f) {
+        slotDefs_[0].heatScale = Hero().primaryHeatScale;
+    }
+    // ショップの強化とパーク（K4）：主武器の威力、3段目の小さな爆発、冷却材の熱。
+    if (HeroMode() && weaponSlots_[0] >= 0) {
+        slotDefs_[0].damageScale *= heroPrimaryDamage_;
+        if (heroPrimaryBlast_ > 0.0f && slotDefs_[0].blastRadius <= 0.0f) {
+            slotDefs_[0].blastRadius = heroPrimaryBlast_;
+            slotDefs_[0].blastCenter = 1.0f;
+            slotDefs_[0].blastSplash = 0.5f;
+        }
+        if (HasPerk(survivor::PerkId::Coolant)) {
+            slotDefs_[0].heatScale *= PerkValue(survivor::PerkId::Coolant);
+        }
+    }
 }
 
 void SurvivorRunController::OpenBaseScreen()
 {
     baseScreenOpen_ = true;
+    // 機体の遊び方：機体を選ぶ・解放する画面（K6）。
+    if (HeroMode()) {
+        const std::vector<int> order = HeroCardOrder();
+        const auto selected = std::find(order.begin(), order.end(), hero_);
+        heroCard_ = selected != order.end() ? static_cast<int>(selected - order.begin()) : 0;
+        RefreshHeroSelect();
+        return;
+    }
     baseCursor_ = (std::max)(0, base_.equipped[0]);
     basePage_ = 0;
     RefreshBaseScreen();
@@ -196,6 +220,13 @@ bool SurvivorRunController::BranchBaseWeapon(int index, size_t branch)
 
 void SurvivorRunController::StartSortie()
 {
+    if (HeroMode()) {
+        baseScreenOpen_ = false;
+        heroSave_.selected = Hero().key;
+        ++heroSave_.sorties;
+        SaveHeroSaveFile();
+        return;
+    }
     const bool any = std::any_of(base_.equipped.begin(), base_.equipped.end(), [&](int index) {
         return index >= 0 && static_cast<size_t>(index) < base_.weapons.size() &&
                survivor::FindWeapon(config_.weapons, base_.weapons[static_cast<size_t>(index)].key) >= 0;

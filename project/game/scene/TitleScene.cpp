@@ -140,7 +140,7 @@ void TitleScene::CreateLabels()
     subtitle_ = label("強化を重ねて最深部を目指す、ローグライトアクション", 23, {w * 0.5f, h * 0.44f}, {0.73f, 0.91f, 0.94f, 1});
     Fit(*subtitle_, {w * 0.78f, 42});
     menu_[0] = label("遠征をはじめる", 31, {w * 0.5f, h * 0.60f}, {0.47f, 1, 0.76f, 1});
-    menu_[1] = label("育つ戦車（試作）をはじめる", 27, {w * 0.5f, h * 0.68f}, {0.47f, 1, 0.76f, 1});
+    menu_[1] = label("無限の場（試作）をはじめる", 27, {w * 0.5f, h * 0.68f}, {0.47f, 1, 0.76f, 1});
     for (auto& item : menu_) {
         Fit(*item, {w * 0.72f, 58});
     }
@@ -313,13 +313,12 @@ void TitleScene::Update()
                 UpdateMenuVisuals();
             }
         }
-#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
+        // F7：遠征のボス戦から始める（講評会の Release でも使う）。
         if (triggered(DIK_F7)) {
             if (StartTransitionIfAvailable("TANK_EXPEDITION", 0.5f)) {
                 GameStartSession::RequestDeveloperBossStart();
             }
         } else
-#endif
             if (myEngine::kDeveloperTools && triggered(DIK_F9)) {
             StartTransitionIfAvailable("TANK_EXPEDITION", 0.5f);
         } else if (triggered(DIK_RETURN) || triggered(DIK_SPACE) || (click && hovered >= 0)) {

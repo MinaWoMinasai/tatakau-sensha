@@ -215,6 +215,16 @@ void SurvivorRunController::AddBagToGrid(SurvivorItemScreen::View& view, bool ac
 
 void SurvivorRunController::RefreshInventoryScreen()
 {
+    // 機体の遊び方（計画書 p4 の H3）：Tab で開く「今の組み立て」（技の段とパーク）。ショップと同じ左側を使う。
+    if (HeroMode()) {
+        SurvivorItemScreen::View build = HeroBuildView();
+        build.title = "組み立て：" + Hero().name;
+        build.help = "Tab で閉じる　／　開いている間は止まる　／　技の強化とパークは波の間のショップで買う";
+        build.gridTitle = " ";
+        build.buttons.push_back({"閉じる（Tab）", 0, true});
+        itemScreen_.Show(build);
+        return;
+    }
     SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, true);
     view.title = "持ち物";
     view.help = "マウスを合わせると説明が出る　／　E で閉じる　／　開いている間は止まる　／　付け替え・売るのは休憩部屋で";
@@ -233,7 +243,12 @@ void SurvivorRunController::RefreshInventoryScreen()
 
 void SurvivorRunController::RefreshRestRoom()
 {
-    SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, true);
+    // 機体の遊び方：波の間のショップ（K4）。
+    if (HeroMode()) {
+        RefreshShop();
+        return;
+    }
+    SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, !HeroMode());
     view.title = "休憩部屋";
     view.help = "マウスを合わせると説明が出る　／　ドラッグで付け替え・チップを付ける　／　右クリックで売る　／　Z で捨てる";
     view.gridTitle = "出撃中の袋";
@@ -391,6 +406,7 @@ void SurvivorRunController::HandleScreenEvent(const SurvivorItemScreen::Event& e
     if (event.type == EventType::None) {
         return;
     }
+    audio_.Play(event.type == EventType::Drop ? "ui_drop" : "ui_click");
     const Item* source = itemScreen_.ItemAt(event.source);
     const ScreenItem kind = source ? static_cast<ScreenItem>(source->kind) : ScreenItem::None;
     const int id = source ? source->id : -1;
@@ -398,6 +414,30 @@ void SurvivorRunController::HandleScreenEvent(const SurvivorItemScreen::Event& e
     const bool toCard = event.type == EventType::Drop && (event.target.zone == Zone::Card || event.target.zone == Zone::Socket);
     const size_t targetSlot = toCard ? static_cast<size_t>(event.target.index) : 0;
 
+    // 戦闘中のレベルアップの3択（計画書 p7 の E3）：並んでいる物をクリックで選ぶ（無料）。
+    if (heroLevelUpOpen_) {
+        if (event.type == EventType::Click && kind == ScreenItem::ShopOffer) {
+            ChooseHeroLevelUp(static_cast<size_t>(id));
+            if (heroLevelUpOpen_) {
+                RefreshHeroLevelUp();
+            }
+        }
+        return;
+    }
+    // 機体の遊び方の拠点：札をクリックで機体を選び、ボタンで出撃・解放する（K6）。
+    if (baseScreenOpen_ && HeroMode()) {
+        if (event.type == EventType::Press && event.source.zone == Zone::Button) {
+            if (event.source.index == 0) {
+                StartSortie();
+            } else if (UnlockHeroCard()) {
+                RefreshHeroSelect();
+            }
+        } else if (event.type == EventType::Click && (event.source.zone == Zone::Card || event.source.zone == Zone::Socket)) {
+            SelectHeroCard(event.source.index);
+            RefreshHeroSelect();
+        }
+        return;
+    }
     if (baseScreenOpen_) {
         if (event.type == EventType::Press) {
             if (event.source.zone == Zone::Button) {
@@ -436,8 +476,23 @@ void SurvivorRunController::HandleScreenEvent(const SurvivorItemScreen::Event& e
         if (event.type == EventType::Press && event.source.zone == Zone::Button) {
             if (event.source.index == 0) {
                 LeaveRestRoom();
+            } else if (event.source.index == 2) {
+                if (RepairHero()) {
+                    RefreshRestRoom();
+                }
+            } else if (event.source.index == 3) {
+                if (RerollShop()) {
+                    RefreshRestRoom();
+                }
             } else {
                 StartNextStage();
+            }
+            return;
+        }
+        // 機体の遊び方のショップ：並んでいる物をクリックで買う。
+        if (HeroMode()) {
+            if (event.type == EventType::Click && kind == ScreenItem::ShopOffer && BuyOffer(static_cast<size_t>(id))) {
+                RefreshRestRoom();
             }
             return;
         }
@@ -476,6 +531,18 @@ void SurvivorRunController::UpdateScreenInput()
         StartSortie();
         return;
     }
+    // 戦闘中のレベルアップの3択は、数字キー 1〜3 でも選べる。
+    if (heroLevelUpOpen_) {
+        for (size_t i = 0; i < 3; ++i) {
+            if (input.IsKeyTriggered(static_cast<uint8_t>(DIK_1 + i))) {
+                ChooseHeroLevelUp(i);
+                if (heroLevelUpOpen_) {
+                    RefreshHeroLevelUp();
+                }
+                return;
+            }
+        }
+    }
     const bool right = input.IsTrigger(input.GetMouseState().rgbButtons[1], input.GetPreMouseState().rgbButtons[1]);
     DriveScreenPointer(input.GetMousePosition(), input.IsPress(input.GetMouseState().rgbButtons[0]), right, static_cast<int>(input.GetMouseState().lZ));
     if (restRoomOpen_ && input.IsKeyTriggered(DIK_Z)) {
@@ -510,6 +577,234 @@ void SurvivorRunController::OpenInventory()
 void SurvivorRunController::CloseInventory()
 {
     inventoryOpen_ = false;
+}
+
+SurvivorItemScreen::View SurvivorRunController::HeroBuildView() const
+{
+    SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, bag_.money, false);
+    // 右の上の列は、レベルポイントだけ（素材は使わない）。
+    view.header.resize(1);
+    view.header[0].title = "レベルポイント";
+    view.header[0].body = "敵を倒すと入る。ショップで技の強化・パーク・修理・引き直しに使う。";
+    view.showEmptyCells = false;
+    // 左の3枚：今の組み立て（技の段とパーク）。
+    static constexpr std::array<const char*, 3> kCardTitles{"主武器・右クリック", "Shift・E", "Q・パーク"};
+    for (size_t c = 0; c < view.cards.size(); ++c) {
+        auto& card = view.cards[c];
+        card.empty = false;
+        card.name = kCardTitles[c];
+        card.item.icon = c == 0 ? WeaponIcon(Hero().primary) : Icon(c == 1 ? "chip_thruster" : "chip_morale");
+        card.item.color = {0.7f, 0.95f, 1.0f, 1.0f};
+        card.item.title = Hero().name;
+        auto line = [&](int target) {
+            const survivor::AbilityDefinition& ability = UpgradeAbility(target);
+            const std::string name = target == 0 && ability.kind == survivor::AbilityKind::None ? std::string("主武器") : ability.name;
+            return name + "　段" + std::to_string(UpgradeTier(target));
+        };
+        if (c == 0) {
+            card.stats = line(0) + "\n" + line(1);
+            // 専用スキル（計画書 p8 の F2）：持っている物を名前と段で。
+            std::string skills;
+            for (size_t i = 0; i < survivor::kHeroSkillCount; ++i) {
+                if (heroSkillTiers_[i] > 0) {
+                    skills += (skills.empty() ? "専用 " : "・") + std::string(survivor::GetHeroSkillInfo(static_cast<survivor::HeroSkill>(i)).name) +
+                              std::to_string(heroSkillTiers_[i]);
+                }
+            }
+            if (!skills.empty()) {
+                card.stats += "\n" + skills;
+            }
+        } else if (c == 1) {
+            card.stats = line(2) + "\n" + line(3);
+            // 副武器（計画書 p7 の E4）：持っている物を短い名前と段で。
+            std::string subs;
+            for (size_t i = 0; i < survivor::kSubWeaponCount; ++i) {
+                if (subWeaponTiers_[i] > 0) {
+                    subs += (subs.empty() ? "副武器" + (config_.heroes.subWeaponSlots > 0 ? std::to_string(OwnedSubWeapons()) + "/" +
+                                                                                             std::to_string(config_.heroes.subWeaponSlots)
+                                                                                       : std::string()) +
+                                                " "
+                                          : "・") + std::string(survivor::GetSubWeaponInfo(static_cast<survivor::SubWeapon>(i)).shortName) +
+                            std::to_string(subWeaponTiers_[i]);
+                }
+            }
+            if (!subs.empty()) {
+                card.stats += "\n" + subs;
+            }
+        } else {
+            // パークは3つごとに改行する（札の右端からはみ出さないように）。
+            std::string perks;
+            int owned = 0;
+            for (size_t i = 0; i < survivor::kPerkCount; ++i) {
+                if (perks_[i]) {
+                    // 段のあるパークは Lv を付け、2つごとに改行する（計画書 p8 の F1）。
+                    const bool tiers = config_.heroes.perkMaxTier > 1;
+                    perks += (owned == 0 ? "" : owned % (tiers ? 2 : 3) == 0 ? "\n" : "・") +
+                             std::string(survivor::GetPerkInfo(static_cast<survivor::PerkId>(i)).name) + (tiers ? std::to_string(perks_[i]) : std::string());
+                    ++owned;
+                }
+            }
+            const std::string perkTitle = config_.heroes.perkSlots > 0
+                                              ? "パーク" + std::to_string(OwnedPerks()) + "/" + std::to_string(config_.heroes.perkSlots) + "\n"
+                                              : std::string();
+            card.stats = line(4) + "\n" + perkTitle + (perks.empty() ? std::string("パークなし") : perks);
+            if (fillersTaken_ > 0) {
+                card.stats += "\n埋め草 HP+" + std::to_string(fillerMaxHp_) + "・威力+" + std::to_string(static_cast<int>(std::round(fillerPower_ * 100.0f))) + "%";
+            }
+        }
+        card.item.body = card.stats;
+    }
+    // 左下の2つ：HP と傷、Q のゲージ（武器の遊び方のバリアと補助の枠を使う）。
+    const auto& player = *world_.resources.player_;
+    view.shield.icon = Icon("chip_armor");
+    view.shield.color = player.GetSurvivorWound() > 0 ? myEngine::Vector4{1.0f, 0.75f, 0.6f, 1.0f} : myEngine::Vector4{0.6f, 1.0f, 0.7f, 1.0f};
+    view.shield.title = "HP " + std::to_string(player.GetHp()) + "/" + std::to_string(player.GetMaxHp()) + "　傷 " + std::to_string(player.GetSurvivorWound());
+    view.shield.body = "傷は治すまで HP がそこまでしか戻らない。波の間に HP は戻らず、修理で傷を全部と HP を治す。";
+    view.support.icon = Icon("chip_morale");
+    view.support.color = {1.0f, 0.85f, 0.35f, 1.0f};
+    view.support.dim = false;
+    view.support.title = "Q " + std::to_string(static_cast<int>((std::min)(1.0f, ultimateCharge_ / Hero().ultimateCharge) * 100.0f)) + "%";
+    view.support.body = "Q のゲージは、与えたダメージと回復した量で溜まる。満タンで " + Hero().abilities[3].name + " を使える。";
+    return view;
+}
+
+void SurvivorRunController::RefreshHeroLevelUp()
+{
+    // ショップと同じ画面の形で、3つを無料で並べる。数字キー 1〜3 でも選べる（UpdateScreenInput）。
+    SurvivorItemScreen::View view = HeroBuildView();
+    view.title = "レベル " + std::to_string(level_) + "　─　強化を1つ選ぶ";
+    view.help = "クリック（または 1〜3）で選ぶ　／　技の強化は3段目で覚醒（挙動が変わる）" +
+                (heroPendingLevelUps_ > 1 ? "　／　あと " + std::to_string(heroPendingLevelUps_ - 1) + " 回選べる" : std::string());
+    view.gridTitle = "選べる強化";
+    static constexpr std::array<const char*, survivor::kUpgradeTargets> kUpgradeIcons{"chip_warhead", "chip_heavyWarhead", "chip_thruster",
+                                                                                      "chip_collector", "chip_chainLightning"};
+    for (size_t i = 0; i < heroLevelUpOffers_.size(); ++i) {
+        const ShopOffer& offer = heroLevelUpOffers_[i];
+        const bool awaken = OfferAwakens(offer);
+        Item item;
+        // 色：技の強化は水色、副武器は緑、パークは橙。覚醒の手前は金色。
+        const bool filler = offer.filler != Filler::None;
+        item.icon = Icon(filler          ? (offer.filler == Filler::Power ? "chip_warhead" : "chip_armor")
+                         : offer.skill   ? survivor::GetHeroSkillInfo(static_cast<survivor::HeroSkill>(offer.index)).icon
+                         : offer.sub     ? survivor::GetSubWeaponInfo(static_cast<survivor::SubWeapon>(offer.index)).icon
+                         : offer.upgrade ? kUpgradeIcons[static_cast<size_t>(offer.index)]
+                                         : "chip_default");
+        // 埋め草は白っぽく。
+        item.color = filler          ? myEngine::Vector4{0.85f, 0.85f, 0.9f, 1.0f}
+                     : awaken        ? myEngine::Vector4{1.9f, 1.5f, 0.4f, 1.0f}
+                     : offer.skill   ? myEngine::Vector4{1.0f, 0.6f, 1.4f, 1.0f}
+                     : offer.sub     ? myEngine::Vector4{0.5f, 1.4f, 0.75f, 1.0f}
+                     : offer.upgrade ? myEngine::Vector4{0.55f, 0.95f, 1.0f, 1.0f}
+                                     : myEngine::Vector4{1.0f, 0.75f, 0.35f, 1.0f};
+        item.count = static_cast<int>(i) + 1;
+        item.kind = static_cast<int>(ScreenItem::ShopOffer);
+        item.id = static_cast<int>(i);
+        item.title = std::to_string(i + 1) + "：" + OfferName(offer) + (awaken ? "　覚醒" : "");
+        item.body = OfferText(offer);
+        item.actions = "クリック：選ぶ";
+        view.grid.push_back(item);
+    }
+    itemScreen_.Show(view);
+}
+
+void SurvivorRunController::RefreshShop()
+{
+    const auto& player = *world_.resources.player_;
+    SurvivorItemScreen::View view = HeroBuildView();
+    view.title = "波 " + std::to_string(stage_ + 1) + "/" + std::to_string(config_.waves.count) + " おわり　─　ショップ";
+    view.help = "HP " + std::to_string(player.GetHp()) + "/" + std::to_string(player.GetMaxHp()) + "（傷 " +
+                std::to_string(player.GetSurvivorWound()) + "）　／　クリックで買う　／　HP は波の間に戻らない。修理で傷を全部と HP を治す";
+    view.gridTitle = "並んでいる物";
+    static constexpr std::array<const char*, survivor::kUpgradeTargets> kUpgradeIcons{"chip_warhead", "chip_heavyWarhead", "chip_thruster",
+                                                                                      "chip_collector", "chip_chainLightning"};
+    for (size_t i = 0; i < shopOffers_.size(); ++i) {
+        const ShopOffer& offer = shopOffers_[i];
+        const int price = OfferPrice(offer);
+        Item item;
+        item.icon = Icon(offer.upgrade ? kUpgradeIcons[static_cast<size_t>(offer.index)] : "chip_default");
+        item.color = offer.upgrade ? myEngine::Vector4{0.55f, 0.95f, 1.0f, 1.0f} : myEngine::Vector4{1.0f, 0.75f, 0.35f, 1.0f};
+        item.count = price;
+        item.dim = bag_.money < price;
+        item.kind = static_cast<int>(ScreenItem::ShopOffer);
+        item.id = static_cast<int>(i);
+        item.title = OfferName(offer) + "　" + std::to_string(price);
+        item.body = OfferText(offer);
+        item.actions = bag_.money >= price ? "クリック：買う" : "レベルポイントが足りない";
+        view.grid.push_back(item);
+    }
+    const bool hurt = player.GetSurvivorWound() > 0 || player.GetHp() < player.GetMaxHp();
+    view.buttons.push_back({"出撃を終える（結果へ）", 0, true});
+    view.buttons.push_back({"次へ：" + (stage_ + 2 == StageCount() ? std::string("ボスの波") : "波 " + std::to_string(stage_ + 2)), 1, true});
+    view.buttons.push_back({"修理 " + std::to_string(config_.health.repairCost) + "：傷を治し HP+" + std::to_string(config_.health.repairHeal), 2,
+                            hurt && bag_.money >= config_.health.repairCost});
+    view.buttons.push_back({"引き直す " + std::to_string(RerollPrice()), 3, bag_.money >= RerollPrice()});
+    itemScreen_.Show(view);
+}
+
+void SurvivorRunController::RefreshHeroSelect()
+{
+    // 機体の遊び方の拠点（計画書 p4 の K6）：3枚の札に機体を並べ、クリックで選ぶ。まだの機体は解放ポイントで解放する。
+    SurvivorItemScreen::View view = BuildScreenBase(bag_.materials, heroSave_.points, false);
+    view.header.resize(1);
+    view.header[0].title = "解放ポイント";
+    view.header[0].body = "出撃のスコアから入る（倒れても入る）。機体の解放に使う。";
+    view.title = "拠点　─　機体を選ぶ";
+    view.help = "札をクリックで選ぶ　／　Enter で出撃　／　強化は残らない（毎回ゼロから）。残るのは機体の解放だけ";
+    view.gridTitle = NextHeroText();
+    view.showEmptyCells = false;
+    // 左下：これまでの記録（出撃とクリアの回数、ボスを倒した機体の数）。
+    view.shield = {};
+    view.shield.icon = Icon("chip_morale");
+    view.shield.color = {0.7f, 0.95f, 1.0f, 1.0f};
+    view.shield.title = "出撃 " + std::to_string(heroSave_.sorties) + "　クリア " + std::to_string(heroSave_.clears);
+    view.shield.body = "ボスを倒した機体：" + std::to_string(heroSave_.cleared.size()) + "（初めて倒すと解放ポイントのボーナス）";
+    view.support = {};
+    const std::vector<int> order = HeroCardOrder();
+    const std::vector<int> candidates = survivor::HeroUnlockCandidates(heroSave_, config_.heroes.heroes);
+    for (size_t c = 0; c < view.cards.size(); ++c) {
+        auto& card = view.cards[c];
+        if (c >= order.size()) {
+            card.name = " ";
+            continue;
+        }
+        const int index = order[c];
+        const survivor::HeroDefinition& hero = config_.heroes.heroes[static_cast<size_t>(index)];
+        const bool unlocked = survivor::IsHeroUnlocked(heroSave_, hero);
+        const bool candidate = std::find(candidates.begin(), candidates.end(), index) != candidates.end();
+        card.empty = false;
+        card.active = static_cast<int>(c) == heroCard_;
+        card.name = hero.name + (index == hero_ && unlocked ? "　（出撃する）" : "");
+        std::string skills;
+        for (size_t i = 0; i < survivor::kAbilitySlotCount; ++i) {
+            if (hero.abilities[i].kind != survivor::AbilityKind::None) {
+                skills += std::string(skills.empty() ? "" : "・") + hero.abilities[i].name;
+            }
+        }
+        card.stats = (unlocked    ? std::string("使える")
+                      : candidate ? "解放 " + std::to_string(hero.unlockCost) + " ポイント"
+                                  : std::string("まだ解放できない")) +
+                     "　　HP " + std::to_string(hero.maxHp) + "\n" + skills;
+        card.item.icon = WeaponIcon(hero.primary);
+        card.item.color = unlocked ? myEngine::Vector4{0.7f, 0.95f, 1.0f, 1.0f} : myEngine::Vector4{0.45f, 0.5f, 0.58f, 1.0f};
+        card.item.dim = !unlocked;
+        card.item.title = hero.name;
+        card.item.body = card.stats;
+        card.item.actions = unlocked ? "クリック：この機体で出撃する" : candidate ? "クリックして「解放する」" : "";
+    }
+    // 選んでいる札が、解放できる機体なら「解放する」を押せる。
+    std::string unlockText = "解放する";
+    bool unlockEnabled = false;
+    if (heroCard_ >= 0 && static_cast<size_t>(heroCard_) < order.size()) {
+        const int index = order[static_cast<size_t>(heroCard_)];
+        const survivor::HeroDefinition& hero = config_.heroes.heroes[static_cast<size_t>(index)];
+        if (!survivor::IsHeroUnlocked(heroSave_, hero)) {
+            unlockText = "解放する：" + hero.name + " " + std::to_string(hero.unlockCost);
+            unlockEnabled = std::find(candidates.begin(), candidates.end(), index) != candidates.end() && heroSave_.points >= hero.unlockCost;
+        }
+    }
+    view.buttons.push_back({"出撃：" + Hero().name + "（Enter）", 0, true});
+    view.buttons.push_back({unlockText, 1, unlockEnabled});
+    itemScreen_.Show(view);
 }
 
 } // namespace gameplay

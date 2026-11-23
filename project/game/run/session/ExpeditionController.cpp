@@ -204,6 +204,7 @@ void ExpeditionController::StartTankExpeditionRoom()
     // ここで前の敵・弾・場の攻撃を消去し、衝突走査中に対象の実体を削除しない。
     world_.resources.enemy_->SetRunEncounterEnabled(false);
     world_.run.tankExpeditionRivalActive_ = false;
+    world_.expeditionHeroAbilities->OnRoomStart();
     world_.resources.enemyManager_->ClearRunActors();
     world_.resources.bulletManager_->ClearAll();
     world_.presentation.playerLaserBeams_.clear();
@@ -739,7 +740,7 @@ void ExpeditionController::RefreshTankExpeditionUi()
     const Room room = world_.run.tankExpedition_.GetRoomKind();
     const bool terminal = phase == EPhase::Clear || phase == EPhase::Dead;
     const bool inCombat = phase == EPhase::Combat && !world_.run.tankRunPaused_;
-    world_.run.tankRunHudPanel_->SetSize({264, 78});
+    world_.run.tankRunHudPanel_->SetSize({264, world_.run.expeditionMapEnabled_ ? 92.0f : 78.0f});
     world_.run.tankRunHudPanel_->SetColor({0.0f, 0.0f, 0.004f, 0.42f});
     world_.run.tankRunHudPanel_->Update();
     world_.run.tankRunHud_->SetText(
@@ -774,10 +775,12 @@ void ExpeditionController::RefreshTankExpeditionUi()
             ? (world_.run.tankExpeditionResourceReleased_ ? "金色の通貨ボックスを壊そう"
                                                           : "敵を倒して宝物を手に入れよう  あと " + std::to_string(threats))
         : room == Room::Guard
-            ? "通貨ボックス " + std::to_string(world_.run.tankExpeditionNodes_) + " / 3   敵 あと " + std::to_string(threats)
+            ? "通貨ボックス " + std::to_string(world_.run.tankExpeditionNodes_) + " / 3   敵 あと " + std::to_string(threats) +
+                  (world_.run.expeditionMapEnabled_ ? world_.expeditionOverdrive->WaveStatus() : std::string{})
         : room == Room::Boss
             ? "ボスを倒そう"
-            : (world_.run.expeditionMapEnabled_ ? "敵とブロックを倒そう  あと " : "敵を全滅させろ  残り ") + std::to_string(threats);
+            : (world_.run.expeditionMapEnabled_ ? "敵とブロックを倒そう  あと " : "敵を全滅させろ  残り ") + std::to_string(threats) +
+                  (world_.run.expeditionMapEnabled_ ? world_.expeditionOverdrive->WaveStatus() : std::string{});
     world_.run.tankRunObjectiveText_->SetAlpha(0.90f + 0.10f * std::sin(world_.run.expeditionPresentationClock_ * 2.0f));
     world_.run.tankRunObjectiveText_->SetAnchorPoint({0.5f, 0});
     world_.run.tankRunObjectiveText_->SetPosition({640, 12});
@@ -826,7 +829,10 @@ void ExpeditionController::RefreshTankExpeditionUi()
     const char* features[] = {"跳弾ビルド", "突撃ビルド", "群体ビルド", "標準戦車"};
     const auto core = (std::clamp)(static_cast<int>(world_.run.tankRun_.GetCore()), 0, 3);
     std::string build = std::string("BUILD / ") + (world_.run.tankRun_.GetDraftCount() < 2 ? "基本射撃" : features[core]);
-    const std::string combatStyle = world_.resources.player_->IsMeleeBuild()   ? "近接ブレード"
+    // 機体で遊ぶとき（計画書 p5 の H4）は、戦い方の代わりに機体の名前を出す。
+    const survivor::HeroDefinition* hero = world_.expeditionBuildSelection->SelectedExpeditionHero();
+    const std::string combatStyle = hero                                       ? hero->name
+                                    : world_.resources.player_->IsMeleeBuild() ? "近接ブレード"
                                     : world_.resources.player_->IsDroneBuild() ? "ドローン編隊"
                                                                                : "シューター";
     if (world_.run.expeditionMapEnabled_) {
@@ -854,7 +860,8 @@ void ExpeditionController::RefreshTankExpeditionUi()
         }
     }
     if (!world_.run.tankRun_.GetDraftCount()) {
-        build += world_.resources.player_->IsMeleeBuild()   ? "\n基本装備 / 3段斬り"
+        build += hero                                       ? std::string("\n主武器 / ") + world_.resources.player_->GetCurrentClassName()
+                 : world_.resources.player_->IsMeleeBuild() ? "\n基本装備 / 3段斬り"
                  : world_.resources.player_->IsDroneBuild() ? "\n基本装備 / 左クリックで指揮"
                                                             : "\n基本装備 / 単発射撃";
         details << (world_.run.expeditionMapEnabled_ ? "\nまだ強化を取得していません" : "\nまだ改造を取得していません");
@@ -1032,6 +1039,10 @@ void ExpeditionController::DrawTankExpeditionUi()
     world_.run.tankExpeditionHpFill_->Draw();
     if (world_.run.expeditionMapEnabled_) {
         world_.expeditionExperience->DrawExpeditionVitals();
+        if (!decision && !result) {
+            world_.expeditionOverdrive->Draw();
+            myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+        }
     }
     world_.run.tankRunObjectiveText_->Draw();
     if (world_.run.tankExpeditionDetailsOpen_) {
@@ -1039,7 +1050,8 @@ void ExpeditionController::DrawTankExpeditionUi()
         world_.run.tankExpeditionMapText_->Draw();
         return;
     }
-    if (world_.run.tankExpedition_.GetRoomKind() == Room::Boss && world_.run.tankExpeditionRivalActive_ && !decision && !result) {
+    if (world_.run.tankExpedition_.GetRoomKind() == Room::Boss && world_.run.tankExpeditionRivalActive_ && !decision && !result &&
+        !world_.run.expeditionMapEnabled_) {
         world_.run.tankRunBossText_->Draw();
         world_.run.tankRunBossTrack_->Draw();
         world_.run.tankRunBossFill_->Draw();

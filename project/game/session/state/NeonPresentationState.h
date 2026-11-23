@@ -30,6 +30,8 @@ struct NeonPresentationState {
     int bloomView_ = 0;
     bool bloomViewFreeze_ = false;
     float bloomViewLabelTimer_ = 0.0f;
+    /// @brief 最後に見た F12 のブルームの切り替えの回数（PresentationToggles::bloomSerial）。
+    uint32_t bloomToggleSeen_ = 0;
     stagesurface::Settings stageSurface_;
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     int developerStageSurfaceDebugView_ = -1;
@@ -174,6 +176,9 @@ struct NeonPresentationState {
 
     float cameraShakePower_ = 0.0f;
 
+    /// @brief 遠征の熱の高まり（0〜1、オーバーヒート中は脈打つ）。床の格子・壁・自機の色と画面の赤みに使う。
+    float heatTint_ = 0.0f;
+
     bool showCollisionDebug_ = false;
 
     bool showCollisionDebugBullets_ = true;
@@ -251,6 +256,11 @@ struct NeonPresentationState {
     // 育つ戦車の試作のスタミナの割合（負なら出さない）と、尽きて張れない間か。
     float playerStaminaRatio_ = -1.0f;
     bool playerStaminaExhausted_ = false;
+    // 機体の技の表示（計画書 p4 の K0）。右クリック・Shift・E の使えるまでの進み（1 で使える、負なら出さない）と、Q のゲージ（負なら出さない）。
+    std::array<float, 3> heroAbilityReady_{-1.0f, -1.0f, -1.0f};
+    float heroUltimateRatio_ = -1.0f;
+    // Q のゲージが満タンの間の明るさ（脈打つ。進行側が毎フレーム決める）。
+    float heroUltimateGlow_ = 1.0f;
     myEngine::Vector4 playerSwapDissolveColor_ = {1.9f, 0.35f, 1.3f, 1.0f};
 
     myEngine::Vector4 enemyGridColor_ = {1.0f, 0.18f, 0.24f, 1.0f};

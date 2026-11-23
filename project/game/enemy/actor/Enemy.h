@@ -436,6 +436,28 @@ public:
 
     /// @brief 登場だけを終了し、通常終了と同じ位置取り初期状態に進める。
     void SkipNeonDepthIntro();
+    /// @brief 遠征のネオンボスの攻撃を外（ExpeditionBossDirector）から動かすか。真の間は奥行きボスの攻撃計画と
+    /// 自動の位置取りを止め、登場・被弾できる状態・見た目と視点だけを奥行きボスの仕組みに任せる。
+    void SetNeonDepthExternalControl(bool external)
+    {
+        neonDepthExternal_ = external;
+    }
+    bool IsNeonDepthExternalControl() const
+    {
+        return neonDepthExternal_;
+    }
+    /// @brief 外から動かすときの移動。床の上で壁を避けて desiredFloor へ寄せる（1回に動けるのは16まで）。
+    bool MoveNeonDepthBossTo(const myEngine::Vector3& desiredFloor)
+    {
+        return MoveNeonDepthCore(desiredFloor);
+    }
+    /// @brief 向き（ラジアン）。見た目の向きと、弾を撃つ向きに使う。
+    void SetBossFacing(float angleRadians)
+    {
+        worldTransform_.rotate.z = angleRadians;
+    }
+    /// @brief ボスの位置から弾を1発撃つ。speed は60FPS基準の1フレームあたりの距離。
+    void FireBossBullet(const myEngine::Vector3& direction, float speed, uint32_t damage);
     /// @brief 待機eventと有効hazardを停止する。HPや死亡状態、保持Visualのprofileは変更しない。
     void AbortNeonDepthEncounter();
 
@@ -565,6 +587,7 @@ private:
     /// @brief 接続可能な床・固定目標・回避場所から専用攻撃計画を作る。
     std::optional<neondepth::AttackPlan> PlanNeonDepthAttack(const neondepth::PlanningRequest& request);
     bool neonDepthEnabled_ = false, neonDepthGeometryReady_ = false, neonDepthPlanRejected_ = false;
+    bool neonDepthExternal_ = false;
     neondepth::Combat neonDepthCombat_{};
     neondepth::Events neonDepthEvents_{};
     std::array<neondepth::FloorBox, 4096> neonDepthWalls_{};

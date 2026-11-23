@@ -397,6 +397,21 @@ void ExpEnemy::Update(Stage& stage, float deltaTime)
         }
     }
     ApplyDamageFeedback(deltaTime);
+    // 燃えている間は、0.5秒ごとに削られる（自機が与えたダメージとして数える）。橙の火花を出す。
+    if (burnTimer_ > 0.0f && !isDead_ && !isRunResource_) {
+        burnTimer_ -= deltaTime;
+        burnTick_ -= deltaTime;
+        if (burnTick_ <= 0.0f) {
+            burnTick_ += 0.5f;
+            const auto amount = static_cast<uint32_t>((std::max)(1.0f, std::round(burnDamagePerSecond_ * 0.5f)));
+            myEngine::ParticleManager::GetInstance()->EmitNeonImpactEffect(GetWorldPosition(), {0.0f, 1.0f, 0.0f},
+                                                                           {2.2f, 0.8f, 0.2f, 0.9f}, 3);
+            TakeDirectionalDamage(amount, GetWorldPosition());
+            if (isDead_) {
+                return;
+            }
+        }
+    }
 
     if (isRunResource_) {
         // 資源は取得地点から移動させず、回転と被弾表示だけを更新する。
@@ -417,7 +432,7 @@ void ExpEnemy::Update(Stage& stage, float deltaTime)
     velocity_ += (velocity_ * -1.0f) * 0.98f * deltaTime;
     if (chaseAcceleration_ > 0.0f && type_ != ExpEnemyType::Shooter && player_ && !player_->IsDead()) {
         // 寄ってくる図形は、自機の方向へ加速し、最高速度で頭打ちにする。velocity_ は60FPSの1ステップあたりの変位。
-        myEngine::Vector3 toPlayer = player_->GetWorldPosition() - GetWorldPosition();
+        myEngine::Vector3 toPlayer = chaseFixedDirection_ ? chaseDirection_ * 10.0f : player_->GetWorldPosition() - GetWorldPosition();
         toPlayer.z = 0.0f;
         const float distance = myEngine::Length(toPlayer);
         float acceleration = chaseAcceleration_;
@@ -845,8 +860,11 @@ void ExpEnemy::UpdateExpeditionCombat(Stage& stage, float deltaTime)
             param.bulletCount = flanker ? 5 : suppressor ? 3 : 1;
             param.spreadAngleDeg = flanker ? 50.0f : suppressor ? 32.0f : 0.0f;
             param.randomSpread = false;
-            param.damage = hasAuthoredDefinition_ ? authoredBulletDamage_ : balanceConfig_.shooterBulletDamage;
-            param.bulletHp = sniper ? tankspecial::kArmoredEnemyBulletHp : tankspecial::kOrdinaryEnemyBulletHp;
+            // 遠征の敵の弾は弱めにする：威力は7割、耐久は半分ほど（ふつうの弾6→3、狙撃の装甲弾24→10）。
+            // 狙撃の弾は、近接で切れない「装甲弾」のまま（耐久がふつうの弾の上限6を超える）。
+            const uint32_t baseDamage = hasAuthoredDefinition_ ? authoredBulletDamage_ : balanceConfig_.shooterBulletDamage;
+            param.damage = (std::max)(1u, static_cast<uint32_t>(std::lround(static_cast<float>(baseDamage) * 0.7f)));
+            param.bulletHp = sniper ? 10.0f : tankspecial::kOrdinaryEnemyBulletHp * 0.5f;
             param.bulletPenetration = 1.0f;
             param.canClaimRunResource = false;
             const myEngine::Vector3 shotOrigin = GetWorldPosition();
@@ -1257,6 +1275,16 @@ void ExpEnemy::OnCollision(Collider* other)
         damage = ResolveShieldDamage(damage, source, melee);
     }
     ApplyDamage(damage, !killedByEnemy, true);
+    // 燃やす弾（拡散連射の覚醒）：当たった敵に火を付ける。燃えている間に当たると、時間を戻し、強い方の威力にする。
+    if (!killedByEnemy && !isDead_) {
+        if (const auto* bullet = dynamic_cast<const Bullet*>(other); bullet && bullet->GetBurnDamagePerSecond() > 0.0f) {
+            if (burnTimer_ <= 0.0f) {
+                burnTick_ = 0.5f;
+            }
+            burnTimer_ = (std::max)(burnTimer_, bullet->GetBurnSeconds());
+            burnDamagePerSecond_ = (std::max)(burnDamagePerSecond_, bullet->GetBurnDamagePerSecond());
+        }
+    }
 
     // この接触経路では、ダメージ0でHPを減らせなかった場合も自機接触の再受付を0.5秒抑える。
     if (other->GetCollisionAttribute() == kCollisionAttributePlayer) {

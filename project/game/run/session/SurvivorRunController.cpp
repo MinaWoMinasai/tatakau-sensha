@@ -34,16 +34,33 @@ void SurvivorRunController::Initialize()
 
     // 湧き方の設定と、敵戦車の性能（遠征と同じ制作カタログ）を読む。読めなければ既定値で続ける。
     std::string error;
-    if (!survivor::LoadSpawnConfig(kConfigPath, config_, error)) {
+    if (!survivor::LoadSpawnConfig(ConfigPath(), config_, error)) {
         OutputDebugStringA(("[Survivor] " + error + "\n").c_str());
     }
     fileExitOpenSeconds_ = config_.exitOpenSeconds;
     fileRivalEnabled_ = config_.rival.enabled;
+    fileHeroStart_ = config_.heroes.start;
     // MYENGINE_SURVIVOR_WEAPONS=0：武器の枠を使わず、これまでの育つ戦車の試作（3択・レベル・形態の進化）で遊ぶ。
     wchar_t weaponsSwitch[4]{};
     if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_WEAPONS", weaponsSwitch, 4) > 0) {
         config_.weaponsEnabled = weaponsSwitch[0] != L'0';
     }
+    // MYENGINE_SURVIVOR_HEROES=0：機体を使わず、武器3つの枠の遊び方（計画書 p3）で遊ぶ。
+    wchar_t heroesSwitch[4]{};
+    if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_HEROES", heroesSwitch, 4) > 0) {
+        config_.heroes.enabled = heroesSwitch[0] != L'0';
+    }
+    // MYENGINE_SURVIVOR_HERO=キー：出撃する機体を設定の start から替える（K6 で拠点の選ぶ画面にするまでの確認用）。
+    wchar_t heroKey[32]{};
+    if (const DWORD heroLength = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_HERO", heroKey, 32); heroLength > 0 && heroLength < 32) {
+        config_.heroes.start.clear();
+        for (DWORD i = 0; i < heroLength; ++i) {
+            config_.heroes.start.push_back(static_cast<char>(heroKey[i]));
+        }
+        heroStartFromEnv_ = true;
+    }
+    world_.presentation.heroAbilityReady_.fill(-1.0f);
+    world_.presentation.heroUltimateRatio_ = -1.0f;
     // 武器の枠を使う遊び方では、ステージ1の宿敵は出さず、exitOpenSeconds 耐えたら出口を開く（計画書 p3 の G3）。
     if (config_.weaponsEnabled) {
         config_.rival.enabled = false;
@@ -60,7 +77,7 @@ void SurvivorRunController::Initialize()
 
     // 試作用の広い部屋に差し替え、自機とカメラを中央に置く。カメラは CombatFramePipeline が自機を追い、
     // 部屋の外枠（ArenaBounds）からはみ出さないように止める。
-    if (!world_.resources.stage_->LoadRunMap(kArenaMap)) {
+    if (!world_.resources.stage_->LoadRunMap(config_.arenaMap.c_str())) {
         OutputDebugStringA("[Survivor] arena map could not be loaded\n");
     }
     world_.presentation.stagePostCacheValid_ = false;
@@ -85,9 +102,23 @@ void SurvivorRunController::Initialize()
     ConfigurePickups();
     // 大五角は宝箱：倒すと、まだ持っていないレリックの2択を1つ貯める（D4）。全部持っていれば、軽い部品の出ない3択を1つ貯める。
     ExpEnemy::SetPlayerExpDropCallback([this](const ExpEnemy& enemy, uint32_t value) {
+        // 機体の遊び方では、欠片の量は倒した敵の種類ごとのレベルポイント（H2）。
+        if (HeroMode()) {
+            value = static_cast<uint32_t>((std::max)(0, WavePoints(enemy)));
+            OnHeroKill();
+            // パーク「連鎖の冷却」：倒すたびに、技の待ち時間を縮める。
+            if (HasPerk(survivor::PerkId::KillCooldown)) {
+                for (float& cooldown : abilityCooldown_) {
+                    cooldown = (std::max)(0.0f, cooldown - PerkValue(survivor::PerkId::KillCooldown));
+                }
+            }
+        }
         pickups_.Drop(enemy.GetWorldPosition(), value, random_);
         expDropped_ += static_cast<int>(value);
-        if (WeaponMode()) {
+        // 途中の回復（計画書 p8 の F5）：まれにスパナ、中ボスは必ず。
+        DropHealPickup(enemy);
+        // 機体の遊び方では、お金（欠片）のほかは落とさない（計画書 p4 の H7）。
+        if (WeaponMode() && !HeroMode()) {
             DropLoot(enemy);
         }
         if (!WeaponMode() && enemy.GetType() == ExpEnemyType::Pentagon && enemy.GetSizeScale() > 1.5f) {
@@ -105,8 +136,15 @@ void SurvivorRunController::Initialize()
     });
 
     nextSwarm_ = config_.swarm.from;
+    ResetGrowth();
+    growthSpawned_ = 0;
+    growthAliveMax_ = 0;
+    surgesStarted_ = 0;
     nextTank_ = config_.tanks.from;
     nextBigPentagon_ = config_.bigPentagon.from;
+    timelineNext_ = 0;
+    midBosses_.clear();
+    healPickups_.clear();
 
     myEngine::TextStyle style{};
     style.fontFamily = "Meiryo";
@@ -236,12 +274,26 @@ void SurvivorRunController::Initialize()
     // ダメージの数字。命中の通知は衝突処理の途中から来るので、控えるだけにして、更新で位置を決める。
     damageNumbers_.Initialize();
     ApplyDamageNumberConfig();
+    // 与えたダメージは、機体の Q のゲージにもなる（H5）。
     ExpEnemy::SetPlayerDamageCallback([this](const ExpEnemy& enemy, uint32_t amount) {
         damageNumbers_.Spawn(enemy.GetCollisionId(), enemy.GetWorldPosition(), amount,
                              world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
+        AddUltimateCharge(static_cast<float>(amount));
+        damageDealt_ += amount;
+        // パーク「吸い取る装甲」：与えたダメージの一部で回復する（端数は貯める。衝突処理の途中なので HP を足すだけ）。
+        if (HasPerk(survivor::PerkId::Lifesteal)) {
+            lifestealRemainder_ += static_cast<float>(amount) * PerkValue(survivor::PerkId::Lifesteal);
+            const int heal = static_cast<int>(lifestealRemainder_);
+            if (heal > 0) {
+                lifestealRemainder_ -= static_cast<float>(heal);
+                world_.resources.player_->HealRunPlayer(heal);
+            }
+        }
     });
     Enemy::SetDamageCallback([this](const myEngine::Vector3& position, uint32_t amount) {
         damageNumbers_.Spawn(0, position, amount, world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
+        AddUltimateCharge(static_cast<float>(amount));
+        damageDealt_ += amount;
     });
 
     wchar_t automatic[8]{};
@@ -252,6 +304,12 @@ void SurvivorRunController::Initialize()
                     : mode == L"perf" ? AutoTest::Perf
                     : mode[0] == L'1' ? AutoTest::Sector
                                       : AutoTest::None;
+    }
+    // 速さの確認（MYENGINE_SURVIVOR_SPEED_TEST=1、auto なら20秒で書き出して終わる）。
+    wchar_t speedTest[8]{};
+    if (!world_.demo.titleDemo_ && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_SPEED_TEST", speedTest, 8) > 0) {
+        speedTest_ = true;
+        speedTestAutoQuit_ = std::wstring(speedTest) == L"auto";
     }
     if (autoTest_ == AutoTest::Perf) {
         // 図形を200体に保ち、敵戦車8体と大五角3体を最初から出す。形態の2択と出口は出さない。
@@ -265,7 +323,13 @@ void SurvivorRunController::Initialize()
         config_.choiceAutoOpen = false;
         formStage_ = 2;
     }
-    random_.seed(autoTest_ != AutoTest::None ? 20261028u : static_cast<uint32_t>(GetTickCount64()));
+    // 自動確認は決まった種で同じ出撃にする。MYENGINE_SURVIVOR_SEED=数 なら、その種にする（機体ごとに何回か通して比べる。K8）。
+    uint32_t seed = autoTest_ != AutoTest::None ? 20261028u : static_cast<uint32_t>(GetTickCount64());
+    wchar_t seedText[16]{};
+    if (autoTest_ != AutoTest::None && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_SEED", seedText, 16) > 0) {
+        seed = static_cast<uint32_t>(_wtoi(seedText));
+    }
+    random_.seed(seed);
     if (autoTest_ != AutoTest::None) {
         world_.presentation.debugPlayerNoDamage_ = true;
         world_.resources.player_->SetDebugNoDamage(true);
@@ -380,9 +444,27 @@ void SurvivorRunController::Initialize()
         }
         baseBulletDamage_ = world_.resources.player_->GetStats().bulletDamage;
         ResetEliteTimers();
-        StartLoadout();
+        // 音：タイトルの見本では鳴らさない。自動確認は音量0で鳴らして回数だけ数える。
+        if (!world_.demo.titleDemo_) {
+            audio_.Initialize(config_.audio, autoTest_ != AutoTest::None);
+        }
+        // 機体の遊び方（計画書 p4）なら、機体の主武器1つを枠に入れる。そうでなければ拠点の武器3つ。
+        // 機体は、前に選んだ機体（環境変数で決めていなければ）。使えない機体なら StartHero が使える機体へ替える。
+        LoadHeroSaveFile();
+        if (!heroStartFromEnv_ && !heroSave_.selected.empty()) {
+            config_.heroes.start = heroSave_.selected;
+        }
+        StartHero();
+        if (HeroMode()) {
+            hintTexts_[static_cast<size_t>(Hint::Move)]->SetText(HeroControlsText());
+            // 技の状態の一行は、画面の左下から出す（右端からはみ出さないように）。
+            qText_->SetPosition({24.0f, 676.0f});
+        } else {
+            StartLoadout();
+        }
         ApplyStageSettings(0);
         // 出撃の前に、拠点の画面で持っていく武器を選ぶ。タイトルの見本と、四隅・fps の自動確認では出さない。
+        // 機体の遊び方では、拠点で機体を選ぶ・解放する（K6）。
         if (!world_.demo.titleDemo_ && autoTest_ != AutoTest::Tour && autoTest_ != AutoTest::Perf) {
             OpenBaseScreen();
         }
@@ -401,6 +483,8 @@ void SurvivorRunController::Initialize()
 void SurvivorRunController::Update(float dt)
 {
     myEngine::RuntimeProfiler::CpuScope scope("Survivor Update");
+    // 自動で撃つのは、戦っている間に機体の入力を読むとき（UpdateHeroInput）だけ入れる。ショップ・持ち物・ポーズでは撃たない。
+    world_.resources.player_->SetAutoFire(false);
     if (world_.combat.phase_ != Phase::kMain) {
         return;
     }
@@ -411,7 +495,7 @@ void SurvivorRunController::Update(float dt)
     UpdateTuningPanel();
     UpdateCinematic(dt);
     SampleFps();
-    if (restRoomOpen_) {
+    if (restRoomOpen_ || heroLevelUpOpen_) {
         UpdateScreenInput();
     } else if (traitChoiceOpen_) {
         UpdateTraitChoiceInput();
@@ -421,13 +505,16 @@ void SurvivorRunController::Update(float dt)
         UpdateFormChoiceInput();
     } else if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
         if (WeaponMode()) {
-            // 出撃前の拠点の画面。E で持ち物の画面を開け閉めする。開いている間は、武器の操作を受け付けない。
+            // 出撃前の拠点の画面。E（機体の遊び方では Tab。E は技）で持ち物の画面を開け閉めする。開いている間は、武器の操作を受け付けない。
             if (baseScreenOpen_) {
                 UpdateScreenInput();
-            } else if (world_.resources.input_->IsKeyTriggered(DIK_E)) {
+            } else if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(HeroMode() ? DIK_TAB : DIK_E)) {
+                // 自動確認の間は、本物のキーボードで開かない（隠した窓でもキーを読むので、Tab を押すと止まっていた）。
                 inventoryOpen_ ? CloseInventory() : OpenInventory();
             } else if (inventoryOpen_) {
                 UpdateScreenInput();
+            } else if (HeroMode()) {
+                UpdateHeroInput();
             } else {
                 UpdateWeaponInput();
             }
@@ -451,26 +538,39 @@ void SurvivorRunController::Update(float dt)
         if (WeaponMode()) {
             UpdateWeaponTimers(gameDt);
         }
+        if (HeroMode()) {
+            UpdateHeroAbilities(gameDt);
+            runSeconds_ += gameDt;
+        }
         const PlayerHeat& heat = world_.resources.player_->GetHeat();
         if (heat.GetHeat() >= heat.GetMaxHeat() * 0.7f) {
             heatHighSeconds_ += gameDt;
         }
         {
             myEngine::RuntimeProfiler::CpuScope spawnScope("Survivor Spawns");
-            UpdateSpawns(gameDt);
+            if (speedTest_) {
+                UpdateSpeedTest(gameDt);
+            } else {
+                UpdateSpawns(gameDt);
+                UpdateTimeline();
+            }
         }
         myEngine::RuntimeProfiler::CpuScope shardScope("Survivor Shards / Q / Separation");
         AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
-                                      survivor::CollectorMagnetScale(config_.parts, partLevels_),
+                                      survivor::CollectorMagnetScale(config_.parts, partLevels_) *
+                                          (HasPerk(survivor::PerkId::Magnet) ? 1.0f + PerkValue(survivor::PerkId::Magnet) : 1.0f),
                                       survivor::HasChange(partLevels_, survivor::PartId::Collector)));
         if (WeaponMode()) {
             UpdateLoot(gameDt);
         }
+        if (HeroMode()) {
+            UpdateHealPickups(gameDt);
+        }
         if (gameDt > 0.0f && survivor::HasChange(partLevels_, survivor::PartId::Ram)) {
             UpdateSpikes();
         }
-        // Q は3択を開いている間（スロー中）には使わない。
-        if (gameDt > 0.0f && !choiceOpen_) {
+        // Q は3択を開いている間（スロー中）には使わない。機体の遊び方では、Q は機体のアルティメット（UpdateHeroInput）。
+        if (gameDt > 0.0f && !choiceOpen_ && !HeroMode()) {
             UpdateQ(gameDt);
         }
         RefreshMorale(dt);
@@ -497,13 +597,14 @@ void SurvivorRunController::Update(float dt)
             separationSeconds_ += std::chrono::duration<double>(std::chrono::steady_clock::now() - separationStart).count();
             ++separationCalls_;
         }
-        if (gameDt > 0.0f) {
+        if (gameDt > 0.0f && !speedTest_) {
             UpdateElites(gameDt);
         }
         // 右クリックを押している間、バリアを張る（敵どうしの押し離しの後で押し返す）。
         if (gameDt > 0.0f && WeaponMode() && !world_.demo.titleDemo_) {
-            const bool wanted = autoTest_ != AutoTest::None ? autoBarrierWanted_
-                                                            : world_.resources.input_->IsPress(world_.resources.input_->GetMouseState().rgbButtons[1]);
+            const bool wanted = HeroMode()                    ? HeroBarrierWanted()
+                                : autoTest_ != AutoTest::None ? autoBarrierWanted_
+                                                              : world_.resources.input_->IsPress(world_.resources.input_->GetMouseState().rgbButtons[1]);
             UpdateBarrier(gameDt, wanted);
         }
         // 宝箱のレリックは、ほかの選択を開いていないときに2択を出す（3択を開いていれば、閉じるまで待つ）。
@@ -520,6 +621,9 @@ void SurvivorRunController::Update(float dt)
         if (!exitOpen_ && !rivalSpawned_ && elapsed_ >= config_.exitOpenSeconds) {
             if (config_.rival.enabled) {
                 SpawnRival();
+            } else if (HeroMode()) {
+                // 機体の遊び方：波の時間が終わったら、出口を歩かずにそのまま波の間へ（H1）。
+                FinishWave();
             } else {
                 OpenExit();
             }
@@ -532,6 +636,7 @@ void SurvivorRunController::Update(float dt)
                 world_.presentation.playerSwapDissolve_ = 0.0f;
                 CloseChoices();
                 pickups_.Clear();
+                healPickups_.clear();
                 lootField_.Clear();
                 damageNumbers_.Clear();
                 world_.resources.enemyManager_->ClearRunActors();
@@ -583,6 +688,7 @@ void SurvivorRunController::Update(float dt)
     if (IsResultVisible()) {
         if (!runLogWritten_) {
             runLogWritten_ = true;
+            AwardHeroPoints();
             CommitRunToBase();
             WriteRunLog();
             RefreshResult(world_.combat.resultSelection_);
@@ -593,6 +699,7 @@ void SurvivorRunController::Update(float dt)
             return;
         }
     }
+    UpdateAudio(dt);
     myEngine::RuntimeProfiler::CpuScope autoTestScope("Survivor AutoTest");
     if (autoTest_ == AutoTest::Sector) {
         UpdateSectorAutoTest(dt);
@@ -622,6 +729,24 @@ void SurvivorRunController::ConfigurePickups()
     pickupConfig.maxShards = static_cast<size_t>((std::max)(1, config_.maxShards));
     pickups_.SetConfig(pickupConfig);
     lootField_.SetConfig(config_.loot);
+    lootField_.SetGlow(config_.glow);
+    // 弾の軌跡のにじみ：武器の枠を使う遊び方だけ、遠征の締めた値から強める（始めと、調整パネルで変えたとき）。
+    if (config_.weaponsEnabled && world_.resources.bulletTrailPostEffect_) {
+        myEngine::BloomParam& trail = world_.resources.bulletTrailPostEffect_->GetParam();
+        trail.intensity = config_.glow.trailBloomIntensity;
+        trail.bloomGain = config_.glow.trailBloomGain;
+        trail.bloomScatter = (std::clamp)(config_.glow.trailBloomScatter, 0.0f, 0.9f);
+        trail.bloomRadius = (std::clamp)(config_.glow.trailBloomRadius, 0.25f, 2.0f);
+    }
+    // 弾の軌跡の尾：先端と同じ色合いのまま細くなり、最後で消える（にじみは太さに合わせて弱まる）。
+    if (config_.weaponsEnabled && world_.resources.bulletManager_) {
+        BulletTrailSettings trail = world_.resources.bulletManager_->GetTrailSettings();
+        trail.trailTailIntensity = trail.trailHeadIntensity * (std::max)(0.0f, config_.glow.trailTailBrightness);
+        trail.colorCurvePower = config_.glow.trailFadeCurve;
+        trail.tailWidthScale = trail.headWidthScale * (std::max)(0.0f, config_.glow.trailTailWidth);
+        trail.lifetime = config_.glow.trailSeconds;
+        world_.resources.bulletManager_->SetTrailSettings(trail);
+    }
 }
 
 void SurvivorRunController::UpdateTuningPanel()
@@ -644,16 +769,26 @@ void SurvivorRunController::UpdateTuningPanel()
     snapshot.heat = heat.GetHeat();
     snapshot.heatMax = heat.GetMaxHeat();
     snapshot.overheats = heat.GetOverheatCount();
+    if (config_.growth.enabled) {
+        const auto growth = CurrentGrowth();
+        snapshot.growthInterval = growth.interval;
+        snapshot.growthCount = growth.count;
+        snapshot.growthMaxAlive = growth.maxAlive;
+    }
+    snapshot.enemyHpScale = EnemyHpScale();
+    snapshot.enemySpeedScale = EnemySpeedScale();
+    snapshot.configPath = ConfigPath();
     const survivor::TuningPanelResult result = survivor::DrawTuningPanel(config_, tuningOpen_, tuningPause_, tuningStatus_, snapshot);
     if (result.reloadRequested) {
         survivor::SpawnConfig loaded;
         std::string error;
-        if (survivor::LoadSpawnConfig(kConfigPath, loaded, error)) {
+        if (survivor::LoadSpawnConfig(ConfigPath(), loaded, error)) {
             // 武器の枠を使うかは起動の設定（環境変数）のままにする。
             loaded.weaponsEnabled = config_.weaponsEnabled;
             config_ = loaded;
             fileExitOpenSeconds_ = config_.exitOpenSeconds;
             fileRivalEnabled_ = config_.rival.enabled;
+            fileHeroStart_ = config_.heroes.start;
             if (WeaponMode()) {
                 ApplyStageSettings(stage_);
             }
@@ -662,7 +797,18 @@ void SurvivorRunController::UpdateTuningPanel()
             tuningStatus_ = error;
         }
     }
+    if (result.timelineChanged || result.reloadRequested) {
+        // 時間割を並べ直し、今の時刻より前の出来事は済んだことにする（計画書 p8 の G2）。
+        std::stable_sort(config_.timeline.begin(), config_.timeline.end(),
+                         [](const survivor::SpawnConfig::TimelineEvent& a, const survivor::SpawnConfig::TimelineEvent& b) { return a.at < b.at; });
+        timelineNext_ = static_cast<size_t>(std::count_if(config_.timeline.begin(), config_.timeline.end(),
+                                                          [this](const survivor::SpawnConfig::TimelineEvent& event) { return event.at <= elapsed_; }));
+    }
     if (result.changed || result.reloadRequested) {
+        // 機体の値（技・最大HP・ショップの強化）を、今の設定から作り直す（K8）。
+        if (HeroMode()) {
+            RebuildHero(false);
+        }
         // 部品の倍率・熱・シールド・欠片を、今の値で作り直す。形態の数値は次に選んだときから効く。
         ConfigurePickups();
         ApplyDamageNumberConfig();
@@ -679,7 +825,7 @@ void SurvivorRunController::UpdateTuningPanel()
     }
     if (result.saveRequested) {
         std::string error;
-        tuningStatus_ = survivor::SaveSpawnConfig(kConfigPath, ConfigForSaving(), error) ? std::string("保存しました") : error;
+        tuningStatus_ = survivor::SaveSpawnConfig(ConfigPath(), ConfigForSaving(), error) ? std::string("保存しました") : error;
     }
 #endif
 }
@@ -708,6 +854,8 @@ void SurvivorRunController::QueueWorldVisuals()
                      arenacamera::HalfViewHeight() * arenacamera::kAspect + 2.0f, arenacamera::HalfViewHeight() + 2.0f);
     QueueBarrier(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
     QueueEliteRings(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
+    QueueHeroVisuals(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
+    QueueHealPickups(*world_.resources.neonGridRenderer_);
     // 予告：輪は自機のまわりに、群れは湧く場所に、赤い破線の円を描く。湧く時刻が近いほど速く点滅する。
     for (const PendingWave& wave : pendingWaves_) {
         const float left = (std::max)(0.0f, wave.at - elapsed_);
@@ -774,21 +922,36 @@ void SurvivorRunController::RefreshHud()
     if (!WeaponMode()) {
         text << "Lv " << level_ << "   ";
     } else {
-        // 3ステージの流れ（W8）：今のステージと難しさの段。
-        text << "ステージ " << stage_ + 1 << "/" << survivor::SpawnConfig::kStageCount << "（" << (IsBossStage() ? "ボス・" : "") << "段"
-             << config_.stages.tier << "）   ";
+        // 3ステージの流れ（W8）：今のステージと難しさの段。機体の遊び方では波の数（H1）。
+        if (HeroMode()) {
+            // 波が無い（1つのステージ。E6）ときは「ステージ」と出す。
+            text << (config_.waves.count == 0 ? std::string("ステージ")
+                     : IsBossStage()          ? std::string("ボスの波")
+                                              : "波 " + std::to_string(stage_ + 1) + "/" + std::to_string(config_.waves.count))
+                 << "   ";
+        } else {
+            text << "ステージ " << stage_ + 1 << "/" << StageCount() << "（" << (IsBossStage() ? "ボス・" : "") << "段" << config_.stages.tier
+                 << "）   ";
+        }
     }
-    text << "区画  " << Clock(elapsed_) << "   脅威 Lv" << threatStage_;
+    // 機体の遊び方では、区画の時計・脅威・敵の数は出さない（波の残りとボスだけ）。
+    // 文字が変わるたびに文字の画像が1枚増えて解放されないので、細かく変わる数字を減らして長い出撃でも上限に届かないようにする。
+    if (!HeroMode()) {
+        text << "区画  " << Clock(elapsed_) << "   脅威 Lv" << threatStage_;
+    }
     if (IsRivalActive()) {
         const auto& rival = *world_.resources.enemy_;
         text << (WeaponMode() ? "   ボス " : "   宿敵 ") << (std::max)(0, rival.GetHp() * 100 / (std::max)(1, rival.GetMaxHp())) << "%";
     } else if (!exitOpen_) {
-        text << (config_.rival.enabled ? (WeaponMode() ? "   ボスまで " : "   宿敵まで ") : "   出口まで ") << Clock(config_.exitOpenSeconds - elapsed_);
+        text << (config_.rival.enabled ? (WeaponMode() ? "   ボスまで " : "   宿敵まで ") : HeroMode() ? "   波の終わりまで " : "   出口まで ")
+             << Clock(config_.exitOpenSeconds - elapsed_);
     }
-    text << "   敵 " << alive.total;
+    if (!HeroMode()) {
+        text << "   敵 " << alive.total;
+    }
     hudText_->SetText(text.str());
     if (qText_) {
-        const std::string q = DescribeQ();
+        const std::string q = HeroMode() ? DescribeHeroAbilities() : DescribeQ();
         qText_->SetText(q.empty() ? std::string(" ") : q);
     }
     if (expFill_) {
@@ -817,7 +980,7 @@ void SurvivorRunController::DrawUi()
     }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     // 持ち物の画面と拠点の画面を開いている間は、ほかの HUD を描かずにその画面だけを出す（暗幕から透けて読みにくくならないように）。
-    if (inventoryOpen_ || baseScreenOpen_ || restRoomOpen_) {
+    if (inventoryOpen_ || baseScreenOpen_ || restRoomOpen_ || heroLevelUpOpen_) {
         itemScreen_.Draw();
         DrawCinematic();
         return;
@@ -837,7 +1000,7 @@ void SurvivorRunController::DrawUi()
     if (exitOpen_ && exitText_) {
         exitText_->Draw();
     }
-    if (qText_ && survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count) {
+    if (qText_ && (HeroMode() || survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count)) {
         qText_->Draw();
     }
     // レリックは Q の部品が無くても出す。
@@ -867,9 +1030,11 @@ void SurvivorRunController::DrawUi()
         loadoutHud_.DrawRemoval();
         return;
     }
-    // 武器の枠を使う遊び方では、積載と3択の代わりに武器の枠を出す。
+    // 武器の枠を使う遊び方では、積載と3択の代わりに武器の枠を出す（機体の遊び方は枠が1つなので出さない。技は自機のまわりと画面の下）。
     if (WeaponMode()) {
-        weaponHud_.Draw();
+        if (!HeroMode()) {
+            weaponHud_.Draw();
+        }
     } else {
         loadoutHud_.DrawLoadout();
     }

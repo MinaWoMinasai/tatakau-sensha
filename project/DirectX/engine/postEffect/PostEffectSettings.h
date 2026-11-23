@@ -41,6 +41,8 @@ struct ScreenEffectState {
     // 既存のテンポラル経路では、動くスキン形状にオブジェクトごとの速度が無い。
     // シーンは範囲を限って、安定したジッターなしの描画設定を使える。
     bool suppressTemporal = false;
+    // 熱の高まり（0〜1）。アリーナ表示の星雲・周辺減光・色収差を赤へ寄せる。active と関係なく毎回使う。
+    float heatTint = 0.0f;
     BloomParam param{};
 };
 

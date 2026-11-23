@@ -880,6 +880,20 @@ void Bloom::ApplyArenaLook()
     bloomParam_.arenaNebulaDrift = look.nebulaDrift;
     bloomParam_.arenaNebulaColorA = look.nebulaColorA;
     bloomParam_.arenaNebulaColorB = look.nebulaColorB;
+    // 熱が高まるほど、星雲を赤いネオンへ寄せ、流れを速め、周辺減光と色収差を強める。
+    const float heat = (std::clamp)(screenEffectState_.heatTint, 0.0f, 1.5f);
+    if (heat > 0.0f) {
+        const float t = (std::min)(1.0f, heat);
+        auto mix = [t](const Vector3& from, const Vector3& to) {
+            return Vector3{from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t, from.z + (to.z - from.z) * t};
+        };
+        bloomParam_.arenaNebulaColorA = mix(look.nebulaColorA, Vector3{0.78f, 0.02f, 0.12f});
+        bloomParam_.arenaNebulaColorB = mix(look.nebulaColorB, Vector3{0.36f, 0.0f, 0.10f});
+        bloomParam_.arenaNebulaIntensity = (std::max)(0.0f, look.nebulaIntensity) * (1.0f + 1.1f * heat);
+        bloomParam_.arenaNebulaDrift = look.nebulaDrift * (1.0f + 4.0f * heat);
+        bloomParam_.arenaChromAb = (std::clamp)(look.chromAbAmount + 0.006f * heat, 0.0f, 0.05f);
+        bloomParam_.arenaVignette = (std::max)(0.0f, look.vignetteIntensity * (std::max)(look.vignetteScale, 0.0f)) + 0.35f * heat;
+    }
     bloomParam_.arenaBezelMargin = (std::clamp)(look.bezelMargin, 0.0f, 0.2f);
     bloomParam_.arenaBezelRadius = (std::clamp)(look.bezelRadius, 0.0f, 0.5f);
     bloomParam_.arenaMaskSoftness = (std::clamp)(look.bezelSoftness, 0.0005f, 0.1f);

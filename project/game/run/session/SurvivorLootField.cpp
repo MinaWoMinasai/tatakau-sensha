@@ -16,13 +16,42 @@ float Distance2D(const myEngine::Vector3& a, const myEngine::Vector3& b)
     return myEngine::Length(myEngine::Vector3{a.x - b.x, a.y - b.y, 0.0f});
 }
 
-// 弾の色：ライトは黄、ヘビーは橙、エネルギーは水色。
+// 弾の色：ライトは白に近いミント、ヘビーは橙、エネルギーは水色。
+// ライトは、黄色い四角の敵と見分けやすいように黄色からずらす。
 myEngine::Vector4 AmmoColor(int type)
 {
     return type == 1 ? myEngine::Vector4{1.9f, 0.75f, 0.2f, 1.0f} : type == 2 ? myEngine::Vector4{0.35f, 1.5f, 1.9f, 1.0f}
-                                                                         : myEngine::Vector4{1.7f, 1.55f, 0.45f, 1.0f};
+                                                                         : myEngine::Vector4{1.1f, 1.9f, 1.45f, 1.0f};
+}
+
+// 拾ったときの光の輪は、同時にこれより多くは出さない（まとめて拾ったとき）。
+constexpr size_t kMaxFlashes = 24;
+
+void QueueCircle(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& center, const myEngine::Vector3& right,
+                 const myEngine::Vector3& up, float radius, float width, const myEngine::Vector4& color, int segments)
+{
+    for (int i = 0; i < segments; ++i) {
+        const float a = 6.2831853f * static_cast<float>(i) / segments, b = 6.2831853f * static_cast<float>(i + 1) / segments;
+        renderer.QueueLine(center + (right * std::cos(a) + up * std::sin(a)) * radius, center + (right * std::cos(b) + up * std::sin(b)) * radius,
+                           width, color);
+    }
 }
 } // namespace
+
+myEngine::Vector4 SurvivorLootField::ItemColor(const survivor::LootItem& loot)
+{
+    switch (loot.kind) {
+    case survivor::LootKind::Ammo:
+        return AmmoColor(loot.id);
+    case survivor::LootKind::Material:
+        return loot.id == static_cast<int>(survivor::MaterialId::Boss) ? myEngine::Vector4{1.9f, 0.3f, 0.45f, 1.0f}
+                                                                         : myEngine::Vector4{1.15f, 1.1f, 1.6f, 1.0f};
+    default: {
+        const myEngine::Vector4 rarity = survivor::RarityColor(loot.rarity);
+        return {rarity.x * 1.8f, rarity.y * 1.8f, rarity.z * 1.8f, 1.0f};
+    }
+    }
+}
 
 void SurvivorLootField::Drop(const myEngine::Vector3& position, const survivor::LootItem& item, std::mt19937& random)
 {
@@ -40,6 +69,15 @@ std::vector<survivor::LootItem> SurvivorLootField::Update(float dt, const myEngi
                                                           const std::array<bool, survivor::kAmmoTypeCount>& acceptAmmo)
 {
     std::vector<survivor::LootItem> collected;
+    for (Flash& flash : flashes_) {
+        flash.age += dt;
+    }
+    const float flashSeconds = glow_.collectFlashSeconds;
+    flashes_.erase(std::remove_if(flashes_.begin(), flashes_.end(),
+                                  [flashSeconds](const Flash& flash) {
+                                      return flash.age >= flashSeconds;
+                                  }),
+                   flashes_.end());
     for (Item& item : items_) {
         item.age += dt;
         const bool ammo = item.loot.kind == survivor::LootKind::Ammo;
@@ -51,6 +89,9 @@ std::vector<survivor::LootItem> SurvivorLootField::Update(float dt, const myEngi
             if (distance <= kCollectRadius) {
                 collected.push_back(item.loot);
                 item.taken = true;
+                if (glow_.collectFlashSeconds > 0.0f && flashes_.size() < kMaxFlashes) {
+                    flashes_.push_back({item.position, ItemColor(item.loot), 0.0f});
+                }
                 continue;
             }
             if (distance <= config_.magnetRadius) {
@@ -69,6 +110,21 @@ std::vector<survivor::LootItem> SurvivorLootField::Update(float dt, const myEngi
         } else {
             // 落ちた直後の散らばりは、すぐに止まる。
             item.velocity = item.velocity * (std::max)(0.0f, 1.0f - 6.0f * dt);
+        }
+        // 光の尾：吸い込まれている間だけ、少し前の位置を一定の間隔で覚える（古い順）。
+        if (item.attracted && glow_.lootTrailSeconds > 0.0f) {
+            const float interval = glow_.lootTrailSeconds / static_cast<float>(kTrailPoints);
+            item.trailTimer += dt;
+            if (item.trailCount == 0 || item.trailTimer >= interval) {
+                item.trailTimer = 0.0f;
+                if (item.trailCount == kTrailPoints) {
+                    std::rotate(item.trail.begin(), item.trail.begin() + 1, item.trail.end());
+                    --item.trailCount;
+                }
+                item.trail[item.trailCount++] = item.position;
+            }
+        } else {
+            item.trailCount = 0;
         }
         item.position += item.velocity * dt;
         // 弾と素材は時間がたつと消える。チップと武器は残る。
@@ -93,6 +149,18 @@ void SurvivorLootField::Queue(myEngine::NeonGridRenderer& renderer, const myEngi
             continue;
         }
         const myEngine::Vector3 center{item.position.x, item.position.y, -0.25f};
+        const myEngine::Vector4 itemColor = ItemColor(item.loot);
+        // 光の尾：根元（いまの位置）が太く明るく、古い点ほど細く薄くする。
+        if (item.trailCount > 0 && glow_.lootTrailWidth > 0.0f) {
+            myEngine::Vector3 head = center;
+            for (size_t i = item.trailCount; i-- > 0;) {
+                const myEngine::Vector3 tail{item.trail[i].x, item.trail[i].y, -0.25f};
+                const float t = static_cast<float>(i + 1) / static_cast<float>(item.trailCount + 1);
+                const myEngine::Vector4 color{itemColor.x, itemColor.y, itemColor.z, 0.85f * t};
+                renderer.QueueLine(tail, head, glow_.lootTrailWidth * (0.25f + 0.75f * t), color);
+                head = tail;
+            }
+        }
         // 消える前の3秒は点滅させる。
         const float left = config_.lifetime - item.age;
         const bool expires = item.loot.kind == survivor::LootKind::Ammo || item.loot.kind == survivor::LootKind::Material;
@@ -101,39 +169,53 @@ void SurvivorLootField::Queue(myEngine::NeonGridRenderer& renderer, const myEngi
         }
         switch (item.loot.kind) {
         case survivor::LootKind::Ammo:
-            // 弾：細長い板（弾倉の形）。
-            renderer.QueueBillboardRegularPolygonFill(center, 4, 0.42f, 0.785398f, {0.55f, 1.0f}, AmmoColor(item.loot.id), cameraRight, cameraUp);
+            // 弾：細長い板（弾倉の形）を、輪で囲む（敵の図形と見分けるため）。
+            renderer.QueueBillboardRegularPolygonFill(center, 4, 0.34f, 0.785398f, {0.55f, 1.0f}, itemColor, cameraRight, cameraUp);
+            if (glow_.lootRingRadius > 0.0f && glow_.lootRingWidth > 0.0f) {
+                QueueCircle(renderer, center, cameraRight, cameraUp, glow_.lootRingRadius, glow_.lootRingWidth,
+                            {itemColor.x, itemColor.y, itemColor.z, 0.8f}, 12);
+            }
             break;
         case survivor::LootKind::Material: {
             // 素材：落とした敵の形（ボスの素材は六角）。白っぽい紫でゆっくり回す。
             static constexpr int kSides[survivor::kMaterialCount] = {4, 3, 5, 6};
             const int sides = kSides[(std::clamp)(item.loot.id, 0, static_cast<int>(survivor::kMaterialCount) - 1)];
             const bool boss = item.loot.id == static_cast<int>(survivor::MaterialId::Boss);
-            const myEngine::Vector4 color = boss ? myEngine::Vector4{1.9f, 0.3f, 0.45f, 1.0f} : myEngine::Vector4{1.15f, 1.1f, 1.6f, 1.0f};
-            renderer.QueueBillboardRegularPolygonFill(center, sides, boss ? 0.5f : 0.36f, item.age * 1.6f, {1.0f, 1.0f}, color, cameraRight,
+            renderer.QueueBillboardRegularPolygonFill(center, sides, boss ? 0.5f : 0.3f, item.age * 1.6f, {1.0f, 1.0f}, itemColor, cameraRight,
                                                       cameraUp);
+            if (glow_.lootRingRadius > 0.0f && glow_.lootRingWidth > 0.0f) {
+                QueueCircle(renderer, center, cameraRight, cameraUp, glow_.lootRingRadius * (boss ? 1.4f : 1.0f), glow_.lootRingWidth,
+                            {itemColor.x, itemColor.y, itemColor.z, 0.8f}, 12);
+            }
             break;
         }
         case survivor::LootKind::Chip:
         case survivor::LootKind::Weapon: {
             // チップは小さな四角、武器は大きな菱形。レア度の色で塗り、同じ色の輪を脈打たせる。
             const bool weapon = item.loot.kind == survivor::LootKind::Weapon;
-            const myEngine::Vector4 rarity = survivor::RarityColor(item.loot.rarity);
-            const myEngine::Vector4 color{rarity.x * 1.8f, rarity.y * 1.8f, rarity.z * 1.8f, 1.0f};
+            const myEngine::Vector4 color = itemColor;
             renderer.QueueBillboardRegularPolygonFill(center, 4, weapon ? 0.7f : 0.38f, weapon ? 0.0f : 0.785398f,
                                                       weapon ? myEngine::Vector2{0.7f, 1.0f} : myEngine::Vector2{1.0f, 1.0f}, color, cameraRight,
                                                       cameraUp);
             const float pulse = std::fmod(item.age, 1.2f) / 1.2f;
             const float radius = (weapon ? 0.9f : 0.55f) + pulse * (weapon ? 1.4f : 0.9f);
             const myEngine::Vector4 ring{color.x, color.y, color.z, (1.0f - pulse) * 0.9f};
-            constexpr int kSegments = 24;
-            for (int i = 0; i < kSegments; ++i) {
-                const float a = 6.2831853f * static_cast<float>(i) / kSegments, b = 6.2831853f * static_cast<float>(i + 1) / kSegments;
-                renderer.QueueLine(center + (cameraRight * std::cos(a) + cameraUp * std::sin(a)) * radius,
-                                   center + (cameraRight * std::cos(b) + cameraUp * std::sin(b)) * radius, 0.07f, ring);
-            }
+            QueueCircle(renderer, center, cameraRight, cameraUp, radius, 0.07f, ring, 24);
             break;
         }
+        }
+    }
+    // 拾ったところに、物の色の輪を広げて消す。
+    if (glow_.collectFlashSeconds > 0.0f) {
+        for (const Flash& flash : flashes_) {
+            if (std::abs(flash.position.x - viewCenter.x) > halfWidth || std::abs(flash.position.y - viewCenter.y) > halfHeight) {
+                continue;
+            }
+            const float t = (std::clamp)(flash.age / glow_.collectFlashSeconds, 0.0f, 1.0f);
+            const float ease = 1.0f - (1.0f - t) * (1.0f - t);
+            const myEngine::Vector3 center{flash.position.x, flash.position.y, -0.25f};
+            const myEngine::Vector4 color{flash.color.x * 1.3f, flash.color.y * 1.3f, flash.color.z * 1.3f, (1.0f - t) * 0.95f};
+            QueueCircle(renderer, center, cameraRight, cameraUp, 0.3f + ease * glow_.collectFlashRadius, 0.09f * (1.0f - t) + 0.02f, color, 16);
         }
     }
 }

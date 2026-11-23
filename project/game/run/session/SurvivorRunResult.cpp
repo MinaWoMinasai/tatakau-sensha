@@ -71,12 +71,54 @@ void SurvivorRunController::RefreshResult(int selection)
     }
     const auto& player = *world_.resources.player_;
     std::ostringstream text;
+    // 機体の遊び方（計画書 p4 の K5）：機体・進んだ波・死因・組み立て・スコアの内訳。
+    if (HeroMode()) {
+        const HeroScore score = ComputeHeroScore();
+        auto fixed = [](float value) {
+            std::ostringstream out;
+            out << value;
+            return out.str();
+        };
+        text << "機体　　　　　" << Hero().name << "\n"
+             << "進んだ所　　　" << (IsBossStage() ? std::string("ボスの波") : "波 " + std::to_string(stage_ + 1) + "/" + std::to_string(config_.waves.count))
+             << (score.boss ? "　ボス撃破" : "") << "　　時間 " << Clock(elapsed_) << "\n"
+             << (cleared_ ? std::string() : "死因　　　　　" + (player.GetSurvivorLastHit().empty() ? std::string("不明") : player.GetSurvivorLastHit()) + "\n")
+             << "撃破　　　　　" << world_.combat.defeatedEnemies_ << "　　受けたダメージ " << player.GetSurvivorDamageTaken() << "　　修理 " << repairs_ << " 回\n"
+             << "強化の段　　　主武器 " << UpgradeTier(0) << "・右クリック " << UpgradeTier(1) << "・Shift " << UpgradeTier(2) << "・E " << UpgradeTier(3)
+             << "・Q " << UpgradeTier(4) << "\n"
+             << "パーク　　　　" << [&] {
+                    std::string names;
+                    int owned = 0;
+                    for (size_t i = 0; i < survivor::kPerkCount; ++i) {
+                        if (perks_[i]) {
+                            names += (owned == 0 ? "" : owned % 4 == 0 ? "\n　　　　　　　" : "・") +
+                                     std::string(survivor::GetPerkInfo(static_cast<survivor::PerkId>(i)).name);
+                            ++owned;
+                        }
+                    }
+                    return owned > 0 ? names : std::string("なし");
+                }() << "\n"
+             << "スコア　　　　進んだ波 " << score.waves << " × " << fixed(config_.waves.scorePerWave) << "　＋　稼いだポイント " << score.points
+             << " × " << fixed(config_.waves.scorePerPoint) << "　＋　ボス " << (score.boss ? fixed(config_.waves.scoreBoss) : std::string("0")) << "\n"
+             << "　　　　　　　＝ " << score.total << "\n"
+             << "解放ポイント　+" << heroAwardGained_ << (heroAwardBonus_ > 0 ? "（初クリア +" + std::to_string(heroAwardBonus_) + "）" : std::string())
+             << "　　合計 " << heroSave_.points << "\n"
+             << "次の機体　　　" << NextHeroText();
+        resultText_->SetText(text.str());
+        std::ostringstream menu;
+        menu << (selection == 0 ? "> " : "   ") << "もう1回（R）\n" << (selection == 1 ? "> " : "   ") << "タイトルへ";
+        resultMenu_->SetText(menu.str());
+        return;
+    }
     // 見出し（区画クリア・撃破された）は、上の帯の文字（CombatFlow）が出す。
     text << (cleared_ ?"区画の時間　　" : "生き延びた時間　") << Clock(elapsed_) << "\n"
          << (WeaponMode() ? std::string() : "レベル　　　　" + std::to_string(level_) + "\n")
-         << (WeaponMode() ? "ステージ　　　" + std::to_string(stage_ + 1) + "/" + std::to_string(survivor::SpawnConfig::kStageCount) + "（段" +
-                                std::to_string(config_.stages.tier) + "）" + (IsBossStage() && rivalDefeated_ ? "　ボス撃破" : "") + "\n"
-                          : std::string())
+         << (HeroMode()     ? (IsBossStage() ? std::string("ボスの波") : "波　　　　　　" + std::to_string(stage_ + 1) + "/" +
+                                                                         std::to_string(config_.waves.count)) +
+                                  (IsBossStage() && rivalDefeated_ ? "　ボス撃破" : "") + "\n"
+             : WeaponMode() ? "ステージ　　　" + std::to_string(stage_ + 1) + "/" + std::to_string(StageCount()) + "（段" +
+                                  std::to_string(config_.stages.tier) + "）" + (IsBossStage() && rivalDefeated_ ? "　ボス撃破" : "") + "\n"
+                            : std::string())
          << "撃破　　　　　" << world_.combat.defeatedEnemies_ << "\n"
          << (WeaponMode() ? "武器　　　　　" + WeaponNames() + "\n"
                           : "形態　　　　　" + formPath_ + "　　特性 " + survivor::TraitName(trait_) + "\n")
@@ -117,7 +159,15 @@ void SurvivorRunController::WriteRunLog()
     const std::string directory = std::string(kAutoTestDirectory) + "/runs";
     std::error_code ignored;
     std::filesystem::create_directories(directory, ignored);
+    // MYENGINE_SURVIVOR_RUN_LOG=名前：自動確認でも別の名前で残す（機体ごとに何回か通して比べる。K8）。
     std::string name = "autotest";
+    wchar_t logName[64]{};
+    if (const DWORD length = GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_RUN_LOG", logName, 64); autoTest_ != AutoTest::None && length > 0 && length < 64) {
+        name.clear();
+        for (DWORD i = 0; i < length; ++i) {
+            name.push_back(static_cast<char>(logName[i]));
+        }
+    }
     if (autoTest_ == AutoTest::None) {
         SYSTEMTIME time{};
         GetLocalTime(&time);
@@ -161,7 +211,36 @@ void SurvivorRunController::WriteRunLog()
            << ",\"heat\":{\"overheats\":" << player.GetHeat().GetOverheatCount() << ",\"secondsAbove70\":" << heatHighSeconds_
            << ",\"railShots\":" << player.GetSpecialCombatStats().railShots << "},\"fps\":{\"min\":" << fpsMin << ",\"avg\":"
            << (fpsSamples_.empty() ? 0.0f : fpsSum / static_cast<float>(fpsSamples_.size())) << ",\"samples\":"
-           << fpsSamples_.size() << "}}\n";
+           << fpsSamples_.size() << "}";
+    // 機体の遊び方の記録（計画書 p4 の K8）：進んだ波・生き延びた秒・毎秒のダメージ・受けたダメージ・回復した量・死因・買った物・Q の回数。
+    if (HeroMode()) {
+        const HeroScore score = ComputeHeroScore();
+        output << ",\"hero\":{\"key\":\"" << Hero().key << "\",\"wave\":" << stage_ + 1 << ",\"wavesCleared\":" << score.waves
+               << ",\"waveCount\":" << config_.waves.count << ",\"boss\":" << (score.boss ? "true" : "false")
+               << ",\"dead\":" << (player.IsDead() ? "true" : "false") << ",\"runSeconds\":" << runSeconds_
+               << ",\"damageDealt\":" << damageDealt_ << ",\"dps\":" << (runSeconds_ > 0.0f ? static_cast<float>(damageDealt_) / runSeconds_ : 0.0f)
+               << ",\"damageTaken\":" << player.GetSurvivorDamageTaken() << ",\"healed\":" << player.GetSurvivorHealed()
+               << ",\"deathCause\":\"" << (player.IsDead() ? player.GetSurvivorLastHit() : std::string()) << "\",\"ultimates\":" << abilityUses_[3]
+               << ",\"abilityUses\":[" << abilityUses_[0] << "," << abilityUses_[1] << "," << abilityUses_[2] << "," << abilityUses_[3] << "]"
+               << ",\"pointsEarned\":" << pointsEarned_ << ",\"score\":" << score.total << ",\"repairs\":" << repairs_
+               << ",\"damageBy\":{\"drain\":" << drainDamage_ << ",\"orb\":" << orbDamage_ << ",\"lance\":" << lanceDamage_
+               << ",\"shockwave\":" << shockwaveDamage_ << ",\"charge\":" << chargeDamage_ << ",\"fortress\":" << fortressDamage_
+               << ",\"rocketKills\":" << rocketKills_ << ",\"barrageShots\":" << barrageShots_ << ",\"primaryShots\":" << player.GetPrimaryAttackCount() << "}"
+               << ",\"bossAt\":" << (score.boss ? rivalDefeatedAt_ : -1.0f) << ",\"kills\":" << world_.combat.defeatedEnemies_
+               << ",\"repairSpent\":" << repairSpent_ << ",\"shopSpent\":" << shopSpent_ << ",\"tiers\":[" << upgradeTiers_[0] << "," << upgradeTiers_[1]
+               << "," << upgradeTiers_[2] << "," << upgradeTiers_[3] << "," << upgradeTiers_[4] << "],\"bought\":[";
+        for (size_t i = 0; i < shopLog_.size(); ++i) {
+            output << (i ? "," : "") << "\"" << shopLog_[i] << "\"";
+        }
+        output << "],\"waves\":[";
+        for (size_t i = 0; i < waveRecords_.size(); ++i) {
+            const WaveRecord& r = waveRecords_[i];
+            output << (i ? "," : "") << "{\"wave\":" << r.wave << ",\"points\":" << r.points << ",\"damage\":" << r.damage << ",\"wound\":" << r.wound
+                   << ",\"hp\":" << r.hp << ",\"maxHp\":" << r.maxHp << "}";
+        }
+        output << "]}";
+    }
+    output << "}\n";
 }
 
 } // namespace gameplay

@@ -97,6 +97,27 @@
     "ricochet": { "name": "反射砲", "form": "ricochet", "ammo": "light", "rarity": "common", "magazine": 20, "swapSeconds": 1.0, "reloadSeconds": 1.6, "chipSlots": 0,
                   "damageScale": 1.2, "reloadScale": 0.8, "speedScale": 1.6, "heatScale": 0.6 }
   },
+  "heroes": {
+    "comment": "機体（計画書 p4）。enabled が true なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイール・リロード・拠点の画面・お金以外の落とし物を止める）。start は出撃する機体。機体ごとに、name は名前、primary は主武器（weapons のキー。弾は数えず熱だけで撃つ）、primaryHeatScale は主武器の1発の熱の倍率の上書き（0 なら武器の値。撃ち続けられる長さが決まる）、ultimateCharge は Q のゲージが満タンになるまでに要る量（与えたダメージ＋回復した量）。maxHp は最大HP（0 なら自機の値のまま）。unlockCost は解放に要る解放ポイント（0 なら最初から使える）、unlockFirst は最初に解放する機体（まだなら次に解放できるのはその機体だけ。それ以外は2〜3体から選ぶ）。primaryAbility を書くと、主武器は弾ではなく技の部品になる（primary の武器は見た目だけ）。secondary（右クリック）・mobility（Shift）・skill（E）・ultimate（Q）は技の部品で、kind は種類（none・sprint 走る・barrier バリア・rocket 爆発する弾・healZone 回復の場・barrage 自動で狙う弾幕・drainBeam 吸い付く光線・selfHeal 吸収ゲージで自分を回復・phase 無敵ですり抜ける移動・bounceOrb 敵の間を跳ねる球・charge 突進・shockwave 衝撃波・fortress 全周のバリア・lance 太い光線）、name は画面の名前、cooldown は次に使えるまでの秒（Q はゲージ）、duration は効いている秒（selfHeal は吸収ゲージの上限の秒）、power は種類ごとの強さ（sprint・phase は速さの倍率、rocket・barrage は主砲1発に対する威力の倍率、drainBeam・bounceOrb・lance は毎秒の威力の主砲1発に対する倍率、healZone・selfHeal は毎秒の回復の最大HPに対する割合）、radius は半径や長さ（rocket は爆発、healZone は場、barrage は狙う範囲、drainBeam は届く距離、lance は光線の長さ）、rate は弾幕の毎秒の発射数・跳ねる球の速さ、size は光線の太さ・跳ねる球の半径、gain は与えた威力1ごとに溜まる吸収ゲージの秒。charge は duration 秒・速さ power 倍で、触れた敵を rate の強さで押し飛ばし主砲1発の size 倍を与える。shockwave は半径 radius の敵を rate の強さで押し返し主砲1発の power 倍を与える。fortress は duration 秒、半径 radius の全周のバリアで、終わりに半径 radius×1.6 で爆発し主砲1発の power 倍＋止めた弾1つごとに rate 倍を与える。バリアと selfHeal は押している間だけ効く（バリアは設定の barrier とスタミナを使う）。",
+    "enabled": true,
+    "start": "moira",
+    "soldier": { "name": "ソルジャー型", "primary": "machineGun", "primaryHeatScale": 1.0, "ultimateCharge": 2000, "maxHp": 100,
+                 "secondary": { "kind": "rocket", "name": "小型ロケット", "cooldown": 6, "duration": 0, "power": 6, "radius": 3, "rate": 0 },
+                 "mobility": { "kind": "sprint", "name": "全力で走る", "cooldown": 8, "duration": 3, "power": 1.5, "radius": 0, "rate": 0 },
+                 "skill": { "kind": "healZone", "name": "回復の場", "cooldown": 15, "duration": 5, "power": 0.04, "radius": 4, "rate": 0 },
+                 "ultimate": { "kind": "barrage", "name": "弾幕", "cooldown": 0, "duration": 5, "power": 0.8, "radius": 18, "rate": 14 } },
+    "moira": { "name": "モイラ型", "primary": "beam", "ultimateCharge": 1800, "maxHp": 90,
+               "primaryAbility": { "kind": "drainBeam", "name": "吸収ビーム", "power": 2.6, "radius": 8, "size": 0.22, "gain": 0.012 },
+               "secondary": { "kind": "selfHeal", "name": "自分を回復", "cooldown": 0, "duration": 6, "power": 0.06 },
+               "mobility": { "kind": "phase", "name": "消える移動", "cooldown": 6, "duration": 0.8, "power": 1.6 },
+               "skill": { "kind": "bounceOrb", "name": "跳ねる球", "cooldown": 10, "duration": 4, "power": 1.4, "radius": 12, "rate": 9, "size": 1.1 },
+               "ultimate": { "kind": "lance", "name": "太い光線", "cooldown": 0, "duration": 4, "power": 4.0, "radius": 20, "size": 1.4, "gain": 0.006 } },
+    "tank": { "name": "タンク型", "primary": "cannon", "ultimateCharge": 1800, "maxHp": 150, "unlockCost": 1500, "unlockFirst": true,
+              "secondary": { "kind": "barrier", "name": "バリア", "cooldown": 0, "duration": 0, "power": 1 },
+              "mobility": { "kind": "charge", "name": "突進", "cooldown": 7, "duration": 0.35, "power": 3.0, "rate": 0.7, "size": 2.0 },
+              "skill": { "kind": "shockwave", "name": "衝撃波", "cooldown": 10, "duration": 0, "power": 3.0, "radius": 6, "rate": 0.8 },
+              "ultimate": { "kind": "fortress", "name": "大きな盾", "cooldown": 0, "duration": 6, "power": 4.0, "radius": 5, "rate": 0.6 } }
+  },
   "loot": {
     "comment": "敵が落とす物（計画書 p3 の W3）。欠片はお金になり（経験値 × moneyPerExp）、自動で拾う。落ちている物は magnetRadius まで近づくと寄ってきて、触れると拾う。弾は ammoChance の確率で ammoAmount ずつ、予備は reserveMax まで（上限の弾は残る）。素材（倒した形の素材を materialChance、敵戦車はボスの素材を bossMaterialChance）・チップ（今の部品、chipChance）・武器（weaponChance）は出撃中の袋へ入る。確率は敵1体ごとで、大きな敵（敵戦車・大五角・重い四角）は bigScale 倍。チップと武器のレア度は rarityWeights の重みで選ぶ。弾と素材は lifetime 秒で消える。休憩部屋で売る値段は weaponPrice・chipPrice（レア度ごと）と materialPrice（素材1つごと）。",
     "moneyPerExp": 0.1, "materialChance": 0.15, "bossMaterialChance": 0.3,
@@ -114,6 +135,28 @@
     "comment": "3ステージの流れ（計画書 p3 の W8）。武器の枠を使う遊び方だけ。ステージ1 → 休憩部屋 → ステージ2 → 休憩部屋 → ボスステージ。exitSeconds はステージ1・2では出口が開くまでの秒、ボスステージではボス（宿敵）が出るまでの秒。threatOffset はステージごとの脅威の段階の上乗せ、enemyHp は湧く敵のHPの倍率。swarmScale は寄ってくる三角の群れと包囲の数の倍率。ボスを倒すと出口が開き、ボスの素材 bossMaterials 個と武器を1つ落とす。休憩部屋で次へ進むと、HPが戻る。tier は難しさの段（今は段1の入口だけ）。",
     "exitSeconds": [180, 180, 15], "threatOffset": [0, 1, 2], "enemyHp": [0.8, 0.96, 1.12], "swarmScale": 0.67, "bossMaterials": 5, "tier": 1
   },
+  "waves": {
+    "comment": "機体の遊び方の出撃の流れ（計画書 p4 の H1）。seconds 秒の波を count 回、そのあとボスの波。波が終わると敵と弾を片付け、落ちている欠片は拾ったことにして、波の間の画面を開く。ボスの波では bossDelay 秒でボスが出て、倒すと出撃を終える。threatOffset と enemyHp は波ごと（最後がボスの波）の脅威の段階の上乗せと敵のHPの倍率（足りなければ最後の値）。points は倒した敵の種類ごとのレベルポイント（H2）：triangle 三角・square 四角・pentagon 五角・heavySquare 重い四角・bigPentagon 大五角・tank 敵戦車・boss ボス。score は結果画面のスコア＝解放ポイント（K6）：進んだ波1つごと perWave・稼いだポイント1ごと perPoint・ボス撃破 boss、その機体で初めてボスを倒すと firstClear を足す。",
+    "count": 5, "seconds": 90, "bossDelay": 10,
+    "threatOffset": [0, 1, 2, 3, 4, 5], "enemyHp": [0.8, 0.9, 1.0, 1.1, 1.2, 1.3],
+    "points": { "triangle": 2, "square": 5, "pentagon": 12, "heavySquare": 20, "bigPentagon": 40, "tank": 40, "boss": 250 },
+    "score": { "perWave": 100, "perPoint": 0.2, "boss": 300, "firstClear": 500 }
+  },
+  "health": {
+    "comment": "機体の遊び方の体力の決まり（計画書 p4 の H6〜H8）。全体の無敵時間は使わない。1回の被弾は最大HPの maxHitRatio まで、1秒に受けるのは maxPerSecondRatio まで、同じ相手からは sameSourceSeconds 秒に1回まで。受けたダメージの woundRatio は傷になり、治すまで HP はそこまでしか戻らない（HP の弧の灰色）。波の間に HP は戻らず、修理（repairCost のレベルポイント）で傷を全部と HP を repairHeal 治す。",
+    "maxHitRatio": 0.2, "maxPerSecondRatio": 0.3, "sameSourceSeconds": 0.5, "woundRatio": 0.3, "repairCost": 150, "repairHeal": 30
+  },
+  "shop": {
+    "comment": "波の間のショップ（計画書 p4 の K4）。offerCount 個がランダムに並ぶ（修理はいつも別のボタン）。引き直しは rerollCost で、引くたびに rerollStep 高くなる（波ごとに戻る）。技の強化（主武器・右クリック・Shift・E・Q）は3段で、値段は upgradePrices（段ごと）。1段目は威力 ×1.25（武器の主武器は ×1.15）、2段目は待ち時間 ×0.8（待ち時間の無い技は効く時間 ×1.25）、3段目で挙動が変わる。perks はパークごとの値段 price と強さ value：lifesteal 与えたダメージの value 倍を回復、killCooldown 倒すたびに技の待ち時間 -value 秒、armor 最大HP +value、speed 移動 +value 倍、magnet 欠片を引き寄せる範囲 +value 倍、ultCharge Q のゲージの溜まり方 +value 倍、coolant（ソルジャー）主武器の熱 ×value、rocketRefund（ソルジャー）爆発で倒すたびにロケットの待ち時間 -value 秒、fieldMedic（ソルジャー）回復の場で回復した量の value 倍だけ傷も治る、beamKill（モイラ）光線で倒すと吸収ゲージ +value 秒、phaseHeal（モイラ）消える移動の終わりに最大HPの value 倍を回復、orbAbsorb（モイラ）跳ねる球の威力でも吸収ゲージが溜まる（光線の value 倍）、chargeShock（タンク）突進の終わりに半径 value の小さな衝撃波、barrierHeal（タンク）バリアで弾を止めるたびに HP +value、quake（タンク）衝撃波で押し返した数だけ衝撃波の待ち時間 -value 秒。",
+    "offerCount": 5, "rerollCost": 50, "rerollStep": 25, "upgradePrices": [120, 250, 400],
+    "perks": {
+      "lifesteal": { "price": 250, "value": 0.02 }, "killCooldown": { "price": 200, "value": 0.25 }, "armor": { "price": 150, "value": 20 },
+      "speed": { "price": 150, "value": 0.12 }, "magnet": { "price": 150, "value": 1.0 }, "ultCharge": { "price": 200, "value": 0.25 },
+      "coolant": { "price": 300, "value": 0.75 }, "rocketRefund": { "price": 300, "value": 1.0 }, "fieldMedic": { "price": 300, "value": 0.5 },
+      "beamKill": { "price": 300, "value": 0.5 }, "phaseHeal": { "price": 300, "value": 0.08 }, "orbAbsorb": { "price": 300, "value": 0.5 },
+      "chargeShock": { "price": 300, "value": 3.5 }, "barrierHeal": { "price": 300, "value": 1 }, "quake": { "price": 300, "value": 0.3 }
+    }
+  },
   "barrier": {
     "comment": "右クリックのバリアとスタミナ（計画書 p3 の X3）。武器の枠を使う遊び方だけ。押している間、自機の前に半径 radius・開き arcDegrees 度の扇を張り、敵の弾を消し、敵を縁まで押し返す。張っている間は毎秒 drainPerSecond、弾を止めると hitCost、敵に触れていると1体ごとに毎秒 contactPerSecond 減る（上限 staminaMax）。尽きると exhaustedSeconds 秒は張れない。放して regenDelay 秒たつと毎秒 regenPerSecond 戻る。",
     "radius": 6.0, "arcDegrees": 110, "staminaMax": 100, "drainPerSecond": 15, "hitCost": 6, "contactPerSecond": 2, "regenPerSecond": 25, "regenDelay": 0.6, "exhaustedSeconds": 1.5
@@ -125,6 +168,57 @@
     "warperFirst": 8, "warperInterval": 14, "warperMaxAlive": 3, "warperHpScale": 2.5, "warpInterval": 4, "warpDistance": 9,
     "mineLayerFirst": 22, "mineLayerInterval": 18, "mineLayerMaxAlive": 3, "mineLayerHpScale": 2, "layInterval": 3, "mineMaxAlive": 14, "mineHp": 1,
     "mineArmSeconds": 1, "mineLifeSeconds": 14, "mineTriggerRadius": 2.2, "mineBlastRadius": 3.4, "mineDamage": 8
+  },
+  "audio": {
+    "comment": "BGM と効果音（武器の枠を使う遊び方だけ）。file は resources/audio/ からの場所（wav か mp3、英数字の名前）。今は遠征版のために合成した仮の音を当ててある。集めた音源は resources/audio/survivor/ に置いて file を書き換え、resources/audio/CREDITS.md に出どころとクレジットを書く。music は場面の曲（base 拠点・stage1・stage2・boss・rest 休憩部屋）、cues は効果音（fire_武器の名前・hit・kill・explosion・player_hurt・reload・swap・barrier_on・barrier_block・stamina_out・pickup・pickup_rare・mine_explode・warp・heal・ui_click・ui_drop・sell・craft・evolve・sortie・stage_clear・boss_appear・boss_defeat・機体の技 ability_技の種類（無ければ ability）・Q のゲージが満タン ultimate_ready。fire_ の無い武器は fire）。volume は音量、pitch は高さ、pitchJitter は鳴らすたびの揺れ、cooldown は次に鳴らせるまでの秒、voices は重ねて鳴らせる数。musicVolume・effectsVolume は全体の音量、fadeSeconds は曲を替える秒、duckRatio は持ち物の画面などで曲を下げる割合。",
+    "musicVolume": 0.5, "effectsVolume": 0.8, "fadeSeconds": 1.0, "duckRatio": 0.45,
+    "music": {
+      "base": {"cooldown": 0.0, "file": "tank_expedition/music_base.wav", "pitch": 1.0, "pitchJitter": 0.0, "voices": 1, "volume": 0.35},
+      "boss": {"cooldown": 0.0, "file": "tank_expedition/music_intensity.wav", "pitch": 1.0, "pitchJitter": 0.0, "voices": 1, "volume": 0.6},
+      "rest": {"cooldown": 0.0, "file": "tank_expedition/music_base.wav", "pitch": 1.0, "pitchJitter": 0.0, "voices": 1, "volume": 0.3},
+      "stage1": {"cooldown": 0.0, "file": "tank_expedition/music_base.wav", "pitch": 1.0, "pitchJitter": 0.0, "voices": 1, "volume": 0.5},
+      "stage2": {"cooldown": 0.0, "file": "tank_expedition/music_base.wav", "pitch": 1.0, "pitchJitter": 0.0, "voices": 1, "volume": 0.55}
+    },
+    "cues": {
+      "ability_barrage": {"cooldown": 0.5, "file": "tank_expedition/warning.wav", "pitch": 1.3, "pitchJitter": 0.0, "voices": 1, "volume": 0.5},
+      "ability_healZone": {"cooldown": 0.3, "file": "tank_expedition/upgrade.wav", "pitch": 1.4, "pitchJitter": 0.03, "voices": 1, "volume": 0.45},
+      "ability_rocket": {"cooldown": 0.1, "file": "tank_expedition/shot.wav", "pitch": 0.55, "pitchJitter": 0.05, "voices": 2, "volume": 0.55},
+      "ability": {"cooldown": 0.1, "file": "tank_expedition/dash.wav", "pitch": 1.1, "pitchJitter": 0.05, "voices": 2, "volume": 0.4},
+      "barrier_block": {"cooldown": 0.05, "file": "tank_expedition/hit.wav", "pitch": 0.7, "pitchJitter": 0.03, "voices": 3, "volume": 0.35},
+      "barrier_on": {"cooldown": 0.2, "file": "tank_expedition/upgrade.wav", "pitch": 0.8, "pitchJitter": 0.03, "voices": 2, "volume": 0.25},
+      "boss_appear": {"cooldown": 0.5, "file": "tank_expedition/warning.wav", "pitch": 0.7, "pitchJitter": 0.03, "voices": 1, "volume": 0.55},
+      "boss_defeat": {"cooldown": 0.5, "file": "tank_expedition/kill.wav", "pitch": 0.7, "pitchJitter": 0.03, "voices": 1, "volume": 0.6},
+      "craft": {"cooldown": 0.1, "file": "tank_expedition/upgrade.wav", "pitch": 1.0, "pitchJitter": 0.03, "voices": 2, "volume": 0.45},
+      "evolve": {"cooldown": 0.1, "file": "tank_expedition/upgrade.wav", "pitch": 0.85, "pitchJitter": 0.03, "voices": 2, "volume": 0.5},
+      "explosion": {"cooldown": 0.08, "file": "tank_expedition/armor_break.wav", "pitch": 0.8, "pitchJitter": 0.03, "voices": 3, "volume": 0.4},
+      "fire": {"cooldown": 0.05, "file": "tank_expedition/shot.wav", "pitch": 1.0, "pitchJitter": 0.03, "voices": 3, "volume": 0.35},
+      "fire_barrage": {"cooldown": 0.06, "file": "tank_expedition/shot.wav", "pitch": 1.35, "pitchJitter": 0.08, "voices": 3, "volume": 0.25},
+      "fire_beam": {"cooldown": 0.06, "file": "tank_expedition/shot.wav", "pitch": 0.8, "pitchJitter": 0.03, "voices": 3, "volume": 0.4},
+      "fire_cannon": {"cooldown": 0.05, "file": "tank_expedition/shot.wav", "pitch": 1.0, "pitchJitter": 0.03, "voices": 3, "volume": 0.35},
+      "fire_grenade": {"cooldown": 0.1, "file": "tank_expedition/shot.wav", "pitch": 0.65, "pitchJitter": 0.03, "voices": 3, "volume": 0.45},
+      "fire_homing": {"cooldown": 0.06, "file": "tank_expedition/shot.wav", "pitch": 1.1, "pitchJitter": 0.03, "voices": 3, "volume": 0.3},
+      "fire_machineGun": {"cooldown": 0.06, "file": "tank_expedition/shot.wav", "pitch": 1.2, "pitchJitter": 0.03, "voices": 3, "volume": 0.25},
+      "fire_ricochet": {"cooldown": 0.06, "file": "tank_expedition/shot.wav", "pitch": 1.05, "pitchJitter": 0.03, "voices": 3, "volume": 0.35},
+      "fire_shotgun": {"cooldown": 0.08, "file": "tank_expedition/shot.wav", "pitch": 0.85, "pitchJitter": 0.03, "voices": 3, "volume": 0.45},
+      "fire_sniper": {"cooldown": 0.1, "file": "tank_expedition/shot.wav", "pitch": 0.6, "pitchJitter": 0.03, "voices": 3, "volume": 0.55},
+      "heal": {"cooldown": 0.3, "file": "tank_expedition/upgrade.wav", "pitch": 1.3, "pitchJitter": 0.03, "voices": 2, "volume": 0.25},
+      "hit": {"cooldown": 0.04, "file": "tank_expedition/hit.wav", "pitch": 1.0, "pitchJitter": 0.03, "voices": 3, "volume": 0.25},
+      "kill": {"cooldown": 0.05, "file": "tank_expedition/kill.wav", "pitch": 1.0, "pitchJitter": 0.03, "voices": 3, "volume": 0.35},
+      "mine_explode": {"cooldown": 0.1, "file": "tank_expedition/armor_break.wav", "pitch": 0.9, "pitchJitter": 0.03, "voices": 3, "volume": 0.45},
+      "pickup": {"cooldown": 0.05, "file": "tank_expedition/hit.wav", "pitch": 1.5, "pitchJitter": 0.03, "voices": 3, "volume": 0.2},
+      "pickup_rare": {"cooldown": 0.2, "file": "tank_expedition/upgrade.wav", "pitch": 1.2, "pitchJitter": 0.03, "voices": 2, "volume": 0.45},
+      "player_hurt": {"cooldown": 0.2, "file": "tank_expedition/armor_break.wav", "pitch": 1.0, "pitchJitter": 0.03, "voices": 2, "volume": 0.55},
+      "reload": {"cooldown": 0.1, "file": "tank_expedition/dash.wav", "pitch": 1.3, "pitchJitter": 0.03, "voices": 2, "volume": 0.3},
+      "sell": {"cooldown": 0.05, "file": "tank_expedition/upgrade.wav", "pitch": 1.4, "pitchJitter": 0.03, "voices": 2, "volume": 0.35},
+      "sortie": {"cooldown": 0.3, "file": "tank_expedition/upgrade.wav", "pitch": 0.9, "pitchJitter": 0.03, "voices": 1, "volume": 0.45},
+      "stage_clear": {"cooldown": 0.5, "file": "tank_expedition/upgrade.wav", "pitch": 1.0, "pitchJitter": 0.03, "voices": 1, "volume": 0.5},
+      "stamina_out": {"cooldown": 0.5, "file": "tank_expedition/warning.wav", "pitch": 1.0, "pitchJitter": 0.03, "voices": 1, "volume": 0.45},
+      "swap": {"cooldown": 0.1, "file": "tank_expedition/dash.wav", "pitch": 0.9, "pitchJitter": 0.03, "voices": 2, "volume": 0.35},
+      "ui_click": {"cooldown": 0.03, "file": "tank_expedition/hit.wav", "pitch": 1.8, "pitchJitter": 0.03, "voices": 2, "volume": 0.3},
+      "ui_drop": {"cooldown": 0.05, "file": "tank_expedition/dash.wav", "pitch": 1.1, "pitchJitter": 0.03, "voices": 2, "volume": 0.35},
+      "ultimate_ready": {"cooldown": 0.5, "file": "tank_expedition/upgrade.wav", "pitch": 1.25, "pitchJitter": 0.0, "voices": 1, "volume": 0.5},
+      "warp": {"cooldown": 0.1, "file": "tank_expedition/dash.wav", "pitch": 0.6, "pitchJitter": 0.03, "voices": 2, "volume": 0.3}
+    }
   },
   "crafting": {
     "comment": "素材で作る・派生の木（計画書 p3 の W7）。拠点の画面で、recipes の素材とお金を払ってコモンの武器を作り、evolve でレア度を1段ずつ上げる（そのレア度へ上げるのに要る物に、武器の主な素材 main を main 個足す）。レア度ごとに威力 rarityDamage・弾倉 rarityMagazine の倍率がかかり、チップ枠も増える。branches は別の武器へ分かれる枝で、from の武器が minRarity 以上なら、要る物を払って to の武器へ変わる（レア度とチップはそのまま）。craftable が false のレシピは作れず、進化の主な素材だけを決める。",
@@ -152,6 +246,12 @@
       "epic": { "pentagon": 10, "boss": 3, "money": 800, "main": 60 },
       "legendary": { "pentagon": 15, "boss": 10, "money": 2000, "main": 80 }
     }
+  },
+  "glow": {
+    "comment": "光り方（武器の枠を使う遊び方だけ）。trailBloom* は弾の軌跡のにじみ（強さ・明るさ・広がり 0〜0.9・半径 0.25〜2）。trailTailBrightness は先端に対する尾の明るさ（1 で同じ色合い）、trailFadeCurve は色の薄れ方（大きいほど尾の近くまで先端の色を保つ）、trailTailWidth は先端に対する尾の太さ、trailSeconds は軌跡が残る秒。lootRing* は拾い物を囲む輪の半径と太さ（敵と見分ける印、0 で無し）。lootTrail* は吸い込まれる物の光の尾の秒と太さ。collectFlash* は拾ったところに広がる輪の秒と半径。",
+    "trailBloomIntensity": 2.4, "trailBloomGain": 1.9, "trailBloomScatter": 0.72, "trailBloomRadius": 1.5,
+    "trailTailBrightness": 1.0, "trailFadeCurve": 2.2, "trailTailWidth": 0.35, "trailSeconds": 0.24,
+    "lootRingRadius": 0.5, "lootRingWidth": 0.05, "lootTrailSeconds": 0.14, "lootTrailWidth": 0.2, "collectFlashSeconds": 0.25, "collectFlashRadius": 1.3
   },
   "traits": {
     "comment": "特性。区画の始めに止めて、標準と冷却炉の2択を出す。冷却炉は熱の上限を furnaceHeatMax 倍、冷える速さ（撃っていない間と撃っている間の両方）を furnaceCool 倍にする。",

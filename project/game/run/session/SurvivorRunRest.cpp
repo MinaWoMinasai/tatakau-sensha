@@ -16,9 +16,11 @@ void SurvivorRunController::OpenRestRoom()
 
 void SurvivorRunController::ApplyStageSettings(int stage)
 {
-    stage_ = (std::clamp)(stage, 0, survivor::SpawnConfig::kStageCount - 1);
+    stage_ = (std::clamp)(stage, 0, StageCount() - 1);
     // ステージ1・2は時間で出口が開き、ボスステージは exitSeconds でボス（宿敵）が出て、倒すと出口が開く（G3）。
-    config_.exitOpenSeconds = config_.stages.exitSeconds[static_cast<size_t>(stage_)];
+    // 機体の遊び方では、波は seconds 秒で終わり、ボスの波は bossDelay 秒でボスが出る（H1）。
+    config_.exitOpenSeconds = HeroMode() ? (IsBossStage() ? config_.waves.bossDelay : config_.waves.seconds)
+                                         : config_.stages.exitSeconds[static_cast<size_t>((std::min)(stage_, 2))];
     config_.rival.enabled = IsBossStage();
 }
 
@@ -31,6 +33,9 @@ void SurvivorRunController::StartNextStage()
     ApplyStageSettings(stage_ + 1);
     // 区画の時計・湧き方・脅威・出口・宿敵・床の物を、区画の始めの状態へ戻す（拾った物の袋と枠の武器・弾はそのまま）。
     elapsed_ = 0.0f;
+    timelineNext_ = 0;
+    midBosses_.clear();
+    healPickups_.clear();
     cleared_ = false;
     exitOpen_ = false;
     rivalSpawned_ = false;
@@ -39,6 +44,7 @@ void SurvivorRunController::StartNextStage()
     rivalDefeatedAt_ = -1.0f;
     threatStage_ = 1;
     spawnBudget_ = 0.0f;
+    ResetGrowth();
     nextSwarm_ = config_.swarm.from;
     nextTank_ = config_.tanks.from;
     nextBigPentagon_ = config_.bigPentagon.from;
@@ -51,10 +57,18 @@ void SurvivorRunController::StartNextStage()
     damageNumbers_.Clear();
     world_.resources.enemyManager_->ClearRunActors();
     world_.resources.bulletManager_->ClearAll();
-    // 休憩したので、HPは満タンに戻し、部屋の真ん中から始める。
+    // 休憩したので、HPは満タンに戻し、部屋の真ん中から始める。機体の遊び方では HP は戻さない（H8：修理で治す）。
     auto& player = *world_.resources.player_;
+    const int hpBefore = player.GetHp();
     player.ResetRunRoomState(survivorrun::kPlayerStart);
-    player.HealRunPlayer(player.GetMaxHp());
+    if (HeroMode()) {
+        player.SpendRunHealth(player.GetHp() - hpBefore);
+        wavePoints_ = 0;
+        waveDamageStart_ = player.GetSurvivorDamageTaken();
+        waveCappedStart_ = player.GetSurvivorDamageCapped();
+    } else {
+        player.HealRunPlayer(player.GetMaxHp());
+    }
     barrierStamina_ = config_.barrier.staminaMax;
     barrierExhausted_ = 0.0f;
     barrierOn_ = false;
@@ -63,8 +77,24 @@ void SurvivorRunController::StartNextStage()
     world_.resources.camera->Update();
     weaponEquipped_ = false;
     EquipWeapon(activeSlot_);
-    const std::string name = IsBossStage() ? std::string("ボスステージ") : "ステージ " + std::to_string(stage_ + 1);
+    // 機体の技の待ち時間と走るは戻す（Q のゲージは持ち越す）。
+    if (HeroMode()) {
+        abilityCooldown_.fill(0.0f);
+        sprintTimer_ = 0.0f;
+        phaseTimer_ = 0.0f;
+        orbTimer_ = 0.0f;
+        lanceTimer_ = 0.0f;
+        beamTarget_ = 0;
+        player.SetSurvivorMoveScale(1.0f);
+    }
+    const std::string name = HeroMode() ? (IsBossStage() ? std::string("ボスの波") : "波 " + std::to_string(stage_ + 1))
+                             : IsBossStage() ? std::string("ボスステージ")
+                                             : "ステージ " + std::to_string(stage_ + 1);
     world_.combatFlow->SetEventCallout(name, 1.6f);
+    // 波の終わりで閉じたレベルアップの3択を、選べる回数が残っていれば開き直す。
+    if (HeroMode() && heroPendingLevelUps_ > 0) {
+        OpenHeroLevelUp();
+    }
 }
 
 void SurvivorRunController::LeaveRestRoom()

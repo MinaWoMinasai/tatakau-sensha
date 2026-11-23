@@ -1217,6 +1217,99 @@
       "effectPower": {
         "WallSmash": 1
       }
+    },
+    {
+      "id": "ThermalNova",
+      "name": "熱核解放",
+      "description": "オーバーヒートした瞬間、周りを焼き尽くす大爆発。\n半径7.5 / 攻撃の10倍。\n代償：熱 +50%、オーバーヒート +0.8秒。",
+      "price": 58,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [
+        "ThermalNova"
+      ],
+      "compatibleStyles": [
+        "shooter",
+        "drone",
+        "melee"
+      ],
+      "effectPower": {
+        "ThermalNova": 1
+      }
+    },
+    {
+      "id": "ChainDetonation",
+      "name": "誘爆コア",
+      "description": "倒した敵が爆発し、周りの敵を巻き込んで連鎖する。\n半径3.4 / 攻撃の2.4倍。\n代償：爆発は自分も傷つけ、1回ごとに熱 +4。",
+      "price": 58,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [
+        "ChainDetonation"
+      ],
+      "compatibleStyles": [
+        "shooter",
+        "drone",
+        "melee"
+      ],
+      "effectPower": {
+        "ChainDetonation": 1
+      }
+    },
+    {
+      "id": "NovaBarrage",
+      "name": "全方位斉射",
+      "description": "攻撃4回ごとに、全方向へ16発の弾幕を放つ。\n1発は攻撃の70%、敵1体を貫通。\n代償：弾幕ごとに熱 +12、移動 -15%。",
+      "price": 58,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [
+        "NovaBarrage"
+      ],
+      "compatibleStyles": [
+        "shooter",
+        "drone",
+        "melee"
+      ],
+      "effectPower": {
+        "NovaBarrage": 1
+      }
+    },
+    {
+      "id": "Overclock",
+      "name": "臨界駆動",
+      "description": "熱が高いほど主砲の威力が上がる（最大 +100%）。\n熱70%以上で倒すと周りに衝撃波。\n代償：冷える速さ -40%、過熱中は移動 -45%。",
+      "price": 58,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [
+        "Overclock"
+      ],
+      "compatibleStyles": [
+        "shooter"
+      ],
+      "effectPower": {
+        "Overclock": 1
+      }
+    },
+    {
+      "id": "Singularity",
+      "name": "重力崩壊",
+      "description": "ダッシュの始めに周りの敵を吸い寄せ、\n0.4秒後にその場で大爆発（攻撃の5倍）。\n代償：ダッシュごとに熱 +38。過熱中は出ない。",
+      "price": 58,
+      "maxPurchases": 1,
+      "rarity": 3,
+      "effects": [
+        "Singularity"
+      ],
+      "compatibleStyles": [
+        "shooter",
+        "drone",
+        "melee"
+      ],
+      "effectPower": {
+        "Singularity": 1
+      }
     }
   ]
 }

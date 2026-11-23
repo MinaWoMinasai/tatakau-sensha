@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "game/scene/PresentationToggles.h"
 #include "FixedTimestep.h"
 #include "Dump.h"
 #include "DeveloperTools.h"
@@ -518,11 +519,29 @@ int Application::MainLoop()
                     extended = (rawScan & 0xff00u) == 0xe000u;
                 }
                 const unsigned int scanCode = (rawScan & 0x7fu) | (extended ? 0x80u : 0u);
-                myEngine::Input::GetInstance()->RecordKeyDown(scanCode, (msg.lParam & (1LL << 30)) != 0);
+                const bool repeated = (msg.lParam & (1LL << 30)) != 0;
+                myEngine::Input::GetInstance()->RecordKeyDown(scanCode, repeated);
+                // ノートPCや一部のキーボードでは、F キーのスキャンコードが標準と違って届くことがある。
+                // 仮想キーが F1〜F12 なら、標準のスキャンコード（DIK_F1〜DIK_F12）でも押したことにする。
+                const WPARAM vk = msg.wParam;
+                if (vk >= VK_F1 && vk <= VK_F12) {
+                    static constexpr unsigned int kFunctionScan[12] = {0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x57, 0x58};
+                    const unsigned int standard = kFunctionScan[vk - VK_F1];
+                    if (standard != scanCode) {
+                        myEngine::Input::GetInstance()->RecordKeyDown(standard, repeated);
+                    }
+                }
             }
             if (msg.message == WM_KEYDOWN && msg.wParam == VK_F1 && !(msg.lParam & (1LL << 30))) {
                 myEngine::RuntimeProfiler::Get().HandleShortcut((GetKeyState(VK_SHIFT) & 0x8000) != 0);
             }
+#if !(defined(USE_IMGUI) && !defined(NDEBUG))
+            // F12：ブルームをすべてオン・オフする（講評会の Release 用。開発用の構成の F12 は開発用の画面を開く。
+            // 開発用の構成では [B] で同じオフにできる）。
+            if (msg.message == WM_KEYDOWN && msg.wParam == VK_F12 && !(msg.lParam & (1LL << 30))) {
+                PresentationToggles::ToggleBloom();
+            }
+#endif
             TranslateMessage(&msg);
             DispatchMessage(&msg);
             // 同じメッセージのまとまりの中で後続のキー押下が記録される前に、

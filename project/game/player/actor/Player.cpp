@@ -110,9 +110,12 @@ void Player::RotateToMouse(myEngine::Camera* viewProjection)
     if (input_ && input_->IsGamepadActive()) {
         // ツインスティックの照準: 右スティックで砲身の向きを決め、離すと最後の向きを保つ。
         // 置いたままのマウスで照準が引っ張られないよう、OSのカーソルは無視する。
+        // 自動で撃つとき（HoloCure と同じ）は、右スティックを離している間は動いている方を向く。
         myEngine::Vector2 aim{};
         if (input_->TryGetGamepadAim(aim)) {
             dir_ = myEngine::Normalize(myEngine::Vector3{aim.x, aim.y, 0.0f});
+        } else if (autoFireEnabled_ && myEngine::Length(myEngine::Vector3{inputDir_.x, inputDir_.y, 0.0f}) > 0.2f) {
+            dir_ = myEngine::Normalize(myEngine::Vector3{inputDir_.x, inputDir_.y, 0.0f});
         }
         runAimWorld_ = worldTransform_.translate + dir_ * 12.0f;
         angle_ = std::atan2(dir_.y, dir_.x);
@@ -196,6 +199,17 @@ void Player::Initialize(myEngine::Object3d* object, const myEngine::Vector3& pos
     wchar_t startupCacheFlag[8]{};
     const bool baseline = GetEnvironmentVariableW(L"MYENGINE_STARTUP_CACHE", startupCacheFlag, 8) > 0 && startupCacheFlag[0] == L'0';
     ui_->arenaUiEnabled_ = arenaUi || baseline;
+    survivorMoveScale_ = 1.0f;
+    survivorPhaseTimer_ = 0.0f;
+    survivorPhaseAvoided_ = 0;
+    survivorPhaseTouched_.clear();
+    survivorDamageRules_ = {};
+    survivorLastHit_.clear();
+    survivorHealed_ = 0;
+    survivorWound_ = 0.0f;
+    survivorRecentSources_.clear();
+    survivorRecentDamage_.clear();
+    survivorMaxHp_ = 0;
 
     object_ = object;
     baseVehicleColor_ = object_->GetColor();
@@ -302,6 +316,8 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     recentDashTimer_ = (std::max)(0.0f, recentDashTimer_ - deltaTime);
 
     invincibleTimer_ -= deltaTime;
+    survivorPhaseTimer_ = (std::max)(0.0f, survivorPhaseTimer_ - deltaTime);
+    survivorClock_ += deltaTime;
     if (shieldConfig_.enabled && !isDead_) {
         const float shieldMax = GetShieldMax();
         if (shieldRegenWait_ > 0.0f) {
@@ -377,7 +393,7 @@ void Player::Update(myEngine::Camera* viewProjection, Stage& stage, BulletManage
     PlayerMovementInput movementInput{};
     movementInput.direction = inputDir_;
     movementInput.velocity = velocity_;
-    movementInput.moveSpeed = stats_.moveSpeed;
+    movementInput.moveSpeed = stats_.moveSpeed * survivorMoveScale_;
     movementInput.acceleration = accel_;
     movementInput.deceleration = decel_;
     movementInput.deltaTime = deltaTime;
@@ -606,6 +622,13 @@ void Player::OnCollision(Collider* other)
         stealthTimer_ = 0.0f;
     }
 
+    // 機体の消える移動の間は、押されもせず傷つきもしない（すり抜ける）。
+    if ((other->GetCollisionAttribute() == kCollisionAttributeEnemy || other->GetCollisionAttribute() == kCollisionAttributeExpEnemy ||
+         other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) &&
+        AvoidBySurvivorPhase(other->GetCollisionId())) {
+        return;
+    }
+
     if ((invincibleTimer_ > 0.0f && !isDashing_) || isJustEvaded_ || isSmash_) {
         // 無敵中に敵の弾を受けてもノックバックしない
         if (other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
@@ -636,13 +659,48 @@ void Player::OnCollision(Collider* other)
 
     if (other->GetCollisionAttribute() == kCollisionAttributeEnemy || other->GetCollisionAttribute() == kCollisionAttributeExpEnemy ||
         other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
-        TakeDamage(other->GetDamage(), 0.45f);
+        // 死因の名前（機体の遊び方の結果画面）。
+        if (survivorDamageRules_.enabled) {
+            if (other->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
+                survivorPendingHit_ = "敵の弾";
+            } else if (const auto* shape = dynamic_cast<const ExpEnemy*>(other)) {
+                switch (shape->GetSurvivorRole()) {
+                case ExpEnemy::SurvivorRole::Healer:
+                    survivorPendingHit_ = "回復する四角";
+                    break;
+                case ExpEnemy::SurvivorRole::Warper:
+                    survivorPendingHit_ = "ワープする五角";
+                    break;
+                case ExpEnemy::SurvivorRole::MineLayer:
+                    survivorPendingHit_ = "地雷をまく三角";
+                    break;
+                case ExpEnemy::SurvivorRole::Mine:
+                    survivorPendingHit_ = "地雷";
+                    break;
+                default:
+                    survivorPendingHit_ = shape->GetType() == ExpEnemyType::Triangle ? "三角"
+                                          : shape->GetType() == ExpEnemyType::Square
+                                              ? (shape->GetSizeScale() > 1.4f ? "重い四角" : "四角")
+                                          : shape->GetType() == ExpEnemyType::Pentagon ? (shape->GetSizeScale() > 1.4f ? "大五角" : "五角")
+                                                                                        : "敵戦車";
+                    break;
+                }
+            } else if (dynamic_cast<const Enemy*>(other)) {
+                survivorPendingHit_ = "ボス";
+            } else {
+                survivorPendingHit_ = "敵";
+            }
+        }
+        TakeSurvivorHit(other->GetCollisionId(), other->GetDamage());
     }
 }
 
 uint32_t Player::ReceiveHostileHazard(uint32_t amount, bool dodgeable)
 {
     if (isDead_ || amount == 0) {
+        return 0;
+    }
+    if (AvoidBySurvivorPhase(0)) {
         return 0;
     }
     if (currentClass_ == ClassType::Assassin) {
@@ -656,8 +714,22 @@ uint32_t Player::ReceiveHostileHazard(uint32_t amount, bool dodgeable)
         return 0;
     }
     const int before = hp_;
-    TakeDamage(amount, 0.45f);
+    // 床の危険は、まとめて1つの相手として間隔を見る。
+    survivorPendingHit_ = "床の危険";
+    TakeSurvivorHit(~0ull, amount);
     return static_cast<uint32_t>((std::max)(0, before - hp_));
+}
+
+bool Player::AvoidBySurvivorPhase(uint64_t id)
+{
+    if (survivorPhaseTimer_ <= 0.0f) {
+        return false;
+    }
+    if (std::find(survivorPhaseTouched_.begin(), survivorPhaseTouched_.end(), id) == survivorPhaseTouched_.end()) {
+        survivorPhaseTouched_.push_back(id);
+        ++survivorPhaseAvoided_;
+    }
+    return true;
 }
 
 bool Player::TryDashImpact(Collider* target)
@@ -734,7 +806,30 @@ void Player::Damage(uint32_t amount)
 
 void Player::TakeDamage(uint32_t amount, float invincibleTime)
 {
-    if (isDead_ || amount == 0 || invincibleTimer_ > 0.0f || debugNoDamage_) {
+    // 機体の消える移動の間は、どこから来た攻撃も受けない（数えるのは OnCollision と ReceiveHostileHazard）。
+    if (isDead_ || amount == 0 || invincibleTimer_ > 0.0f || survivorPhaseTimer_ > 0.0f) {
+        return;
+    }
+    // 機体の遊び方の体力の決まり（H6）：上限で削り、無敵時間は付けない。無敵の自動確認でも、通った量は数える。
+    const bool rules = survivorDamageRules_.enabled;
+    if (rules) {
+        amount = LimitSurvivorDamage(amount);
+        if (amount == 0) {
+            return;
+        }
+        // 反応装甲（計画書 p8 の F4）：構えていれば、この当たりを丸ごと防ぐ。続けて当たらないよう、少しだけ無敵にする。
+        if (survivorGuardReady_) {
+            survivorGuardReady_ = false;
+            ++survivorGuardBlocks_;
+            invincibleTimer_ = 0.5f;
+            return;
+        }
+        invincibleTime = 0.0f;
+        survivorDamageTaken_ += amount;
+        ++survivorHits_;
+        survivorLastHit_ = survivorPendingHit_.empty() ? std::string("爆発など") : survivorPendingHit_;
+    }
+    if (debugNoDamage_) {
         return;
     }
     if (saberCounterTimer_ > 0.0f) {
@@ -763,11 +858,33 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
         hp_ = 0;
     }
 
+    // 傷（H7）：受けたダメージの一部は、治すまで HP の上限から引かれる（最大HP-1 まで）。
+    if (rules) {
+        survivorWound_ = (std::min)(static_cast<float>((std::max)(0, GetMaxHp() - 1)),
+                                    survivorWound_ + static_cast<float>(amount) * survivorDamageRules_.woundRatio);
+    }
     TriggerDamageFeedback();
     invincibleTimer_ = invincibleTime * partEffects_.invincibleScale;
+    // 予備の動力（計画書 p8 の F4）：倒れる当たりなら、残りがあれば立ち直る。
+    if (hp_ <= 0 && survivorRevives_ > 0) {
+        --survivorRevives_;
+        ++survivorRevivesUsed_;
+        hp_ = (std::max)(1, static_cast<int>(std::round(static_cast<float>(GetMaxHp()) * survivorReviveHp_)));
+        invincibleTimer_ = 2.0f;
+        survivorRevived_ = true;
+    }
     if (hp_ <= 0) {
         Die();
     }
+}
+
+float Player::RollSurvivorCrit()
+{
+    if (survivorPerkEffects_.critChance <= 0.0f || myEngine::Rand(0.0f, 1.0f) >= survivorPerkEffects_.critChance) {
+        return 1.0f;
+    }
+    ++survivorCrits_;
+    return survivorPerkEffects_.critScale;
 }
 
 void Player::ConfigureSurvivorResources(const PlayerHeat::Config& heat, const ShieldConfig& shield)
@@ -817,6 +934,19 @@ void Player::TriggerSurvivorBlast(float radius, float damageScale)
     pendingMineDrops_.push_back(explosion);
 }
 
+void Player::TriggerBlastAt(const myEngine::Vector3& position, float radius, float damageScale, const myEngine::Vector4& color, float fuse)
+{
+    MineDropEvent explosion{};
+    explosion.position = position;
+    explosion.radius = radius;
+    explosion.fuseTime = (std::max)(0.0f, fuse);
+    explosion.lifeTime = explosion.fuseTime + 0.02f;
+    // 会心（計画書 p8 の F4）。大きさは呼ぶ側で掛ける（迫撃砲の印と爆発を合わせるため）。
+    explosion.damage = static_cast<uint32_t>((std::max)(1.0f, std::round(stats_.bulletDamage * damageScale * RollSurvivorCrit())));
+    explosion.color = color;
+    pendingMineDrops_.push_back(explosion);
+}
+
 float Player::FireSurvivorHeatVent(float damagePerHeat)
 {
     const float heat = heat_.GetHeat();
@@ -826,6 +956,15 @@ float Player::FireSurvivorHeatVent(float damagePerHeat)
     playerWeapons_->FireHeatVent(runBulletManager_, heat, damagePerHeat);
     heat_.Reset();
     return heat;
+}
+
+bool Player::FireSurvivorShot(const SurvivorShot& shot)
+{
+    if (!runBulletManager_ || !playerWeapons_ || isDead_) {
+        return false;
+    }
+    playerWeapons_->FireSurvivorShot(runBulletManager_, shot);
+    return true;
 }
 
 std::vector<Player::SpecialCombatEvent> Player::ConsumeSpecialCombatEvents()
@@ -1239,7 +1378,78 @@ void Player::ConfigurePrototypeLoadout(int archetype)
 
 void Player::HealRunPlayer(int amount)
 {
+    // 傷がある間は、HP は「最大HP − 傷」までしか戻らない（H7）。
+    if (survivorWound_ >= 1.0f) {
+        amount = (std::min)(amount, GetMaxHp() - GetSurvivorWound() - hp_);
+        if (amount <= 0) {
+            return;
+        }
+    }
+    const int before = hp_;
     playerProgression_->HealRunPlayer(amount);
+    if (survivorDamageRules_.enabled) {
+        survivorHealed_ += static_cast<uint64_t>((std::max)(0, hp_ - before));
+    }
+}
+
+void Player::ConfigureSurvivorDamageRules(const SurvivorDamageRules& rules)
+{
+    survivorDamageRules_ = rules;
+    survivorWound_ = 0.0f;
+    survivorRecentSources_.clear();
+    survivorRecentDamage_.clear();
+}
+
+void Player::TakeSurvivorHit(uint64_t source, uint32_t amount)
+{
+    survivorDamageSource_ = source;
+    TakeDamage(amount, 0.45f);
+    survivorDamageSource_ = 0;
+    survivorPendingHit_.clear();
+}
+
+uint32_t Player::LimitSurvivorDamage(uint32_t amount)
+{
+    const SurvivorDamageRules& rules = survivorDamageRules_;
+    const float maxHp = static_cast<float>((std::max)(1, GetMaxHp()));
+    // 同じ相手からは sameSourceSeconds に1回まで（id の分からない被弾は見ない）。
+    const uint64_t source = survivorDamageSource_;
+    std::erase_if(survivorRecentSources_, [&](const auto& entry) {
+        return survivorClock_ - entry.second >= rules.sameSourceSeconds;
+    });
+    if (source != 0 && std::any_of(survivorRecentSources_.begin(), survivorRecentSources_.end(), [&](const auto& entry) {
+            return entry.first == source;
+        })) {
+        ++survivorSameSourceBlocked_;
+        return 0;
+    }
+    const uint32_t requested = amount;
+    // 1回の上限と、最近1秒の合計の上限。
+    amount = (std::min)(amount, static_cast<uint32_t>((std::max)(1.0f, std::round(maxHp * rules.maxHitRatio))));
+    std::erase_if(survivorRecentDamage_, [&](const auto& entry) {
+        return survivorClock_ - entry.first >= 1.0f;
+    });
+    uint32_t recent = 0;
+    for (const auto& entry : survivorRecentDamage_) {
+        recent += entry.second;
+    }
+    const auto perSecond = static_cast<uint32_t>((std::max)(1.0f, std::round(maxHp * rules.maxPerSecondRatio)));
+    amount = recent >= perSecond ? 0 : (std::min)(amount, perSecond - recent);
+    survivorDamageCapped_ += requested - amount;
+    if (amount == 0) {
+        return 0;
+    }
+    survivorRecentDamage_.push_back({survivorClock_, amount});
+    if (source != 0) {
+        survivorRecentSources_.push_back({source, survivorClock_});
+    }
+    return amount;
+}
+
+void Player::SetSurvivorMaxHp(int hp, bool heal)
+{
+    survivorMaxHp_ = (std::max)(0, hp);
+    RecalculateStatsFromBase(heal);
 }
 
 bool Player::SpendRunHealth(int amount)
