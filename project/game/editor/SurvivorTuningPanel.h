@@ -13,6 +13,13 @@ struct TuningSnapshot {
     float heat = 0.0f;
     float heatMax = 100.0f;
     int overheats = 0;
+    /// @brief 無限の場（計画書 p8 の G2）：今の湧き（大群を含む）、敵の HP と速さの倍率、保存先。
+    float growthInterval = 1.0f;
+    float growthCount = 0.0f;
+    float growthMaxAlive = 0.0f;
+    float enemyHpScale = 1.0f;
+    float enemySpeedScale = 1.0f;
+    std::string configPath;
 };
 
 /// @brief 調整パネルで押されたこと。
@@ -21,6 +28,8 @@ struct TuningPanelResult {
     bool changed = false;
     bool saveRequested = false;
     bool reloadRequested = false;
+    /// @brief 時間割の出来事を足した・消した・時刻を変えた。呼び出し側は並べ直し、過ぎた出来事を済んだことにする。
+    bool timelineChanged = false;
 };
 
 /// @brief 育つ戦車の試作の調整パネル（ImGui）を描く。熱・シールド・湧き方・経験値の曲線・部品の数値・スローの倍率を、その場で変える。

@@ -768,6 +768,15 @@ void SurvivorRunController::UpdateTuningPanel()
     snapshot.heat = heat.GetHeat();
     snapshot.heatMax = heat.GetMaxHeat();
     snapshot.overheats = heat.GetOverheatCount();
+    if (config_.growth.enabled) {
+        const auto growth = CurrentGrowth();
+        snapshot.growthInterval = growth.interval;
+        snapshot.growthCount = growth.count;
+        snapshot.growthMaxAlive = growth.maxAlive;
+    }
+    snapshot.enemyHpScale = EnemyHpScale();
+    snapshot.enemySpeedScale = EnemySpeedScale();
+    snapshot.configPath = ConfigPath();
     const survivor::TuningPanelResult result = survivor::DrawTuningPanel(config_, tuningOpen_, tuningPause_, tuningStatus_, snapshot);
     if (result.reloadRequested) {
         survivor::SpawnConfig loaded;
@@ -785,6 +794,13 @@ void SurvivorRunController::UpdateTuningPanel()
         } else {
             tuningStatus_ = error;
         }
+    }
+    if (result.timelineChanged || result.reloadRequested) {
+        // 時間割を並べ直し、今の時刻より前の出来事は済んだことにする（計画書 p8 の G2）。
+        std::stable_sort(config_.timeline.begin(), config_.timeline.end(),
+                         [](const survivor::SpawnConfig::TimelineEvent& a, const survivor::SpawnConfig::TimelineEvent& b) { return a.at < b.at; });
+        timelineNext_ = static_cast<size_t>(std::count_if(config_.timeline.begin(), config_.timeline.end(),
+                                                          [this](const survivor::SpawnConfig::TimelineEvent& event) { return event.at <= elapsed_; }));
     }
     if (result.changed || result.reloadRequested) {
         // 機体の値（技・最大HP・ショップの強化）を、今の設定から作り直す（K8）。
