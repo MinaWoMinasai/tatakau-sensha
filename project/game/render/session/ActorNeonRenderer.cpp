@@ -326,7 +326,10 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
             const float woundRatio = static_cast<float>(world_.resources.player_->GetSurvivorWound()) /
                                      static_cast<float>((std::max)(1, world_.resources.player_->GetMaxHp()));
             const int woundSegments = woundRatio > 0.0f ? static_cast<int>(std::ceil(woundRatio * 12.0f - 0.001f)) : 0;
-            queueSegmentedArc(radius * 1.55f, 0.0f, 2.05f, 12, hpRatio, hpColor, radius * 0.30f, 12 - woundSegments);
+            // 無限の場の HUD（計画書 p9 の H4）は、弧の代わりに自機の下のバーで出す。
+            if (world_.presentation.runNeonLook_.playerHpArc) {
+                queueSegmentedArc(radius * 1.55f, 0.0f, 2.05f, 12, hpRatio, hpColor, radius * 0.30f, 12 - woundSegments);
+            }
             // シールドはHPの弧のすぐ外側に、細い水色の弧として重ねる（試作のモードだけ）。
             const float shieldMax = world_.resources.player_->GetShieldMax();
             if (shieldMax > 0.0f) {
@@ -334,7 +337,8 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                                   {0.55f, 1.35f, 1.95f, 1.0f}, radius * 0.13f);
             }
             // スタミナはシールドと同じ場所に、細い黄緑の弧として出す（尽きて張れない間は赤）。
-            if ((world_.run.IsSurvivorRun() || world_.run.IsExpeditionRun()) && world_.presentation.playerStaminaRatio_ >= 0.0f) {
+            if (world_.presentation.runNeonLook_.playerStaminaArcs && (world_.run.IsSurvivorRun() || world_.run.IsExpeditionRun()) &&
+                world_.presentation.playerStaminaRatio_ >= 0.0f) {
                 const myEngine::Vector4 staminaColor = world_.presentation.playerStaminaExhausted_ ? myEngine::Vector4{1.9f, 0.3f, 0.25f, 1.0f}
                                                                                                     : myEngine::Vector4{0.85f, 1.8f, 0.55f, 1.0f};
                 queueSegmentedArc(radius * 1.82f, 0.0f, 2.05f, 12, world_.presentation.playerStaminaRatio_, staminaColor, radius * 0.13f);
@@ -352,7 +356,7 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                     queueSegmentedArc(radius * 1.55f, kAbilityAngles[i], 0.62f, 4, ready, lit, radius * 0.22f);
                 }
                 const float ultimate = world_.presentation.heroUltimateRatio_;
-                if (ultimate >= 0.0f) {
+                if (ultimate >= 0.0f && world_.presentation.runNeonLook_.playerUltimateArc) {
                     const float glow = ultimate >= 1.0f ? world_.presentation.heroUltimateGlow_ : 0.75f;
                     const myEngine::Vector4 lit{2.2f * glow, 1.6f * glow, 0.35f * glow, 1.0f};
                     queueSegmentedArc(radius * 1.82f, 3.14159265f, 2.05f, 16, ultimate, lit, radius * (ultimate >= 1.0f ? 0.18f : 0.13f));
@@ -384,7 +388,7 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
                                                                   on ? radius * 0.12f : radius * 0.06f, color);
                 }
             }
-            if (world_.combat.showPlayerStaminaBar_) {
+            if (world_.combat.showPlayerStaminaBar_ && world_.presentation.runNeonLook_.playerStaminaArcs) {
                 const Player::PlayerStats& stats = world_.resources.player_->GetStats();
                 const float staminaRatio = stats.maxStamina > 0.0f ? stats.stamina / stats.maxStamina : 0.0f;
                 queueSegmentedArc(radius * 1.52f, 3.14159265f, 1.15f, 6, staminaRatio, {1.75f, 1.45f, 0.35f, 1.0f}, radius * 0.20f);

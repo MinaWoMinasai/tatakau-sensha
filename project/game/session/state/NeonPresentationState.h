@@ -315,6 +315,11 @@ struct NeonPresentationState {
         float bloom = 1.0f;
         /// @brief 小さい敵の HP バーを出すか（計画書 p9 の H2。中ボス・大きい敵はいつも出す）。
         bool smallEnemyHpBars = true;
+        /// @brief 自機のまわりの HP と Q の弧を出すか、開発用の窓（BloomAndVignette）を隠すか（計画書 p9 の H4）。
+        bool playerHpArc = true;
+        bool playerUltimateArc = true;
+        bool playerStaminaArcs = true; // バリアと近接のスタミナの弧（Q だけの遊び方では使わない）
+        bool hideDevWindows = false;
     } runNeonLook_;
 
     float expEnemyNeonSquareSize_ = 1.8f;

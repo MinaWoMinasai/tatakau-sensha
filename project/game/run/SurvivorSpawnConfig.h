@@ -241,6 +241,14 @@ struct SpawnConfig {
         bool enemyHpBars = true;
     } damageNumbers;
 
+    /// @brief 文字を減らした HUD（計画書 p9 の H4。機体の遊び方だけ）：自機の下に HP・経験値・Lv・Q、上の真ん中に残り時間とボスの印。
+    /// compact が false なら前の HUD（左上の文字と、自機のまわりの弧）。scale は大きさ、offset は自機からバーまでの縦の間（1280×720 の座標）。
+    struct HudConfig {
+        bool compact = false;
+        float scale = 1.0f;
+        float offset = 52.0f;
+    } hud;
+
     /// @brief 排熱砲（Q）。熱が minHeat 未満なら使えない。威力の倍率は 熱 × damagePerHeat × 効果の強さ（Lv）。使うと cooldown 秒待つ。
     struct HeatVent {
         float cooldown = 3.0f;
@@ -732,6 +740,16 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         }
         config.damageNumbers.maxActive = (std::clamp)(config.damageNumbers.maxActive, 1, 80);
         config.damageNumbers.critScale = (std::clamp)(config.damageNumbers.critScale, 0.5f, 4.0f);
+    }
+    if (data.contains("hud") && data.at("hud").is_object()) {
+        const auto& hud = data.at("hud");
+        if (hud.contains("compact") && hud.at("compact").is_boolean()) {
+            config.hud.compact = hud.at("compact").get<bool>();
+        }
+        number(hud, "scale", config.hud.scale);
+        number(hud, "offset", config.hud.offset);
+        config.hud.scale = (std::clamp)(config.hud.scale, 0.4f, 3.0f);
+        config.hud.offset = (std::clamp)(config.hud.offset, -200.0f, 200.0f);
     }
     if (data.contains("fusions")) {
         const auto& fusions = data.at("fusions");
@@ -1460,12 +1478,15 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     ring["maxDistance"] = round(config.ringMaxDistance);
     ring["maxPerSecond"] = round(config.maxSpawnsPerSecond);
     ring["screenEdge"] = config.ringScreenEdge;
-    if (config.spawnForward + config.spawnSide + config.spawnBack > 0.0f) {
+    // 前のファイルに書き足す作りなので、既定値に戻した項目も、前の値が残っていれば書く（残ると次の読み込みで戻ってしまう）。
+    if (config.spawnForward + config.spawnSide + config.spawnBack > 0.0f || ring.contains("forward") || ring.contains("side") ||
+        ring.contains("back")) {
         ring["forward"] = round(config.spawnForward);
         ring["side"] = round(config.spawnSide);
         ring["back"] = round(config.spawnBack);
     }
-    if (config.separation.radiusScale != 1.0f || config.separation.strength != 0.5f || config.separation.maxPush > 0.0f) {
+    if (config.separation.radiusScale != 1.0f || config.separation.strength != 0.5f || config.separation.maxPush > 0.0f ||
+        data.contains("separation")) {
         auto& separation = section("separation");
         separation["radiusScale"] = round(config.separation.radiusScale);
         separation["strength"] = round(config.separation.strength);
@@ -1483,9 +1504,9 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         shapes["targetAlive"].push_back({round(seconds), round(alive)});
     }
     shapes["overtimePerMinute"] = round(config.shapeOvertimePerMinute);
-    if (config.growth.enabled) {
+    if (config.growth.enabled || shapes.contains("growth")) {
         auto& growth = shapes["growth"];
-        growth["enabled"] = true;
+        growth["enabled"] = config.growth.enabled;
         growth["points"] = nlohmann::json::array();
         for (const auto& point : config.growth.points) {
             growth["points"].push_back({round(point.at), round(point.interval), round(point.count), round(point.maxAlive)});
@@ -1536,6 +1557,12 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     numbers["mergeSeconds"] = round(config.damageNumbers.mergeSeconds);
     numbers["critScale"] = round(config.damageNumbers.critScale);
     numbers["enemyHpBars"] = config.damageNumbers.enemyHpBars;
+    if (config.hud.compact || data.contains("hud")) {
+        auto& hud = section("hud");
+        hud["compact"] = config.hud.compact;
+        hud["scale"] = round(config.hud.scale);
+        hud["offset"] = round(config.hud.offset);
+    }
     auto& fusions = section("fusions");
     fusions["thunderExtraTargets"] = config.fusions.thunderExtraTargets;
     fusions["thunderRadiusScale"] = round(config.fusions.thunderRadiusScale);
@@ -1675,12 +1702,13 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     if (config.heroes.perkSlots > 0) {
         heroes["perkSlots"] = config.heroes.perkSlots;
     }
-    if (config.heroes.fillerHeal > 0.0f || config.heroes.fillerMaxHp > 0 || config.heroes.fillerPower > 0.0f) {
+    if (config.heroes.fillerHeal > 0.0f || config.heroes.fillerMaxHp > 0 || config.heroes.fillerPower > 0.0f ||
+        heroes.contains("fillerHeal")) {
         heroes["fillerHeal"] = round(config.heroes.fillerHeal);
         heroes["fillerMaxHp"] = config.heroes.fillerMaxHp;
         heroes["fillerPower"] = round(config.heroes.fillerPower);
     }
-    if (config.heroes.healDropHeal > 0.0f) {
+    if (config.heroes.healDropHeal > 0.0f || heroes.contains("healDropHeal")) {
         heroes["healDropChance"] = round(config.heroes.healDropChance);
         heroes["healDropHeal"] = round(config.heroes.healDropHeal);
         heroes["healDropLife"] = round(config.heroes.healDropLife);
@@ -1767,7 +1795,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     stages["swarmScale"] = round(config.stages.swarmScale);
     stages["bossMaterials"] = config.stages.bossMaterials;
     stages["tier"] = config.stages.tier;
-    if (!config.timeline.empty()) {
+    if (!config.timeline.empty() || data.contains("timeline")) {
         auto& timeline = data["timeline"];
         timeline = nlohmann::json::array();
         for (const SpawnConfig::TimelineEvent& event : config.timeline) {
@@ -1867,10 +1895,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     glow["lootTrailWidth"] = round(config.glow.lootTrailWidth);
     glow["collectFlashSeconds"] = round(config.glow.collectFlashSeconds);
     glow["collectFlashRadius"] = round(config.glow.collectFlashRadius);
-    if (config.glow.neon.enabled) {
+    if (config.glow.neon.enabled || glow.contains("neon")) {
         const auto& look = config.glow.neon;
         auto& neon = glow["neon"];
-        neon["enabled"] = true;
+        neon["enabled"] = look.enabled;
         neon["enemyCoreWhite"] = round(look.enemyCoreWhite);
         neon["enemyCoreIntensity"] = round(look.enemyCoreIntensity);
         neon["enemyHaloIntensity"] = round(look.enemyHaloIntensity);
@@ -1988,11 +2016,11 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 42> kOrder{
+    static constexpr std::array<const char*, 43> kOrder{
         "schemaVersion", "comment",   "arenaMap", "exitOpenSeconds", "exitRadius",    "spawnRing", "separation", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
         "heat",          "shield",    "forms",           "weapons",       "heroes",        "loot",          "crafting",      "stages",        "waves",         "health",        "shop",        "barrier",       "elites",        "audio",         "glow",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
-        "partTuning",    "bigPentagon", "damageNumbers", "timeline"};
+        "partTuning",    "bigPentagon", "damageNumbers", "hud", "timeline"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
         if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {

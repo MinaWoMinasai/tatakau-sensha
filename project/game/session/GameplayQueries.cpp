@@ -46,7 +46,7 @@ IScene::ScreenEffectState GameplayQueries::GetScreenEffectState() const
     }
     const bool evolutionUiOpen = world_.resources.player_ && world_.resources.player_->IsChangeMode();
     state.bloomScale = (evolutionUiOpen ? 0.38f : 1.0f) * world_.presentation.runNeonLook_.bloom;
-    state.suppressPostEffectDebugUi = evolutionUiOpen;
+    state.suppressPostEffectDebugUi = evolutionUiOpen || world_.presentation.runNeonLook_.hideDevWindows;
     state.suppressOutlines = world_.run.UsesPrototypeRules();
     state.suppressTemporal = world_.resources.neonDepthCameraScoped_;
     state.active = world_.combat.screenEffectDirector_.IsActive();

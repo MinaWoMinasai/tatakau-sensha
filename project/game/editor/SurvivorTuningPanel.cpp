@@ -686,6 +686,14 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
         ImGui::TreePop();
     }
 
+    // 文字を減らした HUD（計画書 p9 の H4）
+    if (ImGui::TreeNodeEx("HUD（自機の下のゲージ）", ImGuiTreeNodeFlags_DefaultOpen)) {
+        changed |= ImGui::Checkbox("文字を減らした HUD を使う（切ると前の HUD）", &config.hud.compact);
+        changed |= ImGui::SliderFloat("ゲージの大きさ", &config.hud.scale, 0.5f, 2.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機からの縦の間", &config.hud.offset, -120.0f, 120.0f, "%.0f");
+        ImGui::TreePop();
+    }
+
     // 数字と HP バー（計画書 p9 の H2）
     if (ImGui::TreeNodeEx("数字と HP バー", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto& numbers = config.damageNumbers;

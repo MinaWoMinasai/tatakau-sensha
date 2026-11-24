@@ -10,6 +10,7 @@
 #include "game/ui/session/SurvivorChoiceHud.h"
 #include "game/ui/session/SurvivorLoadoutHud.h"
 #include "game/ui/session/SurvivorDamageNumbers.h"
+#include "game/ui/session/SurvivorCompactHud.h"
 #include "game/ui/session/SurvivorItemScreen.h"
 #include "game/ui/session/SurvivorWeaponHud.h"
 #include <chrono>
@@ -385,6 +386,13 @@ private:
     SurvivorLoadoutHud loadoutHud_;
     // 敵に当てたときのダメージの数字。
     SurvivorDamageNumbers damageNumbers_;
+    // 文字を減らした HUD（計画書 p9 の H4）。
+    SurvivorCompactHud compactHud_;
+    bool CompactHud() const
+    {
+        return HeroMode() && config_.hud.compact;
+    }
+    void UpdateCompactHud(float dt);
     /// @brief 設定からダメージの数字の見た目を渡す（始めと、調整パネルで変えたとき）。
     void ApplyDamageNumberConfig();
     bool removalOpen_ = false;

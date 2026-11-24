@@ -1110,6 +1110,33 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             loaded.heroes.heroes.back().abilities[3].rate == config_.heroes.heroes.back().abilities[3].rate &&
                             loaded.heroes.heroes.back().abilities[2].radius == config_.heroes.heroes.back().abilities[2].radius;
             }
+            // 無限の場の値（計画書 p8・p9）の読み戻しと、切って保存しても前のファイルの値が残らないか（H4 で見つけた不具合）。
+            if (roundTrip) {
+                auto same = [](float a, float b) {
+                    return std::abs(a - b) < 0.001f;
+                };
+                roundTrip = loaded.growth.enabled == config_.growth.enabled && loaded.growth.points.size() == config_.growth.points.size() &&
+                            same(loaded.growth.hpPerMinute, config_.growth.hpPerMinute) && same(loaded.spawnForward, config_.spawnForward) &&
+                            same(loaded.separation.radiusScale, config_.separation.radiusScale) &&
+                            loaded.glow.neon.enabled == config_.glow.neon.enabled && same(loaded.glow.neon.bloom, config_.glow.neon.bloom) &&
+                            loaded.damageNumbers.enemyHpBars == config_.damageNumbers.enemyHpBars &&
+                            same(loaded.damageNumbers.critScale, config_.damageNumbers.critScale) &&
+                            loaded.hud.compact == config_.hud.compact && loaded.timeline.size() == config_.timeline.size();
+                survivor::SpawnConfig off = ConfigForSaving();
+                off.growth.enabled = off.glow.neon.enabled = off.hud.compact = false;
+                off.spawnForward = off.spawnSide = off.spawnBack = 0.0f;
+                off.separation = {};
+                off.heroes.healDropHeal = 0.0f;
+                off.heroes.fillerHeal = off.heroes.fillerPower = 0.0f;
+                off.heroes.fillerMaxHp = 0;
+                off.timeline.clear();
+                survivor::SpawnConfig offLoaded;
+                roundTrip = roundTrip && survivor::SaveSpawnConfig(path, off, error) && survivor::LoadSpawnConfig(path, offLoaded, error) &&
+                            !offLoaded.growth.enabled && !offLoaded.glow.neon.enabled && !offLoaded.hud.compact &&
+                            offLoaded.spawnForward + offLoaded.spawnSide + offLoaded.spawnBack == 0.0f &&
+                            same(offLoaded.separation.radiusScale, 1.0f) && same(offLoaded.separation.strength, 0.5f) &&
+                            offLoaded.heroes.healDropHeal == 0.0f && offLoaded.heroes.fillerHeal == 0.0f && offLoaded.timeline.empty();
+            }
         }
         // 拠点：結果画面で持ち帰ってセーブした物を読み直し、同じになるかを見る。
         CommitRunToBase();

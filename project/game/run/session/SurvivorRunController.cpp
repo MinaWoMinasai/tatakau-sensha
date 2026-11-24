@@ -278,6 +278,7 @@ void SurvivorRunController::Initialize()
 
     // ダメージの数字。命中の通知は衝突処理の途中から来るので、控えるだけにして、更新で位置を決める。
     damageNumbers_.Initialize();
+    compactHud_.Initialize();
     ApplyDamageNumberConfig();
     // 与えたダメージは、機体の Q のゲージにもなる（H5）。
     ExpEnemy::SetPlayerDamageCallback([this](const ExpEnemy& enemy, uint32_t amount) {
@@ -686,6 +687,7 @@ void SurvivorRunController::Update(float dt)
         damageNumbers_.Update(dt, [this](const myEngine::Vector3& world) {
             return world_.gameplayHud->WorldToScreen(world);
         });
+        UpdateCompactHud(dt);
     }
     hudRefresh_ -= dt;
     if (hudRefresh_ <= 0.0f) {
@@ -723,10 +725,17 @@ void SurvivorRunController::ApplyNeonLook(float dt)
     const auto& look = config_.glow.neon;
     if (!look.enabled) {
         out = {};
-        out.smallEnemyHpBars = config_.damageNumbers.enemyHpBars;
-        return;
     }
     out.smallEnemyHpBars = config_.damageNumbers.enemyHpBars;
+    // 文字を減らした HUD（計画書 p9 の H4）：弧の代わりに自機の下のバー。開発用の小さな窓は、調整パネルを開いている間だけ出す。
+    out.playerHpArc = !CompactHud();
+    out.playerUltimateArc = !CompactHud();
+    out.playerStaminaArcs = !(CompactHud() && config_.heroes.onlyUltimate);
+    out.hideDevWindows = CompactHud() && !tuningOpen_;
+    myEngine::Object3dCommon::GetInstance()->SetDebugUiEnabled(!out.hideDevWindows);
+    if (!look.enabled) {
+        return;
+    }
     out.enemyCoreWhite = look.enemyCoreWhite;
     out.enemyCoreIntensity = look.enemyCoreIntensity;
     out.enemyHaloIntensity = look.enemyHaloIntensity;
@@ -742,6 +751,33 @@ void SurvivorRunController::ApplyNeonLook(float dt)
     const float crowd = (std::clamp)(static_cast<float>(CountAlive().total) / (std::max)(1.0f, look.crowdCount), 0.0f, 1.0f);
     neonCrowd_ += (crowd - neonCrowd_) * (1.0f - std::exp(-(std::max)(0.0f, dt) * 2.0f));
     out.bloom = (std::max)(0.0f, look.bloom * (1.0f + (look.crowdBloom - 1.0f) * neonCrowd_));
+}
+
+void SurvivorRunController::UpdateCompactHud(float dt)
+{
+    if (!CompactHud()) {
+        return;
+    }
+    const auto& player = *world_.resources.player_;
+    const float maxHp = static_cast<float>((std::max)(1, player.GetMaxHp()));
+    SurvivorCompactHud::State state;
+    state.anchor = world_.gameplayHud->WorldToScreen(player.GetWorldPosition());
+    state.hpRatio = (std::clamp)(static_cast<float>(player.GetHp()) / maxHp, 0.0f, 1.0f);
+    state.woundRatio = (std::clamp)(static_cast<float>(player.GetSurvivorWound()) / maxHp, 0.0f, 1.0f);
+    state.level = level_;
+    state.expRatio = level_ >= config_.maxLevel
+                         ? 1.0f
+                         : static_cast<float>(exp_) / static_cast<float>((std::max)(1, config_.ExpToNextLevel(level_)));
+    state.ultimateRatio = world_.presentation.heroUltimateRatio_;
+    if (IsRivalActive()) {
+        const auto& rival = *world_.resources.enemy_;
+        state.bossRatio = (std::clamp)(static_cast<float>(rival.GetHp()) / static_cast<float>((std::max)(1, rival.GetMaxHp())), 0.0f, 1.0f);
+    } else if (!exitOpen_) {
+        state.secondsLeft = (std::max)(0.0f, config_.exitOpenSeconds - elapsed_);
+    }
+    state.scale = config_.hud.scale;
+    state.offset = config_.hud.offset;
+    compactHud_.Update(dt, state);
 }
 
 void SurvivorRunController::ApplyDamageNumberConfig()
@@ -1032,8 +1068,14 @@ void SurvivorRunController::DrawUi()
         expTrack_->Draw();
         expFill_->Draw();
     }
-    hudText_->Draw();
-    if (WeaponMode()) {
+    // 文字を減らした HUD（計画書 p9 の H4）では、左上の文字と、Q だけの機体の左下の文字を出さない。
+    const bool compact = CompactHud();
+    if (compact) {
+        compactHud_.Draw();
+    } else {
+        hudText_->Draw();
+    }
+    if (WeaponMode() && !compact) {
         if (lootText_) {
             lootText_->Draw();
         }
@@ -1041,7 +1083,7 @@ void SurvivorRunController::DrawUi()
     if (exitOpen_ && exitText_) {
         exitText_->Draw();
     }
-    if (qText_ && (HeroMode() || survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count)) {
+    if (qText_ && !(compact && config_.heroes.onlyUltimate) && (HeroMode() || survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count)) {
         qText_->Draw();
     }
     // レリックは Q の部品が無くても出す。
