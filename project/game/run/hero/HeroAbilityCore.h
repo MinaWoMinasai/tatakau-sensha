@@ -78,6 +78,8 @@ protected:
     {
         return 1.0f + (HasPerk(survivor::PerkId::Area) ? PerkValue(survivor::PerkId::Area) : 0.0f);
     }
+    /// @brief 予備の動力で立ち直った知らせを出す。既定は文字のお知らせ（無限の場では自機の上の数字。計画書 p9 の H3）。
+    virtual void ShowHeroRevived();
     /// @brief 自機の移動の速さの土台の倍率（技・パークの倍率はこれに掛ける）。試作では1、遠征では調整ファイルの heroMoveScale。
     virtual float HeroBaseMoveScale() const
     {

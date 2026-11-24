@@ -853,10 +853,12 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
         appliedDamage -= static_cast<uint32_t>((std::min)(incoming, std::ceil(absorbed)));
     }
     // 符号付きHPへ変換する前に残HPで制限し、極端な開発用ダメージでも整数変換を安全にする。
+    const int hpBefore = hp_;
     hp_ -= static_cast<int>((std::min)(appliedDamage, static_cast<uint32_t>((std::max)(0, hp_))));
     if (hp_ < 0) {
         hp_ = 0;
     }
+    survivorHpLost_ += static_cast<uint64_t>((std::max)(0, hpBefore - hp_));
 
     // 傷（H7）：受けたダメージの一部は、治すまで HP の上限から引かれる（最大HP-1 まで）。
     if (rules) {

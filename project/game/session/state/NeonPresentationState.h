@@ -320,6 +320,9 @@ struct NeonPresentationState {
         bool playerUltimateArc = true;
         bool playerStaminaArcs = true; // バリアと近接のスタミナの弧（Q だけの遊び方では使わない）
         bool hideDevWindows = false;
+        /// @brief 被弾の「ダメージ」の文字を出すかと、被弾の揺れの倍率（計画書 p9 の H3）。
+        bool hurtText = true;
+        float hurtShake = 1.0f;
     } runNeonLook_;
 
     float expEnemyNeonSquareSize_ = 1.8f;

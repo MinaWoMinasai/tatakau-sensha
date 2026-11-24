@@ -279,6 +279,8 @@ void SurvivorRunController::Initialize()
     // ダメージの数字。命中の通知は衝突処理の途中から来るので、控えるだけにして、更新で位置を決める。
     damageNumbers_.Initialize();
     compactHud_.Initialize();
+    playerNumbers_.Initialize();
+    lastHpLost_ = world_.resources.player_->GetSurvivorHpLost();
     ApplyDamageNumberConfig();
     // 与えたダメージは、機体の Q のゲージにもなる（H5）。
     ExpEnemy::SetPlayerDamageCallback([this](const ExpEnemy& enemy, uint32_t amount) {
@@ -688,6 +690,7 @@ void SurvivorRunController::Update(float dt)
             return world_.gameplayHud->WorldToScreen(world);
         });
         UpdateCompactHud(dt);
+        UpdatePlayerNumbers(dt);
     }
     hudRefresh_ -= dt;
     if (hudRefresh_ <= 0.0f) {
@@ -732,6 +735,8 @@ void SurvivorRunController::ApplyNeonLook(float dt)
     out.playerUltimateArc = !CompactHud();
     out.playerStaminaArcs = !(CompactHud() && config_.heroes.onlyUltimate);
     out.hideDevWindows = CompactHud() && !tuningOpen_;
+    out.hurtText = !HurtNumbers();
+    out.hurtShake = HurtNumbers() ? config_.hud.hurtShake : 1.0f;
     myEngine::Object3dCommon::GetInstance()->SetDebugUiEnabled(!out.hideDevWindows);
     if (!look.enabled) {
         return;
@@ -778,6 +783,41 @@ void SurvivorRunController::UpdateCompactHud(float dt)
     state.scale = config_.hud.scale;
     state.offset = config_.hud.offset;
     compactHud_.Update(dt, state);
+}
+
+void SurvivorRunController::UpdatePlayerNumbers(float dt)
+{
+    const auto& player = *world_.resources.player_;
+    const uint64_t lost = player.GetSurvivorHpLost();
+    if (HurtNumbers() && lost > lastHpLost_) {
+        const int amount = static_cast<int>(lost - lastHpLost_);
+        playerNumbers_.Spawn(SurvivorPlayerNumbers::Kind::Hurt, amount,
+                             static_cast<float>(amount) / static_cast<float>((std::max)(1, player.GetMaxHp())));
+    }
+    lastHpLost_ = lost;
+    playerNumbers_.SetConfig({config_.hud.hurtScale, config_.hud.hurtEdge});
+    playerNumbers_.Update(dt, world_.gameplayHud->WorldToScreen(player.GetWorldPosition()));
+}
+
+void SurvivorRunController::ShowHeal(int amount, const std::string& text)
+{
+    if (!HurtNumbers()) {
+        world_.combatFlow->SetEventCallout(text, 0.7f);
+        return;
+    }
+    playerNumbers_.Spawn(SurvivorPlayerNumbers::Kind::Heal, amount,
+                         static_cast<float>(amount) / static_cast<float>((std::max)(1, world_.resources.player_->GetMaxHp())));
+}
+
+void SurvivorRunController::ShowHeroRevived()
+{
+    if (!HurtNumbers()) {
+        HeroAbilityCore::ShowHeroRevived();
+        return;
+    }
+    const auto& player = *world_.resources.player_;
+    playerNumbers_.Spawn(SurvivorPlayerNumbers::Kind::Revive, player.GetHp(),
+                         static_cast<float>(player.GetHp()) / static_cast<float>((std::max)(1, player.GetMaxHp())));
 }
 
 void SurvivorRunController::ApplyDamageNumberConfig()
@@ -1074,6 +1114,9 @@ void SurvivorRunController::DrawUi()
         compactHud_.Draw();
     } else {
         hudText_->Draw();
+    }
+    if (HurtNumbers()) {
+        playerNumbers_.Draw();
     }
     if (WeaponMode() && !compact) {
         if (lootText_) {

@@ -53,8 +53,12 @@ void CombatFlow::UpdateGameplayEventEffects(float, bool)
         world_.presentation.cameraShakeDuration_ = world_.combat.screenEffectDirector_.GetConfig().cameraShakeDuration;
         world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
         world_.presentation.cameraShakePower_ =
-            (std::max)(world_.presentation.cameraShakePower_, world_.combat.screenEffectDirector_.GetConfig().cameraShakeStrength);
-        SetEventCallout("ダメージ", 0.42f);
+            (std::max)(world_.presentation.cameraShakePower_,
+                       world_.combat.screenEffectDirector_.GetConfig().cameraShakeStrength * world_.presentation.runNeonLook_.hurtShake);
+        // 無限の場（計画書 p9 の H3）では、文字の代わりに自機の上の赤い数字で出す。
+        if (world_.presentation.runNeonLook_.hurtText) {
+            SetEventCallout("ダメージ", 0.42f);
+        }
         if (world_.run.IsExpeditionRun()) {
             world_.run.tankExpeditionAudio_.ArmorBreak();
         }

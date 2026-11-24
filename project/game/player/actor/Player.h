@@ -712,6 +712,11 @@ public:
     {
         return survivorDamageTaken_;
     }
+    /// @brief 被弾で実際に減った HP の合計（計画書 p9 の H3。シールドや反応装甲で防いだ分は入らない）。
+    uint64_t GetSurvivorHpLost() const
+    {
+        return survivorHpLost_;
+    }
     uint64_t GetSurvivorDamageCapped() const
     {
         return survivorDamageCapped_;
@@ -1372,6 +1377,7 @@ private:
     std::vector<std::pair<uint64_t, float>> survivorRecentSources_;
     std::vector<std::pair<float, uint32_t>> survivorRecentDamage_;
     uint64_t survivorDamageTaken_ = 0;
+    uint64_t survivorHpLost_ = 0;
     uint64_t survivorDamageCapped_ = 0;
     uint32_t survivorHits_ = 0;
     uint32_t survivorSameSourceBlocked_ = 0;

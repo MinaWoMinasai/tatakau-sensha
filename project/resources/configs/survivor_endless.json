@@ -396,8 +396,12 @@
     "scale": 1.0
   },
   "hud": {
-    "comment": "文字を減らした HUD（計画書 p9 の H4。機体の遊び方だけ）：自機の下に HP・経験値・Lv・Q、上の真ん中に残り時間とボスの印。compact が false なら前の HUD。scale は大きさ、offset は自機からバーまでの縦の間（1280×720 の座標）。",
+    "comment": "文字を減らした HUD（計画書 p9 の H4。機体の遊び方だけ）：自機の下に HP・経験値・Lv・Q、上の真ん中に残り時間とボスの印。compact が false なら前の HUD。scale は大きさ、offset は自機からバーまでの縦の間（1280×720 の座標）。hurtNumbers（計画書 p9 の H3）は、被弾・回復・立ち直りを自機の上の数字で出し、「ダメージ」などの文字を出さない。hurtScale は数字の大きさ、hurtEdge は画面の縁の赤の強さ（0 で無し）、hurtShake は被弾の揺れの倍率。",
     "compact": true,
+    "hurtEdge": 0.3,
+    "hurtNumbers": true,
+    "hurtScale": 1.0,
+    "hurtShake": 1.0,
     "offset": 52.0,
     "scale": 1.0
   },

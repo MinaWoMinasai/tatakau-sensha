@@ -596,8 +596,13 @@ void HeroAbilityCore::UpdateHeroPerks(float dt)
     }
     if (player.ConsumeSurvivorRevived()) {
         TriggerShockwave(player.GetWorldPosition(), 6.0f, HeroDamageUnit(3.0f), 1.2f, true);
-        heroWorld_.combatFlow->SetEventCallout("予備の動力で立ち直った", 1.5f);
+        ShowHeroRevived();
     }
+}
+
+void HeroAbilityCore::ShowHeroRevived()
+{
+    heroWorld_.combatFlow->SetEventCallout("予備の動力で立ち直った", 1.5f);
 }
 
 void HeroAbilityCore::AddAbsorb(float amount)

@@ -128,6 +128,23 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             healPickups_.push_back({self + myEngine::Vector3{7.0f, 4.0f, 0.0f}, 0.0f, true});
         }
     }
+    // 自機の上の数字（計画書 p9 の H3）：被弾・回復・立ち直りが初めて出たら、少し後に一度ずつ画面を保存する。
+    if (HurtNumbers() && world_.run.tankRunCapturePath_.empty()) {
+        auto shown = [&](SurvivorPlayerNumbers::Kind kind, bool& captured, const char* name) {
+            const float age = playerNumbers_.GetNewestAge(kind);
+            if (captured || age < 0.06f || age > 0.25f) {
+                return false;
+            }
+            captured = true;
+            RequestCapture(name);
+            return true;
+        };
+        if (shown(SurvivorPlayerNumbers::Kind::Hurt, autoHurtCaptured_, "number_hurt") ||
+            shown(SurvivorPlayerNumbers::Kind::Heal, autoHealNumberCaptured_, "number_heal") ||
+            shown(SurvivorPlayerNumbers::Kind::Revive, autoReviveCaptured_, "number_revive")) {
+            return;
+        }
+    }
     // スパナ（計画書 p8 の F5）が初めて落ちたら、少し後に一度だけ画面を保存する。
     if (!autoHealPickupCaptured_ && !healPickups_.empty() && healPickups_.front().age >= 0.6f && world_.run.tankRunCapturePath_.empty()) {
         autoHealPickupCaptured_ = true;
@@ -1121,9 +1138,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             loaded.glow.neon.enabled == config_.glow.neon.enabled && same(loaded.glow.neon.bloom, config_.glow.neon.bloom) &&
                             loaded.damageNumbers.enemyHpBars == config_.damageNumbers.enemyHpBars &&
                             same(loaded.damageNumbers.critScale, config_.damageNumbers.critScale) &&
-                            loaded.hud.compact == config_.hud.compact && loaded.timeline.size() == config_.timeline.size();
+                            loaded.hud.compact == config_.hud.compact && loaded.hud.hurtNumbers == config_.hud.hurtNumbers &&
+                            same(loaded.hud.hurtEdge, config_.hud.hurtEdge) && loaded.timeline.size() == config_.timeline.size();
                 survivor::SpawnConfig off = ConfigForSaving();
-                off.growth.enabled = off.glow.neon.enabled = off.hud.compact = false;
+                off.growth.enabled = off.glow.neon.enabled = off.hud.compact = off.hud.hurtNumbers = false;
                 off.spawnForward = off.spawnSide = off.spawnBack = 0.0f;
                 off.separation = {};
                 off.heroes.healDropHeal = 0.0f;
@@ -1132,7 +1150,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 off.timeline.clear();
                 survivor::SpawnConfig offLoaded;
                 roundTrip = roundTrip && survivor::SaveSpawnConfig(path, off, error) && survivor::LoadSpawnConfig(path, offLoaded, error) &&
-                            !offLoaded.growth.enabled && !offLoaded.glow.neon.enabled && !offLoaded.hud.compact &&
+                            !offLoaded.growth.enabled && !offLoaded.glow.neon.enabled && !offLoaded.hud.compact && !offLoaded.hud.hurtNumbers &&
                             offLoaded.spawnForward + offLoaded.spawnSide + offLoaded.spawnBack == 0.0f &&
                             same(offLoaded.separation.radiusScale, 1.0f) && same(offLoaded.separation.strength, 0.5f) &&
                             offLoaded.heroes.healDropHeal == 0.0f && offLoaded.heroes.fillerHeal == 0.0f && offLoaded.timeline.empty();
@@ -1247,7 +1265,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"heroLevelUps\":" << heroLevelUpLog_.size() << ",\"skillTiers\":[" << heroSkillTiers_[0] << "," << heroSkillTiers_[1] << ","
             << heroSkillTiers_[2] << "],\"steadyShots\":" << steadyShots_ << ",\"battleStacksMax\":" << battleStacksMax_
             << ",\"burstShotsPerVolleyMax\":" << burstShotsPerVolleyMax_ << ",\"fillers\":" << fillersTaken_ << ",\"fillerMaxHp\":" << fillerMaxHp_
-            << ",\"fillerPower\":" << fillerPower_ << ",\"crits\":" << player.GetSurvivorCrits() << ",\"critNumbers\":" << damageNumbers_.GetCriticalCount()
+            << ",\"fillerPower\":" << fillerPower_ << ",\"crits\":" << player.GetSurvivorCrits() << ",\"critNumbers\":" << damageNumbers_.GetCriticalCount() << ",\"hurtNumbers\":["
+            << playerNumbers_.GetSpawnedCount(SurvivorPlayerNumbers::Kind::Hurt) << ","
+            << playerNumbers_.GetSpawnedCount(SurvivorPlayerNumbers::Kind::Heal) << ","
+            << playerNumbers_.GetSpawnedCount(SurvivorPlayerNumbers::Kind::Revive) << "],\"hpLost\":" << player.GetSurvivorHpLost()
             << ",\"guardBlocks\":" << player.GetSurvivorGuardBlocks() << ",\"revivesUsed\":" << player.GetSurvivorRevivesUsed()
             << ",\"expBonus\":" << expBonus_ << ",\"growthSpawned\":" << growthSpawned_ << ",\"growthAliveMax\":" << growthAliveMax_
             << ",\"surges\":" << surgesStarted_ << ",\"enemyHpScaleEnd\":" << EnemyHpScale() << ",\"enemySpeedScaleEnd\":" << EnemySpeedScale() << ",\"healsDropped\":" << healsDropped_ << ",\"healsBigDropped\":" << healsBigDropped_ << ",\"healsCollected\":" << healsCollected_

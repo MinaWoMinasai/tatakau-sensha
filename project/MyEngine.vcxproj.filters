@@ -552,6 +552,9 @@
     <ClCompile Include="game\ui\session\SurvivorCompactHud.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorPlayerNumbers.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\ui\session\SurvivorItemScreen.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -758,6 +761,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\ui\session\SurvivorCompactHud.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorPlayerNumbers.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\ui\session\SurvivorItemScreen.h">

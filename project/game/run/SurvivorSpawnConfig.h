@@ -247,6 +247,12 @@ struct SpawnConfig {
         bool compact = false;
         float scale = 1.0f;
         float offset = 52.0f;
+        /// @brief 被弾・回復・立ち直りを、自機の上の数字で出す（計画書 p9 の H3）。「ダメージ」「修理」などの文字は出さない。
+        /// hurtScale は数字の大きさ、hurtEdge は縁の赤の強さ（0 で無し）、hurtShake は被弾の揺れの倍率。
+        bool hurtNumbers = false;
+        float hurtScale = 1.0f;
+        float hurtEdge = 0.3f;
+        float hurtShake = 1.0f;
     } hud;
 
     /// @brief 排熱砲（Q）。熱が minHeat 未満なら使えない。威力の倍率は 熱 × damagePerHeat × 効果の強さ（Lv）。使うと cooldown 秒待つ。
@@ -748,6 +754,15 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         }
         number(hud, "scale", config.hud.scale);
         number(hud, "offset", config.hud.offset);
+        if (hud.contains("hurtNumbers") && hud.at("hurtNumbers").is_boolean()) {
+            config.hud.hurtNumbers = hud.at("hurtNumbers").get<bool>();
+        }
+        number(hud, "hurtScale", config.hud.hurtScale);
+        number(hud, "hurtEdge", config.hud.hurtEdge);
+        number(hud, "hurtShake", config.hud.hurtShake);
+        config.hud.hurtScale = (std::clamp)(config.hud.hurtScale, 0.4f, 3.0f);
+        config.hud.hurtEdge = (std::clamp)(config.hud.hurtEdge, 0.0f, 1.0f);
+        config.hud.hurtShake = (std::clamp)(config.hud.hurtShake, 0.0f, 3.0f);
         config.hud.scale = (std::clamp)(config.hud.scale, 0.4f, 3.0f);
         config.hud.offset = (std::clamp)(config.hud.offset, -200.0f, 200.0f);
     }
@@ -1557,11 +1572,15 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     numbers["mergeSeconds"] = round(config.damageNumbers.mergeSeconds);
     numbers["critScale"] = round(config.damageNumbers.critScale);
     numbers["enemyHpBars"] = config.damageNumbers.enemyHpBars;
-    if (config.hud.compact || data.contains("hud")) {
+    if (config.hud.compact || config.hud.hurtNumbers || data.contains("hud")) {
         auto& hud = section("hud");
         hud["compact"] = config.hud.compact;
         hud["scale"] = round(config.hud.scale);
         hud["offset"] = round(config.hud.offset);
+        hud["hurtNumbers"] = config.hud.hurtNumbers;
+        hud["hurtScale"] = round(config.hud.hurtScale);
+        hud["hurtEdge"] = round(config.hud.hurtEdge);
+        hud["hurtShake"] = round(config.hud.hurtShake);
     }
     auto& fusions = section("fusions");
     fusions["thunderExtraTargets"] = config.fusions.thunderExtraTargets;

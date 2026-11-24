@@ -11,6 +11,7 @@
 #include "game/ui/session/SurvivorLoadoutHud.h"
 #include "game/ui/session/SurvivorDamageNumbers.h"
 #include "game/ui/session/SurvivorCompactHud.h"
+#include "game/ui/session/SurvivorPlayerNumbers.h"
 #include "game/ui/session/SurvivorItemScreen.h"
 #include "game/ui/session/SurvivorWeaponHud.h"
 #include <chrono>
@@ -393,6 +394,20 @@ private:
         return HeroMode() && config_.hud.compact;
     }
     void UpdateCompactHud(float dt);
+    // 自機の上の数字（計画書 p9 の H3）。
+    SurvivorPlayerNumbers playerNumbers_;
+    uint64_t lastHpLost_ = 0;
+    bool autoHurtCaptured_ = false;
+    bool autoHealNumberCaptured_ = false;
+    bool autoReviveCaptured_ = false;
+    bool HurtNumbers() const
+    {
+        return HeroMode() && config_.hud.hurtNumbers;
+    }
+    void UpdatePlayerNumbers(float dt);
+    /// @brief 回復の数字を出す。数字を使わない設定では、今まで通り文字 text を出す。
+    void ShowHeal(int amount, const std::string& text);
+    void ShowHeroRevived() override;
     /// @brief 設定からダメージの数字の見た目を渡す（始めと、調整パネルで変えたとき）。
     void ApplyDamageNumberConfig();
     bool removalOpen_ = false;

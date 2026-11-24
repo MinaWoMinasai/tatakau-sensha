@@ -538,6 +538,7 @@
     <ClCompile Include="game\ui\session\SurvivorLoadoutHud.cpp" />
     <ClCompile Include="game\ui\session\SurvivorDamageNumbers.cpp" />
     <ClCompile Include="game\ui\session\SurvivorCompactHud.cpp" />
+    <ClCompile Include="game\ui\session\SurvivorPlayerNumbers.cpp" />
     <ClCompile Include="game\ui\session\SurvivorWeaponHud.cpp" />
     <ClCompile Include="game\ui\session\SurvivorItemScreen.cpp" />
     <ClCompile Include="game\editor\session\GameplayEditor.cpp" />
@@ -610,6 +611,7 @@
     <ClInclude Include="game\ui\session\SurvivorLoadoutHud.h" />
     <ClInclude Include="game\ui\session\SurvivorDamageNumbers.h" />
     <ClInclude Include="game\ui\session\SurvivorCompactHud.h" />
+    <ClInclude Include="game\ui\session\SurvivorPlayerNumbers.h" />
     <ClInclude Include="game\ui\session\SurvivorWeaponHud.h" />
     <ClInclude Include="game\ui\session\SurvivorItemScreen.h" />
     <ClInclude Include="game\editor\session\GameplayEditor.h" />
