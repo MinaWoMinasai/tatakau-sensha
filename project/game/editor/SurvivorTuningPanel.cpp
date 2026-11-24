@@ -659,7 +659,34 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
     const float perSecond = snapshot.growthCount / (std::max)(0.05f, snapshot.growthInterval);
     ImGui::Text("敵 %d / 上限 %.0f    %.2f秒ごとに %.1f体（毎秒 %.1f体）", snapshot.alive, snapshot.growthMaxAlive, snapshot.growthInterval,
                 snapshot.growthCount, perSecond);
-    ImGui::Text("敵の HP ×%.2f    敵の速さ ×%.2f（これから湧く敵）    Lv %d", snapshot.enemyHpScale, snapshot.enemySpeedScale, snapshot.level);
+    ImGui::Text("敵の HP ×%.2f    敵の速さ ×%.2f（これから湧く敵）", snapshot.enemyHpScale, snapshot.enemySpeedScale);
+    ImGui::Text("Lv %d    このランのレベルアップ %d 回（選ぶのを待っている %d）", snapshot.level, snapshot.levelUps, snapshot.pendingLevelUps);
+
+    // 敵の押し合い（計画書 p8 の G3）：塊を、隙間のある面にする。
+    ImGui::SeparatorText("敵の押し合い（塊を面にする）");
+    changed |= ImGui::SliderFloat("押し合う半径（当たりの半径の倍）", &config.separation.radiusScale, 0.5f, 3.0f, "×%.2f");
+    ImGui::TextDisabled("1.0 が前の値。見た目の大きさは当たりの約2倍。大きいほど離れて並ぶ");
+    changed |= ImGui::SliderFloat("押し戻す強さ（1回で重なりの何割）", &config.separation.strength, 0.0f, 1.0f, "%.2f");
+    ImGui::TextDisabled("弱いほどくっつきながら層になる。1.0 は弾けて散らばる");
+    changed |= ImGui::SliderFloat("1回で動かす上限（半径の倍。0 は上限なし）", &config.separation.maxPush, 0.0f, 1.0f, "%.2f");
+
+    // 湧く向き（計画書 p8 の G3）
+    ImGui::SeparatorText("湧く向き（自機の進む向きが基準）");
+    changed |= ImGui::SliderFloat("前（±45度）", &config.spawnForward, 0.0f, 10.0f, "%.1f");
+    changed |= ImGui::SliderFloat("横（左右）", &config.spawnSide, 0.0f, 10.0f, "%.1f");
+    changed |= ImGui::SliderFloat("後ろ", &config.spawnBack, 0.0f, 10.0f, "%.1f");
+    {
+        const float sum = config.spawnForward + config.spawnSide + config.spawnBack;
+        if (sum > 0.0f) {
+            ImGui::TextDisabled("前 %.0f%%  横 %.0f%%  後ろ %.0f%%（止まっているときは、縁から均等）", config.spawnForward / sum * 100.0f,
+                                config.spawnSide / sum * 100.0f, config.spawnBack / sum * 100.0f);
+        } else {
+            ImGui::TextDisabled("全部0：縁から均等（前の湧き方）");
+        }
+        const auto& sectors = snapshot.spawnSectors;
+        ImGui::TextDisabled("このランで湧いた向き：前 %d  横 %d  後ろ %d  向きなし %d（今の自機の速さ %.1f）", sectors[0], sectors[1], sectors[2],
+                            sectors[3], snapshot.moveSpeed);
+    }
 
     // 速さ：自機の歩きと、図形ごとの寄る速さ。自機より速いかを横に出す。
     ImGui::SeparatorText("速さ（毎秒。ワールド単位）");

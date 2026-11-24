@@ -145,6 +145,11 @@ void SurvivorRunController::Initialize()
     timelineNext_ = 0;
     midBosses_.clear();
     healPickups_.clear();
+    hasLastPlayerPosition_ = false;
+    playerVelocity_ = {};
+    spawnSectors_ = {};
+    separationDeepPairs_ = 0;
+    separationDeepPairsMax_ = 0;
 
     myEngine::TextStyle style{};
     style.fontFamily = "Meiryo";
@@ -591,6 +596,9 @@ void SurvivorRunController::Update(float dt)
             QueueHint(Hint::Heat);
         }
         UpdateHints(dt);
+        if (gameDt > 0.0f) {
+            UpdateMoveDirection(gameDt);
+        }
         if (gameDt > 0.0f && separationEnabled_) {
             const auto separationStart = std::chrono::steady_clock::now();
             SeparateEnemies();
@@ -778,6 +786,10 @@ void SurvivorRunController::UpdateTuningPanel()
     snapshot.enemyHpScale = EnemyHpScale();
     snapshot.enemySpeedScale = EnemySpeedScale();
     snapshot.configPath = ConfigPath();
+    snapshot.levelUps = static_cast<int>(heroLevelUpLog_.size());
+    snapshot.pendingLevelUps = heroPendingLevelUps_;
+    snapshot.moveSpeed = myEngine::Length(playerVelocity_);
+    snapshot.spawnSectors = spawnSectors_;
     const survivor::TuningPanelResult result = survivor::DrawTuningPanel(config_, tuningOpen_, tuningPause_, tuningStatus_, snapshot);
     if (result.reloadRequested) {
         survivor::SpawnConfig loaded;

@@ -277,6 +277,16 @@ private:
     bool separationEnabled_ = true;
     double separationSeconds_ = 0.0;
     uint64_t separationCalls_ = 0;
+    // 押し合いのあと、見た目で深く重なっている組（中心の距離が当たりの半径の和より近い）の数の合計と最大（計画書 p8 の G3。自動確認の記録）。
+    uint64_t separationDeepPairs_ = 0;
+    int separationDeepPairsMax_ = 0;
+    // 自機の進む向き（計画書 p8 の G3。湧く向きの基準）。速さをならして持つ。
+    myEngine::Vector3 lastPlayerPosition_{};
+    myEngine::Vector3 playerVelocity_{};
+    bool hasLastPlayerPosition_ = false;
+    std::array<int, 4> spawnSectors_{}; // 前・横・後ろ・向きなし（止まっている・割合0）
+    /// @brief 自機の位置から、ならした速さを更新する。dt は区画の時間。
+    void UpdateMoveDirection(float dt);
     // 最小の案内（U3）。それぞれ初めて出てきたときに1回だけ、画面の下に短く出す。
     enum class Hint {
         Move,      // 始め：移動・射撃・ダッシュ

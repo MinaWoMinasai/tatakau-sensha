@@ -42,6 +42,18 @@ struct SpawnConfig {
     float maxSpawnsPerSecond = 10.0f;
     /// @brief 湧く場所を、自機のまわりの輪ではなく、画面のすぐ外（上下左右の縁）からにするか（計画書 p7 の E5）。
     bool ringScreenEdge = false;
+    /// @brief 湧く向き（計画書 p8 の G3）：画面の縁から湧くとき、自機の進む向きを基準に、前（±45度）・横（左右）・後ろ に振り分ける割合。
+    /// 合計0なら今まで通り（縁の長さどおり）。自機が止まっているときも今まで通り。
+    float spawnForward = 0.0f;
+    float spawnSide = 0.0f;
+    float spawnBack = 0.0f;
+    /// @brief 敵どうしの押し合い（計画書 p8 の G3）。半径は当たりの半径 × radiusScale（見た目の大きさに合わせる）、
+    /// 1回の更新で重なりの strength 倍を押し戻す。maxPush が0より大きければ、1回で動かすのは（広げた）半径の maxPush 倍まで。
+    struct SeparationConfig {
+        float radiusScale = 1.0f;
+        float strength = 0.5f;
+        float maxPush = 0.0f;
+    } separation;
     /// @brief 図形（四角・三角・五角）が自機へ寄ってくる加速度と最高速度（ワールド単位/秒）。最高速度0なら寄ってこない（今まで通り）。
     std::array<std::pair<float, float>, 3> shapeChase{};
 
@@ -503,6 +515,21 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         if (ring.contains("screenEdge") && ring.at("screenEdge").is_boolean()) {
             config.ringScreenEdge = ring.at("screenEdge").get<bool>();
         }
+        number(ring, "forward", config.spawnForward);
+        number(ring, "side", config.spawnSide);
+        number(ring, "back", config.spawnBack);
+        config.spawnForward = (std::max)(0.0f, config.spawnForward);
+        config.spawnSide = (std::max)(0.0f, config.spawnSide);
+        config.spawnBack = (std::max)(0.0f, config.spawnBack);
+    }
+    if (data.contains("separation") && data.at("separation").is_object()) {
+        const auto& separation = data.at("separation");
+        number(separation, "radiusScale", config.separation.radiusScale);
+        number(separation, "strength", config.separation.strength);
+        number(separation, "maxPush", config.separation.maxPush);
+        config.separation.radiusScale = (std::clamp)(config.separation.radiusScale, 0.1f, 5.0f);
+        config.separation.strength = (std::clamp)(config.separation.strength, 0.0f, 1.0f);
+        config.separation.maxPush = (std::clamp)(config.separation.maxPush, 0.0f, 2.0f);
     }
     if (data.contains("shapes") && data.at("shapes").contains("chase") && data.at("shapes").at("chase").is_object()) {
         static constexpr std::array<const char*, 3> kChaseKeys{"square", "triangle", "pentagon"};
@@ -1399,6 +1426,17 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     ring["maxDistance"] = round(config.ringMaxDistance);
     ring["maxPerSecond"] = round(config.maxSpawnsPerSecond);
     ring["screenEdge"] = config.ringScreenEdge;
+    if (config.spawnForward + config.spawnSide + config.spawnBack > 0.0f) {
+        ring["forward"] = round(config.spawnForward);
+        ring["side"] = round(config.spawnSide);
+        ring["back"] = round(config.spawnBack);
+    }
+    if (config.separation.radiusScale != 1.0f || config.separation.strength != 0.5f || config.separation.maxPush > 0.0f) {
+        auto& separation = section("separation");
+        separation["radiusScale"] = round(config.separation.radiusScale);
+        separation["strength"] = round(config.separation.strength);
+        separation["maxPush"] = round(config.separation.maxPush);
+    }
     auto& shapes = section("shapes");
     if (config.shapeChase[0].second > 0.0f || config.shapeChase[1].second > 0.0f || config.shapeChase[2].second > 0.0f) {
         static constexpr std::array<const char*, 3> kChaseKeys{"square", "triangle", "pentagon"};
@@ -1895,8 +1933,8 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 41> kOrder{
-        "schemaVersion", "comment",   "arenaMap", "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
+    static constexpr std::array<const char*, 42> kOrder{
+        "schemaVersion", "comment",   "arenaMap", "exitOpenSeconds", "exitRadius",    "spawnRing", "separation", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
         "heat",          "shield",    "forms",           "weapons",       "heroes",        "loot",          "crafting",      "stages",        "waves",         "health",        "shop",        "barrier",       "elites",        "audio",         "glow",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
         "partTuning",    "bigPentagon", "damageNumbers", "timeline"};

@@ -1,5 +1,6 @@
 #pragma once
 #include "game/run/SurvivorSpawnConfig.h"
+#include <array>
 #include <string>
 
 namespace survivor {
@@ -20,6 +21,11 @@ struct TuningSnapshot {
     float enemyHpScale = 1.0f;
     float enemySpeedScale = 1.0f;
     std::string configPath;
+    /// @brief このランで選んだレベルアップの数と、まだ選んでいない数。自機のならした速さ。湧いた向きの数（前・横・後ろ・向きなし）。
+    int levelUps = 0;
+    int pendingLevelUps = 0;
+    float moveSpeed = 0.0f;
+    std::array<int, 4> spawnSectors{};
 };
 
 /// @brief 調整パネルで押されたこと。

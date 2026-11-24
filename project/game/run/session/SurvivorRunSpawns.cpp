@@ -421,6 +421,39 @@ std::optional<myEngine::Vector3> SurvivorRunController::FindSpawnPosition(float 
     // 画面のすぐ外から（計画書 p7 の E5。設定の spawnRing.screenEdge）：上下左右の縁を、縁の長さに比例して選び、縁に沿ってばらける。
     if (config_.ringScreenEdge) {
         std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+        // 進む向きで振り分ける（計画書 p8 の G3）：前（±45度）・横（左右の±45〜135度）・後ろ。止まっているときや割合0は今まで通り。
+        const float weightSum = config_.spawnForward + config_.spawnSide + config_.spawnBack;
+        const float moveSpeed = myEngine::Length(playerVelocity_);
+        if (weightSum > 0.0f && moveSpeed > 1.0f) {
+            const float heading = std::atan2(playerVelocity_.y, playerVelocity_.x);
+            for (int attempt = 0; attempt < 16; ++attempt) {
+                const float pick = unit(random_) * weightSum;
+                int sector = 2;
+                float offset = 3.1415927f + (unit(random_) - 0.5f) * 1.5707964f;
+                if (pick < config_.spawnForward) {
+                    sector = 0;
+                    offset = (unit(random_) - 0.5f) * 1.5707964f;
+                } else if (pick < config_.spawnForward + config_.spawnSide) {
+                    sector = 1;
+                    offset = (unit(random_) < 0.5f ? 1.0f : -1.0f) * (0.7853982f + unit(random_) * 1.5707964f);
+                }
+                const float a = heading + offset;
+                const float dx = std::cos(a), dy = std::sin(a);
+                // カメラの中心から、その向きに画面の縁まで伸ばし、少し外へ出す。
+                const float toEdge = (std::min)(std::abs(dx) > 0.0001f ? halfWidth / std::abs(dx) : 1.0e6f,
+                                                std::abs(dy) > 0.0001f ? halfHeight / std::abs(dy) : 1.0e6f);
+                const float out = toEdge + 1.0f + unit(random_) * 2.0f;
+                myEngine::Vector3 position{camera.x + dx * out, camera.y + dy * out, 0.0f};
+                position.x = (std::clamp)(position.x, kSpawnMinX, kSpawnMaxX);
+                position.y = (std::clamp)(position.y, kSpawnMinY, kSpawnMaxY);
+                const bool offScreen = std::abs(position.x - camera.x) > halfWidth || std::abs(position.y - camera.y) > halfHeight;
+                if (offScreen && !world_.resources.stage_->IsCollisionWithAnyBlock(position, 1.2f)) {
+                    ++spawnSectors_[static_cast<size_t>(sector)];
+                    return position;
+                }
+            }
+        }
+        ++spawnSectors_[3];
         for (int attempt = 0; attempt < 16; ++attempt) {
             const float along = unit(random_) * (halfWidth + halfHeight) * 2.0f;
             const float sideOut = 1.0f + unit(random_) * 2.0f;
@@ -539,15 +572,32 @@ void SurvivorRunController::SpawnRing(int count)
     }
 }
 
+void SurvivorRunController::UpdateMoveDirection(float dt)
+{
+    const myEngine::Vector3 position = world_.resources.player_->GetWorldPosition();
+    if (hasLastPlayerPosition_) {
+        const myEngine::Vector3 step{(position.x - lastPlayerPosition_.x) / dt, (position.y - lastPlayerPosition_.y) / dt, 0.0f};
+        // 区画の移りや押し返しの跳びは無視する。0.25秒ほどでならす。
+        if (myEngine::Length(step) < 30.0f) {
+            const float blend = 1.0f - std::exp(-dt * 4.0f);
+            playerVelocity_ = playerVelocity_ + (step - playerVelocity_) * blend;
+        }
+    }
+    lastPlayerPosition_ = position;
+    hasLastPlayerPosition_ = true;
+}
+
 void SurvivorRunController::SeparateEnemies()
 {
-    // 重なりの半分ずつを、1回の更新で押し戻す（重いもの＝大きいものほど動きにくい）。壁や柱に入る押し戻しはしない。
-    constexpr float kCell = 3.2f;
-    constexpr float kResolve = 0.5f;
+    // 重なりの strength 倍を、1回の更新で押し戻す（重いもの＝大きいものほど動きにくい）。壁や柱に入る押し戻しはしない。
+    // 半径は当たりの半径 × radiusScale（計画書 p8 の G3：見た目の大きさに合わせて、塊を隙間のある面にする）。
+    const float radiusScale = (std::max)(0.1f, config_.separation.radiusScale);
+    const float kResolve = (std::clamp)(config_.separation.strength, 0.0f, 1.0f);
     auto cellKey = [](int x, int y) {
         return (static_cast<int64_t>(x) << 32) ^ static_cast<int64_t>(static_cast<uint32_t>(y));
     };
     separationItems_.clear();
+    float maxRadius = 0.0f;
     for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
         if (!enemy || enemy->IsDead() || enemy->IsRunResource()) {
             continue;
@@ -555,11 +605,17 @@ void SurvivorRunController::SeparateEnemies()
         SeparationItem item;
         item.enemy = enemy;
         item.position = enemy->GetWorldPosition();
-        item.radius = enemy->GetRadius();
+        item.radius = enemy->GetRadius() * radiusScale;
         item.mass = item.radius * item.radius;
-        item.cell = cellKey(static_cast<int>(std::floor(item.position.x / kCell)), static_cast<int>(std::floor(item.position.y / kCell)));
+        maxRadius = (std::max)(maxRadius, item.radius);
         separationItems_.push_back(item);
     }
+    // 升の大きさは、一番大きい敵の直径以上（隣の升までで組を取りこぼさない）。中ボスで広がりすぎないよう上限を置く。
+    const float kCell = (std::clamp)(maxRadius * 2.0f, 3.2f, 12.0f);
+    for (SeparationItem& item : separationItems_) {
+        item.cell = cellKey(static_cast<int>(std::floor(item.position.x / kCell)), static_cast<int>(std::floor(item.position.y / kCell)));
+    }
+    int deepPairs = 0;
     const uint32_t count = static_cast<uint32_t>(separationItems_.size());
     separationOrder_.resize(count);
     for (uint32_t i = 0; i < count; ++i) {
@@ -591,6 +647,8 @@ void SurvivorRunController::SeparateEnemies()
                         continue;
                     }
                     float distance = std::sqrt(distanceSq);
+                    // 押し合いの前の、当たりの半径（広げる前）でも重なっている組を数える（塊の深さの目安）。
+                    deepPairs += distance < limit / radiusScale ? 1 : 0;
                     myEngine::Vector3 normal{1.0f, 0.0f, 0.0f};
                     if (distance > 0.0001f) {
                         normal = {ox / distance, oy / distance, 0.0f};
@@ -608,9 +666,20 @@ void SurvivorRunController::SeparateEnemies()
             }
         }
     }
+    separationDeepPairs_ += static_cast<uint64_t>(deepPairs);
+    separationDeepPairsMax_ = (std::max)(separationDeepPairsMax_, deepPairs);
+    const float maxPush = (std::max)(0.0f, config_.separation.maxPush);
     for (SeparationItem& item : separationItems_) {
         if (item.push.x == 0.0f && item.push.y == 0.0f) {
             continue;
+        }
+        // 1回で動かす量に上限（密集した瞬間に跳んで見えないように）。
+        if (maxPush > 0.0f) {
+            const float length = myEngine::Length(item.push);
+            const float limit = item.radius * maxPush;
+            if (length > limit && length > 0.0f) {
+                item.push = item.push * (limit / length);
+            }
         }
         const myEngine::Vector3 moved = item.position + item.push;
         if (!world_.resources.stage_->IsCollisionWithAnyBlock(moved, item.radius)) {

@@ -5,10 +5,20 @@
   "exitOpenSeconds": 180.0,
   "exitRadius": 3.0,
   "spawnRing": {
+    "comment": "forward・side・back（計画書 p8 の G3）：画面の縁から湧くとき、自機の進む向きを基準に 前（±45度）・横・後ろ に振り分ける割合。全部0（無い）なら縁から均等。止まっているときも均等。",
+    "back": 2.0,
+    "forward": 4.0,
     "maxDistance": 32.0,
     "maxPerSecond": 6.0,
     "minDistance": 24.0,
-    "screenEdge": true
+    "screenEdge": true,
+    "side": 4.0
+  },
+  "separation": {
+    "comment": "敵どうしの押し合い（計画書 p8 の G3）。半径は当たりの半径（0.8 × 大きさ）× radiusScale。見た目は当たりの約2倍あるので広げて、塊を隙間のある面にする。1回の更新で重なりの strength 倍を押し戻し、動かすのは広げた半径の maxPush 倍まで（0 は上限なし）。",
+    "maxPush": 0.5,
+    "radiusScale": 1.8,
+    "strength": 0.4
   },
   "shapes": {
     "comment": "生存数の目標（時間, 数）を直線でつなぐ。最後の点より後は overtimePerMinute ずつ増える。",

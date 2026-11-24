@@ -1239,7 +1239,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                    return tiers.str();
                }() << "],\"mortarBlasts\":" << mortarBlasts_ << ",\"droneShots\":" << droneShots_ << ",\"flameDamage\":" << flameDamage_
             << ",\"pulses\":" << pulses_ << ",\"orbitDamage\":" << orbitDamage_
-            << ",\"orbitBulletsCleared\":" << orbitBulletsCleared_ << ",\"turretShots\":" << turretShots_ << ",\"mineBlasts\":" << mineBlasts_ << ",\"timelineEvents\":" << timelineEvents_ << ",\"midBossKills\":" << midBossKills_ << ",\"burstShots\":" << burstShots_ << ",\"burstVolleys\":" << burstVolleys_
+            << ",\"orbitBulletsCleared\":" << orbitBulletsCleared_ << ",\"turretShots\":" << turretShots_ << ",\"mineBlasts\":" << mineBlasts_ << ",\"timelineEvents\":" << timelineEvents_ << ",\"spawnSectors\":[" << spawnSectors_[0] << "," << spawnSectors_[1] << "," << spawnSectors_[2] << "," << spawnSectors_[3]
+            << "],\"separationDeepPairsAvg\":" << (separationCalls_ > 0 ? static_cast<double>(separationDeepPairs_) / static_cast<double>(separationCalls_) : 0.0)
+            << ",\"separationDeepPairsMax\":" << separationDeepPairsMax_ << ",\"midBossKills\":" << midBossKills_ << ",\"burstShots\":" << burstShots_ << ",\"burstVolleys\":" << burstVolleys_
             << ",\"sprintSpeed\":" << autoMoveDistance_[1] / (std::max)(0.001f, autoMoveSeconds_[1]) << ",\"ultimateCharge\":" << ultimateCharge_
             << ",\"ultimateFullAt\":" << ultimateFullAt_ << ",\"ultimateFills\":" << ultimateFills_ << ",\"rocketBlasts\":" << rocketBlasts_
             << ",\"rocketKills\":" << rocketKills_ << ",\"healed\":" << healedByZone_ << ",\"healInsideSeconds\":" << healZoneInsideSeconds_
