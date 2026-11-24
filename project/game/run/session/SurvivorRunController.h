@@ -287,6 +287,9 @@ private:
     std::array<int, 4> spawnSectors_{}; // 前・横・後ろ・向きなし（止まっている・割合0）
     /// @brief 自機の位置から、ならした速さを更新する。dt は区画の時間。
     void UpdateMoveDirection(float dt);
+    /// @brief ネオン管の見た目（計画書 p9 の H1）を、設定と今の敵の数から見た目の状態へ書く。dt はならす時間。
+    void ApplyNeonLook(float dt);
+    float neonCrowd_ = 0.0f;
     // 最小の案内（U3）。それぞれ初めて出てきたときに1回だけ、画面の下に短く出す。
     enum class Hint {
         Move,      // 始め：移動・射撃・ダッシュ

@@ -71,13 +71,17 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     };
     // 遠征の熱が高まるほど、格子を赤いネオンへ寄せる。
     const float heat = world_.presentation.heatTint_;
-    auto gridColor = [&](myEngine::Vector4 authored, float width) {
+    auto gridColor = [&](myEngine::Vector4 authored, float width, float brightness = 1.0f) {
         // 遠景や傾いた視点でサブピクセルの線を太くするときも、発光エネルギーを保つ。
         if (width > 0.0f) {
             authored.w *= width / gridWidth(width);
         }
+        // ランの見た目（計画書 p9 の H1）で格子を暗くする。
+        authored.w *= brightness;
         return HeatShift(authored, heat, 0.8f);
     };
+    const float worldGridBrightness = world_.presentation.runNeonLook_.worldGrid;
+    const float localGridBrightness = world_.presentation.runNeonLook_.localGrid;
     if (world_.presentation.showNeonGrid_) {
         const float minX = 0.0f;
         const float minY = 0.0f;
@@ -85,7 +89,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         const float maxY = MapChip::kBlockHeight * static_cast<float>(MapChip::kNumBlockVirtical - 1);
         world_.resources.neonGridRenderer_->QueueWorldGrid(
             minX, maxX, minY, maxY, world_.presentation.worldGridSpacing_, gridWidth(world_.presentation.worldGridLineWidth_),
-            gridColor(world_.presentation.worldGridColor_, world_.presentation.worldGridLineWidth_), gridZ);
+            gridColor(world_.presentation.worldGridColor_, world_.presentation.worldGridLineWidth_, worldGridBrightness), gridZ);
     }
     if (world_.presentation.showActorLocalGrid_) {
         const float fieldMinX = 0.0f;
@@ -96,7 +100,8 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
             world_.resources.neonGridRenderer_->QueueLocalGridClipped(
                 world_.resources.player_->GetWorldPosition(), world_.presentation.actorGridRadius_, world_.presentation.actorGridSpacing_,
                 gridWidth(world_.presentation.actorGridLineWidth_),
-                gridColor(world_.presentation.playerGridColor_, world_.presentation.actorGridLineWidth_), fieldMinX, fieldMaxX, fieldMinY,
+                gridColor(world_.presentation.playerGridColor_, world_.presentation.actorGridLineWidth_, localGridBrightness), fieldMinX,
+                fieldMaxX, fieldMinY,
                 fieldMaxY, localGridZ);
         }
         if ((world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead())) {
@@ -121,7 +126,8 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
                 world_.resources.neonGridRenderer_->QueueLocalGridClipped(
                     expEnemy->GetWorldPosition(), world_.presentation.actorGridRadius_ * 0.45f, world_.presentation.actorGridSpacing_,
                     gridWidth(world_.presentation.actorGridLineWidth_ * 0.8f),
-                    gridColor(world_.presentation.expEnemyGridColor_, world_.presentation.actorGridLineWidth_ * 0.8f), fieldMinX, fieldMaxX,
+                    gridColor(world_.presentation.expEnemyGridColor_, world_.presentation.actorGridLineWidth_ * 0.8f, localGridBrightness),
+                    fieldMinX, fieldMaxX,
                     fieldMinY, fieldMaxY, localGridZ);
                 ++expEnemyLocalGridCount;
             }
@@ -259,6 +265,10 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                                                  : (damage ? world_.presentation.stageDamageBlockNeonColor_
                                                            : world_.presentation.stageBlockNeonColor_),
                                    world_.presentation.heatTint_, 0.7f);
+            // ランの見た目（計画書 p9 の H1）で壁の線を暗くする。
+            color.x *= world_.presentation.runNeonLook_.walls;
+            color.y *= world_.presentation.runNeonLook_.walls;
+            color.z *= world_.presentation.runNeonLook_.walls;
             float pulse = 1.0f;
             if (damage) {
                 pulse = world_.presentation.stageDamageBlockPulseMin_ +
@@ -381,6 +391,9 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 return myEngine::TransformMatrix(local, transform);
             };
             myEngine::Vector4 blockNeonColor = HeatShift(world_.presentation.stageBlockNeonColor_, world_.presentation.heatTint_, 0.7f);
+            blockNeonColor.x *= world_.presentation.runNeonLook_.walls;
+            blockNeonColor.y *= world_.presentation.runNeonLook_.walls;
+            blockNeonColor.z *= world_.presentation.runNeonLook_.walls;
             if (isDamageBlock) {
                 const float wave = 0.5f + 0.5f * std::sin(world_.presentation.stageDamageBlockPulseTime_ *
                                                           world_.presentation.stageDamageBlockPulseSpeed_);

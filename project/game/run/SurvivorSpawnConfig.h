@@ -1231,6 +1231,32 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(glow, "collectFlashRadius", out.collectFlashRadius);
         out.trailBloomScatter = (std::clamp)(out.trailBloomScatter, 0.0f, 0.9f);
         out.trailBloomRadius = (std::clamp)(out.trailBloomRadius, 0.25f, 2.0f);
+        if (glow.contains("neon") && glow.at("neon").is_object()) {
+            const auto& neon = glow.at("neon");
+            auto& look = out.neon;
+            if (neon.contains("enabled") && neon.at("enabled").is_boolean()) {
+                look.enabled = neon.at("enabled").get<bool>();
+            }
+            if (neon.contains("darkFill") && neon.at("darkFill").is_boolean()) {
+                look.darkFill = neon.at("darkFill").get<bool>();
+            }
+            number(neon, "enemyCoreWhite", look.enemyCoreWhite);
+            number(neon, "enemyCoreIntensity", look.enemyCoreIntensity);
+            number(neon, "enemyHaloIntensity", look.enemyHaloIntensity);
+            number(neon, "enemyHaloWidth", look.enemyHaloWidth);
+            number(neon, "enemyColor", look.enemyColor);
+            number(neon, "fillScale", look.fillScale);
+            number(neon, "worldGrid", look.worldGrid);
+            number(neon, "localGrid", look.localGrid);
+            number(neon, "walls", look.walls);
+            number(neon, "floorLight", look.floorLight);
+            number(neon, "bloom", look.bloom);
+            number(neon, "crowdBloom", look.crowdBloom);
+            number(neon, "crowdCount", look.crowdCount);
+            look.enemyCoreWhite = (std::clamp)(look.enemyCoreWhite, 0.0f, 1.0f);
+            look.fillScale = (std::clamp)(look.fillScale, 0.2f, 1.2f);
+            look.crowdCount = (std::max)(1.0f, look.crowdCount);
+        }
     }
     if (data.contains("elites") && data.at("elites").is_object()) {
         const auto& elites = data.at("elites");
@@ -1831,6 +1857,25 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     glow["lootTrailWidth"] = round(config.glow.lootTrailWidth);
     glow["collectFlashSeconds"] = round(config.glow.collectFlashSeconds);
     glow["collectFlashRadius"] = round(config.glow.collectFlashRadius);
+    if (config.glow.neon.enabled) {
+        const auto& look = config.glow.neon;
+        auto& neon = glow["neon"];
+        neon["enabled"] = true;
+        neon["enemyCoreWhite"] = round(look.enemyCoreWhite);
+        neon["enemyCoreIntensity"] = round(look.enemyCoreIntensity);
+        neon["enemyHaloIntensity"] = round(look.enemyHaloIntensity);
+        neon["enemyHaloWidth"] = round(look.enemyHaloWidth);
+        neon["enemyColor"] = round(look.enemyColor);
+        neon["darkFill"] = look.darkFill;
+        neon["fillScale"] = round(look.fillScale);
+        neon["worldGrid"] = round(look.worldGrid);
+        neon["localGrid"] = round(look.localGrid);
+        neon["walls"] = round(look.walls);
+        neon["floorLight"] = round(look.floorLight);
+        neon["bloom"] = round(look.bloom);
+        neon["crowdBloom"] = round(look.crowdBloom);
+        neon["crowdCount"] = round(look.crowdCount);
+    }
     auto& elites = section("elites");
     elites["fromStage"] = config.elites.fromStage;
     elites["erraticRatio"] = round(config.elites.erraticRatio);

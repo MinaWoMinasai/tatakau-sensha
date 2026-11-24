@@ -297,6 +297,24 @@ struct NeonPresentationState {
 
     int expEnemyNeonRenderMode_ = 0;
 
+    /// @brief ランごとのネオン管の見た目（計画書 p9 の H1。無限の場が毎フレーム決める）。既定値なら今まで通り。
+    /// 経験値の敵の輪郭：芯の白さが負ならアクターと同じ輪郭。色の明るさ（倍）。暗い塗りを描くかと、塗る大きさ。
+    /// 背景の格子・アクターのまわりの格子・壁の線・床の明かりの明るさ（倍）。画面全体のブルーム（倍）。
+    struct RunNeonLook {
+        float enemyCoreWhite = -1.0f;
+        float enemyCoreIntensity = 2.8f;
+        float enemyHaloIntensity = 0.5f;
+        float enemyHaloWidth = 2.1f;
+        float enemyColor = 1.0f;
+        bool enemyDarkFill = false;
+        float enemyFillScale = 0.96f;
+        float worldGrid = 1.0f;
+        float localGrid = 1.0f;
+        float walls = 1.0f;
+        float floorLight = 1.0f;
+        float bloom = 1.0f;
+    } runNeonLook_;
+
     float expEnemyNeonSquareSize_ = 1.8f;
 
     float expEnemyNeonTriangleRadius_ = 1.05f;

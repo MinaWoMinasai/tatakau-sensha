@@ -662,6 +662,30 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
     ImGui::Text("敵の HP ×%.2f    敵の速さ ×%.2f（これから湧く敵）", snapshot.enemyHpScale, snapshot.enemySpeedScale);
     ImGui::Text("Lv %d    このランのレベルアップ %d 回（選ぶのを待っている %d）", snapshot.level, snapshot.levelUps, snapshot.pendingLevelUps);
 
+    // ネオン管の見た目（計画書 p9 の H1）
+    if (ImGui::TreeNodeEx("光り方（ネオン管）", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto& look = config.glow.neon;
+        changed |= ImGui::Checkbox("ネオン管の見た目を使う（切ると前の光り方）", &look.enabled);
+        ImGui::TextDisabled("敵の輪郭");
+        changed |= ImGui::SliderFloat("芯の白さ（0 で色の付いた芯）", &look.enemyCoreWhite, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("芯の明るさ", &look.enemyCoreIntensity, 0.0f, 6.0f, "%.2f");
+        changed |= ImGui::SliderFloat("にじみの明るさ", &look.enemyHaloIntensity, 0.0f, 3.0f, "%.2f");
+        changed |= ImGui::SliderFloat("にじみの幅", &look.enemyHaloWidth, 1.0f, 6.0f, "%.2f");
+        changed |= ImGui::SliderFloat("敵の色の明るさ", &look.enemyColor, 0.2f, 2.0f, "×%.2f");
+        changed |= ImGui::Checkbox("敵の中を暗く塗る（重なっても白く飛ばない）", &look.darkFill);
+        changed |= ImGui::SliderFloat("塗る大きさ（輪郭に対して）", &look.fillScale, 0.5f, 1.1f, "×%.2f");
+        ImGui::TextDisabled("背景（暗いほど光が際立つ）");
+        changed |= ImGui::SliderFloat("床の格子", &look.worldGrid, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機と敵のまわりの格子", &look.localGrid, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("壁の線", &look.walls, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("床の明かり", &look.floorLight, 0.0f, 1.5f, "×%.2f");
+        ImGui::TextDisabled("ブルーム");
+        changed |= ImGui::SliderFloat("強さ", &look.bloom, 0.0f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("敵が多いときの強さ", &look.crowdBloom, 0.2f, 1.5f, "×%.2f");
+        changed |= ImGui::DragFloat("「多い」とする敵の数", &look.crowdCount, 1.0f, 1.0f, 400.0f, "%.0f体");
+        ImGui::TreePop();
+    }
+
     // 敵の押し合い（計画書 p8 の G3）：塊を、隙間のある面にする。
     ImGui::SeparatorText("敵の押し合い（塊を面にする）");
     changed |= ImGui::SliderFloat("押し合う半径（当たりの半径の倍）", &config.separation.radiusScale, 0.5f, 3.0f, "×%.2f");

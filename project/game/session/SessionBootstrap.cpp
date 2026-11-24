@@ -473,6 +473,8 @@ myEngine::InitializationTask SessionBootstrap::Build()
             world_.classConfigWatcher->InitializePlayerClassConfigWatch();
         }
     }
+    // ランごとのネオン管の見た目（計画書 p9 の H1）は、無限の場が毎フレーム決める。ほかのランでは既定値（今まで通り）。
+    world_.presentation.runNeonLook_ = {};
     if (world_.run.IsSurvivorRun()) {
         world_.survivorRunController->Initialize();
     } else if (world_.run.UsesPrototypeRules()) {

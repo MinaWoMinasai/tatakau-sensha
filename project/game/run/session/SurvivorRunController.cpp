@@ -599,6 +599,7 @@ void SurvivorRunController::Update(float dt)
         if (gameDt > 0.0f) {
             UpdateMoveDirection(gameDt);
         }
+        ApplyNeonLook(dt);
         if (gameDt > 0.0f && separationEnabled_) {
             const auto separationStart = std::chrono::steady_clock::now();
             SeparateEnemies();
@@ -714,6 +715,31 @@ void SurvivorRunController::Update(float dt)
     } else if (autoTest_ == AutoTest::Perf) {
         UpdatePerfAutoTest(dt);
     }
+}
+
+void SurvivorRunController::ApplyNeonLook(float dt)
+{
+    auto& out = world_.presentation.runNeonLook_;
+    const auto& look = config_.glow.neon;
+    if (!look.enabled) {
+        out = {};
+        return;
+    }
+    out.enemyCoreWhite = look.enemyCoreWhite;
+    out.enemyCoreIntensity = look.enemyCoreIntensity;
+    out.enemyHaloIntensity = look.enemyHaloIntensity;
+    out.enemyHaloWidth = look.enemyHaloWidth;
+    out.enemyColor = look.enemyColor;
+    out.enemyDarkFill = look.darkFill;
+    out.enemyFillScale = look.fillScale;
+    out.worldGrid = look.worldGrid;
+    out.localGrid = look.localGrid;
+    out.walls = look.walls;
+    out.floorLight = look.floorLight;
+    // 自動の露出合わせ：敵が多いほどブルームを弱める（0.5秒ほどでならす）。
+    const float crowd = (std::clamp)(static_cast<float>(CountAlive().total) / (std::max)(1.0f, look.crowdCount), 0.0f, 1.0f);
+    neonCrowd_ += (crowd - neonCrowd_) * (1.0f - std::exp(-(std::max)(0.0f, dt) * 2.0f));
+    out.bloom = (std::max)(0.0f, look.bloom * (1.0f + (look.crowdBloom - 1.0f) * neonCrowd_));
 }
 
 void SurvivorRunController::ApplyDamageNumberConfig()

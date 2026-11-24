@@ -152,7 +152,7 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
     };
 
     auto queueBillboardPolygon = [&](const myEngine::Vector3& center, int sides, float radius, float rotation, float lineWidth,
-                                     const myEngine::Vector4& color, bool luminous = true) {
+                                     const myEngine::Vector4& color, bool luminous = true, const myEngine::NeonContourStyle* style = nullptr) {
         constexpr float kTwoPi = 6.28318530718f;
         if (sides < 3 || sides > 48) {
             return;
@@ -164,7 +164,7 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
         }
         if (luminous) {
             world_.resources.neonGridRenderer_->QueueContourPolygon(points, static_cast<uint32_t>(sides), lineWidth, color, cameraForward,
-                                                                    myEngine::ActorNeonContourStyle());
+                                                                    style ? *style : myEngine::ActorNeonContourStyle());
         } else {
             for (int i = 0; i < sides; ++i) {
                 world_.resources.neonGridRenderer_->QueueCameraFacingLine(points[i], points[(i + 1) % sides], lineWidth, color,
@@ -253,7 +253,19 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
         const myEngine::Vector3 center =
             expEnemy->GetWorldPosition() +
             (world_.presentation.expEnemyNeonRenderMode_ >= 2 ? myEngine::Vector3{} : myEngine::Vector3{0.0f, 0.0f, 0.35f});
-        const myEngine::Vector4 color = expEnemy->GetVisualColor();
+        // ランごとのネオン管の見た目（計画書 p9 の H1）：色の明るさと、輪郭の芯・にじみ。
+        const auto& look = world_.presentation.runNeonLook_;
+        myEngine::Vector4 color = expEnemy->GetVisualColor();
+        color.x *= look.enemyColor;
+        color.y *= look.enemyColor;
+        color.z *= look.enemyColor;
+        myEngine::NeonContourStyle enemyStyle = myEngine::ActorNeonContourStyle();
+        if (look.enemyCoreWhite >= 0.0f) {
+            enemyStyle.coreWhiteMix = look.enemyCoreWhite;
+            enemyStyle.coreIntensity = look.enemyCoreIntensity;
+            enemyStyle.haloIntensity = look.enemyHaloIntensity;
+            enemyStyle.haloWidthScale = look.enemyHaloWidth;
+        }
         // 育つ戦車の試作のワープする敵は、線をディゾルブで消して（現して）いく。
         if (expEnemy->GetWarpDissolve() > 0.0f) {
             myEngine::NeonGridRenderer::LineDissolve dissolve{};
@@ -282,10 +294,10 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
         } else if (expEnemy->GetType() == ExpEnemyType::Triangle) {
             world_.resources.neonGridRenderer_->QueueBillboardContourTriangle(
                 center, world_.presentation.expEnemyNeonTriangleRadius_ * scalePulse, expEnemy->GetVisualRotation(),
-                world_.presentation.expEnemyNeonLineWidth_, color, cameraRight, cameraUp, cameraForward, myEngine::ActorNeonContourStyle());
+                world_.presentation.expEnemyNeonLineWidth_, color, cameraRight, cameraUp, cameraForward, enemyStyle);
         } else if (expEnemy->GetType() == ExpEnemyType::Pentagon) {
             queueBillboardPolygon(center, 5, world_.presentation.expEnemyNeonPentagonRadius_ * scalePulse, expEnemy->GetVisualRotation(),
-                                  world_.presentation.expEnemyNeonLineWidth_, color);
+                                  world_.presentation.expEnemyNeonLineWidth_, color, true, &enemyStyle);
         } else if (expEnemy->GetType() == ExpEnemyType::Shooter) {
             queueBillboardShooter(center, world_.presentation.expEnemyNeonShooterRadius_ * scalePulse, expEnemy->GetVisualRotation(),
                                   world_.presentation.expEnemyNeonLineWidth_, color, expEnemy->GetShooterWarningRatio(),
@@ -295,7 +307,7 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
                 center,
                 {world_.presentation.expEnemyNeonSquareSize_ * scalePulse, world_.presentation.expEnemyNeonSquareSize_ * scalePulse},
                 expEnemy->GetVisualRotation(), world_.presentation.expEnemyNeonLineWidth_, color, cameraRight, cameraUp, cameraForward,
-                myEngine::ActorNeonContourStyle());
+                enemyStyle);
         }
         if (expEnemy->GetWarpDissolve() > 0.0f) {
             world_.resources.neonGridRenderer_->EndLineDissolve();

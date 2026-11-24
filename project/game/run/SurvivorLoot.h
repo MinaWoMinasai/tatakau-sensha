@@ -92,6 +92,27 @@ struct GlowConfig {
     /// @brief 拾ったときに広がる光の輪（秒と、最後の半径）。
     float collectFlashSeconds = 0.25f;
     float collectFlashRadius = 1.3f;
+    /// @brief ネオン管の見た目（計画書 p9 の H1。無限の場）：暗い所を作って、色の付いた芯とにじみで光らせ、白く飛ばさない。
+    /// enabled のときだけ効く。敵の輪郭は 芯の白さ・芯の明るさ・にじみの明るさ・にじみの幅、色の明るさ（倍）。
+    /// 敵の中を暗く塗る（darkFill、塗る大きさ fillScale）。背景の格子・自機と敵のまわりの格子・壁・床の明かりの明るさ（倍）。
+    /// ブルームの強さ（倍）と、敵が crowdCount 体いるときに crowdBloom 倍まで弱める自動の露出合わせ。
+    struct NeonLook {
+        bool enabled = false;
+        float enemyCoreWhite = 0.45f;
+        float enemyCoreIntensity = 2.8f;
+        float enemyHaloIntensity = 0.5f;
+        float enemyHaloWidth = 2.1f;
+        float enemyColor = 1.0f;
+        bool darkFill = false;
+        float fillScale = 0.9f;
+        float worldGrid = 1.0f;
+        float localGrid = 1.0f;
+        float walls = 1.0f;
+        float floorLight = 1.0f;
+        float bloom = 1.0f;
+        float crowdBloom = 1.0f;
+        float crowdCount = 100.0f;
+    } neon;
 };
 
 /// @brief 床に落ちる物1つの中身。id は弾の種類・素材・部品・武器の番号（kind による）。

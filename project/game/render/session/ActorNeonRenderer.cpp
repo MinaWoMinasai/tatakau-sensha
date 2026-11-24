@@ -652,7 +652,7 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
             const myEngine::Vector3 center = enemy->GetWorldPosition() + myEngine::Vector3{0, 0, 0.345f};
             for (int i = 0; i < sides; ++i) {
                 const float a = rotation + 6.28318530718f * i / sides;
-                points[i] = center + (cameraRight * std::cos(a) + cameraUp * std::sin(a)) * (size * scale * 0.96f);
+                points[i] = center + (cameraRight * std::cos(a) + cameraUp * std::sin(a)) * (size * scale * world_.presentation.runNeonLook_.enemyFillScale);
             }
             // 育つ戦車の試作のワープする敵は、塗りも線と同じディゾルブで消して（現して）いく。
             if (enemy->GetWarpDissolve() > 0.0f) {
