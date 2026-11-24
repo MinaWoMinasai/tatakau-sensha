@@ -282,7 +282,7 @@ void SurvivorRunController::Initialize()
     // 与えたダメージは、機体の Q のゲージにもなる（H5）。
     ExpEnemy::SetPlayerDamageCallback([this](const ExpEnemy& enemy, uint32_t amount) {
         damageNumbers_.Spawn(enemy.GetCollisionId(), enemy.GetWorldPosition(), amount,
-                             world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
+                             world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio, ExpEnemy::IsHitCritical());
         AddUltimateCharge(static_cast<float>(amount));
         damageDealt_ += amount;
         // パーク「吸い取る装甲」：与えたダメージの一部で回復する（端数は貯める。衝突処理の途中なので HP を足すだけ）。
@@ -723,8 +723,10 @@ void SurvivorRunController::ApplyNeonLook(float dt)
     const auto& look = config_.glow.neon;
     if (!look.enabled) {
         out = {};
+        out.smallEnemyHpBars = config_.damageNumbers.enemyHpBars;
         return;
     }
+    out.smallEnemyHpBars = config_.damageNumbers.enemyHpBars;
     out.enemyCoreWhite = look.enemyCoreWhite;
     out.enemyCoreIntensity = look.enemyCoreIntensity;
     out.enemyHaloIntensity = look.enemyHaloIntensity;
@@ -751,6 +753,7 @@ void SurvivorRunController::ApplyDamageNumberConfig()
     numbers.scale = config_.damageNumbers.scale;
     numbers.bigRatio = config_.damageNumbers.bigRatio;
     numbers.mergeSeconds = config_.damageNumbers.mergeSeconds;
+    numbers.critScale = config_.damageNumbers.critScale;
     damageNumbers_.SetConfig(numbers);
 }
 

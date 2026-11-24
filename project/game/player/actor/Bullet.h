@@ -179,6 +179,15 @@ public:
     {
         return burnDamagePerSecond_;
     }
+    /// @brief 会心の弾（計画書 p9 の H2）。見た目は変えず、当たった敵のダメージの数字を会心の見た目にする。
+    void SetCritical(bool critical)
+    {
+        critical_ = critical;
+    }
+    bool IsCritical() const
+    {
+        return critical_;
+    }
     float GetBurnSeconds() const
     {
         return burnSeconds_;
@@ -413,6 +422,7 @@ private:
     // 当たった敵を燃やす（ConfigureBurn。毎秒の威力が0なら無し）。
     float burnDamagePerSecond_ = 0.0f;
     float burnSeconds_ = 0.0f;
+    bool critical_ = false;
 
     // 反射するか
     bool isReflectable_ = false;

@@ -84,6 +84,15 @@ public:
     /// @brief 自機側の攻撃でHPが減ったときに、敵と量を受け取る共有コールバックを設定する（試作のダメージの数字）。資源には呼ばない。
     /// @note 衝突処理の途中から呼ばれるので、受け取る側は控えるだけにする。空の関数で解除する。
     static void SetPlayerDamageCallback(std::function<void(const ExpEnemy&, uint32_t)> callback);
+    /// @brief 会心の命中（計画書 p9 の H2）。当てる側が直前に立て、ダメージの通知の中で IsHitCritical で読める（通知のあとに下ろす）。
+    static void SetNextHitCritical(bool critical)
+    {
+        nextHitCritical_ = critical;
+    }
+    static bool IsHitCritical()
+    {
+        return nextHitCritical_;
+    }
     /// @brief 図形のネオン表示を切り替え、有効なら描画方式1、無効なら方式0にする。
     static void SetShapeNeonBillboardEnabled(bool enabled);
     /// @brief 図形のネオン描画方式を0〜3に制限して設定する。0以外では通常のモデル描画を省く。
@@ -591,6 +600,7 @@ private:
     static std::function<void(const myEngine::Vector3&)> playerDefeatCallback_;
     static std::function<void(const ExpEnemy&, uint32_t)> playerExpDropCallback_;
     static std::function<void(const ExpEnemy&, uint32_t)> playerDamageCallback_;
+    static inline bool nextHitCritical_ = false;
     static bool shapeNeonBillboardEnabled_;
     static int shapeNeonRenderMode_;
 

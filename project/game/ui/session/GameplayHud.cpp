@@ -196,8 +196,10 @@ void GameplayHud::DrawSprite()
             DrawFollowHpBar(world_.resources.enemy_.get(), world_.resources.enemy_->GetWorldPosition(), world_.resources.enemy_->GetHp(),
                             world_.resources.enemy_->GetMaxHp(), 92.0f, -3.25f);
         }
+        // 小さい敵の HP バーは消せる（計画書 p9 の H2）。中ボスや大きい敵（大きさ1.4倍より上）はいつも出す。
+        const bool smallBars = world_.presentation.runNeonLook_.smallEnemyHpBars;
         for (ExpEnemy* expEnemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
-            if (expEnemy && !expEnemy->IsDead()) {
+            if (expEnemy && !expEnemy->IsDead() && (smallBars || expEnemy->GetSizeScale() > 1.4f)) {
                 DrawFollowHpBar(expEnemy, expEnemy->GetWorldPosition(), expEnemy->GetHp(), expEnemy->GetMaxHp(), 36.0f, -1.05f);
             }
         }

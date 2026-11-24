@@ -313,6 +313,8 @@ struct NeonPresentationState {
         float walls = 1.0f;
         float floorLight = 1.0f;
         float bloom = 1.0f;
+        /// @brief 小さい敵の HP バーを出すか（計画書 p9 の H2。中ボス・大きい敵はいつも出す）。
+        bool smallEnemyHpBars = true;
     } runNeonLook_;
 
     float expEnemyNeonSquareSize_ = 1.8f;

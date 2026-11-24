@@ -559,7 +559,10 @@ uint32_t HeroAbilityCore::DealHeroDamage(Collider* target, bool rival, uint32_t 
     if (crit > 1.0f) {
         amount = static_cast<uint32_t>(std::round(static_cast<float>(amount) * crit));
     }
+    // 会心の数字（計画書 p9 の H2）。
+    ExpEnemy::SetNextHitCritical(crit > 1.0f);
     enemy->TakeDirectionalDamage(amount, from);
+    ExpEnemy::SetNextHitCritical(false);
     return amount;
 }
 

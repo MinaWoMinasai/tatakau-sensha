@@ -385,12 +385,14 @@
     "scale": 2.2
   },
   "damageNumbers": {
-    "comment": "敵に当てたときのダメージの数字（ネオン風）。同じ敵へ mergeSeconds 秒以内に続けて当てた分は1つにまとめて足す。同時に maxActive 個まで、lifeSeconds 秒で上へ動きながら消える。主砲1発の bigRatio 倍以上は金色で大きく出す。scale は文字の大きさの倍率。",
+    "comment": "敵に当てたときのダメージの数字（ネオン風）。同じ敵へ mergeSeconds 秒以内に続けて当てた分は1つにまとめて足す。同時に maxActive 個まで、lifeSeconds 秒で上へ動きながら消える。主砲1発の bigRatio 倍以上は橙で大きく出す。scale は文字の大きさの倍率。会心（計画書 p9 の H2）は金色の太い縁で critScale 倍にし、後ろに「!」を付ける（同じ敵の数字とまとめない）。enemyHpBars が false なら小さい敵の HP バーを出さない（中ボス・大きい敵はいつも出す）。",
     "bigRatio": 2.5,
     "enabled": true,
     "lifeSeconds": 0.7,
     "maxActive": 40,
-    "mergeSeconds": 0.15,
+    "critScale": 1.5,
+    "enemyHpBars": false,
+    "mergeSeconds": 0.0,
     "scale": 1.0
   },
   "timeline": [{"at":90.0,"count":12,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":4.0,"text":"左右から壁が迫る"},{"at":180.0,"count":20,"exp":0,"hp":0,"kind":"ring","radius":16.0,"rewards":0,"scale":1.0,"shape":"Triangle","side":"leftRight","speed":4.2,"text":"包囲"},{"at":240.0,"count":0,"countScale":1.3,"duration":25.0,"exp":0,"hp":0,"intervalScale":0.5,"kind":"surge","maxAliveAdd":20,"radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":3.0,"text":"大群が来る"},{"at":300.0,"count":0,"exp":300,"hp":1500,"kind":"midBoss","radius":16.0,"rewards":2,"scale":3.2,"shape":"Pentagon","side":"leftRight","speed":2.0,"text":"中ボス出現"},{"at":390.0,"count":16,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"topBottom","speed":4.0,"text":"上下から壁が迫る"},{"at":450.0,"count":0,"countScale":1.3,"duration":30.0,"exp":0,"hp":0,"intervalScale":0.5,"kind":"surge","maxAliveAdd":20,"radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":3.0,"text":"大群が来る"},{"at":480.0,"count":28,"exp":0,"hp":0,"kind":"ring","radius":16.0,"rewards":0,"scale":1.0,"shape":"Triangle","side":"leftRight","speed":4.2,"text":"包囲"},{"at":540.0,"count":18,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":4.0,"text":"左右から壁が迫る"}]

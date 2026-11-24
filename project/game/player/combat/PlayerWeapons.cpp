@@ -557,14 +557,15 @@ void PlayerWeapons::FireSurvivorShot(BulletManager* bullets, const Player::Survi
     if (shot.bulletHp > 0.0f) {
         param.bulletHp = (std::max)(param.bulletHp, shot.bulletHp);
     }
-    // 共通パーク（計画書 p8 の F4）：会心で威力2倍（弾は金色で少し大きく）、大きな弾頭で弾と当たった所の爆発が大きくなる。
+    // 共通パーク（計画書 p8 の F4）：会心で威力2倍、大きな弾頭で弾と当たった所の爆発が大きくなる。
+    // 会心の弾の見た目は変えない（計画書 p9 の H2）。会心は当たったときの数字で見せる。
     const auto& perks = player_.survivorPerkEffects_;
     const float crit = player_.RollSurvivorCrit();
     if (crit > 1.0f) {
         param.damage = static_cast<uint32_t>(std::round(static_cast<float>(param.damage) * crit));
     }
-    const float size = (std::min)(2.4f, shot.size * perks.areaScale * (crit > 1.0f ? 1.2f : 1.0f));
-    const myEngine::Vector4 color = crit > 1.0f ? myEngine::Vector4{2.2f, 1.8f, 0.6f, 1.0f} : shot.color;
+    const float size = (std::min)(2.4f, shot.size * perks.areaScale);
+    const myEngine::Vector4 color = shot.color;
     const myEngine::Vector3 muzzle = shot.useOrigin ? shot.origin + aim * 0.4f : player_.GetWorldPosition() + aim * 1.2f;
     auto bullet = std::make_unique<Bullet>();
     bullet->Initialize(muzzle, aim * param.bulletSpeed, param.damage, kPlayer, false, param.bulletHp, param.bulletPenetration);
@@ -577,6 +578,7 @@ void PlayerWeapons::FireSurvivorShot(BulletManager* bullets, const Player::Survi
         bullet->ConfigureBurn(player_.stats_.bulletDamage * (config ? config->bulletDamageScale : 1.0f) * shot.burnScale, shot.burnSeconds);
     }
     bullet->SetColorOverride(color);
+    bullet->SetCritical(crit > 1.0f);
     bullets->Add(std::move(bullet));
 }
 

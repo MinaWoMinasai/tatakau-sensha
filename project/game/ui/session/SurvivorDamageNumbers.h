@@ -24,8 +24,10 @@ public:
         float scale = 1.0f;
         /// @brief 主砲1発の威力のこの倍以上なら、大きな数字（金色）にする。
         float bigRatio = 2.5f;
-        /// @brief 同じ敵への命中を1つにまとめる秒数。
+        /// @brief 同じ敵への命中を1つにまとめる秒数（0 でまとめない）。
         float mergeSeconds = 0.15f;
+        /// @brief 会心の数字の大きさ（ふつうに対する倍。計画書 p9 の H2）。
+        float critScale = 1.5f;
     };
 
     /// @brief 0〜9 の数字の画像と、数字を並べる板を作る。
@@ -37,7 +39,8 @@ public:
     /// @brief 数字を出す（衝突処理の途中から呼ばれてよい。ここでは控えるだけ）。
     /// @param id 当てた相手の衝突ID。同じ相手への続けての命中をまとめるのに使う。
     /// @param bigThreshold この量以上なら大きな数字にする。
-    void Spawn(uint64_t id, const myEngine::Vector3& world, uint32_t amount, float bigThreshold);
+    /// @param critical 会心（金色で大きく、後ろに「!」を付ける）。
+    void Spawn(uint64_t id, const myEngine::Vector3& world, uint32_t amount, float bigThreshold, bool critical = false);
     /// @brief 数字を進め、画面の位置と見た目を板へ反映する。更新の段階で呼ぶ（描画中には板を書き換えない）。
     void Update(float dt, const std::function<myEngine::Vector2(const myEngine::Vector3&)>& worldToScreen);
     void Draw();
@@ -55,14 +58,29 @@ private:
         uint32_t amount = 0;
         float age = 0.0f;
         bool big = false;
+        bool critical = false;
     };
     static constexpr size_t kSpriteCount = 240;
 
     Config config_{};
-    // 数字の画像は2組：[0] ふつう（水色の縁）、[1] 大きな数字（金色の縁）。中は白で、ネオン管のように見せる。
-    std::array<std::array<std::unique_ptr<myEngine::TextLabel>, 10>, 2> digitLabels_;
-    std::array<std::array<std::string, 10>, 2> digitPaths_{};
-    std::array<std::array<myEngine::Vector2, 10>, 2> digitSizes_{};
+    // 数字の画像は3組：[0] ふつう（水色の縁）、[1] 大きな数字（橙の縁）、[2] 会心（金色の太い縁。計画書 p9 の H2）。
+    // 中は白で、ネオン管のように見せる。会心には「!」を付ける。
+    std::array<std::array<std::unique_ptr<myEngine::TextLabel>, 10>, 3> digitLabels_;
+    std::array<std::array<std::string, 10>, 3> digitPaths_{};
+    std::array<std::array<myEngine::Vector2, 10>, 3> digitSizes_{};
+    std::unique_ptr<myEngine::TextLabel> bangLabel_;
+    std::string bangPath_;
+    myEngine::Vector2 bangSize_{};
+    uint32_t criticals_ = 0;
+
+public:
+    /// @brief これまでに出した会心の数字の数（自動確認用）。
+    uint32_t GetCriticalCount() const
+    {
+        return criticals_;
+    }
+
+private:
     std::vector<Entry> entries_;
     std::vector<std::unique_ptr<myEngine::Sprite>> sprites_;
     size_t usedSprites_ = 0;

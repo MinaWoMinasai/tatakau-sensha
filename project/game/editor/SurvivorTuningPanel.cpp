@@ -686,6 +686,18 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
         ImGui::TreePop();
     }
 
+    // 数字と HP バー（計画書 p9 の H2）
+    if (ImGui::TreeNodeEx("数字と HP バー", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto& numbers = config.damageNumbers;
+        changed |= ImGui::Checkbox("小さい敵の HP バーを出す（中ボス・大きい敵はいつも出す）", &numbers.enemyHpBars);
+        changed |= ImGui::Checkbox("ダメージの数字を出す", &numbers.enabled);
+        changed |= ImGui::SliderFloat("数字の大きさ", &numbers.scale, 0.3f, 2.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("会心の数字の大きさ（金色・「!」付き）", &numbers.critScale, 0.5f, 4.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("同じ敵への命中をまとめる秒（0 でまとめない）", &numbers.mergeSeconds, 0.0f, 0.5f, "%.2f");
+        changed |= ImGui::SliderFloat("数字が出ている秒", &numbers.lifeSeconds, 0.2f, 2.0f, "%.2f");
+        ImGui::TreePop();
+    }
+
     // 敵の押し合い（計画書 p8 の G3）：塊を、隙間のある面にする。
     ImGui::SeparatorText("敵の押し合い（塊を面にする）");
     changed |= ImGui::SliderFloat("押し合う半径（当たりの半径の倍）", &config.separation.radiusScale, 0.5f, 3.0f, "×%.2f");

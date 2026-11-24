@@ -236,6 +236,9 @@ struct SpawnConfig {
         float scale = 1.0f;
         float bigRatio = 2.5f;
         float mergeSeconds = 0.15f;
+        /// @brief 会心の数字の大きさ（ふつうの数字に対する倍。計画書 p9 の H2）と、小さい敵の HP バーを出すか（中ボス・大きい敵はいつも出す）。
+        float critScale = 1.5f;
+        bool enemyHpBars = true;
     } damageNumbers;
 
     /// @brief 排熱砲（Q）。熱が minHeat 未満なら使えない。威力の倍率は 熱 × damagePerHeat × 効果の強さ（Lv）。使うと cooldown 秒待つ。
@@ -723,7 +726,12 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(numbers, "scale", config.damageNumbers.scale);
         number(numbers, "bigRatio", config.damageNumbers.bigRatio);
         number(numbers, "mergeSeconds", config.damageNumbers.mergeSeconds);
+        number(numbers, "critScale", config.damageNumbers.critScale);
+        if (numbers.contains("enemyHpBars") && numbers.at("enemyHpBars").is_boolean()) {
+            config.damageNumbers.enemyHpBars = numbers.at("enemyHpBars").get<bool>();
+        }
         config.damageNumbers.maxActive = (std::clamp)(config.damageNumbers.maxActive, 1, 80);
+        config.damageNumbers.critScale = (std::clamp)(config.damageNumbers.critScale, 0.5f, 4.0f);
     }
     if (data.contains("fusions")) {
         const auto& fusions = data.at("fusions");
@@ -1526,6 +1534,8 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     numbers["scale"] = round(config.damageNumbers.scale);
     numbers["bigRatio"] = round(config.damageNumbers.bigRatio);
     numbers["mergeSeconds"] = round(config.damageNumbers.mergeSeconds);
+    numbers["critScale"] = round(config.damageNumbers.critScale);
+    numbers["enemyHpBars"] = config.damageNumbers.enemyHpBars;
     auto& fusions = section("fusions");
     fusions["thunderExtraTargets"] = config.fusions.thunderExtraTargets;
     fusions["thunderRadiusScale"] = round(config.fusions.thunderRadiusScale);
