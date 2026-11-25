@@ -109,6 +109,14 @@ struct GlowConfig {
         float enemyLine = 1.0f;
         float nebula = 1.0f;
         float colorShift = 1.0f;
+        /// @brief 画面全体の残像（前のコマの光が残る量）と走査線（倍）。動く敵の線が二重になるので、無限の場では切る（計画書 p10 の13章）。
+        float persistence = 1.0f;
+        float scanline = 1.0f;
+        /// @brief 前のコマと混ぜてなじませる処理（TAA）を使うか。動く敵の線が少しずれて重なるので、無限の場では切る。
+        bool temporal = true;
+        /// @brief 敵の線のまわりの近いにじみ：強さ（0 で無し）と、線の真ん中からの広さ（ワールド単位）。線の太さとは別に決める。
+        float nearGlow = 0.0f;
+        float nearGlowRadius = 0.5f;
         float worldGrid = 1.0f;
         float localGrid = 1.0f;
         float walls = 1.0f;

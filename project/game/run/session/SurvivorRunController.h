@@ -437,6 +437,9 @@ private:
     bool autoLevelUpBurstCaptured_ = false;
     int autoLookDemoState_ = 0;
     float autoLookDemoAt_ = 0.0f;
+    float autoLookDemoHitAt_ = 0.0f;
+    /// @brief 見た目を測る写真を順に撮る。撮っている間は true（ボットは動かさない）。
+    bool UpdateLookDemo();
     bool autoLevelUpCloseCaptured_ = false;
     bool LevelUpEffectOn() const
     {

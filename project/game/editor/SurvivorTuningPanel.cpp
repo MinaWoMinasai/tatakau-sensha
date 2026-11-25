@@ -674,8 +674,14 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
         changed |= ImGui::SliderFloat("敵の色の明るさ", &look.enemyColor, 0.2f, 2.0f, "×%.2f");
         changed |= ImGui::Checkbox("敵の中を黒い平面にする（陰影と反射なし）", &look.flatBody);
         changed |= ImGui::SliderFloat("敵の線の太さ", &look.enemyLine, 0.2f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("近いにじみの強さ（0 で無し）", &look.nearGlow, 0.0f, 2.0f, "%.2f");
+        changed |= ImGui::SliderFloat("近いにじみの広さ", &look.nearGlowRadius, 0.1f, 1.5f, "%.2f");
         ImGui::TextDisabled("背景（暗いほど光が際立つ）");
         changed |= ImGui::SliderFloat("雲", &look.nebula, 0.0f, 1.5f, "×%.2f");
+        ImGui::TextDisabled("画面のブラウン管の効果（無限の場だけ）");
+        changed |= ImGui::SliderFloat("残像（0 で無し）", &look.persistence, 0.0f, 1.3f, "×%.2f");
+        changed |= ImGui::SliderFloat("走査線", &look.scanline, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::Checkbox("前のコマと混ぜてなじませる（TAA。動く線が少し重なる）", &look.temporal);
         changed |= ImGui::SliderFloat("画面の端の色ずれ", &look.colorShift, 0.0f, 1.5f, "×%.2f");
         changed |= ImGui::SliderFloat("床の格子", &look.worldGrid, 0.0f, 1.5f, "×%.2f");
         changed |= ImGui::SliderFloat("自機と敵のまわりの格子", &look.localGrid, 0.0f, 1.5f, "×%.2f");

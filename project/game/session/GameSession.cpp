@@ -75,6 +75,8 @@ void GameSession::ApplyArenaLookOverrides(IScene::ArenaLookSettings& look) const
     // ランごとのネオンの見た目（計画書 p10）：背景の雲と、画面の端の色ずれ。
     look.nebulaIntensity *= world.presentation.runNeonLook_.nebula;
     look.chromAbAmount *= world.presentation.runNeonLook_.colorShift;
+    look.phosphorDecay *= world.presentation.runNeonLook_.persistence;
+    look.scanlineIntensity *= world.presentation.runNeonLook_.scanline;
     if (!world.run.IsSurvivorRun() || !world.resources.player_ || world.resources.player_->IsDead() || !world.gameplayHud) {
         return;
     }

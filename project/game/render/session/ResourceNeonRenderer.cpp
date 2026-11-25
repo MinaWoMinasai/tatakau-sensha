@@ -267,6 +267,34 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
             enemyStyle.haloWidthScale = look.enemyHaloWidth;
         }
         const float enemyLineWidth = world_.presentation.expEnemyNeonLineWidth_ * look.enemyLine;
+        // 近いにじみ：線の太さとは別に、広さと強さを決めた光の帯を、線と同じ形で先に描く（線のにじみは太さに比例し、細い線では届かない）。
+        // 色は種類の色を濃くする（外ほど色が濃く見えるように。計画書 p10 の8章・13章）。
+        if (look.nearGlow > 0.0f && world_.presentation.expEnemyNeonRenderMode_ == 1 && expEnemy->GetType() != ExpEnemyType::Shooter) {
+            const float peak = (std::max)({color.x, color.y, color.z, 0.0001f});
+            const myEngine::Vector4 glowColor{peak * std::pow(color.x / peak, 1.7f), peak * std::pow(color.y / peak, 1.7f),
+                                              peak * std::pow(color.z / peak, 1.7f), color.w};
+            myEngine::NeonContourStyle glow = myEngine::ActorNeonContourStyle();
+            glow.coreWidthRatio = 0.08f;
+            glow.coreIntensity = look.nearGlow;
+            glow.coreWhiteMix = 0.0f;
+            glow.shoulderIntensity = look.nearGlow * 0.42f;
+            glow.haloWidthScale = 1.4f;
+            glow.haloIntensity = look.nearGlow * 0.3f;
+            glow.haloAlpha = 0.4f;
+            const float glowWidth = look.nearGlowRadius / 0.7f;
+            if (expEnemy->GetType() == ExpEnemyType::Triangle) {
+                world_.resources.neonGridRenderer_->QueueBillboardContourTriangle(
+                    center, world_.presentation.expEnemyNeonTriangleRadius_ * scalePulse, expEnemy->GetVisualRotation(), glowWidth, glowColor,
+                    cameraRight, cameraUp, cameraForward, glow);
+            } else if (expEnemy->GetType() == ExpEnemyType::Pentagon) {
+                queueBillboardPolygon(center, 5, world_.presentation.expEnemyNeonPentagonRadius_ * scalePulse, expEnemy->GetVisualRotation(), glowWidth,
+                                      glowColor, true, &glow);
+            } else {
+                world_.resources.neonGridRenderer_->QueueBillboardContourRectangle(
+                    center, {world_.presentation.expEnemyNeonSquareSize_ * scalePulse, world_.presentation.expEnemyNeonSquareSize_ * scalePulse},
+                    expEnemy->GetVisualRotation(), glowWidth, glowColor, cameraRight, cameraUp, cameraForward, glow);
+            }
+        }
         // 育つ戦車の試作のワープする敵は、線をディゾルブで消して（現して）いく。
         if (expEnemy->GetWarpDissolve() > 0.0f) {
             myEngine::NeonGridRenderer::LineDissolve dissolve{};

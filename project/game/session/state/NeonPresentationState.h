@@ -311,6 +311,12 @@ struct NeonPresentationState {
         float enemyLine = 1.0f;
         float nebula = 1.0f;
         float colorShift = 1.0f;
+        /// @brief 画面の残像と走査線（倍）、前のコマと混ぜるか（TAA）、敵の線の近いにじみの強さと広さ（計画書 p10 の13章）。
+        float persistence = 1.0f;
+        float scanline = 1.0f;
+        bool temporal = true;
+        float nearGlow = 0.0f;
+        float nearGlowRadius = 0.5f;
         float worldGrid = 1.0f;
         float localGrid = 1.0f;
         float walls = 1.0f;

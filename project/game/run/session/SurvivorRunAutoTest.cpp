@@ -49,6 +49,121 @@ void SurvivorRunController::RequestCapture(const std::string& name)
     }
 }
 
+bool SurvivorRunController::UpdateLookDemo()
+{
+    // 出撃して4秒から、自機を止めて下を向かせ、順に並べて撮る：0 止まった敵、2 動く敵、4 動く塊、6 命中の瞬間。
+    // 撮ったときの敵の画面の位置（1920×1080）を look_(名前).json に書く。
+    if (elapsed_ < 4.0f || IsPaused()) {
+        return false;
+    }
+    auto& player = *world_.resources.player_;
+    const myEngine::Vector3 self = player.GetWorldPosition();
+    struct Demo {
+        const char* shape;
+        float x, y, scale;
+    };
+    auto place = [&](const std::vector<Demo>& demos, bool chase) {
+        world_.resources.enemyManager_->ClearRunActors();
+        world_.resources.bulletManager_->ClearAll();
+        for (const Demo& demo : demos) {
+            if (!SpawnShape(demo.shape, self + myEngine::Vector3{demo.x, demo.y, 0.0f}, false)) {
+                continue;
+            }
+            ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
+            const size_t kind = std::string(demo.shape) == "Square" ? 0 : std::string(demo.shape) == "Triangle" ? 1 : 2;
+            enemy->SetPlayerChase(chase ? config_.shapeChase[kind].first : 0.0f, chase ? config_.shapeChase[kind].second : 0.0f);
+            enemy->SetHp(100000);
+            enemy->SetSizeScale(demo.scale);
+        }
+        autoLookDemoAt_ = elapsed_;
+        ++autoLookDemoState_;
+    };
+    auto shoot = [&](const char* name) {
+        std::ofstream out(std::string(kAutoTestDirectory) + "/look_" + name + ".json");
+        out << "[";
+        bool first = true;
+        for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (!enemy || enemy->IsDead() || enemy->GetHp() < 50000) {
+                continue;
+            }
+            const myEngine::Vector2 at = world_.gameplayHud->WorldToScreen(enemy->GetWorldPosition());
+            out << (first ? "" : ",") << "{\"x\":" << at.x * 1.5f << ",\"y\":" << at.y * 1.5f << ",\"type\":" << static_cast<int>(enemy->GetType())
+                << ",\"scale\":" << enemy->GetSizeScale() << "}";
+            first = false;
+        }
+        out << "]\n";
+        RequestCapture(std::string("look_") + name);
+        ++autoLookDemoState_;
+    };
+    myEngine::Vector3 aim = self + myEngine::Vector3{0.0f, -20.0f, 0.0f};
+    const bool ready = world_.run.tankRunCapturePath_.empty();
+    const float wait = elapsed_ - autoLookDemoAt_;
+    const std::vector<Demo> row{{"Square", -9.0f, 5.5f, 1.0f}, {"Triangle", -3.5f, 6.0f, 1.0f}, {"Pentagon", 2.0f, 5.8f, 1.0f}, {"Square", 8.5f, 5.0f, 1.7f}};
+    std::vector<Demo> crowd;
+    for (int i = 0; i < 45; ++i) {
+        crowd.push_back({i % 3 == 0 ? "Square" : i % 3 == 1 ? "Triangle" : "Pentagon", 9.0f + static_cast<float>(i % 7) * 1.6f,
+                         1.0f + static_cast<float>(i / 7) * 1.5f, 1.0f});
+    }
+    switch (autoLookDemoState_) {
+    case 0:
+        if (ready) {
+            place(row, false);
+        }
+        break;
+    case 1:
+        if (wait >= 1.0f) {
+            shoot("static");
+        }
+        break;
+    case 2:
+        if (ready) {
+            place({{"Square", -13.0f, 7.0f, 1.0f}, {"Triangle", -6.0f, 9.0f, 1.0f}, {"Pentagon", 5.0f, 9.0f, 1.0f}, {"Square", 14.0f, 6.0f, 1.7f}}, true);
+        }
+        break;
+    case 3:
+        if (wait >= 1.0f) {
+            shoot("move");
+        }
+        break;
+    case 4:
+        if (ready) {
+            place(crowd, true);
+        }
+        break;
+    case 5:
+        if (wait >= 1.2f) {
+            shoot("crowd");
+        }
+        break;
+    case 6:
+        if (ready) {
+            place({{"Square", 7.0f, 0.0f, 1.0f}, {"Triangle", -9.0f, 5.5f, 1.0f}, {"Pentagon", 2.0f, 5.8f, 1.0f}}, false);
+        }
+        break;
+    case 7: {
+        // 右の四角を撃ち、当たった直後（0.05秒）を撮る。
+        aim = self + myEngine::Vector3{7.0f, 0.0f, 0.0f};
+        int lowest = 100000;
+        for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (enemy && !enemy->IsDead() && enemy->GetHp() > 50000) {
+                lowest = (std::min)(lowest, enemy->GetHp());
+            }
+        }
+        if (lowest == 100000) {
+            autoLookDemoHitAt_ = elapsed_;
+        }
+        if ((lowest < 100000 && elapsed_ >= autoLookDemoHitAt_ + 0.05f) || wait > 6.0f) {
+            shoot("hit");
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    player.SetDemoInput(true, {0.0f, 0.0f}, aim, false, false);
+    return true;
+}
+
 void SurvivorRunController::UpdateSectorAutoTest(float dt)
 {
     // 部屋の中央の周りを回りながら近い敵を撃ち続け、近くの欠片は拾いに行く。4:00 を過ぎたら出口へ向かう
@@ -165,52 +280,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             healPickups_.push_back({self + myEngine::Vector3{7.0f, 4.0f, 0.0f}, 0.0f, true});
         }
     }
-    // MYENGINE_SURVIVOR_LOOKDEMO=1：出撃して4秒で、決まった位置に敵を並べて、0.25秒後に画面を保存する（見た目を測るため。計画書 p10）。
-    // 並べた敵の画面の位置（1920×1080）を look_demo.json に書く。
-    if (HeroMode() && autoLookDemoState_ == 0 && !baseScreenOpen_ && elapsed_ >= 4.0f && !IsPaused() &&
-        GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOKDEMO", nullptr, 0) > 0) {
-        autoLookDemoState_ = 1;
-        autoLookDemoAt_ = elapsed_;
-        const myEngine::Vector3 self = world_.resources.player_->GetWorldPosition();
-        world_.resources.enemyManager_->ClearRunActors();
-        struct Demo {
-            const char* shape;
-            float x, y, scale;
-        };
-        std::vector<Demo> demos{{"Square", -9.0f, 5.5f, 1.0f},  {"Triangle", -3.5f, 6.0f, 1.0f}, {"Pentagon", 2.0f, 5.8f, 1.0f},
-                                {"Square", 8.5f, 5.0f, 1.7f},   {"Pentagon", 14.0f, -1.0f, 1.0f}, {"Triangle", 14.0f, 4.0f, 1.0f},
-                                {"Square", 14.0f, -6.0f, 1.0f}};
-        // 塊：重ねて並べる。
-        for (int i = 0; i < 28; ++i) {
-            demos.push_back({i % 3 == 0 ? "Square" : i % 3 == 1 ? "Triangle" : "Pentagon", -14.0f + static_cast<float>(i % 7) * 1.35f,
-                             -8.0f + static_cast<float>(i / 7) * 1.35f, 1.0f});
-        }
-        for (const Demo& demo : demos) {
-            if (!SpawnShape(demo.shape, self + myEngine::Vector3{demo.x, demo.y, 0.0f}, false)) {
-                continue;
-            }
-            ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
-            enemy->SetPlayerChase(0.0f, 0.0f);
-            enemy->SetHp(100000);
-            enemy->SetSizeScale(demo.scale);
-        }
-    }
-    if (autoLookDemoState_ == 1 && elapsed_ >= autoLookDemoAt_ + 0.25f && world_.run.tankRunCapturePath_.empty()) {
-        autoLookDemoState_ = 2;
-        std::ofstream out(std::string(kAutoTestDirectory) + "/look_demo.json");
-        out << "[";
-        bool first = true;
-        for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
-            if (!enemy || enemy->IsDead() || enemy->GetHp() < 50000) {
-                continue;
-            }
-            const myEngine::Vector2 at = world_.gameplayHud->WorldToScreen(enemy->GetWorldPosition());
-            out << (first ? "" : ",") << "{\"x\":" << at.x * 1.5f << ",\"y\":" << at.y * 1.5f << ",\"type\":" << static_cast<int>(enemy->GetType())
-                << ",\"scale\":" << enemy->GetSizeScale() << "}";
-            first = false;
-        }
-        out << "]\n";
-        RequestCapture("look_demo");
+    // MYENGINE_SURVIVOR_LOOKDEMO=1：見た目を測るための写真（計画書 p10 の13章）。
+    if (HeroMode() && autoLookDemoState_ < 8 && !baseScreenOpen_ && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOKDEMO", nullptr, 0) > 0 &&
+        UpdateLookDemo()) {
         return;
     }
     // 自機の上の数字（計画書 p9 の H3）：被弾・回復・立ち直りが初めて出たら、少し後に一度ずつ画面を保存する。
@@ -1220,8 +1292,12 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 roundTrip = loaded.growth.enabled == config_.growth.enabled && loaded.growth.points.size() == config_.growth.points.size() &&
                             same(loaded.growth.hpPerMinute, config_.growth.hpPerMinute) && same(loaded.spawnForward, config_.spawnForward) &&
                             same(loaded.separation.radiusScale, config_.separation.radiusScale) &&
+                            loaded.glow.neon.temporal == config_.glow.neon.temporal &&
                             loaded.glow.neon.flatBody == config_.glow.neon.flatBody && same(loaded.glow.neon.enemyLine, config_.glow.neon.enemyLine) &&
                             same(loaded.glow.neon.nebula, config_.glow.neon.nebula) && same(loaded.glow.neon.colorShift, config_.glow.neon.colorShift) &&
+                            same(loaded.glow.neon.persistence, config_.glow.neon.persistence) && same(loaded.glow.neon.scanline, config_.glow.neon.scanline) &&
+                            same(loaded.glow.neon.nearGlow, config_.glow.neon.nearGlow) &&
+                            same(loaded.glow.neon.nearGlowRadius, config_.glow.neon.nearGlowRadius) &&
                             loaded.glow.neon.enabled == config_.glow.neon.enabled && same(loaded.glow.neon.bloom, config_.glow.neon.bloom) &&
                             loaded.damageNumbers.enemyHpBars == config_.damageNumbers.enemyHpBars &&
                             same(loaded.damageNumbers.critScale, config_.damageNumbers.critScale) &&

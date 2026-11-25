@@ -1298,6 +1298,17 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(neon, "enemyLine", look.enemyLine);
             number(neon, "nebula", look.nebula);
             number(neon, "colorShift", look.colorShift);
+            number(neon, "persistence", look.persistence);
+            number(neon, "scanline", look.scanline);
+            if (neon.contains("temporal") && neon.at("temporal").is_boolean()) {
+                look.temporal = neon.at("temporal").get<bool>();
+            }
+            number(neon, "nearGlow", look.nearGlow);
+            number(neon, "nearGlowRadius", look.nearGlowRadius);
+            look.persistence = (std::clamp)(look.persistence, 0.0f, 1.3f);
+            look.scanline = (std::clamp)(look.scanline, 0.0f, 3.0f);
+            look.nearGlow = (std::clamp)(look.nearGlow, 0.0f, 4.0f);
+            look.nearGlowRadius = (std::clamp)(look.nearGlowRadius, 0.05f, 2.0f);
             look.enemyLine = (std::clamp)(look.enemyLine, 0.1f, 3.0f);
             look.nebula = (std::clamp)(look.nebula, 0.0f, 3.0f);
             look.colorShift = (std::clamp)(look.colorShift, 0.0f, 3.0f);
@@ -1948,6 +1959,11 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         neon["enemyLine"] = round(look.enemyLine);
         neon["nebula"] = round(look.nebula);
         neon["colorShift"] = round(look.colorShift);
+        neon["persistence"] = round(look.persistence);
+        neon["scanline"] = round(look.scanline);
+        neon["temporal"] = look.temporal;
+        neon["nearGlow"] = round(look.nearGlow);
+        neon["nearGlowRadius"] = round(look.nearGlowRadius);
         // 線を隠していた前の塗り（p9 の H1）の値は、前のファイルに残っていれば消す。
         neon.erase("darkFill");
         neon.erase("fillScale");
