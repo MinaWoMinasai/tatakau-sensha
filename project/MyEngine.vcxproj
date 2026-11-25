@@ -543,6 +543,7 @@
     <ClCompile Include="game\settings\UserSettings.cpp" />
     <ClCompile Include="game\ui\session\SettingsScreen.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunMenus.cpp" />
+    <ClCompile Include="game\run\session\SurvivorRunMortalTest.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunTutorial.cpp" />
     <ClCompile Include="game\ui\session\SurvivorPlayerNumbers.cpp" />
     <ClCompile Include="game\ui\session\SurvivorQuadBatch.cpp" />

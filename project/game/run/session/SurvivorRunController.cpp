@@ -355,6 +355,7 @@ void SurvivorRunController::Initialize()
         world_.resources.player_->SetDebugNoDamage(true);
         std::filesystem::create_directories(kAutoTestDirectory);
         sampleStart_ = std::chrono::steady_clock::now();
+        StartMortalTest(seed);
         // MYENGINE_SURVIVOR_TRAIT=standard：特性の2択で標準を選ぶ（既定は冷却炉）。
         wchar_t traitName[24]{};
         if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_TRAIT", traitName, 24) > 0 && std::wstring(traitName) == L"standard") {
@@ -762,6 +763,7 @@ void SurvivorRunController::Update(float dt)
     if (IsResultVisible()) {
         if (!runLogWritten_) {
             runLogWritten_ = true;
+            AppendPlayLog(cleared_ ? "clear" : "dead");
             AwardHeroPoints();
             CommitRunToBase();
             WriteRunLog();
@@ -777,7 +779,9 @@ void SurvivorRunController::Update(float dt)
     }
     UpdateAudio(dt);
     myEngine::RuntimeProfiler::CpuScope autoTestScope("Survivor AutoTest");
-    if (autoTest_ == AutoTest::Sector) {
+    if (autoTest_ == AutoTest::Sector && autoMortal_) {
+        UpdateMortalAutoTest(dt);
+    } else if (autoTest_ == AutoTest::Sector) {
         UpdateSectorAutoTest(dt);
     } else if (autoTest_ == AutoTest::Perf) {
         UpdatePerfAutoTest(dt);

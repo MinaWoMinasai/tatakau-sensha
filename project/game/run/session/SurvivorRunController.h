@@ -18,6 +18,7 @@
 #include "game/ui/session/SurvivorItemScreen.h"
 #include "game/ui/session/SurvivorWeaponHud.h"
 #include <chrono>
+#include <map>
 #include <optional>
 #include <random>
 #include <sstream>
@@ -240,6 +241,37 @@ private:
 
     /// @brief MYENGINE_SURVIVOR_AUTOTEST=1：区画を最後まで遊び、時間ごとの敵の数と fps を記録して終了する。
     void UpdateSectorAutoTest(float dt);
+    // 倒れる自動確認（計画書 p11 の B2c）。SurvivorRunMortalTest.cpp。
+    struct MortalTest {
+        uint32_t seed = 0;
+        std::mt19937 random;
+        std::chrono::steady_clock::time_point start;
+        // 当たった回数・受けた量（前の更新まで）と、相手ごとの回数と量。
+        uint32_t hits = 0;
+        uint64_t damage = 0;
+        std::map<std::string, std::pair<uint32_t, uint64_t>> by;
+        float firstHitAt = -1.0f;
+        int maxAlive = 0;
+        bool noDamageSeen = false;
+        float nextSample = 30.0f;
+        std::string samples;
+        // 動き：今の移動と向き、次に見たときから始める移動と向き、前に見た敵の位置。
+        float think = 0.0f;
+        myEngine::Vector2 move{}, nextMove{};
+        float aim = 0.0f, wantedAim = 0.0f, nextAim = 0.0f;
+        std::unordered_map<uint64_t, myEngine::Vector2> positions;
+    };
+    MortalTest mortal_;
+    bool autoMortal_ = false;
+    /// @brief MYENGINE_SURVIVOR_MORTAL=1 なら、ダメージを受ける自動確認にする。
+    void StartMortalTest(uint32_t seed);
+    void UpdateMortalAutoTest(float dt);
+    void ThinkMortal(const myEngine::Vector3& self);
+    void FinishMortalTest(const char* outcome, double wall);
+    /// @brief 人が遊んだ1回を save/playlog.jsonl に1行足す（outcome は dead・clear・quit）。
+    void AppendPlayLog(const char* outcome);
+    bool playLogWritten_ = false;
+    uint32_t playLogHitsBase_ = 0;
     /// @brief MYENGINE_SURVIVOR_AUTOTEST=tour：部屋の四隅を回って画面を保存し、結果を書いて終了する。
     void UpdateTourAutoTest(float dt);
     /// @brief MYENGINE_SURVIVOR_AUTOTEST=perf：敵を約200体に保ち、散らばった場面と群がった場面の fps を perf.json に書いて終了する。

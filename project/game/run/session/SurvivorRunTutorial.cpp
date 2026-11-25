@@ -151,6 +151,7 @@ void SurvivorRunController::EndTutorial()
     exp_ = 0;
     ultimateCharge_ = Hero().ultimateCharge * 0.1f;
     world_.combat.defeatedEnemies_ = 0;
+    playLogHitsBase_ = world_.resources.player_->GetSurvivorHits();
     world_.presentation.debugPlayerNoDamage_ = tutorialNoDamageBefore_;
     world_.resources.player_->HealRunPlayer(world_.resources.player_->GetMaxHp());
     usersettings::Get().tutorialDone = true;

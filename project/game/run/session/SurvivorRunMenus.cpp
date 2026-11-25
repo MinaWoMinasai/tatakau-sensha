@@ -221,6 +221,8 @@ void SurvivorRunController::QueueResultScreen()
 
 void SurvivorRunController::LeaveRun(int selection)
 {
+    // 途中でやめた回も、遊んだ記録に残す（結果の画面まで行った回は、もう書いてある）。
+    AppendPlayLog("quit");
     world_.combat.resultSelection_ = selection;
     world_.combatFlow->ConfirmResultSelection();
 }
