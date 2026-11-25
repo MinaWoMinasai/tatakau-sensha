@@ -23,7 +23,7 @@
   "shapes": {
     "comment": "生存数の目標（時間, 数）を直線でつなぐ。最後の点より後は overtimePerMinute ずつ増える。",
     "chase": {"pentagon":[5.0,3.6],"square":[5.5,3.7],"triangle":[7.0,3.8]},
-    "growth": {"comment":"湧きを足し続ける形（計画書 p8 の G1）。enabled なら targetAlive は使わず、points の [秒, 足す間隔の秒, 一度に足す数, 生きている図形の上限] を直線でつないだ値で、間隔ごとに図形を足し続ける（上限に届いている間は待つ。倒しきれないと溜まる）。敵の HP は 経過分ごとに hpPerMinute 倍（指数。中ボスや大五角にも効く）、寄る速さは 1 + speedPerMinute × 経過分（speedMax まで。湧いたときに決まる）。時間割の surge で、しばらく間隔と数と上限を変えられる。","enabled":true,"hpPerMinute":1.14,"points":[[0.0,1.0,1.0,70.0],[60.0,0.9,1.0,100.0],[180.0,0.75,2.0,130.0],[300.0,0.65,2.0,145.0],[420.0,0.55,3.0,155.0],[540.0,0.5,3.0,160.0]],"speedMax":1.25,"speedPerMinute":0.01},
+    "growth": {"comment":"湧きを足し続ける形（計画書 p8 の G1）。enabled なら targetAlive は使わず、points の [秒, 足す間隔の秒, 一度に足す数, 生きている図形の上限] を直線でつないだ値で、間隔ごとに図形を足し続ける（上限に届いている間は待つ。倒しきれないと溜まる）。敵の HP は 経過分ごとに hpPerMinute 倍（指数。中ボスや大五角にも効く）、寄る速さは 1 + speedPerMinute × 経過分（speedMax まで。湧いたときに決まる）。時間割の surge で、しばらく間隔と数と上限を変えられる。","enabled":true,"hpPerMinute":1.1,"points":[[0.0,0.8,1.0,60.0],[60.0,0.75,1.0,85.0],[120.0,0.75,1.4,105.0],[180.0,0.7,1.7,120.0],[300.0,0.6,2.2,140.0],[420.0,0.55,2.7,150.0],[540.0,0.5,3.0,160.0]],"speedMax":1.25,"speedPerMinute":0.01},
     "overtimePerMinute": 15.0,
     "targetAlive": [[0.0,30.0],[60.0,50.0],[180.0,80.0],[300.0,110.0],[420.0,140.0],[540.0,180.0]],
     "weights": [{"from":0.0,"pentagon":1.0,"square":6.0,"triangle":3.0},{"from":120.0,"pentagon":2.0,"square":5.0,"triangle":3.0}]
@@ -67,7 +67,7 @@
     "comment": "重い四角。大きく（scale 倍）硬く（HP hpScale 倍）、ゆっくり迫る四角。脅威 fromStage 段から interval 秒ごとに count 体。",
     "acceleration": 3.0,
     "count": 2,
-    "fromStage": 2,
+    "fromStage": 3,
     "hpScale": 5.0,
     "interval": 14.0,
     "maxSpeed": 2.6,
@@ -93,7 +93,7 @@
   "experience": {
     "comment": "経験値の欠片とレベル。次のレベルまでの経験値は base + growth × (レベル-1)^power。",
     "collectRadius": 1.2,
-    "levelCurve": {"base":25.0,"growth":30.0,"power":1.7},
+    "levelCurve": {"base":20.0,"growth":14.0,"power":1.5},
     "magnetRadius": 5.0,
     "maxLevel": 45,
     "maxShards": 600,
@@ -163,7 +163,7 @@
     "fillerHeal": 0.3,
     "fillerMaxHp": 10,
     "fillerPower": 0.05,
-    "healDropChance": 0.004,
+    "healDropChance": 0.012,
     "healDropHeal": 0.2,
     "healDropLife": 45.0,
     "healDropMax": 6,
@@ -174,7 +174,7 @@
     "onlyUltimate": true,
     "perkMaxTier": 5,
     "perkSlots": 4,
-    "soldier": {"maxHp":100,"mobility":{"cooldown":8.0,"duration":3.0,"gain":0.0,"kind":"sprint","name":"全力で走る","power":1.5,"radius":0.0,"rate":0.0,"size":0.0},"name":"ソルジャー型","primary":"machineGun","primaryAbility":{"cooldown":1.0,"duration":5.0,"gain":0.0,"kind":"burstGun","name":"拡散連射","power":2.2,"radius":8.0,"rate":2.5,"size":1.0},"primaryHeatScale":1.0,"secondary":{"cooldown":6.0,"duration":0.0,"gain":0.0,"kind":"rocket","name":"小型ロケット","power":6.0,"radius":3.0,"rate":0.0,"size":0.0},"skill":{"cooldown":15.0,"duration":5.0,"gain":0.0,"kind":"healZone","name":"回復の場","power":0.04,"radius":4.0,"rate":0.0,"size":0.0},"ultimate":{"cooldown":0.0,"duration":5.0,"gain":0.0,"kind":"barrage","name":"弾幕","power":0.8,"radius":18.0,"rate":14.0,"size":0.0},"ultimateCharge":2000.0,"unlockCost":0,"unlockFirst":false},
+    "soldier": {"maxHp":100,"mobility":{"cooldown":8.0,"duration":3.0,"gain":0.0,"kind":"sprint","name":"全力で走る","power":1.5,"radius":0.0,"rate":0.0,"size":0.0},"name":"ソルジャー型","primary":"machineGun","primaryAbility":{"cooldown":1.0,"duration":5.0,"gain":0.0,"kind":"burstGun","name":"拡散連射","power":3.5,"radius":8.0,"rate":2.5,"size":1.0},"primaryHeatScale":1.0,"secondary":{"cooldown":6.0,"duration":0.0,"gain":0.0,"kind":"rocket","name":"小型ロケット","power":6.0,"radius":3.0,"rate":0.0,"size":0.0},"skill":{"cooldown":15.0,"duration":5.0,"gain":0.0,"kind":"healZone","name":"回復の場","power":0.04,"radius":4.0,"rate":0.0,"size":0.0},"ultimate":{"cooldown":0.0,"duration":5.0,"gain":0.0,"kind":"barrage","name":"弾幕","power":0.8,"radius":18.0,"rate":14.0,"size":0.0},"ultimateCharge":2000.0,"unlockCost":0,"unlockFirst":false},
     "start": "soldier",
     "subWeaponSlots": 4,
     "subWeapons": true,
@@ -382,7 +382,7 @@
   "bigPentagon": {
     "comment": "五角を大きく硬くしたもの。",
     "exp": 160,
-    "from": 120.0,
+    "from": 200.0,
     "hp": 140,
     "interval": 18.0,
     "maxAlive": 3,
@@ -416,5 +416,5 @@
     "offset": 52.0,
     "scale": 1.0
   },
-  "timeline": [{"at":90.0,"count":12,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":4.0,"text":"左右から壁が迫る"},{"at":180.0,"count":20,"exp":0,"hp":0,"kind":"ring","radius":16.0,"rewards":0,"scale":1.0,"shape":"Triangle","side":"leftRight","speed":4.2,"text":"包囲"},{"at":240.0,"count":0,"countScale":1.3,"duration":25.0,"exp":0,"hp":0,"intervalScale":0.5,"kind":"surge","maxAliveAdd":20,"radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":3.0,"text":"大群が来る"},{"at":300.0,"count":0,"exp":300,"hp":1500,"kind":"midBoss","radius":16.0,"rewards":2,"scale":3.2,"shape":"Pentagon","side":"leftRight","speed":2.0,"text":"中ボス出現"},{"at":390.0,"count":16,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"topBottom","speed":4.0,"text":"上下から壁が迫る"},{"at":450.0,"count":0,"countScale":1.3,"duration":30.0,"exp":0,"hp":0,"intervalScale":0.5,"kind":"surge","maxAliveAdd":20,"radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":3.0,"text":"大群が来る"},{"at":480.0,"count":28,"exp":0,"hp":0,"kind":"ring","radius":16.0,"rewards":0,"scale":1.0,"shape":"Triangle","side":"leftRight","speed":4.2,"text":"包囲"},{"at":540.0,"count":18,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":4.0,"text":"左右から壁が迫る"}]
+  "timeline": [{"at":90.0,"count":12,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":4.0,"text":"左右から壁が迫る"},{"at":180.0,"count":20,"exp":0,"hp":0,"kind":"ring","radius":16.0,"rewards":0,"scale":1.0,"shape":"Triangle","side":"leftRight","speed":4.2,"text":"包囲"},{"at":240.0,"count":0,"countScale":1.1,"duration":25.0,"exp":0,"hp":0,"intervalScale":0.7,"kind":"surge","maxAliveAdd":20,"radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":3.0,"text":"大群が来る"},{"at":300.0,"count":0,"exp":300,"hp":1500,"kind":"midBoss","radius":16.0,"rewards":2,"scale":3.2,"shape":"Pentagon","side":"leftRight","speed":2.0,"text":"中ボス出現"},{"at":390.0,"count":16,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"topBottom","speed":4.0,"text":"上下から壁が迫る"},{"at":450.0,"count":0,"countScale":1.1,"duration":30.0,"exp":0,"hp":0,"intervalScale":0.7,"kind":"surge","maxAliveAdd":20,"radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":3.0,"text":"大群が来る"},{"at":480.0,"count":28,"exp":0,"hp":0,"kind":"ring","radius":16.0,"rewards":0,"scale":1.0,"shape":"Triangle","side":"leftRight","speed":4.2,"text":"包囲"},{"at":540.0,"count":18,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":4.0,"text":"左右から壁が迫る"}]
 }
