@@ -310,7 +310,7 @@ void SurvivorRunController::OpenHeroLevelUp()
             heroLevelUpOffers_.push_back(offer);
         }
     }
-    // 3つに満たなければ、埋め草で足す（計画書 p8 の F1。HoloCure と同じく、全部そろっても選ぶ物は出る）。
+    // 3つに満たなければ、埋め草で足す（計画書 p8 の F1。全部そろっても選ぶ物は出る）。
     const std::array<std::pair<Filler, bool>, 3> kFillers{{{Filler::Heal, config_.heroes.fillerHeal > 0.0f},
                                                            {Filler::MaxHp, config_.heroes.fillerMaxHp > 0},
                                                            {Filler::Power, config_.heroes.fillerPower > 0.0f}}};

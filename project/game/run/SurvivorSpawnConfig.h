@@ -62,7 +62,7 @@ struct SpawnConfig {
     float shapeOvertimePerMinute = 24.0f;
     std::vector<ShapeWeights> shapeWeights{ShapeWeights{}};
 
-    /// @brief 湧きを足し続ける形（計画書 p8 の G1。HoloCure に寄せる）。enabled なら、図形を「生存数の目標まで」湧かせるのではなく、
+    /// @brief 湧きを足し続ける形（計画書 p8 の G1）。enabled なら、図形を「生存数の目標まで」湧かせるのではなく、
     /// interval 秒ごとに count 体ずつ足し続ける（生きている図形が maxAlive に届いている間は待つ）。倒しきれないと溜まっていく。
     /// 点の間は直線でつなぎ、最後の点より後は最後の値のまま。敵の HP は 経過分ごとに hpPerMinute 倍（指数）、
     /// 寄る速さは 1 + speedPerMinute × 経過分（speedMax まで。湧いたときの値で決まる）。
@@ -1002,6 +1002,9 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         if (heroes.contains("moveScale") && heroes.at("moveScale").is_number()) {
             config.heroes.moveScale = (std::clamp)(heroes.at("moveScale").get<float>(), 0.2f, 2.0f);
         }
+        if (heroes.contains("single") && heroes.at("single").is_boolean()) {
+            config.heroes.single = heroes.at("single").get<bool>();
+        }
         if (heroes.contains("autoFire") && heroes.at("autoFire").is_boolean()) {
             config.heroes.autoFire = heroes.at("autoFire").get<bool>();
         }
@@ -1865,6 +1868,9 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     heroes["enabled"] = config.heroes.enabled;
     heroes["start"] = config.heroes.start;
     heroes["moveScale"] = round(config.heroes.moveScale);
+    if (config.heroes.single || heroes.contains("single")) {
+        heroes["single"] = config.heroes.single;
+    }
     heroes["autoFire"] = config.heroes.autoFire;
     heroes["levelUps"] = config.heroes.levelUps;
     if (config.heroes.walkSpeed > 0.0f) {

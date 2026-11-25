@@ -51,7 +51,7 @@ const std::array<const char*, 7>& UpgradeHudNames()
 /// @brief 強化HUDの行ごとの表示色を返す。
 const std::array<myEngine::Vector4, 7>& UpgradeHudRowColors()
 {
-    // diepio風の能力ごとの色分け。ゲーム内のネオン表現と衝突しないよう、
+    // 能力ごとの色分け。ゲーム内のネオン表現と衝突しないよう、
     // 発光は塗り全体ではなく、セルと細い外周に限定する。
     static const std::array<myEngine::Vector4, 7> colors = {{
         {0.90f, 0.36f, 0.86f, 1.0f}, // 自動回復

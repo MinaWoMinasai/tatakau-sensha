@@ -110,7 +110,7 @@ void Player::RotateToMouse(myEngine::Camera* viewProjection)
     if (input_ && input_->IsGamepadActive()) {
         // ツインスティックの照準: 右スティックで砲身の向きを決め、離すと最後の向きを保つ。
         // 置いたままのマウスで照準が引っ張られないよう、OSのカーソルは無視する。
-        // 自動で撃つとき（HoloCure と同じ）は、右スティックを離している間は動いている方を向く。
+        // 自動で撃つとき（押さなくても撃ち続ける形）は、右スティックを離している間は動いている方を向く。
         myEngine::Vector2 aim{};
         if (input_->TryGetGamepadAim(aim)) {
             dir_ = myEngine::Normalize(myEngine::Vector3{aim.x, aim.y, 0.0f});

@@ -133,16 +133,18 @@ struct HeroesConfig {
     /// @brief 機体の歩きの最高速度（ワールド単位/秒）。0 より大きければ moveScale の代わりにこれを使う（計画書 p7。自機の土台の速さ
     /// （毎秒17.4ほど）によらず、毎秒いくつと直接決める）。技とパークの倍率は、これに掛ける。
     float walkSpeed = 0.0f;
-    /// @brief 押さなくても向いている方へ主砲を撃ち続けるか（計画書 p7。HoloCure と同じ。遊んでいる間も F で切り替え）。
+    /// @brief 機体を1台（start）だけにするか（計画書 p11 の D1）。機体選び・解放の画面と文字を出さず、すぐに始める。
+    bool single = false;
+    /// @brief 押さなくても向いている方へ主砲を撃ち続けるか（計画書 p7。遊んでいる間も F で切り替え）。
     bool autoFire = false;
-    /// @brief 欠片でレベルが上がり、戦闘中に技の強化とパークの3択を選ぶか（計画書 p7 の E3。HoloCure と同じ。偽なら今までどおり欠片はレベルポイント）。
+    /// @brief 欠片でレベルが上がり、戦闘中に技の強化とパークの3択を選ぶか（計画書 p7 の E3。偽なら今までどおり欠片はレベルポイント）。
     bool levelUps = false;
     /// @brief レベルアップの3択に副武器（勝手に動く武器。SurvivorSubWeapons.h）も並べるか（計画書 p7 の E4。levelUps のときだけ）。
     bool subWeapons = false;
-    /// @brief 右クリック・Shift・E の技を使わず、主武器・副武器・Q（コントローラーは B）だけで遊ぶか（計画書 p7 の E5。ヴァンサバに寄せる）。
+    /// @brief 右クリック・Shift・E の技を使わず、主武器・副武器・Q（コントローラーは B）だけで遊ぶか（計画書 p7 の E5。操作を減らす）。
     /// 技の強化の候補からも外し、外した技に関わるパーク（機体専用と「連鎖の冷却」）も並べない。
     bool onlyUltimate = false;
-    /// @brief パークの段の上限（計画書 p8 の F1。HoloCure のアイテムと同じく段で強くなる）。1 なら今までどおり段なし。
+    /// @brief パークの段の上限（計画書 p8 の F1。段で強くなる）。1 なら今までどおり段なし。
     /// 段ごとに、パークの強さ（shop.perks の value）が足される（Lv3 なら value×3）。
     int perkMaxTier = 1;
     /// @brief レベルアップの3択に機体専用スキル（SurvivorHeroSkills.h。計画書 p8 の F2）も並べるか（levelUps のときだけ）。
@@ -163,7 +165,7 @@ struct HeroesConfig {
     int healDropMax = 6;
 };
 
-/// @brief 設定ファイルが無いときの機体。ソルジャー型（K1）・モイラ型（K2）・タンク型（K7。最初に解放する）。
+/// @brief 設定ファイルが無いときの機体。ソルジャー型（K1）・吸収型（K2）・タンク型（K7。最初に解放する）。
 inline std::vector<HeroDefinition> DefaultHeroes()
 {
 
@@ -180,20 +182,20 @@ inline std::vector<HeroDefinition> DefaultHeroes()
     soldier.ultimateCharge = 2000.0f;
     soldier.maxHp = 100;
 
-    // モイラ型（計画書 p4 の3章）：近づいて吸い取る。攻める → 吸収ゲージが溜まる → 生き残る。
+    // 吸収型（計画書 p4 の3章）：近づいて吸い取る。攻める → 吸収ゲージが溜まる → 生き残る。
     // 群れへの答えは跳ねる球、硬い敵への答えは吸い付く光線。
-    HeroDefinition moira;
-    moira.key = "moira";
-    moira.name = "モイラ型";
-    moira.primary = "beam";
-    moira.primaryAbility = {AbilityKind::DrainBeam, "吸収ビーム", 0.0f, 0.0f, 2.6f, 8.0f, 0.0f, 0.22f, 0.012f};
-    moira.abilities[static_cast<size_t>(AbilitySlot::Secondary)] = {AbilityKind::SelfHeal, "自分を回復", 0.0f, 6.0f, 0.06f};
-    moira.abilities[static_cast<size_t>(AbilitySlot::Mobility)] = {AbilityKind::Phase, "消える移動", 6.0f, 0.8f, 1.6f};
-    moira.abilities[static_cast<size_t>(AbilitySlot::Skill)] = {AbilityKind::BounceOrb, "跳ねる球", 10.0f, 4.0f, 1.4f, 12.0f, 9.0f, 1.1f};
-    moira.abilities[static_cast<size_t>(AbilitySlot::Ultimate)] = {
+    HeroDefinition drainer;
+    drainer.key = "drainer";
+    drainer.name = "吸収型";
+    drainer.primary = "beam";
+    drainer.primaryAbility = {AbilityKind::DrainBeam, "吸収ビーム", 0.0f, 0.0f, 2.6f, 8.0f, 0.0f, 0.22f, 0.012f};
+    drainer.abilities[static_cast<size_t>(AbilitySlot::Secondary)] = {AbilityKind::SelfHeal, "自分を回復", 0.0f, 6.0f, 0.06f};
+    drainer.abilities[static_cast<size_t>(AbilitySlot::Mobility)] = {AbilityKind::Phase, "消える移動", 6.0f, 0.8f, 1.6f};
+    drainer.abilities[static_cast<size_t>(AbilitySlot::Skill)] = {AbilityKind::BounceOrb, "跳ねる球", 10.0f, 4.0f, 1.4f, 12.0f, 9.0f, 1.1f};
+    drainer.abilities[static_cast<size_t>(AbilitySlot::Ultimate)] = {
         AbilityKind::Lance, "太い光線", 0.0f, 4.0f, 4.0f, 20.0f, 0.0f, 1.4f, 0.006f};
-    moira.ultimateCharge = 1800.0f;
-    moira.maxHp = 90;
+    drainer.ultimateCharge = 1800.0f;
+    drainer.maxHp = 90;
 
     // タンク型（計画書 p4 の3章、K7）：受け止めて押し返す。最初に解放する機体。
     // 群れへの答えは衝撃波、硬い敵への答えは重い砲。
@@ -209,7 +211,7 @@ inline std::vector<HeroDefinition> DefaultHeroes()
     tank.maxHp = 150;
     tank.unlockCost = 1500;
     tank.unlockFirst = true;
-    return {soldier, moira, tank};
+    return {soldier, drainer, tank};
 }
 
 /// @brief キーから機体の番号を探す。無ければ -1。

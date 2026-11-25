@@ -27,6 +27,14 @@ void Fit(myEngine::TextLabel& label, const myEngine::Vector2& bounds)
     }
 }
 
+/// @brief 遠征の入口を出すか（計画書 p11 の D2：隠す。コードは残す）。MYENGINE_SHOW_EXPEDITION=1 で戻せる。
+bool ExpeditionEntryVisible()
+{
+    wchar_t flag[4]{};
+    static const bool visible = GetEnvironmentVariableW(L"MYENGINE_SHOW_EXPEDITION", flag, 4) > 0 && flag[0] == L'1';
+    return visible;
+}
+
 // 非表示ワールドの初期化中にフォントを登録すると、古いラベルが無効になることがある。
 // Gameがタイトルの描画パスを記録し始める前に、テクスチャの作り直しを済ませる。
 void PrepareLabels(std::initializer_list<myEngine::TextLabel*> labels)
@@ -137,20 +145,15 @@ void TitleScene::CreateLabels()
     };
     title_ = label("たたかうせんしゃ", 100, {w * 0.5f, h * 0.32f}, {0.91f, 1, 0.96f, 1}, true);
     Fit(*title_, {w * 0.76f, 118});
-    subtitle_ = label("強化を重ねて最深部を目指す、ローグライトアクション", 23, {w * 0.5f, h * 0.44f}, {0.73f, 0.91f, 0.94f, 1});
-    Fit(*subtitle_, {w * 0.78f, 42});
-    menu_[0] = label("遠征をはじめる", 31, {w * 0.5f, h * 0.60f}, {0.47f, 1, 0.76f, 1});
-    menu_[1] = label("無限の場（試作）をはじめる", 27, {w * 0.5f, h * 0.68f}, {0.47f, 1, 0.76f, 1});
+    subtitle_ = label(" ", 23, {w * 0.5f, h * 0.44f}, {0.73f, 0.91f, 0.94f, 1});
+    menu_[0] = label("遠征", 27, {w * 0.5f, h * 0.70f}, {0.47f, 1, 0.76f, 1});
+    menu_[1] = label("はじめる", 31, {w * 0.5f, h * 0.60f}, {0.47f, 1, 0.76f, 1});
     for (auto& item : menu_) {
         Fit(*item, {w * 0.72f, 58});
     }
-#if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
-    hint_ = label("クリックか W/S・Enter で決定 / F7 ボス戦へ直接移動（制作確認・自機無敵）", 15, {w * 0.5f, h - 36}, {0.57f, 0.71f, 0.77f, 1});
-#else
     hint_ = label("クリックか W/S・Enter で決定", 15, {w * 0.5f, h - 36}, {0.57f, 0.71f, 0.77f, 1});
-#endif
     demoCaption_ = label(" ", 13, {w - 130, 30}, {0.47f, 0.62f, 0.67f, 1});
-    menuSelection_ = 0;
+    menuSelection_ = 1;
     const int hoveredAtStart = HitTestMenu(input_->GetMousePosition());
     menuHovered_ = hoveredAtStart >= 0;
     if (menuHovered_) {
@@ -243,7 +246,7 @@ void TitleScene::PrepareForTransition()
     loadingGame_ = true;
     myEngine::Object3dCommon::GetInstance()->SetDefaultCamera(nullptr);
     myEngine::Object3dCommon::GetInstance()->SetDebugDefaultCamera(nullptr);
-    demoCaption_->SetText("遠征を準備しています…");
+    demoCaption_->SetText("準備しています…");
     demoCaption_->SetAnchorPoint({1.0f, 1.0f});
     demoCaption_->SetPosition(
         {static_cast<float>(myEngine::WinApp::kClientWidth) - 28, static_cast<float>(myEngine::WinApp::kClientHeight) - 24});
@@ -313,13 +316,7 @@ void TitleScene::Update()
                 UpdateMenuVisuals();
             }
         }
-        // F7：遠征のボス戦から始める（講評会の Release でも使う）。
-        if (triggered(DIK_F7)) {
-            if (StartTransitionIfAvailable("TANK_EXPEDITION", 0.5f)) {
-                GameStartSession::RequestDeveloperBossStart();
-            }
-        } else
-            if (myEngine::kDeveloperTools && triggered(DIK_F9)) {
+        if (myEngine::kDeveloperTools && ExpeditionEntryVisible() && triggered(DIK_F9)) {
             StartTransitionIfAvailable("TANK_EXPEDITION", 0.5f);
         } else if (triggered(DIK_RETURN) || triggered(DIK_SPACE) || (click && hovered >= 0)) {
             const int chosen = click && hovered >= 0 ? hovered : menuSelection_;
@@ -379,8 +376,6 @@ void TitleScene::Update()
         if (stageSamples_[status.stage].build.empty()) {
             stageSamples_[status.stage].build = demo_->GetTitleDemoBuild().dump();
         }
-        const char* captions[] = {"プレイ例 / 序盤", "プレイ例 / 反射・分裂", "プレイ例 / 強化した戦車", "プレイ例 / ボス戦"};
-        demoCaption_->SetText(captions[status.stage]);
         if (autoTest_ && status.stageSeconds >= 6 && !(capturedStages_ & (1u << status.stage))) {
             demo_->RequestTitleDemoCapture("stage_" + std::to_string(status.stage));
             capturedStages_ |= 1u << status.stage;
@@ -518,7 +513,7 @@ bool TitleScene::IsSceneAvailable(std::string_view name) const
 
 bool TitleScene::IsMenuAvailable(int selection) const
 {
-    return (selection == 0 && IsSceneAvailable("TANK_EXPEDITION")) || (selection == 1 && IsSceneAvailable("TANK_SURVIVOR"));
+    return (selection == 0 && ExpeditionEntryVisible() && IsSceneAvailable("TANK_EXPEDITION")) || (selection == 1 && IsSceneAvailable("TANK_SURVIVOR"));
 }
 
 int TitleScene::HitTestMenu(const myEngine::Vector2& mouse) const

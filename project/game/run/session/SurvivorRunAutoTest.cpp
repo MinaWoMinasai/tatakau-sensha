@@ -857,7 +857,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             autoHealthCheck_ << "{\"maxHp\":" << maxHp << ",\"taken\":[" << taken[0] << "," << taken[1] << "," << taken[2] << ","
                              << taken[3] << "],\"wound\":" << wound << ",\"hpAfterHeal\":" << player.GetHp() << "}";
         }
-        // 自分を回復（モイラ型）：吸収ゲージがほぼ満タンで HP も満タンなら HP を半分にし（自動確認は無敵なので）、
+        // 自分を回復（吸収型）：吸収ゲージがほぼ満タンで HP も満タンなら HP を半分にし（自動確認は無敵なので）、
         // HP が減っていてゲージがあれば押し続ける。
         if (const survivor::AbilityDefinition* heal = FindAbility(survivor::AbilityKind::SelfHeal)) {
             if (absorb_ >= heal->duration * 0.95f && player.GetHp() == player.GetMaxHp() && player.IsDebugNoDamage()) {
@@ -878,7 +878,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 autoFortressCaptured_ = true;
             }
         }
-        // 技の画面（モイラ型）：吸い付いた光線・跳ねる球・太い光線・消える移動を、それぞれ1回ずつ保存する。
+        // 技の画面（吸収型）：吸い付いた光線・跳ねる球・太い光線・消える移動を、それぞれ1回ずつ保存する。
         if (world_.run.tankRunCapturePath_.empty() && HeroBeamPrimary()) {
             if (!autoBeamCaptured_ && beamTarget_ != 0 && elapsed_ >= 6.0f) {
                 RequestCapture("hero_beam");
@@ -1444,6 +1444,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 roundTrip = loaded.growth.enabled == config_.growth.enabled && loaded.growth.points.size() == config_.growth.points.size() &&
                             same(loaded.growth.hpPerMinute, config_.growth.hpPerMinute) && same(loaded.spawnForward, config_.spawnForward) &&
                             same(loaded.separation.radiusScale, config_.separation.radiusScale) &&
+                            loaded.heroes.single == config_.heroes.single &&
                             loaded.glow.effects.enabled == config_.glow.effects.enabled && loaded.glow.effects.topMost == config_.glow.effects.topMost &&
                             same(loaded.glow.effects.edgeSpeed, config_.glow.effects.edgeSpeed) && same(loaded.glow.effects.edgeVary, config_.glow.effects.edgeVary) &&
                             same(loaded.glow.effects.edgeHold, config_.glow.effects.edgeHold) && same(loaded.glow.effects.edgeShift, config_.glow.effects.edgeShift) &&

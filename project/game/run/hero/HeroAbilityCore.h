@@ -147,7 +147,7 @@ protected:
     int barrageShots_ = 0;
     float barrageSeconds_ = 0.0f;
 
-    // モイラ型（計画書 p4 の K2）：吸い付く光線・吸収ゲージで回復・消える移動・跳ねる球・太い光線。
+    // 吸収型（計画書 p4 の K2）：吸い付く光線・吸収ゲージで回復・消える移動・跳ねる球・太い光線。
     /// @brief 主武器が技の部品（吸い付く光線）か。真なら主武器の弾は撃たない。
     bool HeroBeamPrimary() const
     {
@@ -250,7 +250,7 @@ protected:
     float lanceTimer_ = 0.0f;
     float lanceTick_ = 0.0f;
     float lanceAge_ = 0.0f;
-    // モイラ型の記録：光線・球・太い光線で与えた量、溜めた吸収ゲージ（秒）、自分を回復した量と押していた秒、球が跳ねた回数、
+    // 吸収型の記録：光線・球・太い光線で与えた量、溜めた吸収ゲージ（秒）、自分を回復した量と押していた秒、球が跳ねた回数、
     // 太い光線が一度に当てた一番多い数、光線が吸い付いていた秒。
     uint64_t drainDamage_ = 0;
     uint64_t orbDamage_ = 0;

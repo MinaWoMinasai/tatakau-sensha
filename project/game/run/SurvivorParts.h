@@ -77,7 +77,7 @@ inline bool IsFusion(const PartDefinition& part)
     return part.fuseA != PartId::Count;
 }
 
-/// @brief 部品の既定値（設計案 4章・5.3）。数値は旧 diep 風の能力値の上がり幅と、遠征のカードの強さを出発点にした。
+/// @brief 部品の既定値（設計案 4章・5.3）。数値は旧モードの能力値の上がり幅と、遠征のカードの強さを出発点にした。
 inline std::array<PartDefinition, kPartCount> DefaultParts()
 {
     return {{

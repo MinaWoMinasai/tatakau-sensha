@@ -467,7 +467,7 @@ void SurvivorRunController::Initialize()
         // 機体の遊び方（計画書 p4）なら、機体の主武器1つを枠に入れる。そうでなければ拠点の武器3つ。
         // 機体は、前に選んだ機体（環境変数で決めていなければ）。使えない機体なら StartHero が使える機体へ替える。
         LoadHeroSaveFile();
-        if (!heroStartFromEnv_ && !heroSave_.selected.empty()) {
+        if (!heroStartFromEnv_ && !heroSave_.selected.empty() && !config_.heroes.single) {
             config_.heroes.start = heroSave_.selected;
         }
         StartHero();
