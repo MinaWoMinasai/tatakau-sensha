@@ -280,6 +280,10 @@ void SurvivorRunController::Initialize()
     damageNumbers_.Initialize();
     compactHud_.Initialize();
     playerNumbers_.Initialize();
+    // 強化の画面（計画書 p9 の L1）は板が多いので、使う設定のときだけ作る。
+    if (LevelUpScreenOn()) {
+        levelUpScreen_.Initialize();
+    }
     lastHpLost_ = world_.resources.player_->GetSurvivorHpLost();
     ApplyDamageNumberConfig();
     // 与えたダメージは、機体の Q のゲージにもなる（H5）。
@@ -503,7 +507,9 @@ void SurvivorRunController::Update(float dt)
     UpdateTuningPanel();
     UpdateCinematic(dt);
     SampleFps();
-    if (restRoomOpen_ || heroLevelUpOpen_) {
+    if (heroLevelUpOpen_ && LevelUpScreenOn()) {
+        UpdateLevelUpScreen(dt);
+    } else if (restRoomOpen_ || heroLevelUpOpen_) {
         UpdateScreenInput();
     } else if (traitChoiceOpen_) {
         UpdateTraitChoiceInput();
@@ -519,6 +525,8 @@ void SurvivorRunController::Update(float dt)
             } else if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(HeroMode() ? DIK_TAB : DIK_E)) {
                 // 自動確認の間は、本物のキーボードで開かない（隠した窓でもキーを読むので、Tab を押すと止まっていた）。
                 inventoryOpen_ ? CloseInventory() : OpenInventory();
+            } else if (inventoryOpen_ && LevelUpScreenOn()) {
+                UpdateLevelUpScreen(dt);
             } else if (inventoryOpen_) {
                 UpdateScreenInput();
             } else if (HeroMode()) {
@@ -1097,6 +1105,11 @@ void SurvivorRunController::DrawUi()
     }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     // 持ち物の画面と拠点の画面を開いている間は、ほかの HUD を描かずにその画面だけを出す（暗幕から透けて読みにくくならないように）。
+    if (LevelUpScreenShown()) {
+        levelUpScreen_.Draw();
+        DrawCinematic();
+        return;
+    }
     if (inventoryOpen_ || baseScreenOpen_ || restRoomOpen_ || heroLevelUpOpen_) {
         itemScreen_.Draw();
         DrawCinematic();

@@ -249,6 +249,8 @@ struct SpawnConfig {
         float offset = 52.0f;
         /// @brief 被弾・回復・立ち直りを、自機の上の数字で出す（計画書 p9 の H3）。「ダメージ」「修理」などの文字は出さない。
         /// hurtScale は数字の大きさ、hurtEdge は縁の赤の強さ（0 で無し）、hurtShake は被弾の揺れの倍率。
+        /// @brief 強化の画面（計画書 p9 の L1）：右に縦3段の札、左に動くプレビュー、左下に持ち物。false なら前の画面。
+        bool levelUpScreen = false;
         bool hurtNumbers = false;
         float hurtScale = 1.0f;
         float hurtEdge = 0.3f;
@@ -756,6 +758,9 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(hud, "offset", config.hud.offset);
         if (hud.contains("hurtNumbers") && hud.at("hurtNumbers").is_boolean()) {
             config.hud.hurtNumbers = hud.at("hurtNumbers").get<bool>();
+        }
+        if (hud.contains("levelUpScreen") && hud.at("levelUpScreen").is_boolean()) {
+            config.hud.levelUpScreen = hud.at("levelUpScreen").get<bool>();
         }
         number(hud, "hurtScale", config.hud.hurtScale);
         number(hud, "hurtEdge", config.hud.hurtEdge);
@@ -1572,11 +1577,12 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     numbers["mergeSeconds"] = round(config.damageNumbers.mergeSeconds);
     numbers["critScale"] = round(config.damageNumbers.critScale);
     numbers["enemyHpBars"] = config.damageNumbers.enemyHpBars;
-    if (config.hud.compact || config.hud.hurtNumbers || data.contains("hud")) {
+    if (config.hud.compact || config.hud.hurtNumbers || config.hud.levelUpScreen || data.contains("hud")) {
         auto& hud = section("hud");
         hud["compact"] = config.hud.compact;
         hud["scale"] = round(config.hud.scale);
         hud["offset"] = round(config.hud.offset);
+        hud["levelUpScreen"] = config.hud.levelUpScreen;
         hud["hurtNumbers"] = config.hud.hurtNumbers;
         hud["hurtScale"] = round(config.hud.hurtScale);
         hud["hurtEdge"] = round(config.hud.hurtEdge);

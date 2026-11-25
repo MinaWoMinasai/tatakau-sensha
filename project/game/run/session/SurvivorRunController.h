@@ -12,6 +12,7 @@
 #include "game/ui/session/SurvivorDamageNumbers.h"
 #include "game/ui/session/SurvivorCompactHud.h"
 #include "game/ui/session/SurvivorPlayerNumbers.h"
+#include "game/ui/session/SurvivorLevelUpScreen.h"
 #include "game/ui/session/SurvivorItemScreen.h"
 #include "game/ui/session/SurvivorWeaponHud.h"
 #include <chrono>
@@ -404,6 +405,25 @@ private:
     {
         return HeroMode() && config_.hud.hurtNumbers;
     }
+    // 強化の画面（計画書 p9 の L1）。SurvivorRunLevelUpScreen.cpp。
+    SurvivorLevelUpScreen levelUpScreen_;
+    myEngine::Vector2 levelUpMouse_{};
+    size_t autoPreviewNext_ = 0;
+    size_t autoLevelUpShots_ = 0;
+    bool LevelUpScreenOn() const
+    {
+        return HeroMode() && config_.hud.levelUpScreen;
+    }
+    /// @brief 開いている強化の画面か、Tab の持ち物の画面が新しい画面か。
+    bool LevelUpScreenShown() const
+    {
+        return LevelUpScreenOn() && (heroLevelUpOpen_ || inventoryOpen_);
+    }
+    std::vector<SurvivorLevelUpScreen::Group> OwnedGroups() const;
+    void OpenLevelUpView();
+    void OpenInventoryView();
+    /// @brief 入力を渡して画面を進め、決まったら選ぶ。dt は止まっていない時間。
+    void UpdateLevelUpScreen(float dt);
     void UpdatePlayerNumbers(float dt);
     /// @brief 回復の数字を出す。数字を使わない設定では、今まで通り文字 text を出す。
     void ShowHeal(int amount, const std::string& text);
@@ -820,6 +840,8 @@ private:
             return upgrade == other.upgrade && sub == other.sub && index == other.index && filler == other.filler && skill == other.skill;
         }
     };
+    /// @brief 強化の画面（計画書 p9 の L1）の札。
+    SurvivorLevelUpScreen::Card OfferCard(const ShopOffer& offer) const;
     /// @brief 設定の機体に、技の強化の段とパークを効かせて Hero() を作り直し、主武器・最大HPに入れ直す。heal なら HP を満タンにする。
     void RebuildHero(bool heal);
     /// @brief 設定の heroes.onlyUltimate なら、右クリック・Shift・E の技を空きにする（計画書 p7 の E5。Q と主武器は残す）。

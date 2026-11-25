@@ -71,10 +71,32 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         if (!world_.run.tankRunCapturePath_.empty()) {
             return;
         }
+        // 新しい強化の画面（計画書 p9 の L1）：入力を受けない間と、プレビューが動き出すまで少し待つ（最初の数回は長め）。
+        if (LevelUpScreenOn() && levelUpScreen_.GetAge() < (heroLevelUpLog_.size() < 3 ? 2.0f : 0.4f)) {
+            return;
+        }
         if (heroLevelUpLog_.empty() && !autoLevelUpCaptured_) {
             autoLevelUpCaptured_ = true;
             RequestCapture("hero_levelup");
             return;
+        }
+        // 新しい強化の画面（計画書 p9 の L1）：始めの4回は、選ぶ札を替えて画面を保存する。
+        // MYENGINE_SURVIVOR_PREVIEWS=1 なら、最初の画面で全部のプレビューを1つずつ保存する。
+        if (LevelUpScreenOn()) {
+            if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_PREVIEWS", nullptr, 0) > 0 &&
+                autoPreviewNext_ < SurvivorLevelUpScreen::IconNames().size()) {
+                const std::string& key = SurvivorLevelUpScreen::IconNames()[autoPreviewNext_++];
+                levelUpScreen_.ShowPreview(key, 5, autoPreviewNext_ % 2 == 0, 3.2f);
+                RequestCapture("preview_" + key);
+                return;
+            }
+            if (autoLevelUpShots_ <= heroLevelUpLog_.size() && heroLevelUpLog_.size() >= 1 && heroLevelUpLog_.size() <= 4) {
+                autoLevelUpShots_ = heroLevelUpLog_.size() + 1;
+                levelUpScreen_.Select(heroLevelUpLog_.size() % 3);
+                levelUpScreen_.ShowPreview(OfferCard(heroLevelUpOffers_[levelUpScreen_.GetSelected()]).icon, 3, false, 2.0f);
+                RequestCapture("hero_levelup_" + std::to_string(heroLevelUpLog_.size() + 1));
+                return;
+            }
         }
         // 主武器の強化（E5 の拡散連射は7段）、次に副武器（E4）を確かめるため、並んでいればその順に選ぶ。
         // MYENGINE_SURVIVOR_PICK=perk なら、パークを先に選ぶ（パークの段と埋め草を確かめる。計画書 p8 の F1）。
@@ -679,11 +701,11 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     }
     if (inventoryOpen_) {
         autoInventoryTimer_ += dt;
-        if (autoInventoryState_ == 1 && world_.run.tankRunCapturePath_.empty()) {
+        if (autoInventoryState_ == 1 && autoInventoryTimer_ >= 0.8f && world_.run.tankRunCapturePath_.empty()) {
             RequestCapture("inventory");
             autoInventoryState_ = 2;
         }
-        if (autoInventoryState_ == 2 && autoInventoryTimer_ >= 1.0f) {
+        if (autoInventoryState_ == 2 && autoInventoryTimer_ >= 1.6f) {
             autoInventoryFrozen_ = elapsed_ == autoInventoryElapsed_;
             CloseInventory();
             autoInventoryState_ = 3;
@@ -1139,9 +1161,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             loaded.damageNumbers.enemyHpBars == config_.damageNumbers.enemyHpBars &&
                             same(loaded.damageNumbers.critScale, config_.damageNumbers.critScale) &&
                             loaded.hud.compact == config_.hud.compact && loaded.hud.hurtNumbers == config_.hud.hurtNumbers &&
+                            loaded.hud.levelUpScreen == config_.hud.levelUpScreen &&
                             same(loaded.hud.hurtEdge, config_.hud.hurtEdge) && loaded.timeline.size() == config_.timeline.size();
                 survivor::SpawnConfig off = ConfigForSaving();
-                off.growth.enabled = off.glow.neon.enabled = off.hud.compact = off.hud.hurtNumbers = false;
+                off.growth.enabled = off.glow.neon.enabled = off.hud.compact = off.hud.hurtNumbers = off.hud.levelUpScreen = false;
                 off.spawnForward = off.spawnSide = off.spawnBack = 0.0f;
                 off.separation = {};
                 off.heroes.healDropHeal = 0.0f;
@@ -1150,7 +1173,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 off.timeline.clear();
                 survivor::SpawnConfig offLoaded;
                 roundTrip = roundTrip && survivor::SaveSpawnConfig(path, off, error) && survivor::LoadSpawnConfig(path, offLoaded, error) &&
-                            !offLoaded.growth.enabled && !offLoaded.glow.neon.enabled && !offLoaded.hud.compact && !offLoaded.hud.hurtNumbers &&
+                            !offLoaded.growth.enabled && !offLoaded.glow.neon.enabled && !offLoaded.hud.compact && !offLoaded.hud.hurtNumbers && !offLoaded.hud.levelUpScreen &&
                             offLoaded.spawnForward + offLoaded.spawnSide + offLoaded.spawnBack == 0.0f &&
                             same(offLoaded.separation.radiusScale, 1.0f) && same(offLoaded.separation.strength, 0.5f) &&
                             offLoaded.heroes.healDropHeal == 0.0f && offLoaded.heroes.fillerHeal == 0.0f && offLoaded.timeline.empty();

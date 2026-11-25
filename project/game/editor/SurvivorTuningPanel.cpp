@@ -691,6 +691,7 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
         changed |= ImGui::Checkbox("文字を減らした HUD を使う（切ると前の HUD）", &config.hud.compact);
         changed |= ImGui::SliderFloat("ゲージの大きさ", &config.hud.scale, 0.5f, 2.5f, "×%.2f");
         changed |= ImGui::SliderFloat("自機からの縦の間", &config.hud.offset, -120.0f, 120.0f, "%.0f");
+        changed |= ImGui::Checkbox("新しい強化の画面を使う（切ると前の画面。次に開いたときから）", &config.hud.levelUpScreen);
         ImGui::TextDisabled("被弾と回復");
         changed |= ImGui::Checkbox("自機の上に数字で出す（切ると「ダメージ」などの文字）", &config.hud.hurtNumbers);
         changed |= ImGui::SliderFloat("被弾・回復の数字の大きさ", &config.hud.hurtScale, 0.5f, 2.5f, "×%.2f");

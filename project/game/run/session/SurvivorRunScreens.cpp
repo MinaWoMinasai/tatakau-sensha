@@ -215,11 +215,16 @@ void SurvivorRunController::AddBagToGrid(SurvivorItemScreen::View& view, bool ac
 
 void SurvivorRunController::RefreshInventoryScreen()
 {
+    if (LevelUpScreenOn()) {
+        OpenInventoryView();
+        return;
+    }
     // 機体の遊び方（計画書 p4 の H3）：Tab で開く「今の組み立て」（技の段とパーク）。ショップと同じ左側を使う。
     if (HeroMode()) {
         SurvivorItemScreen::View build = HeroBuildView();
         build.title = "組み立て：" + Hero().name;
-        build.help = "Tab で閉じる　／　開いている間は止まる　／　技の強化とパークは波の間のショップで買う";
+        build.help = std::string("Tab で閉じる　／　開いている間は止まる") +
+                     (config_.heroes.levelUps ? "" : "　／　技の強化とパークは波の間のショップで買う");
         build.gridTitle = " ";
         build.buttons.push_back({"閉じる（Tab）", 0, true});
         itemScreen_.Show(build);
@@ -670,6 +675,10 @@ SurvivorItemScreen::View SurvivorRunController::HeroBuildView() const
 
 void SurvivorRunController::RefreshHeroLevelUp()
 {
+    if (LevelUpScreenOn()) {
+        OpenLevelUpView();
+        return;
+    }
     // ショップと同じ画面の形で、3つを無料で並べる。数字キー 1〜3 でも選べる（UpdateScreenInput）。
     SurvivorItemScreen::View view = HeroBuildView();
     view.title = "レベル " + std::to_string(level_) + "　─　強化を1つ選ぶ";
