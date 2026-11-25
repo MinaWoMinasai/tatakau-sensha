@@ -757,8 +757,10 @@ void SurvivorRunController::ApplyNeonLook(float dt)
     out.enemyHaloIntensity = look.enemyHaloIntensity;
     out.enemyHaloWidth = look.enemyHaloWidth;
     out.enemyColor = look.enemyColor;
-    out.enemyDarkFill = look.darkFill;
-    out.enemyFillScale = look.fillScale;
+    out.enemyFlatBody = look.flatBody;
+    out.enemyLine = look.enemyLine;
+    out.nebula = look.nebula;
+    out.colorShift = look.colorShift;
     out.worldGrid = look.worldGrid;
     out.localGrid = look.localGrid;
     out.walls = look.walls;

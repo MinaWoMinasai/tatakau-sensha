@@ -266,6 +266,7 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
             enemyStyle.haloIntensity = look.enemyHaloIntensity;
             enemyStyle.haloWidthScale = look.enemyHaloWidth;
         }
+        const float enemyLineWidth = world_.presentation.expEnemyNeonLineWidth_ * look.enemyLine;
         // 育つ戦車の試作のワープする敵は、線をディゾルブで消して（現して）いく。
         if (expEnemy->GetWarpDissolve() > 0.0f) {
             myEngine::NeonGridRenderer::LineDissolve dissolve{};
@@ -294,10 +295,10 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
         } else if (expEnemy->GetType() == ExpEnemyType::Triangle) {
             world_.resources.neonGridRenderer_->QueueBillboardContourTriangle(
                 center, world_.presentation.expEnemyNeonTriangleRadius_ * scalePulse, expEnemy->GetVisualRotation(),
-                world_.presentation.expEnemyNeonLineWidth_, color, cameraRight, cameraUp, cameraForward, enemyStyle);
+                enemyLineWidth, color, cameraRight, cameraUp, cameraForward, enemyStyle);
         } else if (expEnemy->GetType() == ExpEnemyType::Pentagon) {
             queueBillboardPolygon(center, 5, world_.presentation.expEnemyNeonPentagonRadius_ * scalePulse, expEnemy->GetVisualRotation(),
-                                  world_.presentation.expEnemyNeonLineWidth_, color, true, &enemyStyle);
+                                  enemyLineWidth, color, true, &enemyStyle);
         } else if (expEnemy->GetType() == ExpEnemyType::Shooter) {
             queueBillboardShooter(center, world_.presentation.expEnemyNeonShooterRadius_ * scalePulse, expEnemy->GetVisualRotation(),
                                   world_.presentation.expEnemyNeonLineWidth_, color, expEnemy->GetShooterWarningRatio(),
@@ -306,8 +307,7 @@ void ResourceNeonRenderer::QueueExpEnemyNeonShapes(const myEngine::Vector3& came
             world_.resources.neonGridRenderer_->QueueBillboardContourRectangle(
                 center,
                 {world_.presentation.expEnemyNeonSquareSize_ * scalePulse, world_.presentation.expEnemyNeonSquareSize_ * scalePulse},
-                expEnemy->GetVisualRotation(), world_.presentation.expEnemyNeonLineWidth_, color, cameraRight, cameraUp, cameraForward,
-                enemyStyle);
+                expEnemy->GetVisualRotation(), enemyLineWidth, color, cameraRight, cameraUp, cameraForward, enemyStyle);
         }
         if (expEnemy->GetWarpDissolve() > 0.0f) {
             world_.resources.neonGridRenderer_->EndLineDissolve();

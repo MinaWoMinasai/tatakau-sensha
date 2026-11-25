@@ -92,9 +92,9 @@ struct GlowConfig {
     /// @brief 拾ったときに広がる光の輪（秒と、最後の半径）。
     float collectFlashSeconds = 0.25f;
     float collectFlashRadius = 1.3f;
-    /// @brief ネオン管の見た目（計画書 p9 の H1。無限の場）：暗い所を作って、色の付いた芯とにじみで光らせ、白く飛ばさない。
+    /// @brief ネオン管の見た目（計画書 p9 の H1 を p10 で直した物。無限の場）：暗い所に、細い芯と、外ほど濃い色のにじみで管を描く。
     /// enabled のときだけ効く。敵の輪郭は 芯の白さ・芯の明るさ・にじみの明るさ・にじみの幅、色の明るさ（倍）。
-    /// 敵の中を暗く塗る（darkFill、塗る大きさ fillScale）。背景の格子・自機と敵のまわりの格子・壁・床の明かりの明るさ（倍）。
+    /// 背景の格子・自機と敵のまわりの格子・壁・床の明かりの明るさ（倍）。
     /// ブルームの強さ（倍）と、敵が crowdCount 体いるときに crowdBloom 倍まで弱める自動の露出合わせ。
     struct NeonLook {
         bool enabled = false;
@@ -103,8 +103,12 @@ struct GlowConfig {
         float enemyHaloIntensity = 0.5f;
         float enemyHaloWidth = 2.1f;
         float enemyColor = 1.0f;
-        bool darkFill = false;
-        float fillScale = 0.9f;
+        /// @brief 敵の中を、陰影も反射も無い黒い平面にする（線より先に描くので、線は隠れない。計画書 p10 の8章）。
+        bool flatBody = false;
+        /// @brief 敵の線の太さ（倍）。背景の雲の濃さ（倍）。画面の端の色ずれ（倍）。
+        float enemyLine = 1.0f;
+        float nebula = 1.0f;
+        float colorShift = 1.0f;
         float worldGrid = 1.0f;
         float localGrid = 1.0f;
         float walls = 1.0f;

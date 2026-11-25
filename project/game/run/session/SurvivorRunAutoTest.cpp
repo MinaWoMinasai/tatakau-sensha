@@ -165,6 +165,54 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             healPickups_.push_back({self + myEngine::Vector3{7.0f, 4.0f, 0.0f}, 0.0f, true});
         }
     }
+    // MYENGINE_SURVIVOR_LOOKDEMO=1：出撃して4秒で、決まった位置に敵を並べて、0.25秒後に画面を保存する（見た目を測るため。計画書 p10）。
+    // 並べた敵の画面の位置（1920×1080）を look_demo.json に書く。
+    if (HeroMode() && autoLookDemoState_ == 0 && !baseScreenOpen_ && elapsed_ >= 4.0f && !IsPaused() &&
+        GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOKDEMO", nullptr, 0) > 0) {
+        autoLookDemoState_ = 1;
+        autoLookDemoAt_ = elapsed_;
+        const myEngine::Vector3 self = world_.resources.player_->GetWorldPosition();
+        world_.resources.enemyManager_->ClearRunActors();
+        struct Demo {
+            const char* shape;
+            float x, y, scale;
+        };
+        std::vector<Demo> demos{{"Square", -9.0f, 5.5f, 1.0f},  {"Triangle", -3.5f, 6.0f, 1.0f}, {"Pentagon", 2.0f, 5.8f, 1.0f},
+                                {"Square", 8.5f, 5.0f, 1.7f},   {"Pentagon", 14.0f, -1.0f, 1.0f}, {"Triangle", 14.0f, 4.0f, 1.0f},
+                                {"Square", 14.0f, -6.0f, 1.0f}};
+        // 塊：重ねて並べる。
+        for (int i = 0; i < 28; ++i) {
+            demos.push_back({i % 3 == 0 ? "Square" : i % 3 == 1 ? "Triangle" : "Pentagon", -14.0f + static_cast<float>(i % 7) * 1.35f,
+                             -8.0f + static_cast<float>(i / 7) * 1.35f, 1.0f});
+        }
+        for (const Demo& demo : demos) {
+            if (!SpawnShape(demo.shape, self + myEngine::Vector3{demo.x, demo.y, 0.0f}, false)) {
+                continue;
+            }
+            ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
+            enemy->SetPlayerChase(0.0f, 0.0f);
+            enemy->SetHp(100000);
+            enemy->SetSizeScale(demo.scale);
+        }
+    }
+    if (autoLookDemoState_ == 1 && elapsed_ >= autoLookDemoAt_ + 0.25f && world_.run.tankRunCapturePath_.empty()) {
+        autoLookDemoState_ = 2;
+        std::ofstream out(std::string(kAutoTestDirectory) + "/look_demo.json");
+        out << "[";
+        bool first = true;
+        for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (!enemy || enemy->IsDead() || enemy->GetHp() < 50000) {
+                continue;
+            }
+            const myEngine::Vector2 at = world_.gameplayHud->WorldToScreen(enemy->GetWorldPosition());
+            out << (first ? "" : ",") << "{\"x\":" << at.x * 1.5f << ",\"y\":" << at.y * 1.5f << ",\"type\":" << static_cast<int>(enemy->GetType())
+                << ",\"scale\":" << enemy->GetSizeScale() << "}";
+            first = false;
+        }
+        out << "]\n";
+        RequestCapture("look_demo");
+        return;
+    }
     // 自機の上の数字（計画書 p9 の H3）：被弾・回復・立ち直りが初めて出たら、少し後に一度ずつ画面を保存する。
     if (HurtNumbers() && world_.run.tankRunCapturePath_.empty()) {
         auto shown = [&](SurvivorPlayerNumbers::Kind kind, bool& captured, const char* name) {
@@ -1172,6 +1220,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 roundTrip = loaded.growth.enabled == config_.growth.enabled && loaded.growth.points.size() == config_.growth.points.size() &&
                             same(loaded.growth.hpPerMinute, config_.growth.hpPerMinute) && same(loaded.spawnForward, config_.spawnForward) &&
                             same(loaded.separation.radiusScale, config_.separation.radiusScale) &&
+                            loaded.glow.neon.flatBody == config_.glow.neon.flatBody && same(loaded.glow.neon.enemyLine, config_.glow.neon.enemyLine) &&
+                            same(loaded.glow.neon.nebula, config_.glow.neon.nebula) && same(loaded.glow.neon.colorShift, config_.glow.neon.colorShift) &&
                             loaded.glow.neon.enabled == config_.glow.neon.enabled && same(loaded.glow.neon.bloom, config_.glow.neon.bloom) &&
                             loaded.damageNumbers.enemyHpBars == config_.damageNumbers.enemyHpBars &&
                             same(loaded.damageNumbers.critScale, config_.damageNumbers.critScale) &&

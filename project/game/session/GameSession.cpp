@@ -72,6 +72,9 @@ void GameSession::ApplyArenaLookOverrides(IScene::ArenaLookSettings& look) const
     // 何重にも見える。ゲージの外側（自機の描画半径の約2.2倍）までを、残光を出さない円にする。
     // 自機の本体の残像（PlayerNeonAfterimage）は毎フレーム描く形なので、この円の中でも残る。
     const auto& world = *world_;
+    // ランごとのネオンの見た目（計画書 p10）：背景の雲と、画面の端の色ずれ。
+    look.nebulaIntensity *= world.presentation.runNeonLook_.nebula;
+    look.chromAbAmount *= world.presentation.runNeonLook_.colorShift;
     if (!world.run.IsSurvivorRun() || !world.resources.player_ || world.resources.player_->IsDead() || !world.gameplayHud) {
         return;
     }

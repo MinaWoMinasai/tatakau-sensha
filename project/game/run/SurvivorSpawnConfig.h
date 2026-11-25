@@ -1292,15 +1292,20 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             if (neon.contains("enabled") && neon.at("enabled").is_boolean()) {
                 look.enabled = neon.at("enabled").get<bool>();
             }
-            if (neon.contains("darkFill") && neon.at("darkFill").is_boolean()) {
-                look.darkFill = neon.at("darkFill").get<bool>();
+            if (neon.contains("flatBody") && neon.at("flatBody").is_boolean()) {
+                look.flatBody = neon.at("flatBody").get<bool>();
             }
+            number(neon, "enemyLine", look.enemyLine);
+            number(neon, "nebula", look.nebula);
+            number(neon, "colorShift", look.colorShift);
+            look.enemyLine = (std::clamp)(look.enemyLine, 0.1f, 3.0f);
+            look.nebula = (std::clamp)(look.nebula, 0.0f, 3.0f);
+            look.colorShift = (std::clamp)(look.colorShift, 0.0f, 3.0f);
             number(neon, "enemyCoreWhite", look.enemyCoreWhite);
             number(neon, "enemyCoreIntensity", look.enemyCoreIntensity);
             number(neon, "enemyHaloIntensity", look.enemyHaloIntensity);
             number(neon, "enemyHaloWidth", look.enemyHaloWidth);
             number(neon, "enemyColor", look.enemyColor);
-            number(neon, "fillScale", look.fillScale);
             number(neon, "worldGrid", look.worldGrid);
             number(neon, "localGrid", look.localGrid);
             number(neon, "walls", look.walls);
@@ -1309,7 +1314,6 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(neon, "crowdBloom", look.crowdBloom);
             number(neon, "crowdCount", look.crowdCount);
             look.enemyCoreWhite = (std::clamp)(look.enemyCoreWhite, 0.0f, 1.0f);
-            look.fillScale = (std::clamp)(look.fillScale, 0.2f, 1.2f);
             look.crowdCount = (std::max)(1.0f, look.crowdCount);
         }
     }
@@ -1940,8 +1944,13 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         neon["enemyHaloIntensity"] = round(look.enemyHaloIntensity);
         neon["enemyHaloWidth"] = round(look.enemyHaloWidth);
         neon["enemyColor"] = round(look.enemyColor);
-        neon["darkFill"] = look.darkFill;
-        neon["fillScale"] = round(look.fillScale);
+        neon["flatBody"] = look.flatBody;
+        neon["enemyLine"] = round(look.enemyLine);
+        neon["nebula"] = round(look.nebula);
+        neon["colorShift"] = round(look.colorShift);
+        // 線を隠していた前の塗り（p9 の H1）の値は、前のファイルに残っていれば消す。
+        neon.erase("darkFill");
+        neon.erase("fillScale");
         neon["worldGrid"] = round(look.worldGrid);
         neon["localGrid"] = round(look.localGrid);
         neon["walls"] = round(look.walls);

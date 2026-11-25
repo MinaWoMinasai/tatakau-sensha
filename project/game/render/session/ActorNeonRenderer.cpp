@@ -614,6 +614,7 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
         }
     }
     if (drawEnemies && world_.resources.enemyManager_ && world_.presentation.expEnemyNeonRenderMode_ == 1) {
+        const bool flatBody = world_.presentation.runNeonLook_.enemyFlatBody;
         const myEngine::Vector3 cameraForward = myEngine::Cross(cameraRight, cameraUp);
         for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
             if (!enemy || enemy->IsDead() || !enemy->IsShapeNeonRenderTarget() ||
@@ -656,7 +657,8 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
             const myEngine::Vector3 center = enemy->GetWorldPosition() + myEngine::Vector3{0, 0, 0.345f};
             for (int i = 0; i < sides; ++i) {
                 const float a = rotation + 6.28318530718f * i / sides;
-                points[i] = center + (cameraRight * std::cos(a) + cameraUp * std::sin(a)) * (size * scale * world_.presentation.runNeonLook_.enemyFillScale);
+                points[i] = center + (cameraRight * std::cos(a) + cameraUp * std::sin(a)) *
+                                         (size * scale * (flatBody ? 1.0f : 0.96f));
             }
             // 育つ戦車の試作のワープする敵は、塗りも線と同じディゾルブで消して（現して）いく。
             if (enemy->GetWarpDissolve() > 0.0f) {
@@ -669,9 +671,16 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
                 dissolve.edgeColor = {1.9f, 0.5f, 1.9f, 1.0f};
                 world_.resources.neonGridRenderer_->BeginLineDissolve(dissolve);
             }
-            world_.resources.neonGridRenderer_->QueueBeveledPolygonFill(points, sides, world_.presentation.actorNeonBodyFillColor_,
-                                                                        enemy->GetVisualColor(),
-                                                                        myEngine::Normalize(cameraUp - cameraRight * 0.5f));
+            if (flatBody) {
+                // 黒い平面：陰影も反射も付けない。奥の格子を隠すだけにして、光るのは後から描く線だけにする（計画書 p10 の8章）。
+                world_.resources.neonGridRenderer_->SetBodyShadingEye(nullptr);
+                world_.resources.neonGridRenderer_->QueueBeveledPolygonFill(points, sides, {0.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 0.0f, 0.0f}, cameraUp);
+                world_.resources.neonGridRenderer_->SetBodyShadingEye(&eye);
+            } else {
+                world_.resources.neonGridRenderer_->QueueBeveledPolygonFill(points, sides, world_.presentation.actorNeonBodyFillColor_,
+                                                                            enemy->GetVisualColor(),
+                                                                            myEngine::Normalize(cameraUp - cameraRight * 0.5f));
+            }
             if (enemy->GetWarpDissolve() > 0.0f) {
                 world_.resources.neonGridRenderer_->EndLineDissolve();
             }

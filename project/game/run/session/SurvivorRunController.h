@@ -435,6 +435,8 @@ private:
     int levelUpBursts_ = 0;
     int levelUpPushed_ = 0;
     bool autoLevelUpBurstCaptured_ = false;
+    int autoLookDemoState_ = 0;
+    float autoLookDemoAt_ = 0.0f;
     bool autoLevelUpCloseCaptured_ = false;
     bool LevelUpEffectOn() const
     {

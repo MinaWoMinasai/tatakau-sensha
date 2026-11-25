@@ -133,14 +133,11 @@ void GameplayRenderer::DrawPostEffect3D()
             myEngine::Object3dCommon::GetInstance()->PreDraw(myEngine::kNormal);
         });
     }
-    // 無限の場のネオン管の見た目（計画書 p9 の H1）では、図形の敵も中を暗く塗る（重なっても白く飛ばない）。
-    const bool fillExpEnemies = world_.presentation.runNeonLook_.enemyDarkFill && world_.presentation.expEnemyNeonRenderMode_ == 1;
     if (!depthOverlay && world_.presentation.fillActorNeonBodies_ &&
-        (world_.presentation.playerNeonRenderMode_ == 1 || world_.presentation.bossNeonRenderMode_ == 1 || fillExpEnemies)) {
+        (world_.presentation.playerNeonRenderMode_ == 1 || world_.presentation.bossNeonRenderMode_ == 1)) {
         profile("Actor Bodies", true, [&]() {
             // Bloomをかけた線の上に黒い光沢の球を描き、その上にもう一度リングを描く。
-            world_.actorNeonRenderer->DrawActorNeonBodyFillPass(
-                true, fillExpEnemies ? ActorNeonRenderer::BodySet::All : ActorNeonRenderer::BodySet::RoundActors);
+            world_.actorNeonRenderer->DrawActorNeonBodyFillPass(true, ActorNeonRenderer::BodySet::RoundActors);
             myEngine::Object3dCommon::GetInstance()->PreDraw(myEngine::kNormal);
         });
     }

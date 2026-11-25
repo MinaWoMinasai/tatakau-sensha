@@ -672,16 +672,18 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
         changed |= ImGui::SliderFloat("にじみの明るさ", &look.enemyHaloIntensity, 0.0f, 3.0f, "%.2f");
         changed |= ImGui::SliderFloat("にじみの幅", &look.enemyHaloWidth, 1.0f, 6.0f, "%.2f");
         changed |= ImGui::SliderFloat("敵の色の明るさ", &look.enemyColor, 0.2f, 2.0f, "×%.2f");
-        changed |= ImGui::Checkbox("敵の中を暗く塗る（重なっても白く飛ばない）", &look.darkFill);
-        changed |= ImGui::SliderFloat("塗る大きさ（輪郭に対して）", &look.fillScale, 0.5f, 1.1f, "×%.2f");
+        changed |= ImGui::Checkbox("敵の中を黒い平面にする（陰影と反射なし）", &look.flatBody);
+        changed |= ImGui::SliderFloat("敵の線の太さ", &look.enemyLine, 0.2f, 2.0f, "×%.2f");
         ImGui::TextDisabled("背景（暗いほど光が際立つ）");
+        changed |= ImGui::SliderFloat("雲", &look.nebula, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("画面の端の色ずれ", &look.colorShift, 0.0f, 1.5f, "×%.2f");
         changed |= ImGui::SliderFloat("床の格子", &look.worldGrid, 0.0f, 1.5f, "×%.2f");
         changed |= ImGui::SliderFloat("自機と敵のまわりの格子", &look.localGrid, 0.0f, 1.5f, "×%.2f");
         changed |= ImGui::SliderFloat("壁の線", &look.walls, 0.0f, 1.5f, "×%.2f");
         changed |= ImGui::SliderFloat("床の明かり", &look.floorLight, 0.0f, 1.5f, "×%.2f");
         ImGui::TextDisabled("ブルーム");
-        changed |= ImGui::SliderFloat("強さ", &look.bloom, 0.0f, 2.0f, "×%.2f");
-        changed |= ImGui::SliderFloat("敵が多いときの強さ", &look.crowdBloom, 0.2f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("強さ（1 が上限）", &look.bloom, 0.0f, 1.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("敵が多いときの強さ", &look.crowdBloom, 0.2f, 1.0f, "×%.2f");
         changed |= ImGui::DragFloat("「多い」とする敵の数", &look.crowdCount, 1.0f, 1.0f, 400.0f, "%.0f体");
         ImGui::TreePop();
     }
