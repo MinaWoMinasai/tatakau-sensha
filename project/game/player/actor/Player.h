@@ -1012,6 +1012,12 @@ public:
         return myEngine::Length(inputDir_) > 0.05f;
     }
 
+    /// @brief 今の移動の入力の向き（入力が無ければ 0）。押し返しや反動は入らない。
+    const myEngine::Vector3& GetMovementInput() const
+    {
+        return inputDir_;
+    }
+
     /// @brief 主攻撃の実行フラグを返し、保留フラグを解除する。複数回の実行も1つのtrueにまとめる。
     bool ConsumePrimaryAttackPerformedEvent();
     /// @brief ダッシュ開始の有無を返し、保留フラグを解除する。

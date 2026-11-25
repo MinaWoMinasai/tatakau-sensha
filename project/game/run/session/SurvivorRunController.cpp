@@ -829,16 +829,19 @@ void SurvivorRunController::UpdateTankPose(float dt)
         if (tankPoseReady_ && distance < 2.0f) {
             constexpr float kPi = 3.14159265f;
             constexpr float kTreadSide = 0.78f;
-            const float speed = distance / dt;
+            // 車体は入力の向きへ回す（敵や反動で押された向きには回らない）。入力が無いときは回さず、履帯も流さない。
+            const bool driving = world_.resources.player_->HasMovementInput();
+            const float speed = driving ? distance / dt : 0.0f;
             tankSpeed_ += (speed - tankSpeed_) * (1.0f - std::exp(-dt * 14.0f));
             float turned = 0.0f;
-            if (speed > 0.4f) {
-                const float difference = std::remainder(std::atan2(moved.y, moved.x) - tankHullAngle_, 2.0f * kPi);
+            if (driving) {
+                const myEngine::Vector3& input = world_.resources.player_->GetMovementInput();
+                const float difference = std::remainder(std::atan2(input.y, input.x) - tankHullAngle_, 2.0f * kPi);
                 turned = difference * (1.0f - std::exp(-dt * look.turn));
                 tankHullAngle_ = std::remainder(tankHullAngle_ + turned, 2.0f * kPi);
             }
             // 前へ進んだ分と、その場で回った分（左右の履帯が逆に流れる）。
-            const float forward = moved.x * std::cos(tankHullAngle_) + moved.y * std::sin(tankHullAngle_);
+            const float forward = driving ? moved.x * std::cos(tankHullAngle_) + moved.y * std::sin(tankHullAngle_) : 0.0f;
             tankTreadLeft_ = std::fmod(tankTreadLeft_ + (forward - turned * kTreadSide) * look.flow, 1900.0f);
             tankTreadRight_ = std::fmod(tankTreadRight_ + (forward + turned * kTreadSide) * look.flow, 1900.0f);
         }
