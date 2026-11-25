@@ -306,7 +306,7 @@
     "lootTrailWidth": 0.2,
     "neon": {"enabled":true,"enemyCoreWhite":0.06,"enemyCoreIntensity":1.6,"enemyHaloIntensity":0.6,"enemyHaloWidth":4.3,"enemyColor":0.9,"flatBody":true,"enemyLine":0.6,"nearGlow":0.045,"nearGlowRadius":0.4,"persistence":0.0,"scanline":0.2,"temporal":false,"colorShift":0.0,"nebula":0.22,"worldGrid":0.18,"localGrid":0.08,"enemyGrid":0.0,"walls":0.4,"floorLight":0.1,"bloom":1.0,"crowdBloom":0.9,"crowdCount":100},
     "effects": {"enabled":true,"line":1.5,"brightness":1.25,"debris":1.0,"sparks":1.0,"ring":1.0,"clearRadius":1.4,"clearAlpha":0.3,"topMost":true,"glow":1.25,"birth":2.5,"flash":0.7,"edges":true,"crowd":0.5,"plate":0.95,"plateFeather":0.1,"edgeSpeed":9.0,"edgeVary":0.6,"edgeHold":0.42,"edgeBlink":2,"edgeGap":0.07,"edgeShift":0.18,"edgeBright":1.15,"edgeDrag":3.2,"edgeLong":1.3,"calmBlink":false,"soft":0.7,"softLife":0.75,"overlap":0.6},
-    "needle": {"enabled":true,"line":1.1,"back":0.7,"front":0.3,"tail":2.2,"tailAlpha":0.9,"brightness":1.25,"nearGlow":1.2,"bloom":0.3},
+    "needle": {"enabled":true,"line":1.1,"back":1.5,"front":0.3,"tail":1.5,"tailAlpha":0.9,"brightness":1.25,"nearGlow":1.2,"bloom":0.3},
     "tank": {"enabled":true,"line":0.9,"brightness":1.0,"nearGlow":0.85,"scale":1.0,"turn":10.0,"flow":0.55,"red":0.25,"green":1.0,"blue":0.55},
     "trailBloomGain": 1.9,
     "trailBloomIntensity": 2.4,
