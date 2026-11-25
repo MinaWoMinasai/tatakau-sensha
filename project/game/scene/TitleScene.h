@@ -4,6 +4,7 @@
 #include "Fade.h"
 #include "IScene.h"
 #include "game/ui/NeonTextEffect.h"
+#include "game/ui/session/NeonMenuKit.h"
 #include <array>
 #include <string_view>
 
@@ -63,7 +64,8 @@ public:
     /// @brief 後処理ガウシアン強度を返す。
     float GetPostGaussianIntensity() const override
     {
-        return 0.88f;
+        // 遠征の見本は後ろをぼかす。無限の場の見本は、本番のまま見せる。
+        return expeditionDemo_ ? 0.88f : 0.0f;
     }
 
     /// @brief 画面演出状態を返す。
@@ -88,12 +90,14 @@ private:
     bool IsSceneAvailable(std::string_view name) const;
     /// @brief 指定したシーンが使えるなら、そこへの遷移を始める。始めたらtrueを返す。
     bool StartTransitionIfAvailable(std::string_view name, float duration);
-    /// @brief メニュー表示情報を更新する。
-    void UpdateMenuVisuals();
-    /// @brief メニュー利用可能であるか判定する。
-    bool IsMenuAvailable(int selection) const;
-    /// @brief 入力位置がメニュー項目に重なるか判定する。
-    int HitTestMenu(const myEngine::Vector2& mouse) const;
+    /// @brief タイトルの項目（計画書 p11 の R1）。
+    enum class MenuAction { Start, Quit, Expedition };
+    /// @brief 項目を並べる。
+    void OpenMenu();
+    /// @brief 入力を受けて、決めた項目を動かす。
+    void UpdateMenu(float dt);
+    /// @brief 項目と操作の案内を積む。
+    void QueueMenu();
     /// @brief デモ検証を書き込む。
     void WriteDemoValidation(bool fadeComplete);
     /// @return 先読み待ち以外で処理が進んだ場合true。
@@ -111,9 +115,14 @@ private:
     std::unique_ptr<Fade> fade_;
     std::unique_ptr<myEngine::Sprite> backgroundVeil_;
     myEngine::Input* input_ = nullptr;
-    std::unique_ptr<myEngine::TextLabel> title_, subtitle_, hint_, demoCaption_;
-    // 0：遠征、1：育つ戦車の試作。
-    std::array<std::unique_ptr<myEngine::TextLabel>, 2> menu_;
+    std::unique_ptr<myEngine::TextLabel> title_, demoCaption_;
+    // 後ろの場面を、左だけ暗くする板（文字を読みやすくする）。
+    std::unique_ptr<myEngine::Sprite> titleShade_;
+    gameplay::NeonMenuKit menuKit_;
+    gameplay::NeonMenu menu_;
+    std::vector<MenuAction> menuActions_;
+    myEngine::Vector2 menuMouse_{};
+    bool padPrompt_ = false;
 
     /// @brief タイトルデモの1時点の状態と表示用の計測値を表す。
     struct DemoSample {
@@ -134,7 +143,6 @@ private:
     float maxObservedBurstAge_ = 0;
     uint32_t capturedStages_ = 0;
     float frozenAt_ = 0, blinkTimer_ = 0;
-    int menuSelection_ = 0;
-    bool menuHovered_ = false;
-    myEngine::Vector2 previousMousePosition_{};
+    // 後ろで動かす場面が、遠征の見本か（遠征の自動確認のときだけ）。ふだんは無限の場を戦車が自動で戦う。
+    bool expeditionDemo_ = false;
 };

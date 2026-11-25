@@ -2,6 +2,7 @@
 #include "game/editor/SurvivorTuningPanel.h"
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
+#include "game/debug/MenuFlow.h"
 #include "game/player/TankRunModifiers.h"
 #include "game/render/settings/ArenaCameraProfile.h"
 #include "RuntimeProfiler.h"
@@ -280,6 +281,8 @@ void SurvivorRunController::Initialize()
     damageNumbers_.Initialize();
     compactHud_.Initialize();
     playerNumbers_.Initialize();
+    menuKit_.Initialize();
+    focusLostSeen_ = world_.resources.input_->GetFocusLostCount();
     // 強化の画面（計画書 p9 の L1）は板が多いので、使う設定のときだけ作る。
     if (LevelUpScreenOn()) {
         levelUpScreen_.Initialize();
@@ -508,10 +511,21 @@ void SurvivorRunController::Update(float dt)
         UpdateTourAutoTest(dt);
         return;
     }
-    UpdateTuningPanel();
+    if (world_.demo.titleDemo_) {
+        UpdateTitleDemoBot();
+    } else {
+        UpdateTuningPanel();
+    }
     UpdateCinematic(dt);
     SampleFps();
-    if (heroLevelUpOpen_ && LevelUpScreenOn()) {
+    ReportMenuFlow();
+    if (world_.demo.titleDemo_) {
+        // タイトルの後ろでは、入力を読まない。
+    } else if (pauseOpen_) {
+        UpdatePause(dt);
+    } else if (TryOpenPause()) {
+        // 止めた更新では、ほかの操作を受けない。
+    } else if (heroLevelUpOpen_ && LevelUpScreenOn()) {
         UpdateLevelUpScreen(dt);
     } else if (restRoomOpen_ || heroLevelUpOpen_) {
         UpdateScreenInput();
@@ -531,6 +545,10 @@ void SurvivorRunController::Update(float dt)
                 inventoryOpen_ ? CloseInventory() : OpenInventory();
             } else if (inventoryOpen_ && LevelUpScreenOn()) {
                 UpdateLevelUpScreen(dt);
+                // Esc（コントローラーは B）でも閉じる。
+                if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(DIK_ESCAPE)) {
+                    CloseInventory();
+                }
             } else if (inventoryOpen_) {
                 UpdateScreenInput();
             } else if (HeroMode()) {
@@ -575,7 +593,9 @@ void SurvivorRunController::Update(float dt)
                 UpdateSpeedTest(gameDt);
             } else {
                 UpdateSpawns(gameDt);
-                UpdateTimeline();
+                if (!world_.demo.titleDemo_) {
+                    UpdateTimeline();
+                }
             }
         }
         myEngine::RuntimeProfiler::CpuScope shardScope("Survivor Shards / Q / Separation");
@@ -1249,6 +1269,10 @@ void SurvivorRunController::DrawUi()
         return;
     }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+    if (pauseOpen_) {
+        menuKit_.Draw();
+        return;
+    }
     // 持ち物の画面と拠点の画面を開いている間は、ほかの HUD を描かずにその画面だけを出す（暗幕から透けて読みにくくならないように）。
     if (LevelUpScreenShown()) {
         levelUpScreen_.Draw();

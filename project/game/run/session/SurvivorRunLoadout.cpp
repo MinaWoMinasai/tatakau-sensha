@@ -13,7 +13,8 @@ using namespace survivorrun;
 
 void SurvivorRunController::AddExperience(int amount)
 {
-    if (amount <= 0) {
+    // タイトルの後ろの見本では、レベルを上げない（選ぶ画面が開くため）。
+    if (amount <= 0 || world_.demo.titleDemo_) {
         return;
     }
     expCollected_ += amount;

@@ -9,6 +9,7 @@
 #include "SkinCluster.h"
 #include "TextRenderer.h"
 #include "game/run/TankSubmissionValidation.h"
+#include "game/debug/MenuFlow.h"
 #include <algorithm>
 #include <cmath>
 #include <chrono>
@@ -16,17 +17,6 @@
 #include <thread>
 
 namespace {
-/// @brief 表示内容を指定した領域へ収める。
-void Fit(myEngine::TextLabel& label, const myEngine::Vector2& bounds)
-{
-    label.PrepareForDraw();
-    if (auto* sprite = label.GetSprite()) {
-        const auto size = sprite->GetSize();
-        const float scale = (std::min)(bounds.x / (std::max)(size.x, 1.0f), bounds.y / (std::max)(size.y, 1.0f));
-        sprite->SetSize({size.x * scale, size.y * scale});
-    }
-}
-
 /// @brief 遠征の入口を出すか（計画書 p11 の D2：隠す。コードは残す）。MYENGINE_SHOW_EXPEDITION=1 で戻せる。
 bool ExpeditionEntryVisible()
 {
@@ -68,12 +58,13 @@ void TitleScene::Initialize()
     phase_ = Phase::kFadeIn;
     blinkTimer_ = 0;
     capturedStages_ = 0;
-    previousMousePosition_ = input_->GetMousePosition();
+    menuMouse_ = input_->GetMousePosition();
     wchar_t test[8]{};
     autoTest_ = GetEnvironmentVariableW(L"MYENGINE_TITLE_AUTOTEST", test, 8) > 0 && test[0] == L'1';
     // 1: デモの準備ができてから1秒後にゲームへ進む。2: タイトルを表示したらすぐ進む（デモ準備中の開始の確認用）。
     startupAutoTest_ = GetEnvironmentVariableW(L"MYENGINE_STARTUP_AUTOTEST", test, 8) > 0 && (test[0] == L'1' || test[0] == L'2');
     startupAutoTestEarly_ = startupAutoTest_ && test[0] == L'2';
+    expeditionDemo_ = autoTest_ || tanksubmission::Enabled();
     if (autoTest_) {
         std::filesystem::create_directories("generated/title_demo");
         std::ofstream("generated/title_demo/validation.json") << "{\"completed\":false}\n";
@@ -93,6 +84,12 @@ void TitleScene::Initialize()
     backgroundVeil_->SetSize({w, h});
     backgroundVeil_->SetColor({0.004f, 0.009f, 0.016f, 0.42f});
     backgroundVeil_->Update();
+    titleShade_ = std::make_unique<myEngine::Sprite>();
+    titleShade_->Initialize(myEngine::SpriteCommon::GetInstance(), "resources/endless_ui/shade_title.png");
+    titleShade_->SetPosition({0, 0});
+    titleShade_->SetSize({w, h});
+    titleShade_->SetColor({0.0015f, 0.0015f, 0.0024f, 1});
+    titleShade_->Update();
     StartAssetPreloads();
     // デモの準備を待たずにタイトルを出すため、文字はここで作る。
     CreateLabels();
@@ -124,7 +121,6 @@ void TitleScene::CreateLabels()
     myEngine::TextRenderer::GetInstance()->SetFontOverride(fontOverride);
 
     const float w = static_cast<float>(myEngine::WinApp::kClientWidth);
-    const float h = static_cast<float>(myEngine::WinApp::kClientHeight);
     const auto label = [](const std::string& text, float size, myEngine::Vector2 position, const myEngine::Vector4& color,
                           bool rounded = false) {
         myEngine::TextStyle style{};
@@ -143,28 +139,19 @@ void TitleScene::CreateLabels()
         result->SetPosition(position);
         return result;
     };
-    title_ = label("たたかうせんしゃ", 100, {w * 0.5f, h * 0.32f}, {0.91f, 1, 0.96f, 1}, true);
-    Fit(*title_, {w * 0.76f, 118});
-    subtitle_ = label(" ", 23, {w * 0.5f, h * 0.44f}, {0.73f, 0.91f, 0.94f, 1});
-    menu_[0] = label("遠征", 27, {w * 0.5f, h * 0.70f}, {0.47f, 1, 0.76f, 1});
-    menu_[1] = label("はじめる", 31, {w * 0.5f, h * 0.60f}, {0.47f, 1, 0.76f, 1});
-    for (auto& item : menu_) {
-        Fit(*item, {w * 0.72f, 58});
-    }
-    hint_ = label("クリックか W/S・Enter で決定", 15, {w * 0.5f, h - 36}, {0.57f, 0.71f, 0.77f, 1});
+    // 題は左上（モックの位置）。
+    title_ = label("たたかうせんしゃ", 105, {76.8f - 8.0f, 154.0f}, {0.89f, 1, 0.94f, 1}, true);
+    title_->SetAnchorPoint({0.0f, 0.5f});
+    title_->SetPosition({76.8f - 8.0f, 154.0f});
     demoCaption_ = label(" ", 13, {w - 130, 30}, {0.47f, 0.62f, 0.67f, 1});
-    menuSelection_ = 1;
-    const int hoveredAtStart = HitTestMenu(input_->GetMousePosition());
-    menuHovered_ = hoveredAtStart >= 0;
-    if (menuHovered_) {
-        menuSelection_ = hoveredAtStart;
-    }
-    UpdateMenuVisuals();
+    menuKit_.Initialize(400);
+    OpenMenu();
+    QueueMenu();
     if (tanksubmission::Enabled()) {
         ++tanksubmission::state.titles;
         tanksubmission::state.returned = tanksubmission::state.titles == 2;
         tanksubmission::state.screens["title"] =
-            nlohmann::json::array({title_->GetText(), subtitle_->GetText(), menu_[0]->GetText(), hint_->GetText()});
+            nlohmann::json::array({title_->GetText(), "はじめる", "おわる"});
         tanksubmission::Write();
     }
 }
@@ -195,7 +182,8 @@ bool TitleScene::InitializeDemoStep()
         return false;
     }
     if (!demo_) {
-        demo_ = std::make_unique<GameScene>(gameplay::RunMode::Expedition);
+        // 後ろは本番の場面（計画書 p11 の R1）：無限の場を、戦車が自動で戦う。
+        demo_ = std::make_unique<GameScene>(expeditionDemo_ ? gameplay::RunMode::Expedition : gameplay::RunMode::Survivor);
         demo_->EnableTitleDemo();
         myEngine::StartupTrace::Mark("demo.initialize_begin");
         myEngine::StartupTrace::Flush();
@@ -284,48 +272,10 @@ void TitleScene::Update()
     } else {
         demo_->FlushTitleDemoCapture();
     }
-    const auto triggered = [this](int key) {
-        return input_->IsKeyTriggered(static_cast<uint8_t>(key));
-    };
     // 決定入力はバックグラウンドのシミュレーションより前に判定する。そのため
     // 最初の入力でデモ内の射撃・移動・報酬の選択が起こることはない。
     if (phase_ != Phase::kFadeOut) {
-        const myEngine::Vector2 mouse = input_->GetMousePosition();
-        previousMousePosition_ = mouse;
-        const bool click = input_->IsTrigger(input_->GetMouseState().rgbButtons[0], input_->GetPreMouseState().rgbButtons[0]);
-        const int hovered = HitTestMenu(mouse);
-        // マウスが乗った項目を選ぶ。W/S・上下キーでも選べる（選んだ項目が明るくなる）。
-        if (hovered >= 0 && (!menuHovered_ || hovered != menuSelection_)) {
-            menuHovered_ = true;
-            menuSelection_ = hovered;
-            UpdateMenuVisuals();
-        }
-        if (triggered(DIK_W) || triggered(DIK_UP) || triggered(DIK_S) || triggered(DIK_DOWN)) {
-            const int step = triggered(DIK_W) || triggered(DIK_UP) ? -1 : 1;
-            const int count = static_cast<int>(menu_.size());
-            int next = menuHovered_ ? menuSelection_ : (step > 0 ? -1 : count);
-            for (int tries = 0; tries < count; ++tries) {
-                next = (next + step + count) % count;
-                if (IsMenuAvailable(next)) {
-                    break;
-                }
-            }
-            if (IsMenuAvailable(next)) {
-                menuSelection_ = next;
-                menuHovered_ = true;
-                UpdateMenuVisuals();
-            }
-        }
-        if (myEngine::kDeveloperTools && ExpeditionEntryVisible() && triggered(DIK_F9)) {
-            StartTransitionIfAvailable("TANK_EXPEDITION", 0.5f);
-        } else if (triggered(DIK_RETURN) || triggered(DIK_SPACE) || (click && hovered >= 0)) {
-            const int chosen = click && hovered >= 0 ? hovered : menuSelection_;
-            if (chosen == 0) {
-                StartTransitionIfAvailable("TANK_EXPEDITION", 0.65f);
-            } else if (chosen == 1) {
-                StartTransitionIfAvailable("TANK_SURVIVOR", 0.65f);
-            }
-        }
+        UpdateMenu(dt);
         if (autoTest_ && demoReady_ && capturedStages_ == 15 && demo_->GetTitleDemoStatus().totalSeconds >= 81.0f) {
             StartTransitionIfAvailable("TANK_EXPEDITION", 0.65f);
         }
@@ -382,7 +332,13 @@ void TitleScene::Update()
             WriteDemoValidation(false);
         }
     }
-    menu_[menuSelection_]->SetAlpha(menuHovered_ ? 0.90f + std::sin(blinkTimer_ * 3.2f) * 0.10f : 1.0f);
+    QueueMenu();
+    if (demoReady_) {
+        std::string shot;
+        if (menuflow::TakeShot(shot)) {
+            demo_->RequestTitleDemoCapture(shot);
+        }
+    }
     if (phase_ == Phase::kFadeIn || phase_ == Phase::kFadeOut) {
         fade_->Update();
         if (fade_->IsFinished()) {
@@ -396,7 +352,7 @@ void TitleScene::Update()
             }
         }
     }
-    PrepareLabels({title_.get(), subtitle_.get(), hint_.get(), demoCaption_.get(), menu_[0].get(), menu_[1].get()});
+    PrepareLabels({title_.get(), demoCaption_.get()});
 }
 
 void TitleScene::Draw()
@@ -426,16 +382,13 @@ void TitleScene::DrawAfterPostEffect3D()
     // 動く壁や一斉射撃でメニューのラベルが白飛びすることはない。
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
     // デモの準備ができるまでは不透明。できたら demoReveal_ に合わせて通常の濃さまで薄くする。
-    const float demoVeil = demoReady_ ? 0.42f + 0.58f * demo_->GetTitleDemoFade() : 1.0f;
+    const float demoVeil = !demoReady_ ? 1.0f : expeditionDemo_ ? 0.42f + 0.58f * demo_->GetTitleDemoFade() : 0.0f;
     backgroundVeil_->SetColor({0.004f, 0.009f, 0.016f, 1.0f + (demoVeil - 1.0f) * demoReveal_});
     backgroundVeil_->Update();
     backgroundVeil_->Draw();
-    if (titleTextNeonEffect_) {
-        if (menuHovered_) {
-            titleTextNeonEffect_->DrawBloom({title_.get(), menu_[menuSelection_].get()});
-        } else {
-            titleTextNeonEffect_->DrawBloom({title_.get()});
-        }
+    titleShade_->Draw();
+    if (titleTextNeonEffect_ && !loadingGame_) {
+        titleTextNeonEffect_->DrawBloom({title_.get()});
     }
 }
 
@@ -452,13 +405,7 @@ void TitleScene::DrawSprite()
         return;
     }
     title_->Draw();
-    subtitle_->Draw();
-    for (int i = 0; i < static_cast<int>(menu_.size()); ++i) {
-        if (IsMenuAvailable(i)) {
-            menu_[i]->Draw();
-        }
-    }
-    hint_->Draw();
+    menuKit_.Draw();
     demoCaption_->Draw();
     if (titleShown_ || phase_ == Phase::kFadeOut) {
         fade_->Draw();
@@ -474,11 +421,17 @@ void TitleScene::RecordDeveloperFrame(myEngine::DirectXCommon&)
 
 IScene::ArenaLookSettings TitleScene::GetArenaLookSettings() const
 {
-    return arenalook::Get();
+    // 本番と同じ見た目（走査線・残像・にじみの設定）にする。
+    return demoReady_ && !expeditionDemo_ ? demo_->GetArenaLookSettings() : arenalook::Get();
 }
 
 IScene::ScreenEffectState TitleScene::GetScreenEffectState() const
 {
+    if (demoReady_ && !expeditionDemo_) {
+        ScreenEffectState live = demo_->GetScreenEffectState();
+        live.suppressPostEffectDebugUi = true;
+        return live;
+    }
     ScreenEffectState state{};
     state.active = true;
     state.suppressOutlines = true;
@@ -491,43 +444,59 @@ IScene::ScreenEffectState TitleScene::GetScreenEffectState() const
     return state;
 }
 
-void TitleScene::UpdateMenuVisuals()
+void TitleScene::OpenMenu()
 {
-    for (int i = 0; i < static_cast<int>(menu_.size()); ++i) {
-        const auto size = menu_[i]->GetSprite()->GetSize();
-        auto style = menu_[i]->GetStyle();
-        // 選んでいる項目だけを明るくする（マウスが離れていれば、どれも暗い）。
-        const bool lit = menuHovered_ && i == menuSelection_;
-        style.color = lit ? myEngine::Vector4{0.47f, 1, 0.76f, 1} : myEngine::Vector4{0.48f, 0.52f, 0.55f, 1};
-        menu_[i]->SetStyle(style);
-        menu_[i]->PrepareForDraw();
-        menu_[i]->GetSprite()->SetSize(size);
-        menu_[i]->SetAlpha(1.0f);
+    std::vector<gameplay::NeonMenu::Item> items{{"はじめる", ""}};
+    menuActions_ = {MenuAction::Start};
+    if (ExpeditionEntryVisible() && IsSceneAvailable("TANK_EXPEDITION")) {
+        items.push_back({"遠征", ""});
+        menuActions_.push_back(MenuAction::Expedition);
     }
+    items.push_back({"おわる", "もう一度きめると、おわる"});
+    menuActions_.push_back(MenuAction::Quit);
+    menu_.Open(std::move(items), 294.4f);
+}
+
+void TitleScene::UpdateMenu(float dt)
+{
+    const gameplay::MenuInput in = gameplay::ReadMenuInput(*input_, menuMouse_);
+    padPrompt_ = in.pad;
+    if (!titleShown_) {
+        return;
+    }
+    if (in.back) {
+        menu_.Disarm();
+    }
+    const int picked = menu_.Update(dt, in);
+    menuflow::SetScreen("title", std::to_string(menu_.GetSelected()) + (menu_.IsArmed() ? "!" : "") + (in.pad ? "p" : "k") + (demoReady_ ? "r" : ""));
+    if (picked < 0) {
+        return;
+    }
+    switch (menuActions_[static_cast<size_t>(picked)]) {
+    case MenuAction::Start:
+        StartTransitionIfAvailable("TANK_SURVIVOR", 0.65f);
+        break;
+    case MenuAction::Expedition:
+        StartTransitionIfAvailable("TANK_EXPEDITION", 0.65f);
+        break;
+    case MenuAction::Quit:
+        menuflow::SetScreen("quit");
+        PostQuitMessage(0);
+        break;
+    }
+}
+
+void TitleScene::QueueMenu()
+{
+    menuKit_.Begin();
+    menu_.Queue(menuKit_);
+    menuKit_.Hints({{{"W", "S"}, "L", "えらぶ"}, {{"Enter"}, "A", "きめる"}}, padPrompt_);
+    menuKit_.End();
 }
 
 bool TitleScene::IsSceneAvailable(std::string_view name) const
 {
     return SceneManager::GetInstance()->ContainsScene(name);
-}
-
-bool TitleScene::IsMenuAvailable(int selection) const
-{
-    return (selection == 0 && ExpeditionEntryVisible() && IsSceneAvailable("TANK_EXPEDITION")) || (selection == 1 && IsSceneAvailable("TANK_SURVIVOR"));
-}
-
-int TitleScene::HitTestMenu(const myEngine::Vector2& mouse) const
-{
-    for (int i = 0; i < static_cast<int>(menu_.size()); ++i) {
-        if (IsMenuAvailable(i)) {
-            auto* sprite = menu_[i]->GetSprite();
-            const auto center = sprite->GetPosition(), size = sprite->GetSize();
-            if (std::abs(mouse.x - center.x) <= (std::max)(150.0f, size.x * 0.5f) && std::abs(mouse.y - center.y) <= 28) {
-                return i;
-            }
-        }
-    }
-    return -1;
 }
 
 bool TitleScene::StartTransitionIfAvailable(std::string_view name, float duration)

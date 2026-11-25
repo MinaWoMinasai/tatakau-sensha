@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <format>
 #ifndef DIRECTINPUT_VERSION
 #define DIRECTINPUT_VERSION 0x0800
@@ -38,8 +39,30 @@ public:
     // 次のBeforeFrameDataで通常のポーリングに戻る。
     void OverrideValidationFrame(const Vector2& mousePosition);
 #endif
+#if MYENGINE_DEVELOPER_TOOLS
+    /// @brief 画面の出入りの確認（game/debug/MenuFlow）が、次のフレームの入力を丸ごと置き換える内容。
+    struct TestFrame {
+        bool enabled = false;
+        std::array<BYTE, 256> keys{};
+        std::array<bool, 256> presses{};
+        bool padConnected = false;
+        XINPUT_GAMEPAD pad{};
+        Vector2 mouse{-1000.0f, -1000.0f};
+        bool mouseMoved = false;
+        bool leftButton = false;
+    };
+    void SetTestFrame(const TestFrame& frame)
+    {
+        testFrame_ = frame;
+    }
+#endif
     /// @brief ウィンドウのフォーカスが変わったときに、デバイスを取得し直すか手放し、キー・マウス・パッドの状態を消す。
     void OnFocusChanged(bool active);
+    /// @brief 窓から離れた回数。増えたら、遊んでいる画面は止める。
+    uint32_t GetFocusLostCount() const
+    {
+        return focusLostCount_;
+    }
     // 2つのゲームフレームの間に押して離した短いキー入力も、取りこぼさないよう記録する。
     /// @brief キーが押されたことを記録する。
     void RecordKeyDown(unsigned int scanCode, bool repeated);
@@ -148,6 +171,10 @@ private:
     bool validationFrame_ = false;
     Vector2 validationMousePosition_{};
 #endif
+#if MYENGINE_DEVELOPER_TOOLS
+    TestFrame testFrame_{};
+#endif
+    uint32_t focusLostCount_ = 0;
     HWND hwnd_;
 
     // キーの配列

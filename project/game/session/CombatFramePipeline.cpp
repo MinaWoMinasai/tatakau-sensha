@@ -386,6 +386,11 @@ void CombatFramePipeline::Update()
             return target;
         };
         myEngine::Vector3 targetCameraPos = clampTarget({playerPos.x, playerPos.y, kCameraZ});
+        // タイトルの後ろ：題と項目は左なので、戦車は右寄りに、少し近くで映す（計画書 p11 の R1）。
+        if (world_.demo.titleDemo_ && world_.run.IsSurvivorRun()) {
+            constexpr float kNear = 0.9f, kShift = 0.17f * 2.0f;
+            targetCameraPos = {playerPos.x - arenacamera::HalfViewHeight() * arenacamera::kAspect * kNear * kShift, playerPos.y, kCameraZ * kNear};
+        }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
         // キャプチャ用フィクスチャ専用: 通常と同じ見下ろしカメラで両方のアクターを映す。
         if ((world_.resources.neonBossAutoTest_ || GameplayScenarioSession::Get().IsActive()) &&

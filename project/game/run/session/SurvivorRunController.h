@@ -10,6 +10,7 @@
 #include "game/ui/session/SurvivorChoiceHud.h"
 #include "game/ui/session/SurvivorLoadoutHud.h"
 #include "game/ui/session/SurvivorDamageNumbers.h"
+#include "game/ui/session/NeonMenuKit.h"
 #include "game/ui/session/SurvivorCompactHud.h"
 #include "game/ui/session/SurvivorPlayerNumbers.h"
 #include "game/ui/session/SurvivorLevelUpScreen.h"
@@ -73,7 +74,7 @@ public:
     /// @note 止めている間も、スロー演出ではないので画面の色は残す（GameplayQueries・CombatFramePipeline）。
     bool IsPaused() const
     {
-        return IsFormChoiceOpen() || inventoryOpen_ || baseScreenOpen_ || restRoomOpen_ || heroLevelUpOpen_ || (tuningOpen_ && tuningPause_) ||
+        return pauseOpen_ || IsFormChoiceOpen() || inventoryOpen_ || baseScreenOpen_ || restRoomOpen_ || heroLevelUpOpen_ || (tuningOpen_ && tuningPause_) ||
                cineMode_ == CineMode::RivalIntro ||
                cineMode_ == CineMode::Evolve;
     }
@@ -402,6 +403,27 @@ private:
     void UpdateCompactHud(float dt);
     // 自機の上の数字（計画書 p9 の H3）。
     SurvivorPlayerNumbers playerNumbers_;
+    // 止める画面（計画書 p11 の R1）。SurvivorRunMenus.cpp。
+    NeonMenuKit menuKit_;
+    NeonMenu pauseMenu_;
+    bool pauseOpen_ = false;
+    float pauseAge_ = 0.0f;
+    uint32_t focusLostSeen_ = 0;
+    myEngine::Vector2 menuMouse_{};
+    /// @brief 今、止める画面を開けるか（戦っている間で、ほかの画面を開いていない）。
+    bool CanOpenPause() const;
+    void OpenPause();
+    void UpdatePause(float dt);
+    /// @brief Esc・Start か、窓から離れたときに止める。開いたら true。
+    bool TryOpenPause();
+    /// @brief 止める画面・結果の画面の、持ち物の枠を積む（右上から右寄せ。top は1段目の中心）。
+    void QueueGear(float top, bool oneRow);
+    /// @brief 次の場面へ移る（0 もう1回、1 タイトル）。
+    void LeaveRun(int selection);
+    /// @brief タイトルの後ろで、戦車が自動で戦う動き。
+    void UpdateTitleDemoBot();
+    /// @brief 画面の出入りの確認（MenuFlow）に、今の画面を知らせる。
+    void ReportMenuFlow();
     uint64_t lastHpLost_ = 0;
     bool autoHurtCaptured_ = false;
     bool autoHealNumberCaptured_ = false;

@@ -74,12 +74,12 @@ void SurvivorQuadBatch::Begin()
 }
 
 void SurvivorQuadBatch::Quad(Layer layer, const std::string& texture, const myEngine::Vector2& position, const myEngine::Vector2& size, float rotation,
-                             const myEngine::Vector4& color)
+                             const myEngine::Vector4& color, float uLeft, float uRight)
 {
     if (entries_.size() >= capacity_ || size.x <= 0.0f || size.y <= 0.0f) {
         return;
     }
-    entries_.push_back({layer, Find(texture).handle, position, size, rotation, color});
+    entries_.push_back({layer, Find(texture).handle, position, size, rotation, color, uLeft, uRight});
 }
 
 myEngine::Vector2 SurvivorQuadBatch::Measure(const std::string& text, const myEngine::TextStyle& style)
@@ -124,12 +124,13 @@ void SurvivorQuadBatch::End()
         const myEngine::Vector4 leftTop = corner(-w, -h), rightTop = corner(w, -h), leftBottom = corner(-w, h), rightBottom = corner(w, h);
         const myEngine::Vector3 normal{0.0f, 0.0f, -1.0f};
         myEngine::VertexData* out = vertexData_ + i * kQuadVertices;
-        out[0] = {leftBottom, {0.0f, 1.0f}, normal};
-        out[1] = {leftTop, {0.0f, 0.0f}, normal};
-        out[2] = {rightBottom, {1.0f, 1.0f}, normal};
-        out[3] = {leftTop, {0.0f, 0.0f}, normal};
-        out[4] = {rightTop, {1.0f, 0.0f}, normal};
-        out[5] = {rightBottom, {1.0f, 1.0f}, normal};
+        const float u0 = entry.uLeft, u1 = entry.uRight;
+        out[0] = {leftBottom, {u0, 1.0f}, normal};
+        out[1] = {leftTop, {u0, 0.0f}, normal};
+        out[2] = {rightBottom, {u1, 1.0f}, normal};
+        out[3] = {leftTop, {u0, 0.0f}, normal};
+        out[4] = {rightTop, {u1, 0.0f}, normal};
+        out[5] = {rightBottom, {u1, 1.0f}, normal};
         if (!runs_.empty()) {
             Run& last = runs_.back();
             if (last.layer == entry.layer && last.handle.ptr == entry.handle.ptr && SameColor(entries_[i - 1].color, entry.color)) {

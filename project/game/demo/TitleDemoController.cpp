@@ -82,6 +82,13 @@ void TitleDemoController::InitializeTitleDemo()
     if (!world_.demo.titleDemo_) {
         return;
     }
+    // 無限の場の見本：自機は倒れない。動きは SurvivorRunController が決める（計画書 p11 の R1）。
+    if (world_.run.IsSurvivorRun()) {
+        world_.presentation.debugPlayerNoDamage_ = true;
+        world_.demo.titleDemoStatus_ = {};
+        world_.combat.phase_ = Phase::kMain;
+        return;
+    }
     world_.run.tankRunAutoTest_ = false;
     world_.combat.tutorialConfig_.enabled = false;
     world_.presentation.debugPlayerNoDamage_ = true; // アトラクトモードはプレイヤーの死亡では終了しない。
@@ -192,6 +199,11 @@ void TitleDemoController::ResetTitleDemoStage(int stage)
 void TitleDemoController::UpdateTitleDemo(float dt)
 {
     if (!world_.demo.titleDemo_) {
+        return;
+    }
+    if (world_.run.IsSurvivorRun()) {
+        world_.demo.titleDemoStatus_.stageSeconds += dt;
+        world_.demo.titleDemoStatus_.totalSeconds += dt;
         return;
     }
     // アトラクトモードは通常の遠征更新（バーストの後片付けを含む）を通らない。

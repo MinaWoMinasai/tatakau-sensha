@@ -4,6 +4,7 @@
 #include "Input.h"
 #include "SceneManager.h"
 #include "TitleScene.h"
+#include "game/debug/MenuFlow.h"
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "game/debug/GameplayScenarioSession.h"
 #include "game/debug/NeonShowcaseCapture.h"
@@ -67,7 +68,7 @@ bool Game::IsBackgroundValidationActive() const
     const bool experienceValidation =
         GetEnvironmentVariableA("MYENGINE_TANK_EXPERIENCE_AUTOTEST", experienceMode, sizeof(experienceMode)) == 1 &&
         (experienceMode[0] == '1' || experienceMode[0] == '2');
-    return TestEnabled("MYENGINE_TITLE_AUTOTEST") || TestEnabled("MYENGINE_TANK_TUTORIAL_AUTOTEST") ||
+    return menuflow::IsActive() || TestEnabled("MYENGINE_TITLE_AUTOTEST") || TestEnabled("MYENGINE_TANK_TUTORIAL_AUTOTEST") ||
            TestEnabled("MYENGINE_TANK_AUTOTEST") || TestEnabled("MYENGINE_TANK_MAP_AUTOTEST") ||
            TestEnabled("MYENGINE_TANK_COMBAT_AUTOTEST") || TestEnabled("MYENGINE_TANK_SPECIAL_AUTOTEST") ||
            TestEnabled("MYENGINE_NEON_BOSS_AUTOTEST") || TestEnabled("MYENGINE_SUBMISSION_AUTOTEST") || experienceValidation
@@ -101,6 +102,7 @@ void Game::OnMainLoopFinished()
 
 void Game::OnFrameInputReady([[maybe_unused]] myEngine::Input& input)
 {
+    menuflow::Step(input);
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (GameplayScenarioSession::Get().IsActive()) {
         input.OverrideValidationFrame({640.0f, 360.0f});

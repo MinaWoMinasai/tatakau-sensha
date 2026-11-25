@@ -26,8 +26,9 @@ public:
     void Preload(const std::string& texture);
     void Begin();
     /// @brief 板を積む。position は中心、color はそのまま材質の色になる。
+    /// uLeft・uRight は、画像の横のどこからどこまでを貼るか（0〜1）。
     void Quad(Layer layer, const std::string& texture, const myEngine::Vector2& position, const myEngine::Vector2& size, float rotation,
-              const myEngine::Vector4& color);
+              const myEngine::Vector4& color, float uLeft = 0.0f, float uRight = 1.0f);
     /// @brief 文字を積む。anchorX は 0 で左、0.5 で真ん中、1 で右。縦は真ん中。scale は大きさの倍率。戻り値は幅。
     float Label(Layer layer, const std::string& text, const myEngine::TextStyle& style, float x, float y, float anchorX, const myEngine::Vector4& color,
                 float scale = 1.0f);
@@ -47,6 +48,7 @@ private:
         myEngine::Vector2 position{}, size{};
         float rotation = 0.0f;
         myEngine::Vector4 color{};
+        float uLeft = 0.0f, uRight = 1.0f;
     };
     /// @brief 続けて描ける板の並び（同じ層・画像・色）。
     struct Run {
