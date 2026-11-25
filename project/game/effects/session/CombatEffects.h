@@ -22,8 +22,19 @@ public:
     void QueueNeonTriangleParticles(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp,
                                     const myEngine::Vector3& cameraForward);
 
+    /// @brief 倒れた敵の管の辺を、1本ずつ割れて飛ぶ線にする（計画書 p10 の20章。管の線で描くときだけ）。
+    /// @note 衝突処理の途中から呼ばれる。粒子の入れ物へ足すだけにする。
+    void SpawnBrokenTube(const ExpEnemy& enemy);
+
 private:
     GameWorld& world_;
+    /// @brief 倒れたばかりの敵の場所と種類の色。倒した瞬間の白さで、破片や輪が白くならないようにする。
+    struct RecentKill {
+        myEngine::Vector3 position{};
+        myEngine::Vector4 color{};
+        float age = 0.0f;
+    };
+    std::vector<RecentKill> recentKills_;
     /// @brief 破片と火花を割合で間引くときの端数（計画書 p10 の16章の M3）。
     float tubeSparkCarry_ = 0.0f;
     float tubeDebrisCarry_ = 0.0f;

@@ -475,7 +475,7 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer, cons
     const bool tubes = tube.tubeEffects;
     auto circle = [&](const myEngine::Vector3& center, float radius, float width, const myEngine::Vector4& color, float phase, int sides) {
         if (tubes) {
-            tubefx::Circle(renderer, tube, center, radius, 0.05f + width * 0.1f, color, phase, sides, cameraForward);
+            tubefx::Circle(renderer, tube, center, radius, 0.05f + width * 0.1f, tubefx::Steady(color), phase, sides, cameraForward, 0.6f);
             return;
         }
         for (int n = 0; n < sides; ++n) {
@@ -504,6 +504,16 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer, cons
         circle(balls[i], kOrbitBall, 0.16f, {0.5f * glow, 1.6f * glow, 2.2f * glow, 0.95f}, orbitAngle_ * 3.0f, 12);
         if (!tubes) {
             circle(balls[i], kOrbitBall * 0.45f, 0.2f, {1.2f, 2.0f, 2.4f, 0.9f}, -orbitAngle_ * 4.0f, 8);
+        } else {
+            // 中に、回る向きを指す小さな山形を入れる（ただの輪に見えないように）。
+            const float a = std::atan2(balls[i].y - heroWorld_.resources.player_->GetWorldPosition().y,
+                                       balls[i].x - heroWorld_.resources.player_->GetWorldPosition().x) +
+                            1.57079633f;
+            const myEngine::Vector3 forward{std::cos(a), std::sin(a), 0.0f}, side{-std::sin(a), std::cos(a), 0.0f};
+            const myEngine::Vector3 c = balls[i] + myEngine::Vector3{0.0f, 0.0f, -0.3f};
+            const myEngine::Vector4 color{0.25f * glow, 0.6f * glow, 0.8f * glow, 0.9f};
+            tubefx::Line(renderer, tube, c - forward * 0.16f + side * 0.26f, c + forward * 0.26f, 0.04f, color, cameraForward);
+            tubefx::Line(renderer, tube, c - forward * 0.16f - side * 0.26f, c + forward * 0.26f, 0.04f, color, cameraForward);
         }
     }
     // 迫撃砲：落ちる所に、赤い輪が縮みながら点滅する。
@@ -517,6 +527,18 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer, cons
     if (const int tier = SubWeaponTier(SubWeapon::Drone); tier > 0 && dronesPlaced_) {
         for (int i = 0; i < kDrone[static_cast<size_t>(tier - 1)].count; ++i) {
             const myEngine::Vector3& p = dronePositions_[static_cast<size_t>(i)];
+            if (tubes) {
+                // 自機から見て外を向いた矢じり（敵のいる外側へ撃つ機体に見えるように）。
+                const myEngine::Vector3 out = myEngine::NormalizeOr(p - heroWorld_.resources.player_->GetWorldPosition(),
+                                                                    myEngine::Vector3{1.0f, 0.0f, 0.0f}, 0.001f);
+                const myEngine::Vector3 side{-out.y, out.x, 0.0f};
+                const myEngine::Vector3 c = p + myEngine::Vector3{0.0f, 0.0f, -0.3f};
+                const myEngine::Vector3 points[4]{c + out * 0.5f, c - out * 0.3f + side * 0.34f, c - out * 0.08f, c - out * 0.3f - side * 0.34f};
+                for (int edge = 0; edge < 4; ++edge) {
+                    tubefx::Line(renderer, tube, points[edge], points[(edge + 1) % 4], 0.045f, {1.0f, 0.85f, 0.18f, 0.95f}, cameraForward, 0.6f);
+                }
+                continue;
+            }
             circle(p, 0.42f, 0.14f, kDroneColor, droneAngle_ * 4.0f, 3);
             if (!tubes) {
                 circle(p, 0.16f, 0.16f, {2.4f, 2.2f, 1.2f, 0.9f}, 0.0f, 6);
@@ -531,10 +553,6 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer, cons
             const float base = std::atan2(flameDirection_.y, flameDirection_.x);
             const float half = t.halfAngle * 3.14159265f / 180.0f;
             for (int n = 0; n < 14; ++n) {
-                // 管の線では、半分の数の細い筋を、自機から離れた所から出す。
-                if (tubes && n % 2 == 1) {
-                    continue;
-                }
                 // 時間と筋の番号から、ゆらぎを作る。
                 const float wobble = std::sin(flameAge_ * 23.0f + static_cast<float>(n) * 2.7f);
                 const float a = base + half * (static_cast<float>(n) / 6.5f - 1.0f) + 0.08f * wobble;
@@ -544,9 +562,12 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer, cons
                 const bool core = n % 3 == 1;
                 const myEngine::Vector4 color = core ? myEngine::Vector4{2.4f, 1.9f, 0.5f, 0.85f} : myEngine::Vector4{2.4f, 0.75f, 0.15f, 0.7f};
                 if (tubes) {
-                    const float from = (std::min)(length * 0.55f, 1.6f + 0.35f * wobble);
+                    // 管の線：自機のすぐ前から、1本おきに長さと太さを変えた細い筋を出す。
+                    const bool thin = n % 2 == 1;
+                    const float from = (std::min)(length * 0.5f, 1.15f + 0.2f * wobble);
                     tubefx::Line(renderer, tube, self + dir * from + myEngine::Vector3{0.0f, 0.0f, -0.3f},
-                                 self + dir * length + myEngine::Vector3{0.0f, 0.0f, -0.3f}, 0.06f, {color.x, color.y, color.z, 0.7f}, cameraForward);
+                                 self + dir * (thin ? length * 0.72f : length) + myEngine::Vector3{0.0f, 0.0f, -0.3f}, thin ? 0.028f : 0.045f,
+                                 {color.x * 0.3f, color.y * 0.3f, color.z * 0.3f, 0.7f}, cameraForward, 0.8f);
                     continue;
                 }
                 renderer.QueueLine(start + myEngine::Vector3{0.0f, 0.0f, -0.3f}, self + dir * length + myEngine::Vector3{0.0f, 0.0f, -0.3f},

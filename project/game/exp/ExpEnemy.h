@@ -519,6 +519,12 @@ public:
     }
 
     /// @brief 表示色を返す。
+    /// @brief 種類の色（被弾の白さが入らない）。
+    const myEngine::Vector4& GetBaseColor() const
+    {
+        return baseColor_;
+    }
+
     const myEngine::Vector4& GetVisualColor() const
     {
         return visualColor_;

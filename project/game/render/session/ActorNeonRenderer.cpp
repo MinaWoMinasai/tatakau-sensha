@@ -511,6 +511,7 @@ void ActorNeonRenderer::DrawPlayerTank(const myEngine::Vector3& cameraForward, c
     const float width = world_.presentation.expEnemyNeonLineWidth_ * look.enemyLine * look.tankLine;
 
     uint32_t start = renderer.GetVertexCount();
+    bool firstFill = true;
     auto flushLines = [&]() {
         renderer.DrawRange(start, renderer.GetVertexCount() - start, viewProjection, noDepth);
         start = renderer.GetVertexCount();
@@ -518,8 +519,21 @@ void ActorNeonRenderer::DrawPlayerTank(const myEngine::Vector3& cameraForward, c
     auto fill = [&](const std::vector<myEngine::Vector3>& points) {
         flushLines();
         renderer.SetBodyShadingEye(nullptr);
-        renderer.QueueBeveledPolygonFill(points.data(), static_cast<uint32_t>(points.size()), {0.0f, 0.0f, 0.0f, color.w},
-                                         {0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
+        // 光の上に重ねるときは、いちばん下の面だけ少し透かし、縁をぼかす（四角い板に見えないように）。
+        const bool plate = overlay && firstFill;
+        const float dark = plate ? look.tankPlate * color.w : color.w;
+        renderer.QueueBeveledPolygonFill(points.data(), static_cast<uint32_t>(points.size()), {0.0f, 0.0f, 0.0f, dark}, {0.0f, 0.0f, 0.0f, 0.0f},
+                                         {0.0f, 1.0f, 0.0f});
+        if (plate && look.tankPlateFeather > 0.0f) {
+            for (size_t i = 0; i < points.size(); ++i) {
+                const myEngine::Vector3 a = points[i], b = points[(i + 1) % points.size()];
+                auto spread = [&](const myEngine::Vector3& p) {
+                    return p + myEngine::NormalizeOr(p - center, myEngine::Vector3{1.0f, 0.0f, 0.0f}, 0.001f) * (look.tankPlateFeather * scale);
+                };
+                renderer.QueueGradientQuad(a, b, spread(a), spread(b), {0.0f, 0.0f, 0.0f, dark}, {0.0f, 0.0f, 0.0f, 0.0f});
+            }
+        }
+        firstFill = false;
         renderer.DrawRangeSolid(start, renderer.GetVertexCount() - start, viewProjection);
         start = renderer.GetVertexCount();
     };

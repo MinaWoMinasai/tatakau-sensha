@@ -290,6 +290,10 @@ void SurvivorRunController::Initialize()
     ExpEnemy::SetPlayerDamageCallback([this](const ExpEnemy& enemy, uint32_t amount) {
         damageNumbers_.Spawn(enemy.GetCollisionId(), enemy.GetWorldPosition(), amount,
                              world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio, ExpEnemy::IsHitCritical());
+        // 倒れた敵は、管の辺がそのまま割れて飛ぶ（計画書 p10 の20章）。
+        if (enemy.GetHp() <= 0) {
+            world_.combatEffects->SpawnBrokenTube(enemy);
+        }
         AddUltimateCharge(static_cast<float>(amount));
         damageDealt_ += amount;
         // パーク「吸い取る装甲」：与えたダメージの一部で回復する（端数は貯める。衝突処理の途中なので HP を足すだけ）。
@@ -758,8 +762,16 @@ void SurvivorRunController::ApplyNeonLook(float dt)
     out.tubeEffects = look.enabled && effects.enabled;
     out.effectLine = effects.line;
     out.effectBrightness = effects.brightness;
-    out.effectDebris = effects.debris;
-    out.effectSparks = effects.sparks;
+    // 敵が多いときだけ、破片と火花を減らす。
+    const float thin = 1.0f + (effects.crowd - 1.0f) * neonCrowd_;
+    out.effectDebris = effects.debris * thin;
+    out.effectSparks = effects.sparks * thin;
+    out.effectGlow = effects.glow;
+    out.effectBirth = effects.birth;
+    out.effectFlash = effects.flash;
+    out.effectEdges = effects.edges;
+    out.tankPlate = out.tubeEffects ? effects.plate : 1.0f;
+    out.tankPlateFeather = out.tubeEffects ? effects.plateFeather : 0.0f;
     out.effectRing = effects.ring;
     out.effectClearRadius = out.tubeEffects ? effects.clearRadius : 0.0f;
     out.effectClearAlpha = effects.clearAlpha;

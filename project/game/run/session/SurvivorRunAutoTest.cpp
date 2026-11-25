@@ -1398,6 +1398,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             same(loaded.growth.hpPerMinute, config_.growth.hpPerMinute) && same(loaded.spawnForward, config_.spawnForward) &&
                             same(loaded.separation.radiusScale, config_.separation.radiusScale) &&
                             loaded.glow.effects.enabled == config_.glow.effects.enabled && loaded.glow.effects.topMost == config_.glow.effects.topMost &&
+                            same(loaded.glow.effects.glow, config_.glow.effects.glow) && same(loaded.glow.effects.birth, config_.glow.effects.birth) &&
+                            same(loaded.glow.effects.flash, config_.glow.effects.flash) && loaded.glow.effects.edges == config_.glow.effects.edges &&
+                            same(loaded.glow.effects.plate, config_.glow.effects.plate) && same(loaded.glow.effects.crowd, config_.glow.effects.crowd) &&
                             same(loaded.glow.effects.debris, config_.glow.effects.debris) &&
                             same(loaded.glow.effects.clearRadius, config_.glow.effects.clearRadius) &&
                             loaded.glow.needle.enabled == config_.glow.needle.enabled && same(loaded.glow.needle.line, config_.glow.needle.line) &&

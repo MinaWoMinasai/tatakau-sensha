@@ -418,6 +418,8 @@ struct NeonTriangleParticle {
     bool isBillboard = false;
     myEngine::NeonParticleShape shape = myEngine::NeonParticleShape::Triangle;
     float endRadius = -1.0f;
+    /// @brief 割れた管の辺（1本の線）か。長さは radius の2倍。
+    bool edge = false;
     myEngine::Vector4 color{1.0f, 0.4f, 1.0f, 1.0f};
 };
 } // namespace gameplay

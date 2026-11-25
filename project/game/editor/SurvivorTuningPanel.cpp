@@ -735,7 +735,14 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
         changed |= ImGui::SliderFloat("倒したときの輪の大きさ", &effects.ring, 0.0f, 1.5f, "×%.2f");
         changed |= ImGui::SliderFloat("自機のまわりを薄くする半径", &effects.clearRadius, 0.0f, 8.0f, "%.1f");
         changed |= ImGui::SliderFloat("そこで残す濃さ", &effects.clearAlpha, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("演出の近いにじみ（敵に対して）", &effects.glow, 0.0f, 6.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("生まれた瞬間の明るさ", &effects.birth, 1.0f, 6.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("撃破の閃光", &effects.flash, 0.0f, 3.0f, "%.2f");
+        changed |= ImGui::Checkbox("倒すと管の辺が割れて飛ぶ", &effects.edges);
+        changed |= ImGui::SliderFloat("敵が多いときの破片と火花", &effects.crowd, 0.0f, 1.0f, "×%.2f");
         changed |= ImGui::Checkbox("自機を光の上にもう一度重ねる", &effects.topMost);
+        changed |= ImGui::SliderFloat("自機の黒い面の濃さ", &effects.plate, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("自機の黒い面の縁のぼかし", &effects.plateFeather, 0.0f, 0.6f, "%.2f");
         ImGui::TreePop();
     }
 

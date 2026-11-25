@@ -444,7 +444,7 @@ void HeroAbilityCore::QueueHeroVisuals(myEngine::NeonGridRenderer& renderer, con
         constexpr int kSides = 40;
         // 管の線で描くとき（計画書 p10 の16章の M3）：太さをそろえた1本の輪にする。
         if (tube.tubeEffects) {
-            tubefx::Circle(renderer, tube, center, radius, 0.05f + width * 0.1f, color, phase, kSides, cameraForward);
+            tubefx::Circle(renderer, tube, center, radius, 0.05f + width * 0.1f, tubefx::Steady(color), phase, kSides, cameraForward, 0.6f);
             return;
         }
         for (int n = 0; n < kSides; ++n) {

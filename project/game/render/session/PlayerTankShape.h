@@ -59,7 +59,8 @@ inline Shape Default()
     Shape shape;
     Part base;
     base.name = "base";
-    base.bottom = {{0.95f, -0.8f}, {-0.95f, -0.8f}, {-0.95f, 0.8f}, {0.95f, 0.8f}};
+    base.bottom = {{1.0f, -0.3f},    {0.78f, -0.55f}, {0.95f, -0.7f}, {0.95f, -0.86f}, {-0.95f, -0.86f}, {-0.95f, -0.7f}, {-0.84f, -0.5f},
+                   {-0.84f, 0.5f}, {-0.95f, 0.7f},  {-0.95f, 0.86f}, {0.95f, 0.86f},  {0.95f, 0.7f},    {0.78f, 0.55f},  {1.0f, 0.3f}};
     base.high = 0.4f;
     base.line = 0.0f;
     Part hull;

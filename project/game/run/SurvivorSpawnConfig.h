@@ -1359,6 +1359,21 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(effects, "ring", look.ring);
             number(effects, "clearRadius", look.clearRadius);
             number(effects, "clearAlpha", look.clearAlpha);
+            number(effects, "glow", look.glow);
+            number(effects, "birth", look.birth);
+            number(effects, "flash", look.flash);
+            number(effects, "crowd", look.crowd);
+            number(effects, "plate", look.plate);
+            number(effects, "plateFeather", look.plateFeather);
+            if (effects.contains("edges") && effects.at("edges").is_boolean()) {
+                look.edges = effects.at("edges").get<bool>();
+            }
+            look.glow = (std::clamp)(look.glow, 0.0f, 8.0f);
+            look.birth = (std::clamp)(look.birth, 1.0f, 6.0f);
+            look.flash = (std::clamp)(look.flash, 0.0f, 4.0f);
+            look.crowd = (std::clamp)(look.crowd, 0.0f, 1.0f);
+            look.plate = (std::clamp)(look.plate, 0.0f, 1.0f);
+            look.plateFeather = (std::clamp)(look.plateFeather, 0.0f, 1.0f);
             look.line = (std::clamp)(look.line, 0.1f, 4.0f);
             look.brightness = (std::clamp)(look.brightness, 0.0f, 4.0f);
             look.debris = (std::clamp)(look.debris, 0.0f, 1.0f);
@@ -2076,6 +2091,13 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         effects["ring"] = round(look.ring);
         effects["clearRadius"] = round(look.clearRadius);
         effects["clearAlpha"] = round(look.clearAlpha);
+        effects["glow"] = round(look.glow);
+        effects["birth"] = round(look.birth);
+        effects["flash"] = round(look.flash);
+        effects["edges"] = look.edges;
+        effects["crowd"] = round(look.crowd);
+        effects["plate"] = round(look.plate);
+        effects["plateFeather"] = round(look.plateFeather);
         effects["topMost"] = look.topMost;
     }
     if (config.glow.needle.enabled || glow.contains("needle")) {

@@ -340,6 +340,12 @@ struct NeonPresentationState {
         float effectDebris = 1.0f;
         float effectSparks = 1.0f;
         float effectRing = 1.0f;
+        float effectGlow = 0.0f;
+        float effectBirth = 1.0f;
+        float effectFlash = 0.0f;
+        bool effectEdges = false;
+        float tankPlate = 1.0f;
+        float tankPlateFeather = 0.0f;
         float effectClearRadius = 0.0f;
         float effectClearAlpha = 1.0f;
         myEngine::Vector3 effectClearCenter{};

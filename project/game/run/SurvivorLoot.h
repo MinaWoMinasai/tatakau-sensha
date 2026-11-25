@@ -167,6 +167,16 @@ struct GlowConfig {
         float clearRadius = 3.2f;
         float clearAlpha = 0.2f;
         bool topMost = true;
+        /// @brief 近いにじみ（敵の近いにじみに対する倍）、生まれた瞬間の明るさ（倍、0.1秒で戻る）、撃破の閃光の強さ（0 で無し）、
+        /// 割れた管の辺を飛ばすか、敵が crowdCount 体いるときの破片と火花の数（倍。glow.neon の crowdCount を使う）。
+        float glow = 0.8f;
+        float birth = 2.5f;
+        float flash = 0.5f;
+        bool edges = true;
+        float crowd = 0.5f;
+        /// @brief 自機の黒い面の濃さ（1 で真っ黒）と、縁をぼかす幅（ワールド単位）。
+        float plate = 0.85f;
+        float plateFeather = 0.16f;
     } effects;
 };
 
