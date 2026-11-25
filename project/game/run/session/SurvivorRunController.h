@@ -11,6 +11,7 @@
 #include "game/ui/session/SurvivorLoadoutHud.h"
 #include "game/ui/session/SurvivorDamageNumbers.h"
 #include "game/ui/session/NeonMenuKit.h"
+#include "game/ui/session/SettingsScreen.h"
 #include "game/ui/session/SurvivorCompactHud.h"
 #include "game/ui/session/SurvivorPlayerNumbers.h"
 #include "game/ui/session/SurvivorLevelUpScreen.h"
@@ -406,6 +407,7 @@ private:
     // 止める画面（計画書 p11 の R1）。SurvivorRunMenus.cpp。
     NeonMenuKit menuKit_;
     NeonMenu pauseMenu_;
+    SettingsScreen settings_;
     bool pauseOpen_ = false;
     float pauseAge_ = 0.0f;
     uint32_t focusLostSeen_ = 0;
@@ -414,6 +416,8 @@ private:
     bool CanOpenPause() const;
     void OpenPause();
     void UpdatePause(float dt);
+    /// @brief 止める画面の項目を進める。閉じたら true。
+    bool UpdatePauseMenu(float dt, const MenuInput& in);
     /// @brief Esc・Start か、窓から離れたときに止める。開いたら true。
     bool TryOpenPause();
     /// @brief 止める画面・結果の画面の、持ち物の枠を積む（右上から右寄せ。top は1段目の中心）。

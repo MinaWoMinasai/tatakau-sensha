@@ -2,6 +2,7 @@
 #include "game/scene/PresentationToggles.h"
 #include "FixedTimestep.h"
 #include "game/render/settings/ArenaCameraProfile.h"
+#include "game/settings/UserSettings.h"
 #include "game/session/GameplaySystems.h"
 #include "game/weapon/CombatTypes.h"
 #include "RuntimeProfiler.h"
@@ -404,7 +405,7 @@ void CombatFramePipeline::Update()
         if (world_.presentation.cameraShakeTimer_ > 0.0f) {
             world_.presentation.cameraShakeTimer_ -= baseDeltaTime;
             float t = (std::clamp)(world_.presentation.cameraShakeTimer_ / world_.presentation.cameraShakeDuration_, 0.0f, 1.0f);
-            float power = world_.presentation.cameraShakePower_ * t * t;
+            float power = world_.presentation.cameraShakePower_ * t * t * (world_.run.IsSurvivorRun() ? usersettings::ShakeScale() : 1.0f);
             nextCameraPos.x += myEngine::Rand(-power, power);
             nextCameraPos.y += myEngine::Rand(-power, power);
         }

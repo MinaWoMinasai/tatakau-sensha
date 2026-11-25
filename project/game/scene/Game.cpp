@@ -5,6 +5,7 @@
 #include "SceneManager.h"
 #include "TitleScene.h"
 #include "game/debug/MenuFlow.h"
+#include "game/settings/UserSettings.h"
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
 #include "game/debug/GameplayScenarioSession.h"
 #include "game/debug/NeonShowcaseCapture.h"
@@ -51,6 +52,7 @@ std::string_view Game::GetStartupValidationSceneName() const
 
 void Game::OnBeforeEngineInitialize(const std::string& startupScene)
 {
+    usersettings::ApplyWindow();
     if (startupScene == "TITLE") {
         TitleScene::StartAssetPreloads();
     }

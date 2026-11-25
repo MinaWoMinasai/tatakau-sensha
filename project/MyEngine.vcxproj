@@ -540,6 +540,8 @@
     <ClCompile Include="game\ui\session\SurvivorCompactHud.cpp" />
     <ClCompile Include="game\debug\MenuFlow.cpp" />
     <ClCompile Include="game\ui\session\NeonMenuKit.cpp" />
+    <ClCompile Include="game\settings\UserSettings.cpp" />
+    <ClCompile Include="game\ui\session\SettingsScreen.cpp" />
     <ClCompile Include="game\run\session\SurvivorRunMenus.cpp" />
     <ClCompile Include="game\ui\session\SurvivorPlayerNumbers.cpp" />
     <ClCompile Include="game\ui\session\SurvivorQuadBatch.cpp" />
@@ -620,6 +622,8 @@
     <ClInclude Include="game\ui\session\SurvivorCompactHud.h" />
     <ClInclude Include="game\debug\MenuFlow.h" />
     <ClInclude Include="game\ui\session\NeonMenuKit.h" />
+    <ClInclude Include="game\settings\UserSettings.h" />
+    <ClInclude Include="game\ui\session\SettingsScreen.h" />
     <ClInclude Include="game\render\session\PlayerTankShape.h" />
     <ClInclude Include="game\render\session\TubeEffects.h" />
     <ClInclude Include="game\ui\session\SurvivorPlayerNumbers.h" />

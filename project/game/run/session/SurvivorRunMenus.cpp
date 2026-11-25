@@ -22,7 +22,7 @@ void SurvivorRunController::OpenPause()
     pauseOpen_ = true;
     pauseAge_ = 0.0f;
     menuMouse_ = world_.resources.input_->GetMousePosition();
-    pauseMenu_.Open({{"つづける", ""}, {"やりなおす", "もう一度きめると、やりなおす"}, {"タイトルへ", "もう一度きめると、タイトルへ"}}, 192.0f);
+    pauseMenu_.Open({{"つづける", ""}, {"やりなおす", "もう一度きめると、やりなおす"}, {"設定", ""}, {"タイトルへ", "もう一度きめると、タイトルへ"}}, 192.0f);
     UpdatePause(0.0f);
 }
 
@@ -38,11 +38,8 @@ bool SurvivorRunController::TryOpenPause()
     return true;
 }
 
-void SurvivorRunController::UpdatePause(float dt)
+bool SurvivorRunController::UpdatePauseMenu(float dt, const MenuInput& in)
 {
-    pauseAge_ += dt;
-    focusLostSeen_ = world_.resources.input_->GetFocusLostCount();
-    const MenuInput in = ReadMenuInput(*world_.resources.input_, menuMouse_);
     const int picked = dt > 0.0f ? pauseMenu_.Update(dt, in) : -1;
     if (pauseMenu_.Moved()) {
         audio_.Play("ui_click");
@@ -53,11 +50,36 @@ void SurvivorRunController::UpdatePause(float dt)
             pauseMenu_.Disarm();
         } else {
             pauseOpen_ = false;
+            return true;
+        }
+    } else if (picked == 2) {
+        settings_.Open(in, true);
+    } else if (picked == 1 || picked == 3) {
+        audio_.Play("ui_drop");
+        LeaveRun(picked == 1 ? 0 : 1);
+    }
+    return false;
+}
+
+void SurvivorRunController::UpdatePause(float dt)
+{
+    pauseAge_ += dt;
+    focusLostSeen_ = world_.resources.input_->GetFocusLostCount();
+    const MenuInput in = ReadMenuInput(*world_.resources.input_, menuMouse_);
+    if (settings_.IsOpen()) {
+        settings_.Update(dt, in);
+        if (settings_.Moved()) {
+            audio_.Play("ui_click");
+        }
+        menuKit_.Begin();
+        if (settings_.IsOpen()) {
+            settings_.Queue(menuKit_);
+            menuKit_.End();
             return;
         }
-    } else if (picked == 1 || picked == 2) {
-        audio_.Play("ui_drop");
-        LeaveRun(picked - 1);
+        menuKit_.End();
+    } else if (UpdatePauseMenu(dt, in)) {
+        return;
     }
     menuKit_.Begin((std::min)(1.0f, pauseAge_ / 0.10f + 0.2f));
     menuKit_.Darken(NeonMenuKit::Shade::Pause);
@@ -153,7 +175,9 @@ void SurvivorRunController::ReportMenuFlow()
     if (world_.run.tankRunCapturePath_.empty() && menuflow::TakeShot(shot)) {
         RequestCapture(shot);
     }
-    if (pauseOpen_) {
+    if (pauseOpen_ && settings_.IsOpen()) {
+        menuflow::SetScreen("settings", settings_.Describe());
+    } else if (pauseOpen_) {
         menuflow::SetScreen("pause", std::to_string(pauseMenu_.GetSelected()) + (pauseMenu_.IsArmed() ? "!" : "") + device);
     } else if (heroLevelUpOpen_) {
         menuflow::SetScreen("cards", device);

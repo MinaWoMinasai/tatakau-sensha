@@ -76,6 +76,7 @@ public:
 
 private:
     myEngine::Vector4 Tint(const myEngine::Vector4& color) const;
+    myEngine::Vector4 Light(const myEngine::Vector4& color, float strength) const;
     SurvivorQuadBatch batch_;
     float alpha_ = 1.0f;
 };

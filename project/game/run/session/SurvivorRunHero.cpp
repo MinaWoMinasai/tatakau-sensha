@@ -1,4 +1,5 @@
 #include "game/run/session/SurvivorRunController.h"
+#include "game/settings/UserSettings.h"
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/render/neon/NeonGridRenderer.h"
 #include "game/session/GameplaySystems.h"
@@ -112,10 +113,9 @@ void SurvivorRunController::UpdateHeroInput()
     auto pressed = [&](AbilitySlot slot, bool keyTriggered) {
         return bot ? autoHeroPress_[static_cast<size_t>(slot)] : keyTriggered;
     };
-    // F：自動で撃つの切り替え（計画書 p7）。自動で撃つときは、押さなくても向いている方へ撃ち続ける（向きはマウスか右スティック）。
-    if (!bot && input.IsKeyTriggered(DIK_F)) {
-        heroAutoFire_ = !heroAutoFire_;
-        world_.combatFlow->SetEventCallout(heroAutoFire_ ? "自動で撃つ：オン（F で切り替え）" : "自動で撃つ：オフ（F で切り替え）", 1.0f);
+    // 自動で撃つ（計画書 p7）：押さなくても向いている方へ撃ち続ける（向きはマウスか右スティック）。切り替えは設定の画面（計画書 p11 の R2）。
+    if (!bot && !speedTest_) {
+        heroAutoFire_ = config_.heroes.autoFire && usersettings::Get().autoFire;
     }
     world_.resources.player_->SetAutoFire(heroAutoFire_ && !bot);
     // 左クリック・右クリックを押しているか（押している間の技：吸い付く光線・自分を回復）。

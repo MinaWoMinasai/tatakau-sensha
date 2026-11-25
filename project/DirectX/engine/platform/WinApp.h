@@ -69,6 +69,13 @@ public:
         presentationCurvature_ = curvature;
     }
 
+    /// @brief 全画面（枠の無い窓をモニターいっぱいに広げる）と窓を切り替える。隠した窓（自動確認）は、隠したまま大きさだけ替える。
+    void SetFullscreen(bool fullscreen);
+    bool IsFullscreen() const
+    {
+        return fullscreen_;
+    }
+
     /// @brief 有効であるか判定する。
     bool IsActive() const
     {
@@ -83,6 +90,8 @@ private:
     WNDCLASS wc_{};
     bool isActive_ = true;
     bool activationChanged_ = false;
+    bool fullscreen_ = false, hidden_ = false;
+    RECT windowedRect_{};
     float presentationCurvature_ = 0.0f;
     // CoInitializeExが成功した（S_FALSEを含む）ときだけ、Finalizeで対になるCoUninitializeを呼ぶ。
     bool comInitialized_ = false;

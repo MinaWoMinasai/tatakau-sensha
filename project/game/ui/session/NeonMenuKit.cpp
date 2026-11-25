@@ -86,6 +86,14 @@ myEngine::Vector4 NeonMenuKit::Tint(const Color& color) const
     return {convert(color.x), convert(color.y), convert(color.z), color.w * alpha_};
 }
 
+// 足して描く光。薄い板は捨てられるので、強さは不透明度ではなく色に掛ける。
+myEngine::Vector4 NeonMenuKit::Light(const Color& color, float strength) const
+{
+    const Color c = Tint(color);
+    const float k = strength * c.w;
+    return {c.x * k, c.y * k, c.z * k, 1.0f};
+}
+
 void NeonMenuKit::Darken(Shade shade)
 {
     const myEngine::Vector2 center{kWidth * 0.5f, kHeight * 0.5f}, size{kWidth, kHeight};
@@ -120,8 +128,7 @@ void NeonMenuKit::Tube(const myEngine::Vector2& a, const myEngine::Vector2& b, f
         batch_.Quad(layer, path, {a.x - c * offset, a.y - s * offset}, {half, half * 2.0f}, angle, color, 0.0f, 0.5f);
     };
     if (glow > 0.004f) {
-        Color light = Tint(glowColor);
-        light.w *= glow;
+        const Color light = Light(glowColor, glow);
         line(SurvivorQuadBatch::PreviewGlow, "tube_glow", width * 0.5f + reach, light);
     }
     line(SurvivorQuadBatch::PreviewTop, "tube_core", width * 0.5f * 1.12f, Tint(core));
@@ -137,8 +144,7 @@ void NeonMenuKit::Ring(const myEngine::Vector2& center, float radius, float widt
     const float step = (to - from) / static_cast<float>(segments) * 2.0f * kPi;
     const float chord = 2.0f * radius * std::sin(step * 0.5f);
     const Color solid = Tint(core);
-    Color light = Tint(glowColor);
-    light.w *= glow;
+    const Color light = Light(glowColor, glow);
     for (int i = 0; i < segments; ++i) {
         const float angle = -kPi * 0.5f + from * 2.0f * kPi + (static_cast<float>(i) + 0.5f) * step;
         const float r = radius * std::cos(step * 0.5f);
@@ -165,12 +171,10 @@ float NeonMenuKit::MeasureText(const std::string& text, float size, bool number)
 float NeonMenuKit::GlowText(const std::string& text, float size, float x, float y, float anchorX, const Color& color, const Color& glowColor, float glow)
 {
     const auto style = Style(size, true);
-    Color light = Tint(glowColor);
     constexpr int kRings = 3, kSides = 12;
     for (int ring = 0; ring < kRings; ++ring) {
         const float radius = size * (0.022f + 0.032f * static_cast<float>(ring));
-        Color part = light;
-        part.w *= glow * (ring == 0 ? 0.10f : ring == 1 ? 0.05f : 0.028f);
+        const Color part = Light(glowColor, glow * (ring == 0 ? 0.10f : ring == 1 ? 0.05f : 0.028f));
         for (int i = 0; i < kSides; ++i) {
             const float angle = 2.0f * kPi * (static_cast<float>(i) + 0.5f * static_cast<float>(ring % 2)) / static_cast<float>(kSides);
             batch_.Label(SurvivorQuadBatch::PreviewGlow, text, style, x + std::cos(angle) * radius, y + std::sin(angle) * radius, anchorX, part);
@@ -237,7 +241,7 @@ float NeonMenuKit::Meter(float x, float y, int value, bool lit)
         const float left = x + static_cast<float>(i) * (kDash + kGap);
         const bool on = i < value;
         const Color core = !on ? Color{0.149f, 0.169f, 0.204f, 1.0f} : lit ? Color{0.851f, 1.0f, 0.914f, 1.0f} : Color{0.498f, 0.639f, 0.573f, 1.0f};
-        Tube({left + kLine * 0.5f, y}, {left + kDash - kLine * 0.5f, y}, kLine, core, menucolor::kGreen, on && lit ? 0.55f : 0.0f, 13.0f);
+        Tube({left + kLine * 0.5f, y}, {left + kDash - kLine * 0.5f, y}, kLine, core, menucolor::kGreen, on && lit ? 0.7f : 0.0f, 18.0f);
     }
     return 10.0f * (kDash + kGap) - kGap;
 }
@@ -321,7 +325,7 @@ void NeonMenu::Queue(NeonMenuKit& kit)
         const float y = top_ + static_cast<float>(i) * (kRowHeight + kRowGap) + kRowHeight * 0.5f;
         if (on) {
             const Color glow = warn ? menucolor::kRed : menucolor::kGreen;
-            kit.Tube({left_ + 2.7f, y}, {left_ + kMark - 2.7f, y}, 5.4f, menucolor::Core(glow, 0.94f), glow, 0.95f, 24.0f);
+            kit.Tube({left_ + 2.7f, y}, {left_ + kMark - 2.7f, y}, 5.4f, menucolor::Core(glow, 0.94f), glow, 1.0f, 28.0f);
         }
         kit.Text(warn ? items_[i].armed : items_[i].label, kRowFont, left_ + kMark + kMarkGap - 2.0f, y, 0.0f,
                  warn ? menucolor::kRed : on ? menucolor::kWhite : menucolor::kItem);

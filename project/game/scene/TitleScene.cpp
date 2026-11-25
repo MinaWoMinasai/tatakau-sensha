@@ -10,6 +10,7 @@
 #include "TextRenderer.h"
 #include "game/run/TankSubmissionValidation.h"
 #include "game/debug/MenuFlow.h"
+#include "game/settings/UserSettings.h"
 #include <algorithm>
 #include <cmath>
 #include <chrono>
@@ -387,7 +388,7 @@ void TitleScene::DrawAfterPostEffect3D()
     backgroundVeil_->Update();
     backgroundVeil_->Draw();
     titleShade_->Draw();
-    if (titleTextNeonEffect_ && !loadingGame_) {
+    if (titleTextNeonEffect_ && !loadingGame_ && !settings_.IsOpen()) {
         titleTextNeonEffect_->DrawBloom({title_.get()});
     }
 }
@@ -404,7 +405,9 @@ void TitleScene::DrawSprite()
         demoCaption_->Draw();
         return;
     }
-    title_->Draw();
+    if (!settings_.IsOpen()) {
+        title_->Draw();
+    }
     menuKit_.Draw();
     demoCaption_->Draw();
     if (titleShown_ || phase_ == Phase::kFadeOut) {
@@ -422,7 +425,12 @@ void TitleScene::RecordDeveloperFrame(myEngine::DirectXCommon&)
 IScene::ArenaLookSettings TitleScene::GetArenaLookSettings() const
 {
     // 本番と同じ見た目（走査線・残像・にじみの設定）にする。
-    return demoReady_ && !expeditionDemo_ ? demo_->GetArenaLookSettings() : arenalook::Get();
+    if (demoReady_ && !expeditionDemo_) {
+        return demo_->GetArenaLookSettings();
+    }
+    ArenaLookSettings look = arenalook::Get();
+    usersettings::ApplyLook(look);
+    return look;
 }
 
 IScene::ScreenEffectState TitleScene::GetScreenEffectState() const
@@ -452,6 +460,8 @@ void TitleScene::OpenMenu()
         items.push_back({"遠征", ""});
         menuActions_.push_back(MenuAction::Expedition);
     }
+    items.push_back({"設定", ""});
+    menuActions_.push_back(MenuAction::Settings);
     items.push_back({"おわる", "もう一度きめると、おわる"});
     menuActions_.push_back(MenuAction::Quit);
     menu_.Open(std::move(items), 294.4f);
@@ -462,6 +472,11 @@ void TitleScene::UpdateMenu(float dt)
     const gameplay::MenuInput in = gameplay::ReadMenuInput(*input_, menuMouse_);
     padPrompt_ = in.pad;
     if (!titleShown_) {
+        return;
+    }
+    if (settings_.IsOpen()) {
+        settings_.Update(dt, in);
+        menuflow::SetScreen("settings", settings_.Describe());
         return;
     }
     if (in.back) {
@@ -476,6 +491,9 @@ void TitleScene::UpdateMenu(float dt)
     case MenuAction::Start:
         StartTransitionIfAvailable("TANK_SURVIVOR", 0.65f);
         break;
+    case MenuAction::Settings:
+        settings_.Open(in, false);
+        break;
     case MenuAction::Expedition:
         StartTransitionIfAvailable("TANK_EXPEDITION", 0.65f);
         break;
@@ -489,6 +507,11 @@ void TitleScene::UpdateMenu(float dt)
 void TitleScene::QueueMenu()
 {
     menuKit_.Begin();
+    if (settings_.IsOpen()) {
+        settings_.Queue(menuKit_);
+        menuKit_.End();
+        return;
+    }
     menu_.Queue(menuKit_);
     menuKit_.Hints({{{"W", "S"}, "L", "えらぶ"}, {{"Enter"}, "A", "きめる"}}, padPrompt_);
     menuKit_.End();

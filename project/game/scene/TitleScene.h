@@ -5,6 +5,7 @@
 #include "IScene.h"
 #include "game/ui/NeonTextEffect.h"
 #include "game/ui/session/NeonMenuKit.h"
+#include "game/ui/session/SettingsScreen.h"
 #include <array>
 #include <string_view>
 
@@ -91,7 +92,7 @@ private:
     /// @brief 指定したシーンが使えるなら、そこへの遷移を始める。始めたらtrueを返す。
     bool StartTransitionIfAvailable(std::string_view name, float duration);
     /// @brief タイトルの項目（計画書 p11 の R1）。
-    enum class MenuAction { Start, Quit, Expedition };
+    enum class MenuAction { Start, Settings, Quit, Expedition };
     /// @brief 項目を並べる。
     void OpenMenu();
     /// @brief 入力を受けて、決めた項目を動かす。
@@ -120,6 +121,7 @@ private:
     std::unique_ptr<myEngine::Sprite> titleShade_;
     gameplay::NeonMenuKit menuKit_;
     gameplay::NeonMenu menu_;
+    gameplay::SettingsScreen settings_;
     std::vector<MenuAction> menuActions_;
     myEngine::Vector2 menuMouse_{};
     bool padPrompt_ = false;

@@ -3,6 +3,7 @@
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
 #include "game/debug/MenuFlow.h"
+#include "game/settings/UserSettings.h"
 #include "game/player/TankRunModifiers.h"
 #include "game/render/settings/ArenaCameraProfile.h"
 #include "RuntimeProfiler.h"
@@ -799,7 +800,7 @@ void SurvivorRunController::ApplyNeonLook(float dt)
     out.edgeDrag = effects.edgeDrag;
     out.edgeLong = effects.edgeLong;
     out.edgeBlink = effects.edgeBlink;
-    out.calmBlink = effects.calmBlink;
+    out.calmBlink = effects.calmBlink || usersettings::Get().calm;
     out.effectSoft = effects.soft;
     out.effectSoftLife = effects.softLife;
     out.effectOverlap = effects.overlap;

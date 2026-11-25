@@ -138,6 +138,7 @@ void WinApp::Initialize()
     // 描画とキャプチャ（GPUからの読み戻し）は非表示のままでも同じ結果になる。
     char hidden[8]{};
     const bool hiddenWindow = GetEnvironmentVariableA("MYENGINE_HIDDEN_WINDOW", hidden, sizeof(hidden)) == 1 && hidden[0] == '1';
+    hidden_ = hiddenWindow;
     if (!hiddenWindow) {
         ShowWindow(hwnd_, SW_SHOW);
     }
@@ -145,6 +146,32 @@ void WinApp::Initialize()
 
     // システムタイマーの分解度をあげる
     timeBeginPeriod(1);
+}
+
+void WinApp::SetFullscreen(bool fullscreen)
+{
+    if (!hwnd_ || fullscreen == fullscreen_) {
+        return;
+    }
+    fullscreen_ = fullscreen;
+    const LONG_PTR visible = hidden_ ? 0 : WS_VISIBLE;
+    const UINT flags = SWP_FRAMECHANGED | SWP_NOOWNERZORDER | (hidden_ ? SWP_NOACTIVATE | SWP_NOZORDER : 0);
+    if (fullscreen) {
+        GetWindowRect(hwnd_, &windowedRect_);
+        MONITORINFO monitor{};
+        monitor.cbSize = sizeof(monitor);
+        if (!GetMonitorInfo(MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST), &monitor)) {
+            fullscreen_ = false;
+            return;
+        }
+        const RECT& r = monitor.rcMonitor;
+        SetWindowLongPtr(hwnd_, GWL_STYLE, static_cast<LONG_PTR>(WS_POPUP) | visible);
+        SetWindowPos(hwnd_, HWND_TOP, r.left, r.top, r.right - r.left, r.bottom - r.top, flags);
+    } else {
+        SetWindowLongPtr(hwnd_, GWL_STYLE, static_cast<LONG_PTR>(WS_OVERLAPPEDWINDOW) | visible);
+        SetWindowPos(hwnd_, HWND_NOTOPMOST, windowedRect_.left, windowedRect_.top, windowedRect_.right - windowedRect_.left,
+                     windowedRect_.bottom - windowedRect_.top, flags);
+    }
 }
 
 void WinApp::Finalize()

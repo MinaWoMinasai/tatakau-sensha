@@ -266,7 +266,7 @@ void SurvivorRunController::RunTimelineEvent(const survivor::SpawnConfig::Timeli
 
 void SurvivorRunController::UpdateSpeedTest(float dt)
 {
-    // ボスは出さない。自動で撃つは最初だけ切る（F で戻せる）。
+    // ボスは出さない。自動で撃つは切る。
     config_.exitOpenSeconds = elapsed_ + 5999.0f;
     if (speedTestClock_ <= 0.0f) {
         heroAutoFire_ = false;
