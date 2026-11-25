@@ -41,9 +41,11 @@ void SurvivorRunController::AddExperience(int amount)
             }
             if (gained > 0) {
                 heroPendingLevelUps_ += gained;
-                world_.combatFlow->SetEventCallout("レベル " + std::to_string(level_), 0.8f);
+                if (!LevelUpEffectOn()) {
+                    world_.combatFlow->SetEventCallout("レベル " + std::to_string(level_), 0.8f);
+                }
                 if (!heroLevelUpOpen_) {
-                    OpenHeroLevelUp();
+                    RequestHeroLevelUp();
                 }
             }
         }

@@ -336,7 +336,10 @@ void SurvivorRunController::ChooseHeroLevelUp(size_t index)
     }
     const ShopOffer offer = heroLevelUpOffers_[index];
     heroLevelUpLog_.push_back(std::to_string(level_ - heroPendingLevelUps_ + 1) + ":" + OfferName(offer));
-    world_.combatFlow->SetEventCallout(OfferName(offer), 0.9f);
+    // 演出を使う遊び方では、選んだ札が自機へ吸い込まれるので、名前の文字は出さない（計画書 p9 の L2）。
+    if (!LevelUpEffectOn()) {
+        world_.combatFlow->SetEventCallout(OfferName(offer), 0.9f);
+    }
     ApplyOffer(offer);
     heroPendingLevelUps_ = (std::max)(0, heroPendingLevelUps_ - 1);
     heroLevelUpOpen_ = false;

@@ -55,6 +55,10 @@ public:
         if (cineMode_ == CineMode::RivalDefeat) {
             return 0.3f;
         }
+        // レベルアップの瞬間（計画書 p9 の L2）。
+        if (levelUpDelay_ > 0.0f) {
+            return 0.2f;
+        }
         return choiceOpen_ && !config_.choicePause ? config_.choiceSlowTimeScale : 1.0f;
     }
 
@@ -424,6 +428,23 @@ private:
     void OpenInventoryView();
     /// @brief 入力を渡して画面を進め、決まったら選ぶ。dt は止まっていない時間。
     void UpdateLevelUpScreen(float dt);
+    // レベルアップの瞬間の演出（計画書 p9 の L2）。画面が開くまでの残りの秒（0以下なら待っていない）と、広がる輪。
+    float levelUpDelay_ = 0.0f;
+    float levelUpBurstAge_ = -1.0f;
+    myEngine::Vector3 levelUpBurstAt_{};
+    int levelUpBursts_ = 0;
+    int levelUpPushed_ = 0;
+    bool autoLevelUpBurstCaptured_ = false;
+    bool autoLevelUpCloseCaptured_ = false;
+    bool LevelUpEffectOn() const
+    {
+        return LevelUpScreenOn() && config_.hud.levelUpEffect;
+    }
+    /// @brief 強化の画面を開く。演出を使うなら、輪を広げて少しゆっくりにしてから開く。
+    void RequestHeroLevelUp();
+    /// @brief 演出の時間を進め、待ち終わったら画面を開く。dt は止めたり遅くしたりしない時間。
+    void UpdateLevelUpMoment(float dt);
+    void QueueLevelUpBurst(myEngine::NeonGridRenderer& renderer) const;
     void UpdatePlayerNumbers(float dt);
     /// @brief 回復の数字を出す。数字を使わない設定では、今まで通り文字 text を出す。
     void ShowHeal(int amount, const std::string& text);

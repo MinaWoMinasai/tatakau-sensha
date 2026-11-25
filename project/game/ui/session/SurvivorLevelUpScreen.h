@@ -39,6 +39,9 @@ public:
         int level = 1;
         /// @brief 続けて選べる回数（1なら出さない）。
         int pending = 1;
+        /// @brief 決めてから閉じるまでの秒（選んだ札が自機へ吸い込まれる。0 ならすぐ閉じる。計画書 p9 の L2）と、自機の画面の位置。
+        float closeSeconds = 0.0f;
+        myEngine::Vector2 anchor{640.0f, 360.0f};
         std::vector<Card> cards;
         std::vector<Group> groups;
     };
@@ -58,6 +61,12 @@ public:
     /// @brief 画面を進め、決めた札の番号を返す（無ければ -1。持ち物の画面では決められない）。
     int Update(float dt, const Input& input);
     void Draw();
+    /// @brief 札を決める（閉じる演出が始まり、終わると Update がその番号を返す）。
+    void Pick(size_t index);
+    bool IsClosing() const
+    {
+        return closing_ >= 0.0f;
+    }
     size_t GetSelected() const
     {
         return selected_;
@@ -71,6 +80,10 @@ public:
     bool IsLocked() const
     {
         return age_ < kLockSeconds;
+    }
+    float GetClosing() const
+    {
+        return closing_;
     }
     float GetAge() const
     {
@@ -97,6 +110,8 @@ private:
     size_t selected_ = 0;
     float age_ = 0.0f;
     float time_ = 0.0f;
+    /// @brief 閉じる演出の秒（負なら閉じていない）。
+    float closing_ = -1.0f;
     std::array<float, kMaxCards> lift_{};
     SurvivorUpgradePreview preview_;
     SurvivorQuadBatch batch_;

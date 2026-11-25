@@ -251,6 +251,10 @@ struct SpawnConfig {
         /// hurtScale は数字の大きさ、hurtEdge は縁の赤の強さ（0 で無し）、hurtShake は被弾の揺れの倍率。
         /// @brief 強化の画面（計画書 p9 の L1）：右に縦3段の札、左に動くプレビュー、左下に持ち物。false なら前の画面。
         bool levelUpScreen = false;
+        /// @brief レベルアップの瞬間の演出（計画書 p9 の L2）：光の輪が広がって敵を押し返し、levelUpSlow 秒ゆっくりになってから画面が開く。
+        /// 選んだ札は自機へ吸い込まれる。「レベル N」と選んだ物の名前の文字は出さない。
+        bool levelUpEffect = false;
+        float levelUpSlow = 0.3f;
         bool hurtNumbers = false;
         float hurtScale = 1.0f;
         float hurtEdge = 0.3f;
@@ -762,6 +766,11 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         if (hud.contains("levelUpScreen") && hud.at("levelUpScreen").is_boolean()) {
             config.hud.levelUpScreen = hud.at("levelUpScreen").get<bool>();
         }
+        if (hud.contains("levelUpEffect") && hud.at("levelUpEffect").is_boolean()) {
+            config.hud.levelUpEffect = hud.at("levelUpEffect").get<bool>();
+        }
+        number(hud, "levelUpSlow", config.hud.levelUpSlow);
+        config.hud.levelUpSlow = (std::clamp)(config.hud.levelUpSlow, 0.0f, 2.0f);
         number(hud, "hurtScale", config.hud.hurtScale);
         number(hud, "hurtEdge", config.hud.hurtEdge);
         number(hud, "hurtShake", config.hud.hurtShake);
@@ -1577,12 +1586,14 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     numbers["mergeSeconds"] = round(config.damageNumbers.mergeSeconds);
     numbers["critScale"] = round(config.damageNumbers.critScale);
     numbers["enemyHpBars"] = config.damageNumbers.enemyHpBars;
-    if (config.hud.compact || config.hud.hurtNumbers || config.hud.levelUpScreen || data.contains("hud")) {
+    if (config.hud.compact || config.hud.hurtNumbers || config.hud.levelUpScreen || config.hud.levelUpEffect || data.contains("hud")) {
         auto& hud = section("hud");
         hud["compact"] = config.hud.compact;
         hud["scale"] = round(config.hud.scale);
         hud["offset"] = round(config.hud.offset);
         hud["levelUpScreen"] = config.hud.levelUpScreen;
+        hud["levelUpEffect"] = config.hud.levelUpEffect;
+        hud["levelUpSlow"] = round(config.hud.levelUpSlow);
         hud["hurtNumbers"] = config.hud.hurtNumbers;
         hud["hurtScale"] = round(config.hud.hurtScale);
         hud["hurtEdge"] = round(config.hud.hurtEdge);

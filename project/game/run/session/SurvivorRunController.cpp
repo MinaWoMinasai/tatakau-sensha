@@ -548,6 +548,9 @@ void SurvivorRunController::Update(float dt)
         choiceOpenSeconds_ += dt;
     }
     // 区画の時計・湧き方・欠片は、3択を止めずに開いている間のスローに合わせて遅くし、選ぶ画面の間と調整パネルで止めた間は止める。
+    if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
+        UpdateLevelUpMoment(dt);
+    }
     const float gameDt = IsPaused() ? 0.0f : dt * GetTimeScale();
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
         elapsed_ += gameDt;
@@ -981,6 +984,7 @@ void SurvivorRunController::QueueWorldVisuals()
     QueueEliteRings(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
     QueueHeroVisuals(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
     QueueHealPickups(*world_.resources.neonGridRenderer_);
+    QueueLevelUpBurst(*world_.resources.neonGridRenderer_);
     // 予告：輪は自機のまわりに、群れは湧く場所に、赤い破線の円を描く。湧く時刻が近いほど速く点滅する。
     for (const PendingWave& wave : pendingWaves_) {
         const float left = (std::max)(0.0f, wave.at - elapsed_);

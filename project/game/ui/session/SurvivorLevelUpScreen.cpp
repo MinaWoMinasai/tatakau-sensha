@@ -104,6 +104,7 @@ void SurvivorLevelUpScreen::Open(const View& view)
         view_.cards.resize(kMaxCards);
     }
     age_ = 0.0f;
+    closing_ = -1.0f;
     selected_ = 0;
     lift_.fill(0.0f);
     Select(0);
@@ -120,13 +121,27 @@ void SurvivorLevelUpScreen::Select(size_t index)
     preview_.Reset(card.icon, card.tier, card.awaken);
 }
 
+void SurvivorLevelUpScreen::Pick(size_t index)
+{
+    if (IsClosing() || view_.inventory || index >= view_.cards.size()) {
+        return;
+    }
+    selected_ = index;
+    closing_ = 0.0f;
+}
+
 int SurvivorLevelUpScreen::Update(float dt, const Input& input)
 {
     age_ += dt;
     time_ += dt;
     const int count = static_cast<int>(view_.cards.size());
     int picked = -1;
-    if (count > 0) {
+    if (IsClosing()) {
+        closing_ += dt;
+        if (closing_ >= view_.closeSeconds) {
+            picked = static_cast<int>(selected_);
+        }
+    } else if (count > 0) {
         size_t wanted = selected_;
         if (input.move != 0) {
             wanted = static_cast<size_t>((static_cast<int>(selected_) + input.move % count + count) % count);
@@ -146,10 +161,13 @@ int SurvivorLevelUpScreen::Update(float dt, const Input& input)
         }
         if (!view_.inventory && !IsLocked()) {
             if (input.number >= 0 && input.number < count) {
-                picked = input.number;
+                Pick(static_cast<size_t>(input.number));
             } else if (input.click && hover >= 0) {
-                picked = hover;
+                Pick(static_cast<size_t>(hover));
             } else if (input.confirm) {
+                Pick(selected_);
+            }
+            if (IsClosing() && view_.closeSeconds <= 0.0f) {
                 picked = static_cast<int>(selected_);
             }
         }
@@ -184,9 +202,12 @@ void SurvivorLevelUpScreen::Layout(float dt)
                name = Style(inventory ? 19.0f : 27.0f, true, "Meiryo"), level = Style(inventory ? 15.0f : 20.0f, true, "Bahnschrift"),
                badge = Style(15.0f, true, "Meiryo"), effect = Style(20.0f, false, "Meiryo"), key = Style(15.0f, true, "Bahnschrift"),
                detail = Style(22.0f, true, "Meiryo"), group = Style(14.0f, false, "Meiryo");
-    const float open = (std::min)(1.0f, age_ / 0.18f);
+    // 閉じる演出（計画書 p9 の L2）：選んだ札は自機へ吸い込まれ、ほかは消える。続けて選ぶときは、地は残す。
+    const float close = IsClosing() && view_.closeSeconds > 0.0f ? (std::min)(1.0f, closing_ / view_.closeSeconds) : 0.0f;
+    const float shown = (std::min)(1.0f, age_ / 0.18f);
+    const float open = shown * (1.0f - close);
     // 地：ほぼ黒にして、プレビューの光を際立たせる。左にうすい格子。
-    Panel({0.0f, 0.0f, kWidth, kHeight}, {0.02f, 0.016f, 0.043f, open});
+    Panel({0.0f, 0.0f, kWidth, kHeight}, {0.02f, 0.016f, 0.043f, view_.pending > 1 ? shown : shown * (1.0f - close * close)});
     for (int i = 0; i < 10; ++i) {
         Panel({20.0f + 64.0f * static_cast<float>(i), 90.0f, 1.0f, 510.0f}, Alpha(kGrid, 0.8f * open));
     }
@@ -214,7 +235,18 @@ void SurvivorLevelUpScreen::Layout(float dt)
         const float slide = (1.0f - enter) * (1.0f - enter) * 70.0f;
         rect.x += slide - lift_[i] * (view_.inventory ? 4.0f : 14.0f);
         const Color color = card.awaken && !view_.inventory ? kGold : card.color;
-        const float alpha = enter;
+        if (close > 0.0f && selected) {
+            // 選んだ札：縮みながら自機へ飛び、アイコンだけが残って消える。
+            const float move = close * close, scale = 1.0f - close;
+            const float x = rect.x + rect.width * 0.5f, y = rect.y + rect.height * 0.5f;
+            const float cx = x + (view_.anchor.x - x) * move, cy = y + (view_.anchor.y - y) * move;
+            const Rect shrunk{cx - rect.width * 0.5f * scale, cy - rect.height * 0.5f * scale, rect.width * scale, rect.height * scale};
+            Panel(shrunk, {0.045f + color.x * 0.3f, 0.04f + color.y * 0.3f, 0.10f + color.z * 0.3f, 0.95f * scale});
+            Panel({shrunk.x, shrunk.y, 7.0f * scale, shrunk.height}, Alpha(color, scale));
+            Glow(card.icon, cx, cy, 104.0f * (0.35f + 0.65f * scale), Dark(color, 1.0f - close * 0.3f));
+            continue;
+        }
+        const float alpha = enter * (1.0f - close);
         const float tint = 0.05f + 0.09f * lift_[i];
         Panel(rect, {0.045f + color.x * tint, 0.04f + color.y * tint, 0.10f + color.z * tint, 0.97f * alpha});
         const float edge = 0.30f + 0.70f * lift_[i];
@@ -250,7 +282,7 @@ void SurvivorLevelUpScreen::Layout(float dt)
     }
 
     // 左下：今の持ち物（枠と Lv の点）。持ち物の画面では、選んでいる物の効果。
-    preview_.Queue(batch_);
+    preview_.Queue(batch_, 1.0f - close);
     if (inventory) {
         Text(view_.cards.empty() ? std::string("まだ何も持っていない") : view_.cards[selected_].effect, detail, 40.0f, 652.0f, 0.0f, Alpha(kInk, open));
         batch_.End();

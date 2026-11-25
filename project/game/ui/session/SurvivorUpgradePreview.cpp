@@ -508,17 +508,18 @@ void SurvivorUpgradePreview::Update(float dt)
 
 void SurvivorUpgradePreview::Quad(Texture texture, float x, float y, float width, float height, float rotation, const Color& color)
 {
-    batch_->Quad(SurvivorQuadBatch::PreviewGlow, TexturePath(static_cast<size_t>(texture)), {x, y}, {width, height}, rotation, Linear(color));
+    batch_->Quad(SurvivorQuadBatch::PreviewGlow, TexturePath(static_cast<size_t>(texture)), {x, y}, {width, height}, rotation, Linear(Dim(color, fade_)));
 }
 
 void SurvivorUpgradePreview::Bar(float x, float y, float width, float height, const Color& color)
 {
-    batch_->Quad(SurvivorQuadBatch::PreviewTop, "resources/white512x512.png", {x + width * 0.5f, y}, {width, height}, 0.0f, Linear(color));
+    batch_->Quad(SurvivorQuadBatch::PreviewTop, "resources/white512x512.png", {x + width * 0.5f, y}, {width, height}, 0.0f, Linear({color.x, color.y, color.z, color.w * fade_}));
 }
 
-void SurvivorUpgradePreview::Queue(SurvivorQuadBatch& batch)
+void SurvivorUpgradePreview::Queue(SurvivorQuadBatch& batch, float fade)
 {
     batch_ = &batch;
+    fade_ = fade;
     for (const Enemy& enemy : enemies_) {
         Color color = kEnemyColors[static_cast<size_t>(enemy.type)];
         if (enemy.burn > 0.0f) {
@@ -634,7 +635,7 @@ void SurvivorUpgradePreview::Queue(SurvivorQuadBatch& batch)
         for (const char c : number.text) {
             const float step = batch.Measure(std::string(1, c), NumberStyle()).x * 0.7f * scale;
             batch.Label(SurvivorQuadBatch::PreviewTop, std::string(1, c), NumberStyle(), x + step * 0.5f, number.y, 0.5f,
-                        Linear({number.color.x, number.color.y, number.color.z, alpha}), scale);
+                        Linear({number.color.x, number.color.y, number.color.z, alpha * fade_}), scale);
             x += step;
         }
     }

@@ -72,7 +72,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             return;
         }
         // 新しい強化の画面（計画書 p9 の L1）：入力を受けない間と、プレビューが動き出すまで少し待つ（最初の数回は長め）。
-        if (LevelUpScreenOn() && levelUpScreen_.GetAge() < (heroLevelUpLog_.size() < 3 ? 2.0f : 0.4f)) {
+        if (LevelUpScreenOn() && !levelUpScreen_.IsClosing() && levelUpScreen_.GetAge() < (heroLevelUpLog_.size() < 3 ? 2.0f : 0.4f)) {
             return;
         }
         if (heroLevelUpLog_.empty() && !autoLevelUpCaptured_) {
@@ -82,7 +82,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
         // 新しい強化の画面（計画書 p9 の L1）：始めの4回は、選ぶ札を替えて画面を保存する。
         // MYENGINE_SURVIVOR_PREVIEWS=1 なら、最初の画面で全部のプレビューを1つずつ保存する。
-        if (LevelUpScreenOn()) {
+        if (LevelUpScreenOn() && !levelUpScreen_.IsClosing()) {
             if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_PREVIEWS", nullptr, 0) > 0 &&
                 autoPreviewNext_ < SurvivorLevelUpScreen::IconNames().size()) {
                 const std::string& key = SurvivorLevelUpScreen::IconNames()[autoPreviewNext_++];
@@ -125,11 +125,26 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 pick = i;
             }
         }
+        // 新しい強化の画面では、決めてから閉じる演出（計画書 p9 の L2）を通す。途中の画面を1回保存する。
+        if (LevelUpScreenOn()) {
+            if (!levelUpScreen_.IsClosing()) {
+                levelUpScreen_.Pick(pick);
+            } else if (LevelUpEffectOn() && !autoLevelUpCloseCaptured_ && heroLevelUpLog_.size() >= 1 && levelUpScreen_.GetClosing() >= 0.12f) {
+                autoLevelUpCloseCaptured_ = true;
+                RequestCapture("hero_levelup_close");
+            }
+            return;
+        }
         ChooseHeroLevelUp(pick);
         if (heroLevelUpOpen_) {
             RefreshHeroLevelUp();
         }
         return;
+    }
+    // レベルアップの瞬間の輪（計画書 p9 の L2）を1回保存する。
+    if (levelUpDelay_ > 0.0f && levelUpBurstAge_ >= 0.12f && !autoLevelUpBurstCaptured_ && world_.run.tankRunCapturePath_.empty()) {
+        autoLevelUpBurstCaptured_ = true;
+        RequestCapture("hero_levelup_burst");
     }
     // 時間割の出来事（E6）：起きた1.5秒後に画面を保存する（timeline_1.png から順に）。
     if (timelineEvents_ > autoTimelineSeen_) {
@@ -1162,9 +1177,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             same(loaded.damageNumbers.critScale, config_.damageNumbers.critScale) &&
                             loaded.hud.compact == config_.hud.compact && loaded.hud.hurtNumbers == config_.hud.hurtNumbers &&
                             loaded.hud.levelUpScreen == config_.hud.levelUpScreen &&
+                            loaded.hud.levelUpEffect == config_.hud.levelUpEffect && same(loaded.hud.levelUpSlow, config_.hud.levelUpSlow) &&
                             same(loaded.hud.hurtEdge, config_.hud.hurtEdge) && loaded.timeline.size() == config_.timeline.size();
                 survivor::SpawnConfig off = ConfigForSaving();
-                off.growth.enabled = off.glow.neon.enabled = off.hud.compact = off.hud.hurtNumbers = off.hud.levelUpScreen = false;
+                off.growth.enabled = off.glow.neon.enabled = off.hud.compact = off.hud.hurtNumbers = off.hud.levelUpScreen = off.hud.levelUpEffect = false;
                 off.spawnForward = off.spawnSide = off.spawnBack = 0.0f;
                 off.separation = {};
                 off.heroes.healDropHeal = 0.0f;
@@ -1173,7 +1189,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 off.timeline.clear();
                 survivor::SpawnConfig offLoaded;
                 roundTrip = roundTrip && survivor::SaveSpawnConfig(path, off, error) && survivor::LoadSpawnConfig(path, offLoaded, error) &&
-                            !offLoaded.growth.enabled && !offLoaded.glow.neon.enabled && !offLoaded.hud.compact && !offLoaded.hud.hurtNumbers && !offLoaded.hud.levelUpScreen &&
+                            !offLoaded.growth.enabled && !offLoaded.glow.neon.enabled && !offLoaded.hud.compact && !offLoaded.hud.hurtNumbers && !offLoaded.hud.levelUpScreen && !offLoaded.hud.levelUpEffect &&
                             offLoaded.spawnForward + offLoaded.spawnSide + offLoaded.spawnBack == 0.0f &&
                             same(offLoaded.separation.radiusScale, 1.0f) && same(offLoaded.separation.strength, 0.5f) &&
                             offLoaded.heroes.healDropHeal == 0.0f && offLoaded.heroes.fillerHeal == 0.0f && offLoaded.timeline.empty();
@@ -1291,7 +1307,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"fillerPower\":" << fillerPower_ << ",\"crits\":" << player.GetSurvivorCrits() << ",\"critNumbers\":" << damageNumbers_.GetCriticalCount() << ",\"hurtNumbers\":["
             << playerNumbers_.GetSpawnedCount(SurvivorPlayerNumbers::Kind::Hurt) << ","
             << playerNumbers_.GetSpawnedCount(SurvivorPlayerNumbers::Kind::Heal) << ","
-            << playerNumbers_.GetSpawnedCount(SurvivorPlayerNumbers::Kind::Revive) << "],\"hpLost\":" << player.GetSurvivorHpLost()
+            << playerNumbers_.GetSpawnedCount(SurvivorPlayerNumbers::Kind::Revive) << "],\"hpLost\":" << player.GetSurvivorHpLost() << ",\"levelUpBursts\":" << levelUpBursts_ << ",\"levelUpPushed\":" << levelUpPushed_
             << ",\"guardBlocks\":" << player.GetSurvivorGuardBlocks() << ",\"revivesUsed\":" << player.GetSurvivorRevivesUsed()
             << ",\"expBonus\":" << expBonus_ << ",\"growthSpawned\":" << growthSpawned_ << ",\"growthAliveMax\":" << growthAliveMax_
             << ",\"surges\":" << surgesStarted_ << ",\"enemyHpScaleEnd\":" << EnemyHpScale() << ",\"enemySpeedScaleEnd\":" << EnemySpeedScale() << ",\"healsDropped\":" << healsDropped_ << ",\"healsBigDropped\":" << healsBigDropped_ << ",\"healsCollected\":" << healsCollected_

@@ -203,7 +203,7 @@ void SurvivorRunController::UpdateTimeline()
         if (HeroMode() && config_.heroes.levelUps && it->second > 0) {
             heroPendingLevelUps_ += it->second;
             if (!heroLevelUpOpen_) {
-                OpenHeroLevelUp();
+                RequestHeroLevelUp();
             }
         }
         it = midBosses_.erase(it);

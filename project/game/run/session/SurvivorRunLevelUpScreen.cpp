@@ -1,6 +1,8 @@
 #include "game/run/session/SurvivorRunController.h"
 #include "game/run/SurvivorUpgradeEffects.h"
+#include "game/render/neon/NeonGridRenderer.h"
 #include "game/run/session/SurvivorRunShared.h"
+#include "Calculation.h"
 #include "game/session/GameplaySystems.h"
 #include <algorithm>
 #include <cmath>
@@ -131,6 +133,8 @@ void SurvivorRunController::OpenLevelUpView()
     // 一度に2つ以上上がったときは、選んでいる方のレベルを出す。
     view.level = level_ - (std::max)(0, heroPendingLevelUps_ - 1);
     view.pending = heroPendingLevelUps_;
+    view.closeSeconds = LevelUpEffectOn() ? 0.24f : 0.0f;
+    view.anchor = world_.gameplayHud->WorldToScreen(world_.resources.player_->GetWorldPosition());
     for (const ShopOffer& offer : heroLevelUpOffers_) {
         view.cards.push_back(OfferCard(offer));
     }
@@ -220,13 +224,88 @@ void SurvivorRunController::UpdateLevelUpScreen(float dt)
         }
     }
     const size_t before = levelUpScreen_.GetSelected();
+    const bool wasClosing = levelUpScreen_.IsClosing();
     const int picked = levelUpScreen_.Update(dt, in);
-    if (levelUpScreen_.GetSelected() != before) {
+    if (!wasClosing && levelUpScreen_.IsClosing()) {
+        audio_.Play("ui_drop");
+    } else if (levelUpScreen_.GetSelected() != before) {
         audio_.Play("ui_click");
     }
     if (picked >= 0 && heroLevelUpOpen_) {
-        audio_.Play("ui_drop");
         ChooseHeroLevelUp(static_cast<size_t>(picked));
+    }
+}
+
+void SurvivorRunController::RequestHeroLevelUp()
+{
+    if (heroLevelUpOpen_ || levelUpDelay_ > 0.0f) {
+        return;
+    }
+    if (!LevelUpEffectOn()) {
+        OpenHeroLevelUp();
+        return;
+    }
+    // 光の輪が広がり、まわりの敵を押し返す（傷は付けない）。少しゆっくりにしてから、画面を開く。
+    levelUpDelay_ = (std::max)(0.01f, config_.hud.levelUpSlow);
+    levelUpBurstAge_ = 0.0f;
+    levelUpBurstAt_ = world_.resources.player_->GetWorldPosition();
+    ++levelUpBursts_;
+    audio_.Play("evolve");
+    constexpr float kPushRadius = 5.5f;
+    for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+        if (!enemy || enemy->IsDead() || enemy->IsRunResource()) {
+            continue;
+        }
+        const myEngine::Vector3 position = enemy->GetWorldPosition();
+        const myEngine::Vector3 away{position.x - levelUpBurstAt_.x, position.y - levelUpBurstAt_.y, 0.0f};
+        const float distance = myEngine::Length(away);
+        if (distance <= kPushRadius + enemy->GetRadius()) {
+            enemy->ApplyKnockback(distance > 0.001f ? away : myEngine::Vector3{1.0f, 0.0f, 0.0f}, 0.8f);
+            ++levelUpPushed_;
+        }
+    }
+}
+
+void SurvivorRunController::UpdateLevelUpMoment(float dt)
+{
+    if (levelUpBurstAge_ >= 0.0f) {
+        levelUpBurstAge_ += dt;
+        if (levelUpBurstAge_ > 0.8f) {
+            levelUpBurstAge_ = -1.0f;
+        }
+    }
+    if (levelUpDelay_ <= 0.0f || IsPaused()) {
+        return;
+    }
+    levelUpDelay_ -= dt;
+    if (levelUpDelay_ <= 0.0f) {
+        levelUpDelay_ = 0.0f;
+        // 倒れた後や、選ぶ物が無くなった後は開かない。
+        if (!world_.resources.player_->IsDead() && heroPendingLevelUps_ > 0) {
+            OpenHeroLevelUp();
+        }
+    }
+}
+
+void SurvivorRunController::QueueLevelUpBurst(myEngine::NeonGridRenderer& renderer) const
+{
+    if (levelUpBurstAge_ < 0.0f) {
+        return;
+    }
+    const float t = (std::min)(1.0f, levelUpBurstAge_ / 0.8f);
+    const float wide = 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
+    // 水色の大きな輪と、少し遅れて広がる白い輪。
+    for (int ring = 0; ring < 2; ++ring) {
+        const float radius = (ring == 0 ? 7.0f : 4.6f) * wide;
+        const float light = (1.0f - t) * (1.0f - t);
+        const myEngine::Vector4 color = ring == 0 ? myEngine::Vector4{0.55f * light, 1.5f * light, 2.4f * light, 1.0f}
+                                                  : myEngine::Vector4{1.6f * light, 1.7f * light, 1.8f * light, 1.0f};
+        constexpr int kSides = 48;
+        for (int n = 0; n < kSides; ++n) {
+            const float a = 6.2831853f * static_cast<float>(n) / kSides, b = 6.2831853f * static_cast<float>(n + 1) / kSides;
+            renderer.QueueLine(levelUpBurstAt_ + myEngine::Vector3{std::cos(a) * radius, std::sin(a) * radius, -0.3f},
+                               levelUpBurstAt_ + myEngine::Vector3{std::cos(b) * radius, std::sin(b) * radius, -0.3f}, ring == 0 ? 0.16f : 0.08f, color);
+        }
     }
 }
 

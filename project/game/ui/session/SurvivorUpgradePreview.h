@@ -19,8 +19,8 @@ public:
     /// @brief 見せる強化を替える。key はアイコンの名前（sub_mortar など）、tier は選んだ後の段、awaken は覚醒するか。
     void Reset(const std::string& key, int tier, bool awaken);
     void Update(float dt);
-    /// @brief 今の様子を batch に積む。
-    void Queue(SurvivorQuadBatch& batch);
+    /// @brief 今の様子を batch に積む。fade は明るさ（0〜1。画面が閉じるときに消していく）。
+    void Queue(SurvivorQuadBatch& batch, float fade = 1.0f);
     const Area& GetArea() const
     {
         return area_;
@@ -72,6 +72,7 @@ private:
     Area area_{};
     /// @brief Queue の間だけの積み先。
     SurvivorQuadBatch* batch_ = nullptr;
+    float fade_ = 1.0f;
     std::string key_;
     int tier_ = 1;
     bool awaken_ = false;
