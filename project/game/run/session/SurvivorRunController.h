@@ -439,6 +439,14 @@ private:
     int autoLookDemoState_ = 0;
     float autoLookDemoAt_ = 0.0f;
     float autoLookDemoHitAt_ = 0.0f;
+    /// @brief 自機の履帯戦車の、車体の向きと履帯の流れを進める（計画書 p10 の16章の M1）。
+    void UpdateTankPose(float dt);
+    myEngine::Vector3 tankLastPosition_{};
+    bool tankPoseReady_ = false;
+    float tankHullAngle_ = -1.5707963f;
+    float tankTreadLeft_ = 0.0f;
+    float tankTreadRight_ = 0.0f;
+    float tankSpeed_ = 0.0f;
     uint64_t autoLookDemoFrames_ = 0;
     std::chrono::steady_clock::time_point autoLookDemoClock_{};
     /// @brief 見た目を測る写真を順に撮る。撮っている間は true（ボットは動かさない）。

@@ -614,6 +614,7 @@ void SurvivorRunController::Update(float dt)
             UpdateMoveDirection(gameDt);
         }
         ApplyNeonLook(dt);
+        UpdateTankPose(gameDt);
         if (gameDt > 0.0f && separationEnabled_) {
             const auto separationStart = std::chrono::steady_clock::now();
             SeparateEnemies();
@@ -748,6 +749,7 @@ void SurvivorRunController::ApplyNeonLook(float dt)
     out.hideDevWindows = CompactHud() && !tuningOpen_;
     out.hurtText = !HurtNumbers();
     out.hurtShake = HurtNumbers() ? config_.hud.hurtShake : 1.0f;
+    out.playerTank = look.enabled && config_.glow.tank.enabled;
     myEngine::Object3dCommon::GetInstance()->SetDebugUiEnabled(!out.hideDevWindows);
     if (!look.enabled) {
         return;
@@ -775,6 +777,49 @@ void SurvivorRunController::ApplyNeonLook(float dt)
     const float crowd = (std::clamp)(static_cast<float>(CountAlive().total) / (std::max)(1.0f, look.crowdCount), 0.0f, 1.0f);
     neonCrowd_ += (crowd - neonCrowd_) * (1.0f - std::exp(-(std::max)(0.0f, dt) * 2.0f));
     out.bloom = (std::max)(0.0f, look.bloom * (1.0f + (look.crowdBloom - 1.0f) * neonCrowd_));
+}
+
+void SurvivorRunController::UpdateTankPose(float dt)
+{
+    auto& out = world_.presentation.runNeonLook_;
+    if (!out.playerTank) {
+        tankPoseReady_ = false;
+        return;
+    }
+    const auto& look = config_.glow.tank;
+    const myEngine::Vector3 position = world_.resources.player_->GetWorldPosition();
+    if (dt > 0.0f) {
+        const myEngine::Vector3 moved = position - tankLastPosition_;
+        const float distance = std::sqrt(moved.x * moved.x + moved.y * moved.y);
+        // 場に入った直後や瞬間移動（1回で2以上）は、動いたことにしない。
+        if (tankPoseReady_ && distance < 2.0f) {
+            constexpr float kPi = 3.14159265f;
+            constexpr float kTreadSide = 0.78f;
+            const float speed = distance / dt;
+            tankSpeed_ += (speed - tankSpeed_) * (1.0f - std::exp(-dt * 14.0f));
+            float turned = 0.0f;
+            if (speed > 0.4f) {
+                const float difference = std::remainder(std::atan2(moved.y, moved.x) - tankHullAngle_, 2.0f * kPi);
+                turned = difference * (1.0f - std::exp(-dt * look.turn));
+                tankHullAngle_ = std::remainder(tankHullAngle_ + turned, 2.0f * kPi);
+            }
+            // 前へ進んだ分と、その場で回った分（左右の履帯が逆に流れる）。
+            const float forward = moved.x * std::cos(tankHullAngle_) + moved.y * std::sin(tankHullAngle_);
+            tankTreadLeft_ = std::fmod(tankTreadLeft_ + (forward - turned * kTreadSide) * look.flow, 1900.0f);
+            tankTreadRight_ = std::fmod(tankTreadRight_ + (forward + turned * kTreadSide) * look.flow, 1900.0f);
+        }
+        tankLastPosition_ = position;
+        tankPoseReady_ = true;
+    }
+    out.tankLine = look.line;
+    out.tankBrightness = look.brightness;
+    out.tankNearGlow = look.nearGlow;
+    out.tankScale = look.scale;
+    out.tankColor = {look.color[0], look.color[1], look.color[2], 1.0f};
+    out.tankHullAngle = tankHullAngle_;
+    out.tankTreadLeft = tankTreadLeft_;
+    out.tankTreadRight = tankTreadRight_;
+    out.tankSpeed = tankSpeed_;
 }
 
 void SurvivorRunController::UpdateCompactHud(float dt)

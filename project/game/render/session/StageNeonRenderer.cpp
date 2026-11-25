@@ -18,6 +18,7 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <unordered_set>
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
@@ -182,6 +183,18 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         if (queueExpEnemyNeonInGridPass) {
             world_.resourceNeonRenderer->QueueExpEnemyNeonShapes(cameraRight, cameraUp, cameraForward);
         }
+        // 履帯戦車の自機：ここまでの敵の線を先に描き、その上に黒い面と線を重ねる。
+        if (world_.presentation.runNeonLook_.playerTank) {
+            auto& renderer = *world_.resources.neonGridRenderer_;
+            const myEngine::Matrix4x4 tankVp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
+                                                   ? world_.resources.debugCamera->GetViewProjectionMatrix()
+                                                   : world_.resources.camera->GetViewProjectionMatrix();
+            const bool noDepth =
+                world_.resources.neonDepthCameraScoped_ && !myEngine::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV();
+            renderer.DrawRange(foregroundStart, renderer.GetVertexCount() - foregroundStart, tankVp, noDepth);
+            world_.actorNeonRenderer->DrawPlayerTank(cameraForward, tankVp, noDepth);
+            foregroundStart = renderer.GetVertexCount();
+        }
         if (queueActorBillboards) {
             world_.actorNeonRenderer->QueueActorNeonBillboards(cameraRight, cameraUp);
         }
@@ -246,7 +259,19 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
     if (surfaceBlocks && surface.wallStyle == 1) {
         // タイルごとに別のBloom付きの枠を付けずに、セルのグリッドをつなげる。
         // 重複を除いた線分の集合で、隣り合う矩形の継ぎ目も消える。
-        std::set<std::array<int, 6>> emitted;
+        // 毎フレーム数百本を調べるので、木ではなく表で持ち、入れ物は使い回す。
+        struct SegmentHash {
+            size_t operator()(const std::array<int, 6>& key) const
+            {
+                uint64_t hash = 1469598103934665603ull;
+                for (const int value : key) {
+                    hash = (hash ^ static_cast<uint32_t>(value)) * 1099511628211ull;
+                }
+                return static_cast<size_t>(hash ^ (hash >> 29));
+            }
+        };
+        static std::unordered_set<std::array<int, 6>, SegmentHash> emitted;
+        emitted.clear();
         for (const auto& wall : world_.resources.stage_->GetSurfaceWalls(surface)) {
             const bool damage = wall.type == MapChipType::kDamageBlock;
             if ((damage && !world_.presentation.showStageDamageBlockNeonOutlines_) ||

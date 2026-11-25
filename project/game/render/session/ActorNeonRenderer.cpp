@@ -1,4 +1,5 @@
 #include "game/render/session/ActorNeonRenderer.h"
+#include "game/render/session/PlayerTankShape.h"
 #include "game/session/GameplaySystems.h"
 #include "game/weapon/CombatTypes.h"
 #include "RuntimeProfiler.h"
@@ -268,10 +269,13 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
         }
         // 武器の切り替えの間は、本体と砲の輪郭をディゾルブで消して（現して）いく。
         BeginPlayerSwapDissolve(cameraRight, cameraUp);
-        queueTankBillboard(world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f},
-                           world_.resources.player_->GetDirection(), world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse),
-                           world_.presentation.actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true,
-                           world_.presentation.playerNeonEmission_);
+        // 履帯戦車のときは DrawPlayerTank が描く。
+        if (!world_.presentation.runNeonLook_.playerTank) {
+            queueTankBillboard(world_.resources.player_->GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f},
+                               world_.resources.player_->GetDirection(), world_.presentation.playerNeonBillboardRadius_ * (1.0f + pulse),
+                               world_.presentation.actorNeonBillboardLineWidth_, color, &playerBody, &playerBarrels, true, true,
+                               world_.presentation.playerNeonEmission_);
+        }
         world_.resources.neonGridRenderer_->EndLineDissolve();
         if (world_.resources.player_->HasSpikes()) {
             // 衝角の3段：車体のまわりに8本のトゲ。砲と重ならないよう、向きから半分ずらして車体と一緒に回す。
@@ -449,6 +453,160 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
     }
 }
 
+void ActorNeonRenderer::DrawPlayerTank(const myEngine::Vector3& cameraForward, const myEngine::Matrix4x4& viewProjection, bool noDepth)
+{
+    const auto& look = world_.presentation.runNeonLook_;
+    if (!world_.resources.neonGridRenderer_ || !world_.resources.player_ || world_.resources.player_->IsDead() || !look.playerTank ||
+        world_.presentation.playerNeonRenderMode_ != 1) {
+        return;
+    }
+    auto& renderer = *world_.resources.neonGridRenderer_;
+    const auto& player = *world_.resources.player_;
+    const playertank::Shape& shape = playertank::Get();
+    const float feedback = player.GetDamageFeedbackRatio();
+    const float scale = look.tankScale * (1.0f + std::sin(feedback * 3.14159265f) * 0.10f);
+    // 被弾した瞬間は白へ寄せる（前の自機と同じ割合）。ダッシュ中は薄くする。
+    const float white = feedback * feedback * 0.75f;
+    auto toWhite = [&](float value) {
+        return (value + (1.2f - value) * white) * look.tankBrightness;
+    };
+    myEngine::Vector4 color{toWhite(look.tankColor.x), toWhite(look.tankColor.y), toWhite(look.tankColor.z), 1.0f};
+    if (player.IsDashing()) {
+        color.w *= world_.presentation.playerDashCurrentAlpha_;
+    }
+    const myEngine::Vector3 center = player.GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};
+    const myEngine::Vector3 aimDirection = player.GetDirection();
+    const float aim = myEngine::Length(aimDirection) < 0.001f ? -1.5707963f : std::atan2(aimDirection.y, aimDirection.x);
+    const float hull = look.tankHullAngle;
+    auto place = [&](float x, float y, float angle) {
+        const float c = std::cos(angle) * scale, s = std::sin(angle) * scale;
+        return center + myEngine::Vector3{x * c - y * s, x * s + y * c, 0.0f};
+    };
+    // 光り方は敵の管と同じ（芯・にじみ・先に描く近いにじみ）。
+    myEngine::NeonContourStyle style = myEngine::ActorNeonContourStyle();
+    if (look.enemyCoreWhite >= 0.0f) {
+        style.coreWhiteMix = look.enemyCoreWhite;
+        style.coreIntensity = look.enemyCoreIntensity;
+        style.haloIntensity = look.enemyHaloIntensity;
+        style.haloWidthScale = look.enemyHaloWidth;
+    }
+    const float nearGlow = look.nearGlow * look.tankNearGlow;
+    myEngine::NeonContourStyle glow = myEngine::ActorNeonContourStyle();
+    glow.coreWidthRatio = 0.08f;
+    glow.coreIntensity = nearGlow;
+    glow.coreWhiteMix = 0.0f;
+    glow.shoulderIntensity = nearGlow * 0.42f;
+    glow.haloWidthScale = 1.4f;
+    glow.haloIntensity = nearGlow * 0.3f;
+    glow.haloAlpha = 0.4f;
+    const float glowWidth = look.nearGlowRadius / 0.7f;
+    const float peak = (std::max)({color.x, color.y, color.z, 0.0001f});
+    const myEngine::Vector4 glowColor{peak * std::pow(color.x / peak, 1.7f), peak * std::pow(color.y / peak, 1.7f),
+                                      peak * std::pow(color.z / peak, 1.7f), color.w};
+    const float width = world_.presentation.expEnemyNeonLineWidth_ * look.enemyLine * look.tankLine;
+
+    uint32_t start = renderer.GetVertexCount();
+    auto flushLines = [&]() {
+        renderer.DrawRange(start, renderer.GetVertexCount() - start, viewProjection, noDepth);
+        start = renderer.GetVertexCount();
+    };
+    auto fill = [&](const std::vector<myEngine::Vector3>& points) {
+        flushLines();
+        renderer.SetBodyShadingEye(nullptr);
+        renderer.QueueBeveledPolygonFill(points.data(), static_cast<uint32_t>(points.size()), {0.0f, 0.0f, 0.0f, color.w},
+                                         {0.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
+        renderer.DrawRangeSolid(start, renderer.GetVertexCount() - start, viewProjection);
+        start = renderer.GetVertexCount();
+    };
+    auto line = [&](const myEngine::Vector3& a, const myEngine::Vector3& b, float widthScale, float alpha) {
+        myEngine::Vector4 lit = color, halo = glowColor;
+        lit.w *= alpha;
+        halo.w *= alpha;
+        if (nearGlow > 0.0f) {
+            renderer.QueueContourLine(a, b, glowWidth, halo, cameraForward, glow);
+        }
+        renderer.QueueContourLine(a, b, width * widthScale, lit, cameraForward, style);
+    };
+    std::vector<myEngine::Vector3> points;
+    auto outline = [&](const std::vector<myEngine::Vector2>& from, float angle) {
+        points.clear();
+        for (const myEngine::Vector2& point : from) {
+            points.push_back(place(point.x, point.y, angle));
+        }
+    };
+    auto drawTreads = [&]() {
+        const auto& treads = shape.treads;
+        const float loop = treads.half * 2.0f;
+        for (int side = -1; side <= 1; side += 2) {
+            const float y = treads.side * static_cast<float>(side);
+            line(place(-treads.half, y, hull), place(treads.half, y, hull), 0.55f, treads.rail);
+            // 流れる光：速いほど明るい（止まっていても淡く見える）。+y が左の履帯。光は進む向きと逆へ流れる。
+            const float offset = side > 0 ? look.tankTreadLeft : look.tankTreadRight;
+            const float alpha = 0.45f + (std::min)(0.55f, look.tankSpeed * 0.13f);
+            for (int i = 0; i < treads.links; ++i) {
+                float u = std::fmod(static_cast<float>(i) * loop / static_cast<float>(treads.links) - offset, loop);
+                u = (u < 0.0f ? u + loop : u) - treads.half;
+                const float from = (std::max)(-treads.half, u - treads.length * 0.5f), to = (std::min)(treads.half, u + treads.length * 0.5f);
+                line(place(from, y, hull), place(to, y, hull), treads.line, alpha);
+            }
+        }
+    };
+    auto drawBarrels = [&]() {
+        const auto& barrel = shape.barrel;
+        for (const Player::NeonBarrelLayout& layout : player.GetNeonBarrelLayouts()) {
+            if (layout.isMelee) {
+                continue;
+            }
+            const float angle = aim + layout.angleRad;
+            const float from = barrel.from - layout.recoilOffset, to = barrel.to - layout.recoilOffset, shift = layout.offset.y;
+            points = {place(from, shift - barrel.halfBase, angle), place(to, shift - barrel.halfTip, angle),
+                      place(to, shift + barrel.halfTip, angle), place(from, shift + barrel.halfBase, angle)};
+            fill(points);
+            line(points[0], points[1], barrel.line, 1.0f);
+            line(points[3], points[2], barrel.line, 1.0f);
+            // 撃った瞬間の短い光の筋。
+            const float flash = (std::clamp)(layout.muzzleFlashRatio, 0.0f, 1.0f);
+            if (flash > 0.05f) {
+                const myEngine::Vector3 muzzle = place(to + 0.05f, shift, angle);
+                line(muzzle, place(to + 0.05f + flash * 0.5f, shift, angle), 0.9f, flash);
+                line(muzzle, place(to + 0.05f + flash * 0.3f, shift + 0.25f, angle), 0.9f, flash);
+                line(muzzle, place(to + 0.05f + flash * 0.3f, shift - 0.25f, angle), 0.9f, flash);
+            }
+        }
+    };
+
+    // 武器の切り替えの間は、線をディゾルブで消して（現して）いく。
+    BeginPlayerSwapDissolve({1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
+    bool treadsDrawn = false, barrelsDrawn = false;
+    for (const playertank::Part& part : shape.parts) {
+        // 砲身は車体の上・砲塔の下に入れる。
+        if (part.aims && !barrelsDrawn) {
+            drawBarrels();
+            barrelsDrawn = true;
+        }
+        const float angle = part.aims ? aim : hull;
+        outline(part.bottom, angle);
+        fill(points);
+        if (!treadsDrawn) {
+            drawTreads();
+            treadsDrawn = true;
+        }
+        if (part.line > 0.0f) {
+            outline(part.top, angle);
+            const auto count = static_cast<uint32_t>(points.size());
+            if (nearGlow > 0.0f) {
+                renderer.QueueContourPolygon(points.data(), count, glowWidth, glowColor, cameraForward, glow);
+            }
+            renderer.QueueContourPolygon(points.data(), count, width * part.line, color, cameraForward, style);
+        }
+    }
+    if (!barrelsDrawn) {
+        drawBarrels();
+    }
+    renderer.EndLineDissolve();
+    flushLines();
+}
+
 void ActorNeonRenderer::BeginPlayerSwapDissolve(const myEngine::Vector3& cameraRight, const myEngine::Vector3& cameraUp)
 {
     const float swapDissolve = world_.presentation.playerSwapDissolve_;
@@ -582,7 +740,8 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
     // Bloomをかけた線のキャプチャの後にシーンへ描く。丸い本体はリングの内側に収まり、
     // リングの内側のハローを覆うので、黒い球として見える。
     const float roundBodyScale = bodies == BodySet::RoundActors ? 0.86f / 0.96f : 1.0f;
-    if (drawRound && world_.presentation.playerNeonRenderMode_ == 1 && world_.resources.player_ && !world_.resources.player_->IsDead()) {
+    if (drawRound && world_.presentation.playerNeonRenderMode_ == 1 && world_.resources.player_ && !world_.resources.player_->IsDead() &&
+        !world_.presentation.runNeonLook_.playerTank) {
         const float feedback = world_.resources.player_->GetDamageFeedbackRatio();
         const float pulse = std::sin(feedback * 3.14159265f) * 0.10f;
         // 中の機体（砲のブロックと本体の塗り）も、輪郭と同じディゾルブで消して（現して）いく。

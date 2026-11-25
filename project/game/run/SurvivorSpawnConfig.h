@@ -1329,6 +1329,28 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             look.enemyCoreWhite = (std::clamp)(look.enemyCoreWhite, 0.0f, 1.0f);
             look.crowdCount = (std::max)(1.0f, look.crowdCount);
         }
+        if (glow.contains("tank") && glow.at("tank").is_object()) {
+            const auto& tank = glow.at("tank");
+            auto& look = out.tank;
+            if (tank.contains("enabled") && tank.at("enabled").is_boolean()) {
+                look.enabled = tank.at("enabled").get<bool>();
+            }
+            number(tank, "line", look.line);
+            number(tank, "brightness", look.brightness);
+            number(tank, "nearGlow", look.nearGlow);
+            number(tank, "scale", look.scale);
+            number(tank, "turn", look.turn);
+            number(tank, "flow", look.flow);
+            number(tank, "red", look.color[0]);
+            number(tank, "green", look.color[1]);
+            number(tank, "blue", look.color[2]);
+            look.line = (std::clamp)(look.line, 0.1f, 4.0f);
+            look.brightness = (std::clamp)(look.brightness, 0.0f, 4.0f);
+            look.nearGlow = (std::clamp)(look.nearGlow, 0.0f, 4.0f);
+            look.scale = (std::clamp)(look.scale, 0.3f, 3.0f);
+            look.turn = (std::clamp)(look.turn, 0.5f, 60.0f);
+            look.flow = (std::clamp)(look.flow, 0.0f, 4.0f);
+        }
     }
     if (data.contains("elites") && data.at("elites").is_object()) {
         const auto& elites = data.at("elites");
@@ -1977,6 +1999,20 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         neon["bloom"] = round(look.bloom);
         neon["crowdBloom"] = round(look.crowdBloom);
         neon["crowdCount"] = round(look.crowdCount);
+    }
+    if (config.glow.tank.enabled || glow.contains("tank")) {
+        const auto& look = config.glow.tank;
+        auto& tank = glow["tank"];
+        tank["enabled"] = look.enabled;
+        tank["line"] = round(look.line);
+        tank["brightness"] = round(look.brightness);
+        tank["nearGlow"] = round(look.nearGlow);
+        tank["scale"] = round(look.scale);
+        tank["turn"] = round(look.turn);
+        tank["flow"] = round(look.flow);
+        tank["red"] = round(look.color[0]);
+        tank["green"] = round(look.color[1]);
+        tank["blue"] = round(look.color[2]);
     }
     auto& elites = section("elites");
     elites["fromStage"] = config.elites.fromStage;

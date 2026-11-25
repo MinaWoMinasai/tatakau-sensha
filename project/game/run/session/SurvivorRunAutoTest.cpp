@@ -53,7 +53,7 @@ void SurvivorRunController::RequestCapture(const std::string& name)
 bool SurvivorRunController::UpdateLookDemo()
 {
     // 出撃して4秒から、自機を止めて下を向かせ、順に並べて撮る：0 止まった敵、2 動く敵、4 動く塊、6 命中の瞬間、
-    // 8 乱戦（副武器7つと、倒せる敵）、10 乱戦の Q、12 160体（5秒間のコマ数を look_fps.json に書く）。
+    // 8 走る自機、10 乱戦（副武器7つと、倒せる敵）、12 乱戦の Q、14 160体（5秒間のコマ数を look_fps.json に書く）。
     // 撮ったときの敵の画面の位置（1920×1080）を look_(名前).json に書く。
     if (elapsed_ < 4.0f || IsPaused()) {
         return false;
@@ -98,6 +98,7 @@ bool SurvivorRunController::UpdateLookDemo()
         ++autoLookDemoState_;
     };
     myEngine::Vector3 aim = self + myEngine::Vector3{0.0f, -20.0f, 0.0f};
+    myEngine::Vector2 move{0.0f, 0.0f};
     const bool ready = world_.run.tankRunCapturePath_.empty();
     const float wait = elapsed_ - autoLookDemoAt_;
     const std::vector<Demo> row{{"Square", -9.0f, 5.5f, 1.0f}, {"Triangle", -3.5f, 6.0f, 1.0f}, {"Pentagon", 2.0f, 5.8f, 1.0f}, {"Square", 8.5f, 5.0f, 1.7f}};
@@ -160,6 +161,19 @@ bool SurvivorRunController::UpdateLookDemo()
         break;
     }
     case 8:
+        // 走る自機：右上へ走りながら左上を狙う（車体と砲塔の向きの違いを見る）。
+        if (ready) {
+            place(row, false);
+        }
+        break;
+    case 9:
+        aim = self + myEngine::Vector3{-8.0f, 6.0f, 0.0f};
+        move = {0.9f, 0.45f};
+        if (wait >= 0.7f) {
+            shoot("drive");
+        }
+        break;
+    case 10:
         if (ready) {
             std::vector<Demo> ring;
             for (int i = 0; i < 40; ++i) {
@@ -176,13 +190,13 @@ bool SurvivorRunController::UpdateLookDemo()
             subWeaponTiers_.fill(3);
         }
         break;
-    case 9:
+    case 11:
         aim = self + myEngine::Vector3{8.0f, 4.0f, 0.0f};
         if (wait >= 1.4f) {
             shoot("brawl");
         }
         break;
-    case 10:
+    case 12:
         aim = self + myEngine::Vector3{8.0f, 4.0f, 0.0f};
         if (ready) {
             ultimateCharge_ = Hero().ultimateCharge;
@@ -191,13 +205,13 @@ bool SurvivorRunController::UpdateLookDemo()
             ++autoLookDemoState_;
         }
         break;
-    case 11:
+    case 13:
         aim = self + myEngine::Vector3{8.0f, 4.0f, 0.0f};
         if (wait >= 0.9f) {
             shoot("barrage");
         }
         break;
-    case 12:
+    case 14:
         if (ready && wait >= 2.5f) {
             std::vector<Demo> mass;
             for (int i = 0; i < 160; ++i) {
@@ -208,7 +222,7 @@ bool SurvivorRunController::UpdateLookDemo()
             subWeaponTiers_.fill(0);
         }
         break;
-    case 13:
+    case 15:
         // 並べて2秒たってから5秒間、描いたコマ数を実際の時間で割る。
         if (wait >= 2.0f && autoLookDemoFrames_ == 0) {
             autoLookDemoFrames_ = drawnFrames_;
@@ -227,7 +241,7 @@ bool SurvivorRunController::UpdateLookDemo()
     default:
         break;
     }
-    player.SetDemoInput(true, {0.0f, 0.0f}, aim, false, false);
+    player.SetDemoInput(true, move, aim, false, false);
     return true;
 }
 
@@ -348,7 +362,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
     }
     // MYENGINE_SURVIVOR_LOOKDEMO=1：見た目を測るための写真（計画書 p10 の13章）。
-    if (HeroMode() && autoLookDemoState_ < 14 && !baseScreenOpen_ && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOKDEMO", nullptr, 0) > 0 &&
+    if (HeroMode() && autoLookDemoState_ < 16 && !baseScreenOpen_ && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOKDEMO", nullptr, 0) > 0 &&
         UpdateLookDemo()) {
         return;
     }
@@ -1359,7 +1373,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 roundTrip = loaded.growth.enabled == config_.growth.enabled && loaded.growth.points.size() == config_.growth.points.size() &&
                             same(loaded.growth.hpPerMinute, config_.growth.hpPerMinute) && same(loaded.spawnForward, config_.spawnForward) &&
                             same(loaded.separation.radiusScale, config_.separation.radiusScale) &&
-                            same(loaded.glow.neon.enemyGrid, config_.glow.neon.enemyGrid) &&
+                            same(loaded.glow.neon.enemyGrid, config_.glow.neon.enemyGrid) && loaded.glow.tank.enabled == config_.glow.tank.enabled &&
+                            same(loaded.glow.tank.line, config_.glow.tank.line) && same(loaded.glow.tank.nearGlow, config_.glow.tank.nearGlow) &&
+                            same(loaded.glow.tank.turn, config_.glow.tank.turn) && same(loaded.glow.tank.color[1], config_.glow.tank.color[1]) &&
                             loaded.glow.neon.temporal == config_.glow.neon.temporal &&
                             loaded.glow.neon.flatBody == config_.glow.neon.flatBody && same(loaded.glow.neon.enemyLine, config_.glow.neon.enemyLine) &&
                             same(loaded.glow.neon.nebula, config_.glow.neon.nebula) && same(loaded.glow.neon.colorShift, config_.glow.neon.colorShift) &&

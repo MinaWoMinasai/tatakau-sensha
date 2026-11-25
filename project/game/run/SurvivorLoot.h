@@ -127,6 +127,20 @@ struct GlowConfig {
         float crowdBloom = 1.0f;
         float crowdCount = 100.0f;
     } neon;
+    /// @brief 自機の履帯戦車（計画書 p10 の16章の M1。無限の場）：車体は進む向き、砲塔は狙う向きに回り、履帯の光が速さに合わせて流れる。
+    /// 光り方は敵の管と同じ芯・にじみを使い、線の太さ（倍）・明るさ（倍）・近いにじみ（倍）・大きさ（倍）と、色を決める。
+    /// 形は player_tank_shape.json。neon.enabled のときだけ効く。
+    struct TankLook {
+        bool enabled = false;
+        float line = 1.0f;
+        float brightness = 1.0f;
+        float nearGlow = 0.6f;
+        float scale = 1.0f;
+        /// @brief 車体が進む向きへ回る速さ（毎秒、指数の追いつき）。履帯の光の流れ（倍）。
+        float turn = 10.0f;
+        float flow = 0.55f;
+        float color[3]{0.25f, 1.0f, 0.55f};
+    } tank;
 };
 
 /// @brief 床に落ちる物1つの中身。id は弾の種類・素材・部品・武器の番号（kind による）。

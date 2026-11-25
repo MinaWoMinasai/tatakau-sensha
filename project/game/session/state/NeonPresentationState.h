@@ -333,6 +333,18 @@ struct NeonPresentationState {
         /// @brief 被弾の「ダメージ」の文字を出すかと、被弾の揺れの倍率（計画書 p9 の H3）。
         bool hurtText = true;
         float hurtShake = 1.0f;
+        /// @brief 自機を履帯戦車で描くか、その線・明るさ・近いにじみ・大きさ（倍）と色（計画書 p10 の16章の M1）。
+        bool playerTank = false;
+        float tankLine = 1.0f;
+        float tankBrightness = 1.0f;
+        float tankNearGlow = 0.6f;
+        float tankScale = 1.0f;
+        myEngine::Vector4 tankColor{0.25f, 1.0f, 0.55f, 1.0f};
+        /// @brief 車体の向き（ラジアン）、左右の履帯が進んだ長さ、今の速さ。
+        float tankHullAngle = -1.5707963f;
+        float tankTreadLeft = 0.0f;
+        float tankTreadRight = 0.0f;
+        float tankSpeed = 0.0f;
     } runNeonLook_;
 
     float expEnemyNeonSquareSize_ = 1.8f;

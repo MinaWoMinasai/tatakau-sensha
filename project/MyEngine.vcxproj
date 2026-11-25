@@ -615,6 +615,7 @@
     <ClInclude Include="game\ui\session\SurvivorLoadoutHud.h" />
     <ClInclude Include="game\ui\session\SurvivorDamageNumbers.h" />
     <ClInclude Include="game\ui\session\SurvivorCompactHud.h" />
+    <ClInclude Include="game\render\session\PlayerTankShape.h" />
     <ClInclude Include="game\ui\session\SurvivorPlayerNumbers.h" />
     <ClInclude Include="game\ui\session\SurvivorQuadBatch.h" />
     <ClInclude Include="game\ui\session\SurvivorUpgradePreview.h" />

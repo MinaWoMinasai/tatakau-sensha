@@ -695,6 +695,20 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
         ImGui::TreePop();
     }
 
+    // 自機の履帯戦車（計画書 p10 の16章の M1）
+    if (ImGui::TreeNodeEx("自機（履帯戦車）", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto& tank = config.glow.tank;
+        changed |= ImGui::Checkbox("履帯戦車で描く（切ると前の自機）", &tank.enabled);
+        changed |= ImGui::SliderFloat("線の太さ（敵の線に対して）", &tank.line, 0.3f, 2.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機の色の明るさ", &tank.brightness, 0.2f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機の近いにじみ（敵に対して）", &tank.nearGlow, 0.0f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機の大きさ（見た目だけ）", &tank.scale, 0.5f, 1.6f, "×%.2f");
+        changed |= ImGui::SliderFloat("車体が回る速さ", &tank.turn, 2.0f, 30.0f, "%.0f");
+        changed |= ImGui::SliderFloat("履帯の光の流れ", &tank.flow, 0.0f, 2.0f, "×%.2f");
+        changed |= ImGui::ColorEdit3("自機の色", tank.color);
+        ImGui::TreePop();
+    }
+
     // 文字を減らした HUD（計画書 p9 の H4）
     if (ImGui::TreeNodeEx("HUD（自機の下のゲージ）", ImGuiTreeNodeFlags_DefaultOpen)) {
         changed |= ImGui::Checkbox("文字を減らした HUD を使う（切ると前の HUD）", &config.hud.compact);
