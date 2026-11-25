@@ -487,6 +487,7 @@ void SurvivorRunController::Initialize()
         // 機体の遊び方では、拠点で機体を選ぶ・解放する（K6）。
         if (!world_.demo.titleDemo_ && autoTest_ != AutoTest::Tour && autoTest_ != AutoTest::Perf) {
             OpenBaseScreen();
+            StartTutorialIfNeeded();
         }
         // 出口の案内は、袋の一行の下へずらす。
         if (exitText_) {
@@ -541,7 +542,7 @@ void SurvivorRunController::Update(float dt)
             // 出撃前の拠点の画面。E（機体の遊び方では Tab。E は技）で持ち物の画面を開け閉めする。開いている間は、武器の操作を受け付けない。
             if (baseScreenOpen_) {
                 UpdateScreenInput();
-            } else if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(HeroMode() ? DIK_TAB : DIK_E)) {
+            } else if (autoTest_ == AutoTest::None && tutorialStep_ < 0 && world_.resources.input_->IsKeyTriggered(HeroMode() ? DIK_TAB : DIK_E)) {
                 // 自動確認の間は、本物のキーボードで開かない（隠した窓でもキーを読むので、Tab を押すと止まっていた）。
                 inventoryOpen_ ? CloseInventory() : OpenInventory();
             } else if (inventoryOpen_ && LevelUpScreenOn()) {
@@ -576,13 +577,18 @@ void SurvivorRunController::Update(float dt)
     }
     const float gameDt = IsPaused() ? 0.0f : dt * GetTimeScale();
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
-        elapsed_ += gameDt;
+        // はじめての説明の間は、時間を進めず、敵も湧かせない。
+        const bool guiding = tutorialStep_ >= 0;
+        elapsed_ += guiding ? 0.0f : gameDt;
         if (WeaponMode()) {
             UpdateWeaponTimers(gameDt);
         }
         if (HeroMode()) {
             UpdateHeroAbilities(gameDt);
-            runSeconds_ += gameDt;
+            runSeconds_ += guiding ? 0.0f : gameDt;
+        }
+        if (guiding && gameDt > 0.0f) {
+            UpdateTutorial(gameDt);
         }
         const PlayerHeat& heat = world_.resources.player_->GetHeat();
         if (heat.GetHeat() >= heat.GetMaxHeat() * 0.7f) {
@@ -592,7 +598,7 @@ void SurvivorRunController::Update(float dt)
             myEngine::RuntimeProfiler::CpuScope spawnScope("Survivor Spawns");
             if (speedTest_) {
                 UpdateSpeedTest(gameDt);
-            } else {
+            } else if (!guiding) {
                 UpdateSpawns(gameDt);
                 if (!world_.demo.titleDemo_) {
                     UpdateTimeline();
@@ -600,10 +606,12 @@ void SurvivorRunController::Update(float dt)
             }
         }
         myEngine::RuntimeProfiler::CpuScope shardScope("Survivor Shards / Q / Separation");
-        AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
+        if (!guiding) {
+            AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
                                       survivor::CollectorMagnetScale(config_.parts, partLevels_) *
                                           (HasPerk(survivor::PerkId::Magnet) ? 1.0f + PerkValue(survivor::PerkId::Magnet) : 1.0f),
                                       survivor::HasChange(partLevels_, survivor::PartId::Collector)));
+        }
         if (WeaponMode()) {
             UpdateLoot(gameDt);
         }
@@ -730,6 +738,13 @@ void SurvivorRunController::Update(float dt)
             },
             world_.resources.player_->GetWorldPosition());
         UpdateCompactHud(dt);
+        if (tutorialStep_ >= 0) {
+            QueueTutorial();
+            if (heroLevelUpOpen_) {
+                tutorialTime_ += dt;
+                QueueCardHints();
+            }
+        }
         UpdatePlayerNumbers(dt);
     }
     hudRefresh_ -= dt;
@@ -942,7 +957,7 @@ void SurvivorRunController::UpdateCompactHud(float dt)
     if (IsRivalActive()) {
         const auto& rival = *world_.resources.enemy_;
         state.bossRatio = (std::clamp)(static_cast<float>(rival.GetHp()) / static_cast<float>((std::max)(1, rival.GetMaxHp())), 0.0f, 1.0f);
-    } else if (!exitOpen_) {
+    } else if (!exitOpen_ && tutorialStep_ < 0) {
         state.secondsLeft = (std::max)(0.0f, config_.exitOpenSeconds - elapsed_);
     }
     state.scale = config_.hud.scale;
@@ -1277,6 +1292,9 @@ void SurvivorRunController::DrawUi()
     // 持ち物の画面と拠点の画面を開いている間は、ほかの HUD を描かずにその画面だけを出す（暗幕から透けて読みにくくならないように）。
     if (LevelUpScreenShown()) {
         levelUpScreen_.Draw();
+        if (tutorialStep_ >= 0 && heroLevelUpOpen_ && !levelUpScreen_.IsClosing()) {
+            menuKit_.Draw();
+        }
         DrawCinematic();
         return;
     }
@@ -1295,6 +1313,9 @@ void SurvivorRunController::DrawUi()
     const bool compact = CompactHud();
     if (compact) {
         compactHud_.Draw();
+        if (tutorialStep_ >= 0) {
+            guideKit_.Draw();
+        }
     } else {
         hudText_->Draw();
     }
@@ -1365,7 +1386,8 @@ void SurvivorRunController::DrawUi()
 void SurvivorRunController::QueueHint(Hint hint)
 {
     const size_t index = static_cast<size_t>(hint);
-    if (hintQueued_[index]) {
+    // 1台だけの版では、文の案内は出さない（はじめての説明で伝える。計画書 p11 の R3）。
+    if (hintQueued_[index] || config_.heroes.single) {
         return;
     }
     hintQueued_[index] = true;

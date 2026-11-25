@@ -2,6 +2,7 @@
 #if MYENGINE_DEVELOPER_TOOLS
 #include "Input.h"
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -18,6 +19,8 @@ struct State {
     uint64_t frame = 0;
     int wait = 0, waitLimit = 0, hold = 0;
     bool waiting = false, failed = false, done = false;
+    float selfX = 640.0f, selfY = 360.0f, targetX = 640.0f, targetY = 360.0f;
+    std::string follow, followScreen;
     std::string waitFor;
     myEngine::Input::TestFrame input;
     std::ofstream log;
@@ -97,6 +100,29 @@ void Release(State& s)
     s.input.leftButton = false;
 }
 
+/// @brief 目標を狙う・目標へ向かう入力にする。
+void Follow(State& s)
+{
+    const float dx = s.targetX - s.selfX, dy = s.targetY - s.selfY;
+    const float length = (std::max)(1.0f, std::sqrt(dx * dx + dy * dy));
+    const float ux = dx / length, uy = dy / length;
+    if (s.follow == "aim") {
+        s.input.mouse = {s.targetX, s.targetY};
+        s.input.mouseMoved = true;
+    } else if (s.follow == "aimpad") {
+        s.input.pad.sThumbRX = Axis(ux);
+        s.input.pad.sThumbRY = Axis(-uy);
+    } else if (s.follow == "go") {
+        s.input.keys[DIK_A] = ux < -0.38f ? 0x80 : 0;
+        s.input.keys[DIK_D] = ux > 0.38f ? 0x80 : 0;
+        s.input.keys[DIK_W] = uy < -0.38f ? 0x80 : 0;
+        s.input.keys[DIK_S] = uy > 0.38f ? 0x80 : 0;
+    } else if (s.follow == "gopad") {
+        s.input.pad.sThumbLX = Axis(ux);
+        s.input.pad.sThumbLY = Axis(-uy);
+    }
+}
+
 bool Matches(const State& s, const std::string& name)
 {
     return s.screen == name || (name.size() > 1 && name.back() == '*' && s.screen.rfind(name.substr(0, name.size() - 1), 0) == 0);
@@ -155,6 +181,11 @@ void Run(State& s, myEngine::Input& input)
         s.input.mouse = {static_cast<float>(std::atof(a.c_str())), y};
         s.input.mouseMoved = true;
         s.wait = 3;
+    } else if (op == "aim" || op == "aimpad" || op == "go" || op == "gopad") {
+        s.follow = op;
+        s.followScreen = s.screen;
+        s.hold = (std::max)(2, std::atoi(a.c_str()));
+        s.input.padConnected = op == "aimpad" || op == "gopad" || s.input.padConnected;
     } else if (op == "click") {
         s.input.leftButton = true;
         s.hold = 3;
@@ -202,6 +233,15 @@ bool TakeShot(std::string& name)
     return true;
 }
 
+void SetTarget(float selfX, float selfY, float targetX, float targetY)
+{
+    State& s = Get();
+    s.selfX = selfX;
+    s.selfY = selfY;
+    s.targetX = targetX;
+    s.targetY = targetY;
+}
+
 bool TakeCommand(const char* name)
 {
     State& s = Get();
@@ -222,7 +262,14 @@ void Step(myEngine::Input& input)
     ++s.frame;
     s.input.presses.fill(false);
     if (s.hold > 0) {
+        if (!s.follow.empty()) {
+            Follow(s);
+            if (s.screen != s.followScreen) {
+                s.hold = 1;
+            }
+        }
         if (--s.hold == 0) {
+            s.follow.clear();
             Release(s);
             s.wait = 3;
         }

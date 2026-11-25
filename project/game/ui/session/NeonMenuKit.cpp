@@ -57,7 +57,7 @@ void NeonMenuKit::Initialize(size_t capacity)
     }
     batch_.Initialize(capacity);
     batch_.Preload(kWhitePixel);
-    for (const char* name : {"tube_core", "tube_glow", "shade_title", "shade_pause"}) {
+    for (const char* name : {"tube_core", "tube_glow", "shade_title", "shade_pause", "ring_glow_0", "ring_glow_1", "ring_glow_2", "ring_glow_3", "ring_glow_4"}) {
         batch_.Preload(kFolder + name + ".png");
     }
 }
@@ -145,11 +145,23 @@ void NeonMenuKit::Ring(const myEngine::Vector2& center, float radius, float widt
     const float chord = 2.0f * radius * std::sin(step * 0.5f);
     const Color solid = Tint(core);
     const Color light = Light(glowColor, glow);
+    // 1周の輪の光は、輪の形の画像1枚で出す（短い線を並べると、すき間がとげに見える）。
+    const bool whole = to - from >= 0.999f;
+    if (whole && glow > 0.004f) {
+        static constexpr float kShare[] = {0.45f, 0.6f, 0.72f, 0.82f, 0.9f};
+        const float wanted = radius / (radius + (std::max)(1.0f, reach));
+        int best = 0;
+        for (int i = 1; i < 5; ++i) {
+            best = std::abs(kShare[i] - wanted) < std::abs(kShare[best] - wanted) ? i : best;
+        }
+        const float size = 2.0f * radius / kShare[best];
+        batch_.Quad(SurvivorQuadBatch::PreviewGlow, kFolder + "ring_glow_" + std::to_string(best) + ".png", center, {size, size}, 0.0f, light);
+    }
     for (int i = 0; i < segments; ++i) {
         const float angle = -kPi * 0.5f + from * 2.0f * kPi + (static_cast<float>(i) + 0.5f) * step;
         const float r = radius * std::cos(step * 0.5f);
         const myEngine::Vector2 at{center.x + std::cos(angle) * r, center.y + std::sin(angle) * r};
-        if (glow > 0.004f) {
+        if (!whole && glow > 0.004f) {
             batch_.Quad(SurvivorQuadBatch::PreviewGlow, kFolder + "tube_glow.png", at, {chord, width + reach * 2.0f}, angle + kPi * 0.5f, light,
                         0.5f, 0.5f);
         }

@@ -475,7 +475,10 @@ void TitleScene::UpdateMenu(float dt)
         return;
     }
     if (settings_.IsOpen()) {
-        settings_.Update(dt, in);
+        if (settings_.Update(dt, in) == gameplay::SettingsScreen::Result::ReplayTutorial) {
+            GameStartSession::RequestTutorial();
+            StartTransitionIfAvailable("TANK_SURVIVOR", 0.65f);
+        }
         menuflow::SetScreen("settings", settings_.Describe());
         return;
     }

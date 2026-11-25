@@ -154,13 +154,9 @@ void Player::RotateToMouse(myEngine::Camera* viewProjection)
         return;
     }
     // --- 1. マウス座標取得 ---
-    POINT mousePosition;
-    GetCursorPos(&mousePosition);
-    HWND hwnd = myEngine::WinApp::GetInstance()->GetHwnd();
-    ScreenToClient(hwnd, &mousePosition);
-    float logicalMouseX = static_cast<float>(mousePosition.x);
-    float logicalMouseY = static_cast<float>(mousePosition.y);
-    myEngine::WinApp::GetInstance()->ClientToLogical(logicalMouseX, logicalMouseY);
+    const myEngine::Vector2 logicalMouse = myEngine::Input::GetInstance()->GetMousePosition();
+    const float logicalMouseX = logicalMouse.x;
+    const float logicalMouseY = logicalMouse.y;
 
     // --- 2. 逆変換用の行列を準備 ---
     myEngine::Matrix4x4 matViewport =

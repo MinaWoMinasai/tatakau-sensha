@@ -1,6 +1,7 @@
 #include "game/run/session/SurvivorRunController.h"
 #include "game/debug/MenuFlow.h"
 #include "game/run/session/SurvivorRunShared.h"
+#include "GameStartMode.h"
 #include "game/session/GameplaySystems.h"
 #include <algorithm>
 #include <cmath>
@@ -31,7 +32,8 @@ bool SurvivorRunController::TryOpenPause()
     auto& input = *world_.resources.input_;
     const bool left = input.GetFocusLostCount() != focusLostSeen_;
     focusLostSeen_ = input.GetFocusLostCount();
-    if (!(left || input.IsKeyTriggered(DIK_ESCAPE)) || !CanOpenPause()) {
+    // 説明の間の Esc・Start は、ながおしで飛ばす操作。
+    if (!(left || (input.IsKeyTriggered(DIK_ESCAPE) && tutorialStep_ < 0)) || !CanOpenPause()) {
         return false;
     }
     OpenPause();
@@ -67,7 +69,11 @@ void SurvivorRunController::UpdatePause(float dt)
     focusLostSeen_ = world_.resources.input_->GetFocusLostCount();
     const MenuInput in = ReadMenuInput(*world_.resources.input_, menuMouse_);
     if (settings_.IsOpen()) {
-        settings_.Update(dt, in);
+        if (settings_.Update(dt, in) == SettingsScreen::Result::ReplayTutorial) {
+            GameStartSession::RequestTutorial();
+            LeaveRun(0);
+            return;
+        }
         if (settings_.Moved()) {
             audio_.Play("ui_click");
         }
@@ -175,6 +181,27 @@ void SurvivorRunController::ReportMenuFlow()
     if (world_.run.tankRunCapturePath_.empty() && menuflow::TakeShot(shot)) {
         RequestCapture(shot);
     }
+    // 目標：説明の輪・欠片・いちばん近い敵。
+    const myEngine::Vector3 self = world_.resources.player_->GetWorldPosition();
+    myEngine::Vector3 target = self + myEngine::Vector3{1.0f, 0.0f, 0.0f};
+    if (tutorialStep_ == 0) {
+        target = TutorialMark();
+    } else if (tutorialStep_ == 2) {
+        pickups_.FindNearest(self, 1000.0f, target);
+    } else {
+        float best = 1.0e9f;
+        for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (enemy && !enemy->IsDead()) {
+                const myEngine::Vector3 at = enemy->GetWorldPosition();
+                if (const float d = std::hypot(at.x - self.x, at.y - self.y); d < best) {
+                    best = d;
+                    target = at;
+                }
+            }
+        }
+    }
+    const myEngine::Vector2 from = world_.gameplayHud->WorldToScreen(self), to = world_.gameplayHud->WorldToScreen(target);
+    menuflow::SetTarget(from.x, from.y, to.x, to.y);
     if (pauseOpen_ && settings_.IsOpen()) {
         menuflow::SetScreen("settings", settings_.Describe());
     } else if (pauseOpen_) {
@@ -185,6 +212,8 @@ void SurvivorRunController::ReportMenuFlow()
         menuflow::SetScreen("inventory", device);
     } else if (IsResultVisible()) {
         menuflow::SetScreen("result", std::to_string(world_.combat.resultSelection_) + device);
+    } else if (tutorialStep_ >= 0) {
+        menuflow::SetScreen("tutorial" + std::to_string(tutorialStep_), std::to_string(tutorialStage_) + device);
     } else if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
         menuflow::SetScreen("play", device);
     } else {

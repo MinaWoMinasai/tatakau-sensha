@@ -424,6 +424,26 @@ private:
     void QueueGear(float top, bool oneRow);
     /// @brief 次の場面へ移る（0 もう1回、1 タイトル）。
     void LeaveRun(int selection);
+    // はじめての説明（計画書 p11 の R3）。SurvivorRunTutorial.cpp。
+    /// @brief 今の段（0 動く・1 狙う・2 拾う・3 えらぶ・4 Q。負なら説明ではない）。
+    int tutorialStep_ = -1;
+    int tutorialStage_ = 0;
+    float tutorialTime_ = 0.0f;
+    float tutorialSkip_ = 0.0f;
+    bool tutorialNoDamageBefore_ = false;
+    myEngine::Vector3 tutorialOrigin_{};
+    std::vector<myEngine::Vector3> tutorialDrops_;
+    NeonMenuKit guideKit_;
+    /// @brief 初めての人か、設定で「説明をもう一度」を選んだときに始める。
+    void StartTutorialIfNeeded();
+    void UpdateTutorial(float dt);
+    void NextTutorialStep();
+    void EndTutorial();
+    myEngine::Vector3 TutorialMark() const;
+    /// @brief 操作の絵・進み具合・飛ばす案内を積む。
+    void QueueTutorial();
+    /// @brief 初めての強化の画面に添える、キーの絵を積む。
+    void QueueCardHints();
     /// @brief タイトルの後ろで、戦車が自動で戦う動き。
     void UpdateTitleDemoBot();
     /// @brief 画面の出入りの確認（MenuFlow）に、今の画面を知らせる。
