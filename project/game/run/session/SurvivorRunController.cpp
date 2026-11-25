@@ -745,6 +745,11 @@ void SurvivorRunController::Update(float dt)
                 QueueCardHints();
             }
         }
+        if (inventoryOpen_ && LevelUpScreenOn()) {
+            menuKit_.Begin();
+            menuKit_.Hints({{{"Esc"}, "B", "もどる"}}, world_.resources.input_->IsGamepadActive(), 1118.0f);
+            menuKit_.End();
+        }
         UpdatePlayerNumbers(dt);
     }
     hudRefresh_ -= dt;
@@ -762,7 +767,9 @@ void SurvivorRunController::Update(float dt)
             WriteRunLog();
             RefreshResult(world_.combat.resultSelection_);
         }
-        if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(DIK_R)) {
+        if (UsesResultScreen()) {
+            UpdateResultScreen(dt);
+        } else if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(DIK_R)) {
             world_.combat.resultSelection_ = 0;
             world_.combatFlow->ConfirmResultSelection();
             return;
@@ -1273,6 +1280,10 @@ void SurvivorRunController::DrawUi()
 {
     ++drawnFrames_;
     if (IsResultVisible() && resultPanel_ && resultText_ && resultMenu_) {
+        if (UsesResultScreen()) {
+            menuKit_.Draw();
+            return;
+        }
         myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
         resultPanel_->Draw();
         resultText_->Draw();
@@ -1292,7 +1303,7 @@ void SurvivorRunController::DrawUi()
     // 持ち物の画面と拠点の画面を開いている間は、ほかの HUD を描かずにその画面だけを出す（暗幕から透けて読みにくくならないように）。
     if (LevelUpScreenShown()) {
         levelUpScreen_.Draw();
-        if (tutorialStep_ >= 0 && heroLevelUpOpen_ && !levelUpScreen_.IsClosing()) {
+        if ((tutorialStep_ >= 0 && heroLevelUpOpen_ && !levelUpScreen_.IsClosing()) || (inventoryOpen_ && !heroLevelUpOpen_)) {
             menuKit_.Draw();
         }
         DrawCinematic();

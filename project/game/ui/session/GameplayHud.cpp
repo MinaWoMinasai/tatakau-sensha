@@ -246,7 +246,8 @@ void GameplayHud::DrawSprite()
         (world_.combat.combatFlow_.GetState() == GameFlowState::GameOver && world_.combat.combatFlow_.GetTimer() <= 0.0f);
     const bool cinematicTitle = world_.resources.neonDepthCameraScoped_ && world_.presentation.bossCinematic_.defeatTime >= 0.0f;
     if (world_.combat.flowBannerText_ && world_.combat.combatFlow_.GetState() != GameFlowState::Playing &&
-        !(world_.run.UsesTankRunDirector() && showResult) && !cinematicTitle) {
+        !(world_.run.UsesTankRunDirector() && showResult) && !cinematicTitle &&
+        !(world_.run.IsSurvivorRun() && world_.survivorRunController->UsesResultScreen())) {
         world_.combat.flowBannerText_->Draw();
     }
     if (showResult && !world_.run.UsesTankRunDirector() && !world_.run.IsSurvivorRun()) {

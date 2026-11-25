@@ -183,10 +183,10 @@ float NeonMenuKit::MeasureText(const std::string& text, float size, bool number)
 float NeonMenuKit::GlowText(const std::string& text, float size, float x, float y, float anchorX, const Color& color, const Color& glowColor, float glow)
 {
     const auto style = Style(size, true);
-    constexpr int kRings = 3, kSides = 12;
+    constexpr int kRings = 7, kSides = 16;
     for (int ring = 0; ring < kRings; ++ring) {
-        const float radius = size * (0.022f + 0.032f * static_cast<float>(ring));
-        const Color part = Light(glowColor, glow * (ring == 0 ? 0.10f : ring == 1 ? 0.05f : 0.028f));
+        const float radius = size * (0.012f + 0.018f * static_cast<float>(ring));
+        const Color part = Light(glowColor, glow * 0.055f * std::pow(0.60f, static_cast<float>(ring)));
         for (int i = 0; i < kSides; ++i) {
             const float angle = 2.0f * kPi * (static_cast<float>(i) + 0.5f * static_cast<float>(ring % 2)) / static_cast<float>(kSides);
             batch_.Label(SurvivorQuadBatch::PreviewGlow, text, style, x + std::cos(angle) * radius, y + std::sin(angle) * radius, anchorX, part);
@@ -258,10 +258,10 @@ float NeonMenuKit::Meter(float x, float y, int value, bool lit)
     return 10.0f * (kDash + kGap) - kGap;
 }
 
-void NeonMenuKit::Hints(const std::vector<Hint>& hints, bool pad)
+void NeonMenuKit::Hints(const std::vector<Hint>& hints, bool pad, float left)
 {
     constexpr float kY = 667.0f;
-    float x = 76.8f;
+    float x = left;
     const Color key{0.875f, 0.902f, 0.910f, 1.0f};
     for (const Hint& hint : hints) {
         if (pad) {

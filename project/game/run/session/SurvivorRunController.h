@@ -102,6 +102,9 @@ public:
     /// @brief 宿敵が倒れたときに CombatFlow から1回呼ばれる。結果画面へは移らず、欠片と宝箱を落として出口を開く。
     void OnRivalDefeated();
 
+    /// @brief 結果の画面を、管の線の新しい形で出すか（計画書 p11 の R4）。入力もこの画面が受ける。
+    bool UsesResultScreen() const;
+
     /// @brief 結果画面の文字を作り直す。CombatFlow::UpdateResultText から呼ぶ。
     /// @param selection 0 なら「もう1回」、1 なら「タイトルへ」を選んでいる。
     void RefreshResult(int selection);
@@ -424,6 +427,16 @@ private:
     void QueueGear(float top, bool oneRow);
     /// @brief 次の場面へ移る（0 もう1回、1 タイトル）。
     void LeaveRun(int selection);
+    // 結果の画面（計画書 p11 の R4）。SurvivorRunMenus.cpp。
+    NeonMenu resultList_;
+    bool resultOpen_ = false;
+    float resultAge_ = 0.0f;
+    /// @brief この回より前の、一番長く生きた秒。
+    float resultBest_ = 0.0f;
+    void UpdateResultScreen(float dt);
+    void QueueResultScreen();
+    /// @brief 確認用：自機を倒す。
+    bool menuFlowDie_ = false;
     // はじめての説明（計画書 p11 の R3）。SurvivorRunTutorial.cpp。
     /// @brief 今の段（0 動く・1 狙う・2 拾う・3 えらぶ・4 Q。負なら説明ではない）。
     int tutorialStep_ = -1;

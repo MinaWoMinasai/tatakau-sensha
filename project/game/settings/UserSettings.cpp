@@ -55,6 +55,9 @@ UserSettings Load()
     level("curve", settings.curve);
     flag("autoFire", settings.autoFire);
     flag("tutorialDone", settings.tutorialDone);
+    if (root.contains("bestSeconds") && root.at("bestSeconds").is_number()) {
+        settings.bestSeconds = (std::clamp)(root.at("bestSeconds").get<float>(), 0.0f, 36000.0f);
+    }
     return settings;
 }
 } // namespace
@@ -72,7 +75,8 @@ void Save()
     }
     const UserSettings& s = Get();
     const nlohmann::json root{{"music", s.music}, {"effects", s.effects}, {"fullscreen", s.fullscreen}, {"shake", s.shake},
-                              {"calm", s.calm},   {"curve", s.curve},     {"autoFire", s.autoFire},     {"tutorialDone", s.tutorialDone}};
+                              {"calm", s.calm},   {"curve", s.curve},     {"autoFire", s.autoFire},     {"tutorialDone", s.tutorialDone},
+                              {"bestSeconds", s.bestSeconds}};
     std::error_code error;
     const std::filesystem::path path(Path());
     if (path.has_parent_path()) {

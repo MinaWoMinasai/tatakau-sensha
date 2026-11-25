@@ -20,6 +20,8 @@ struct UserSettings {
     bool autoFire = true;
     /// @brief はじめての説明を終えたか。
     bool tutorialDone = false;
+    /// @brief 一番長く生きた秒（結果の画面の白い印）。
+    float bestSeconds = 0.0f;
 };
 
 namespace usersettings {

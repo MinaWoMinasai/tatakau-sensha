@@ -213,6 +213,10 @@ void CombatFlow::UpdateGameFlow(float baseDeltaTime)
         world_.combat.combatFlow_.GetState() != GameFlowState::GameOver) {
         return;
     }
+    // 1台だけの版は、結果の画面が入力を受ける（計画書 p11 の R4）。
+    if (world_.run.IsSurvivorRun() && world_.survivorRunController->UsesResultScreen()) {
+        return;
+    }
     if (world_.run.UsesTankRunDirector()) {
         if (world_.run.expeditionMapEnabled_ && (world_.run.tankExpeditionBalanceEditorOpen_ || world_.run.expeditionRoomEditorOpen_ ||
                                                  world_.run.expeditionMapEditorOpen_ || world_.run.expeditionContentEditorOpen_)) {

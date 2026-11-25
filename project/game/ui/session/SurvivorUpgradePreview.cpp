@@ -537,7 +537,7 @@ void SurvivorUpgradePreview::Queue(SurvivorQuadBatch& batch, float fade)
     const bool down = Is("perk_revive") && phase_ == 1;
     const float tank = down ? 0.25f : 1.0f;
     const float kick = recoil_ * 4.0f;
-    Quad(Tank, tankX_ - std::cos(aim_) * kick, tankY_ - std::sin(aim_) * kick, 66.0f, 66.0f, aim_, Dim(flash_ > 0.0f && Is("perk_revive") ? kHurt : kTankColor, tank));
+    Quad(Tank, tankX_ - std::cos(aim_) * kick, tankY_ - std::sin(aim_) * kick, 127.0f, 127.0f, aim_, Dim(flash_ > 0.0f && Is("perk_revive") ? kHurt : kTankColor, tank));
     if (Is("perk_speed")) {
         for (int i = 1; i <= 5; ++i) {
             const float past = time_ - 0.05f * static_cast<float>(i);

@@ -63,7 +63,7 @@ public:
         std::string text;
     };
     /// @brief 左下の操作の案内。
-    void Hints(const std::vector<Hint>& hints, bool pad);
+    void Hints(const std::vector<Hint>& hints, bool pad, float left = 76.8f);
 
     SurvivorQuadBatch& Batch()
     {

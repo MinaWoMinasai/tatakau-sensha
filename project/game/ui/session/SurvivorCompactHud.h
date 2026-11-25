@@ -1,15 +1,8 @@
 #pragma once
-#include <array>
-#include <cstdint>
-#include <memory>
-#include <string>
-#include <vector>
-#include "Sprite.h"
-#include "TextLabel.h"
+#include "game/ui/session/NeonMenuKit.h"
 
 namespace gameplay {
-/// @brief 無限の場の、文字を減らした HUD（計画書 p9 の H4）。自機の下に HP・経験値・Lv・Q、上の真ん中に残り時間とボスの印を出す。
-/// @note 数字の画像は始めに1回だけ作って使い回す（TextLabel の SetText は文字列ごとに画像を作り、解放しないので使わない）。
+/// @brief 無限の場の、文字を減らした HUD（計画書 p9 の H4、p11 の R4）。自機の下に HP・経験値の管の線と Q の輪、上の真ん中に残り時間とボスの印を出す。
 class SurvivorCompactHud {
 public:
     struct State {
@@ -37,38 +30,7 @@ public:
     void Draw();
 
 private:
-    static constexpr size_t kRectCount = 32;
-    static constexpr size_t kGlyphCount = 16;
-    // 板1枚の描画は軽くない（画像の検索が何度も入る）ので、輪の区切りは少なめにする。
-    static constexpr int kRingSegments = 12;
-    static constexpr size_t kGlyphKinds = 14; // 0〜9、「:」、「Lv」、「Q」、ボスの印
-
-    /// @brief 板に最後に入れた値。同じなら更新を省く。
-    struct Placed {
-        myEngine::Vector2 position{};
-        myEngine::Vector2 size{};
-        myEngine::Vector4 color{};
-        float rotation = 0.0f;
-        size_t glyph = kGlyphKinds;
-        bool valid = false;
-    };
-    void Place(myEngine::Sprite& sprite, Placed& placed, const myEngine::Vector2& position, const myEngine::Vector2& size,
-               const myEngine::Vector4& color, float rotation, size_t glyph);
-    void Glyph(size_t index, const myEngine::Vector2& center, float height, const myEngine::Vector4& color);
-
-    void Rect(const myEngine::Vector2& center, const myEngine::Vector2& size, const myEngine::Vector4& color, float rotation = 0.0f);
-    /// @brief 数字（0〜9 と「:」）を、幅をそろえて並べる。align は 0 で左、0.5 で真ん中、1 で右。戻り値は幅。
-    float Digits(const std::string& text, const myEngine::Vector2& position, float height, float align, const myEngine::Vector4& color);
-
-    std::array<std::unique_ptr<myEngine::TextLabel>, kGlyphKinds> glyphLabels_;
-    std::array<std::string, kGlyphKinds> glyphPaths_{};
-    std::array<myEngine::Vector2, kGlyphKinds> glyphSizes_{};
-    std::vector<std::unique_ptr<myEngine::Sprite>> rects_;
-    std::vector<std::unique_ptr<myEngine::Sprite>> glyphs_;
-    std::vector<Placed> rectPlaced_;
-    std::vector<Placed> glyphPlaced_;
-    size_t usedRects_ = 0;
-    size_t usedGlyphs_ = 0;
+    NeonMenuKit kit_;
     float time_ = 0.0f;
     float shownExp_ = 0.0f;
     float gainFlash_ = 0.0f;

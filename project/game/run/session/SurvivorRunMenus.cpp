@@ -3,6 +3,7 @@
 #include "game/run/session/SurvivorRunShared.h"
 #include "GameStartMode.h"
 #include "game/session/GameplaySystems.h"
+#include "game/settings/UserSettings.h"
 #include <algorithm>
 #include <cmath>
 
@@ -125,6 +126,99 @@ void SurvivorRunController::QueueGear(float top, bool oneRow)
     }
 }
 
+void SurvivorRunController::UpdateResultScreen(float dt)
+{
+    if (!resultOpen_) {
+        resultOpen_ = true;
+        resultAge_ = 0.0f;
+        resultBest_ = usersettings::Get().bestSeconds;
+        if (elapsed_ > resultBest_) {
+            usersettings::Get().bestSeconds = elapsed_;
+            usersettings::Save();
+        }
+        menuMouse_ = world_.resources.input_->GetMousePosition();
+        resultList_.Open({{"もう1回", ""}, {"タイトルへ", ""}}, 553.0f);
+    }
+    resultAge_ += dt;
+    const MenuInput in = ReadMenuInput(*world_.resources.input_, menuMouse_);
+    // 倒れた瞬間の連打で、すぐに次へ進まないようにする。
+    constexpr float kLockSeconds = 0.6f;
+    if (resultAge_ > kLockSeconds) {
+        const int picked = resultList_.Update(dt, in);
+        if (resultList_.Moved()) {
+            audio_.Play("ui_click");
+        }
+        if (picked >= 0 || world_.resources.input_->IsKeyTriggered(DIK_R)) {
+            audio_.Play("ui_drop");
+            LeaveRun((std::max)(0, picked));
+        }
+    }
+    QueueResultScreen();
+}
+
+void SurvivorRunController::QueueResultScreen()
+{
+    const bool clear = cleared_;
+    const auto color = clear ? menucolor::kGold : menucolor::kGreen;
+    menuKit_.Begin((std::min)(1.0f, 0.25f + resultAge_ / 0.25f));
+    menuKit_.Darken(NeonMenuKit::Shade::Full);
+    // 生きた時間。
+    const int total = static_cast<int>(elapsed_);
+    const std::string seconds = std::to_string(total % 60);
+    menuKit_.GlowText(std::to_string(total / 60) + ":" + (seconds.size() < 2 ? "0" : "") + seconds, 154.0f, 74.0f, 230.0f, 0.0f, menucolor::kWhite, color,
+                      1.0f);
+    // 10分の管：どこまで進んだか。目盛りは出来事、白い印は前の最高。
+    const float whole = (std::max)(1.0f, config_.exitOpenSeconds);
+    constexpr float kLeft = 99.3f, kRight = 1180.5f, kY = 396.8f;
+    auto at = [&](float second) {
+        return kLeft + (kRight - kLeft) * (std::clamp)(second / whole, 0.0f, 1.0f);
+    };
+    // 始めに、管が左から伸びる。
+    const float grow = 1.0f - std::pow(1.0f - (std::min)(1.0f, resultAge_ / 0.7f), 3.0f);
+    const myEngine::Vector4 track{0.149f, 0.169f, 0.204f, 1.0f};
+    menuKit_.Tube({kLeft, kY}, {kRight, kY}, 5.4f, track, track, 0.0f, 0.0f);
+    const float end = at(elapsed_ * grow);
+    if (end > kLeft + 1.0f) {
+        menuKit_.Tube({kLeft, kY}, {end, kY}, 5.4f, menucolor::kWhite, color, 1.0f, 26.0f);
+    }
+    for (const auto& event : config_.timeline) {
+        if (event.kind == "surge") {
+            continue;
+        }
+        const float x = at(event.at);
+        const auto tick = event.at <= elapsed_ ? color : myEngine::Vector4{0.227f, 0.255f, 0.314f, 1.0f};
+        menuKit_.Tube({x, kY - 18.0f}, {x, kY + 18.0f}, 2.0f, tick, tick, 0.0f, 0.0f);
+    }
+    if (resultBest_ > 0.5f) {
+        const float x = at(resultBest_);
+        menuKit_.Tube({x, kY - 30.0f}, {x, kY - 18.0f}, 4.0f, menucolor::kWhite, menucolor::kWhite, 0.4f, 10.0f);
+    }
+    // 倒した数・Lv・倒された相手の形。
+    constexpr float kStatY = 500.0f;
+    float x = 76.8f;
+    menuKit_.Icon("pv_square", x + 21.0f, kStatY, 52.0f, menucolor::kGold);
+    x += 54.0f;
+    x += menuKit_.Text(std::to_string(world_.combat.defeatedEnemies_), 38.0f, x, kStatY, 0.0f, menucolor::kInk, true) + 52.0f;
+    x += menuKit_.Text("Lv " + std::to_string(level_), 38.0f, x, kStatY, 0.0f, menucolor::kInk, true) + 52.0f;
+    if (!clear) {
+        // 四角・三角・五角・ボス（六角）。弾や地雷など、形の無い物は点。
+        const std::string& hit = world_.resources.player_->GetSurvivorLastHit();
+        auto has = [&](const char* word) {
+            return hit.find(word) != std::string::npos;
+        };
+        const char* icon = has("地雷")   ? "sub_mine"
+                           : has("三角") ? "pv_triangle"
+                           : has("五角") ? "pv_pentagon"
+                           : has("四角") ? "pv_square"
+                           : has("ボス") ? "pv_hexagon"
+                                         : "pv_dot";
+        menuKit_.Icon(icon, x + 26.0f, kStatY, 52.0f, menucolor::kRed);
+    }
+    QueueGear(122.0f, true);
+    resultList_.Queue(menuKit_);
+    menuKit_.End();
+}
+
 void SurvivorRunController::LeaveRun(int selection)
 {
     world_.combat.resultSelection_ = selection;
@@ -181,6 +275,36 @@ void SurvivorRunController::ReportMenuFlow()
     if (world_.run.tankRunCapturePath_.empty() && menuflow::TakeShot(shot)) {
         RequestCapture(shot);
     }
+    // 確認用の命令：倒れる・クリア・時間を進める・持ち物を増やす。
+    if (menuflow::TakeCommand("die")) {
+        menuFlowDie_ = true;
+    }
+    if (menuFlowDie_) {
+        world_.resources.player_->Damage(9999);
+    }
+    if (menuflow::TakeCommand("clear")) {
+        rivalSpawned_ = rivalDefeated_ = true;
+        FinishWave();
+    }
+    if (menuflow::TakeCommand("late")) {
+        elapsed_ = 402.0f;
+        timelineNext_ = config_.timeline.size();
+    }
+    if (menuflow::TakeCommand("end")) {
+        elapsed_ = 596.0f;
+        timelineNext_ = config_.timeline.size();
+    }
+    if (menuflow::TakeCommand("gear")) {
+        subWeaponTiers_[0] = 4;
+        subWeaponTiers_[1] = 3;
+        subWeaponTiers_[2] = 1;
+        perks_[0] = 2;
+        perks_[1] = 1;
+        perks_[2] = 3;
+        heroSkillTiers_[0] = 2;
+        world_.combat.defeatedEnemies_ = 1207;
+        level_ = 14;
+    }
     // 目標：説明の輪・欠片・いちばん近い敵。
     const myEngine::Vector3 self = world_.resources.player_->GetWorldPosition();
     myEngine::Vector3 target = self + myEngine::Vector3{1.0f, 0.0f, 0.0f};
@@ -211,7 +335,7 @@ void SurvivorRunController::ReportMenuFlow()
     } else if (inventoryOpen_) {
         menuflow::SetScreen("inventory", device);
     } else if (IsResultVisible()) {
-        menuflow::SetScreen("result", std::to_string(world_.combat.resultSelection_) + device);
+        menuflow::SetScreen("result", std::to_string(resultList_.GetSelected()) + device);
     } else if (tutorialStep_ >= 0) {
         menuflow::SetScreen("tutorial" + std::to_string(tutorialStep_), std::to_string(tutorialStage_) + device);
     } else if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
