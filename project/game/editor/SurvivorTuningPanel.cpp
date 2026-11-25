@@ -709,6 +709,21 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
         ImGui::TreePop();
     }
 
+    // 自機の弾（計画書 p10 の16章の M2）
+    if (ImGui::TreeNodeEx("自機の弾（細い針）", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto& needle = config.glow.needle;
+        changed |= ImGui::Checkbox("細い針で描く（切ると前の弾。次に撃つ弾から）", &needle.enabled);
+        changed |= ImGui::SliderFloat("針の太さ（敵の線に対して）", &needle.line, 0.3f, 2.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("先の長さ（後ろ）", &needle.back, 0.1f, 2.0f, "%.2f");
+        changed |= ImGui::SliderFloat("先の長さ（前）", &needle.front, 0.05f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("尾の長さ", &needle.tail, 0.0f, 4.0f, "%.2f");
+        changed |= ImGui::SliderFloat("尾の明るさ", &needle.tailAlpha, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("弾の色の明るさ", &needle.brightness, 0.2f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("弾の近いにじみ（敵に対して）", &needle.nearGlow, 0.0f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("弾のブルーム", &needle.bloom, 0.0f, 1.0f, "×%.2f");
+        ImGui::TreePop();
+    }
+
     // 文字を減らした HUD（計画書 p9 の H4）
     if (ImGui::TreeNodeEx("HUD（自機の下のゲージ）", ImGuiTreeNodeFlags_DefaultOpen)) {
         changed |= ImGui::Checkbox("文字を減らした HUD を使う（切ると前の HUD）", &config.hud.compact);

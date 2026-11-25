@@ -1329,6 +1329,29 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             look.enemyCoreWhite = (std::clamp)(look.enemyCoreWhite, 0.0f, 1.0f);
             look.crowdCount = (std::max)(1.0f, look.crowdCount);
         }
+        if (glow.contains("needle") && glow.at("needle").is_object()) {
+            const auto& needle = glow.at("needle");
+            auto& look = out.needle;
+            if (needle.contains("enabled") && needle.at("enabled").is_boolean()) {
+                look.enabled = needle.at("enabled").get<bool>();
+            }
+            number(needle, "line", look.line);
+            number(needle, "back", look.back);
+            number(needle, "front", look.front);
+            number(needle, "tail", look.tail);
+            number(needle, "tailAlpha", look.tailAlpha);
+            number(needle, "brightness", look.brightness);
+            number(needle, "nearGlow", look.nearGlow);
+            number(needle, "bloom", look.bloom);
+            look.line = (std::clamp)(look.line, 0.1f, 4.0f);
+            look.back = (std::clamp)(look.back, 0.0f, 4.0f);
+            look.front = (std::clamp)(look.front, 0.05f, 2.0f);
+            look.tail = (std::clamp)(look.tail, 0.0f, 6.0f);
+            look.tailAlpha = (std::clamp)(look.tailAlpha, 0.0f, 1.0f);
+            look.brightness = (std::clamp)(look.brightness, 0.0f, 4.0f);
+            look.nearGlow = (std::clamp)(look.nearGlow, 0.0f, 4.0f);
+            look.bloom = (std::clamp)(look.bloom, 0.0f, 2.0f);
+        }
         if (glow.contains("tank") && glow.at("tank").is_object()) {
             const auto& tank = glow.at("tank");
             auto& look = out.tank;
@@ -1999,6 +2022,19 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         neon["bloom"] = round(look.bloom);
         neon["crowdBloom"] = round(look.crowdBloom);
         neon["crowdCount"] = round(look.crowdCount);
+    }
+    if (config.glow.needle.enabled || glow.contains("needle")) {
+        const auto& look = config.glow.needle;
+        auto& needle = glow["needle"];
+        needle["enabled"] = look.enabled;
+        needle["line"] = round(look.line);
+        needle["back"] = round(look.back);
+        needle["front"] = round(look.front);
+        needle["tail"] = round(look.tail);
+        needle["tailAlpha"] = round(look.tailAlpha);
+        needle["brightness"] = round(look.brightness);
+        needle["nearGlow"] = round(look.nearGlow);
+        needle["bloom"] = round(look.bloom);
     }
     if (config.glow.tank.enabled || glow.contains("tank")) {
         const auto& look = config.glow.tank;

@@ -439,6 +439,10 @@ private:
     int autoLookDemoState_ = 0;
     float autoLookDemoAt_ = 0.0f;
     float autoLookDemoHitAt_ = 0.0f;
+    /// @brief 自機の弾を細い針で描くか（計画書 p10 の16章の M2）。
+    bool NeedleShots() const;
+    /// @brief 針の弾の見た目を、弾の描画へ渡す。
+    void ApplyNeedleLook();
     /// @brief 自機の履帯戦車の、車体の向きと履帯の流れを進める（計画書 p10 の16章の M1）。
     void UpdateTankPose(float dt);
     myEngine::Vector3 tankLastPosition_{};

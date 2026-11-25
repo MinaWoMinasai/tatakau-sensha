@@ -71,7 +71,8 @@ void NeonProjectileRenderer::BeginFrame(const std::vector<Bullet*>& bullets, con
             continue;
         }
         // 柔らかい帯3本（各18頂点）と12角形のキャップ2つ（各36頂点）。
-        constexpr uint32_t verticesPerHead = 126;
+        // 針の弾は、丸い端の線2本と、端の無い尾4本（378×2＋42×4）。
+        const uint32_t verticesPerHead = params_.needle.enabled ? 924 : 126;
         if (geometry_.GetVertexCount() + verticesPerHead > myEngine::NeonGridRenderer::kMaxVertices) {
             ++stats_.truncated;
             continue;
@@ -101,6 +102,11 @@ void NeonProjectileRenderer::QueueHead(const Bullet& bullet, const myEngine::Vec
     }
     side = myEngine::Normalize(side);
 
+    if (params_.needle.enabled && bullet.GetOwner() == kPlayer && bullet.GetSpecialKind() == Bullet::SpecialKind::None) {
+        QueueNeedle(bullet, center, direction, forward);
+        return;
+    }
+
     const myEngine::Vector4 source = bullet.GetVisualColor();
     myEngine::Vector3 color{Bounded(source.x, 0, 0, 4), Bounded(source.y, 0, 0, 4), Bounded(source.z, 0, 0, 4)};
     const float peak = (std::max)({color.x, color.y, color.z});
@@ -125,6 +131,61 @@ void NeonProjectileRenderer::QueueHead(const Bullet& bullet, const myEngine::Vec
                                     params_.headWidth * params_.coreWidthScale, Emission(pale, params_.coreIntensity, alpha), forward);
     geometry_.QueueBillboardDisc(tip, params_.headWidth * params_.coreWidthScale * 0.25f, Emission(pale, params_.coreIntensity, alpha),
                                  direction, side, 12);
+    ++stats_.heads;
+}
+
+void NeonProjectileRenderer::QueueNeedle(const Bullet& bullet, const myEngine::Vector3& center, const myEngine::Vector3& direction,
+                                         const myEngine::Vector3& forward)
+{
+    const auto& needle = params_.needle;
+    const myEngine::Vector4 source = bullet.GetVisualColor();
+    myEngine::Vector3 color{Bounded(source.x, 0, 0, 4), Bounded(source.y, 0, 0, 4), Bounded(source.z, 0, 0, 4)};
+    const float peak = (std::max)({color.x, color.y, color.z});
+    const float alpha = Bounded(source.w, 1, 0, 1);
+    if (peak <= 0.0001f || alpha <= 0.001f) {
+        ++stats_.skipped;
+        return;
+    }
+    color = color / peak;
+    const float brightness = needle.brightness;
+    // 大きい弾（ロケットなど）は、当たりの大きさに合わせて長く太くする。
+    const float size = (std::clamp)(bullet.GetRadius() / 0.5f, 0.5f, 2.0f);
+    // 撃った直後は短く、すぐに伸びる（尾が砲口より後ろへ出ない）。
+    const float born = (std::min)(1.0f, bullet.GetVisualAge() * 9.0f);
+    const myEngine::Vector3 front = center + direction * (needle.front * size);
+    const myEngine::Vector3 back = center - direction * (needle.back * born * size);
+    const myEngine::Vector3 end = center - direction * (needle.tail * born * size);
+    const myEngine::Vector4 lit{color.x * brightness, color.y * brightness, color.z * brightness, alpha};
+    const float width = needle.width * size;
+    if (needle.tail > needle.back && born > 0.2f) {
+        // 尾は4つに分け、後ろほど細く淡くする。
+        myEngine::NeonContourStyle style = needle.style;
+        style.roundCaps = false;
+        constexpr int kSteps = 4;
+        for (int i = 0; i < kSteps; ++i) {
+            const float from = static_cast<float>(i) / kSteps, to = static_cast<float>(i + 1) / kSteps;
+            const float fade = 1.0f - (from + to) * 0.5f;
+            myEngine::Vector4 tail = lit;
+            tail.w *= needle.tailAlpha * fade;
+            geometry_.QueueContourLine(back + (end - back) * to, back + (end - back) * from, width * needle.tailWidth * (0.4f + 0.6f * fade), tail,
+                                       forward, style);
+        }
+    }
+    if (needle.nearGlow > 0.0f) {
+        // 敵の管と同じ、線の太さとは別の近いにじみ。
+        myEngine::NeonContourStyle glow = myEngine::ActorNeonContourStyle();
+        glow.coreWidthRatio = 0.08f;
+        glow.coreIntensity = needle.nearGlow;
+        glow.coreWhiteMix = 0.0f;
+        glow.shoulderIntensity = needle.nearGlow * 0.42f;
+        glow.haloWidthScale = 1.4f;
+        glow.haloIntensity = needle.nearGlow * 0.3f;
+        glow.haloAlpha = 0.4f;
+        const myEngine::Vector4 halo{brightness * std::pow(color.x, 1.7f), brightness * std::pow(color.y, 1.7f),
+                                     brightness * std::pow(color.z, 1.7f), alpha};
+        geometry_.QueueContourLine(back, front, needle.nearGlowRadius / 0.7f * size, halo, forward, glow);
+    }
+    geometry_.QueueContourLine(back, front, width, lit, forward, needle.style);
     ++stats_.heads;
 }
 

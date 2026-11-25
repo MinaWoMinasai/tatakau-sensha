@@ -18,6 +18,21 @@ struct NeonProjectileParams {
     float haloWidthScale = 2.8f;
     float haloIntensity = 1.2f;
     float haloAlpha = 0.18f;
+    /// @brief 自機の弾を細い針で描く（計画書 p10 の16章の M2）。敵の管と同じ芯・にじみの線2本（淡い尾と、明るい先）。
+    /// 線の太さ、先の長さ（中心から前後）、尾の長さ・太さ（先に対する倍）・明るさ、色の明るさ（倍）。当たりは変えない。
+    struct Needle {
+        bool enabled = false;
+        float width = 0.06f;
+        float back = 0.7f;
+        float front = 0.3f;
+        float tail = 1.5f;
+        float tailWidth = 0.55f;
+        float tailAlpha = 0.5f;
+        float brightness = 1.0f;
+        float nearGlow = 0.0f;
+        float nearGlowRadius = 0.4f;
+        myEngine::NeonContourStyle style{};
+    } needle;
 };
 
 // 既存の履歴リボンの横に、小さく淡い先端と色付きのハローを加える。
@@ -54,6 +69,8 @@ public:
     }
 
 private:
+    /// @brief 自機の弾1発分の針を描画キューに積む。
+    void QueueNeedle(const Bullet& bullet, const myEngine::Vector3& center, const myEngine::Vector3& direction, const myEngine::Vector3& forward);
     /// @brief 弾1発分の先端を描画キューに積む。
     void QueueHead(const Bullet& bullet, const myEngine::Vector3& cameraForward);
 

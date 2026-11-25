@@ -779,6 +779,40 @@ void SurvivorRunController::ApplyNeonLook(float dt)
     out.bloom = (std::max)(0.0f, look.bloom * (1.0f + (look.crowdBloom - 1.0f) * neonCrowd_));
 }
 
+bool SurvivorRunController::NeedleShots() const
+{
+    return config_.weaponsEnabled && config_.glow.neon.enabled && config_.glow.needle.enabled;
+}
+
+void SurvivorRunController::ApplyNeedleLook()
+{
+    if (!world_.resources.neonProjectileRenderer_) {
+        return;
+    }
+    NeonProjectileParams params = world_.resources.neonProjectileRenderer_->GetParams();
+    params.needle = {};
+    if (NeedleShots()) {
+        const auto& neon = config_.glow.neon;
+        const auto& look = config_.glow.needle;
+        auto& out = params.needle;
+        out.enabled = true;
+        out.width = world_.presentation.expEnemyNeonLineWidth_ * neon.enemyLine * look.line;
+        out.back = look.back;
+        out.front = look.front;
+        out.tail = look.tail;
+        out.tailAlpha = look.tailAlpha;
+        out.brightness = look.brightness;
+        out.nearGlow = neon.nearGlow * look.nearGlow;
+        out.nearGlowRadius = neon.nearGlowRadius;
+        out.style = myEngine::ActorNeonContourStyle();
+        out.style.coreWhiteMix = neon.enemyCoreWhite;
+        out.style.coreIntensity = neon.enemyCoreIntensity;
+        out.style.haloIntensity = neon.enemyHaloIntensity;
+        out.style.haloWidthScale = neon.enemyHaloWidth;
+    }
+    world_.resources.neonProjectileRenderer_->SetParams(params);
+}
+
 void SurvivorRunController::UpdateTankPose(float dt)
 {
     auto& out = world_.presentation.runNeonLook_;
@@ -910,8 +944,10 @@ void SurvivorRunController::ConfigurePickups()
     // 弾の軌跡のにじみ：武器の枠を使う遊び方だけ、遠征の締めた値から強める（始めと、調整パネルで変えたとき）。
     if (config_.weaponsEnabled && world_.resources.bulletTrailPostEffect_) {
         myEngine::BloomParam& trail = world_.resources.bulletTrailPostEffect_->GetParam();
-        trail.intensity = config_.glow.trailBloomIntensity;
-        trail.bloomGain = config_.glow.trailBloomGain;
+        // 針の弾は線そのもので光るので、軌跡のにじみを弱める。
+        const float needle = NeedleShots() ? config_.glow.needle.bloom : 1.0f;
+        trail.intensity = config_.glow.trailBloomIntensity * needle;
+        trail.bloomGain = config_.glow.trailBloomGain * needle;
         trail.bloomScatter = (std::clamp)(config_.glow.trailBloomScatter, 0.0f, 0.9f);
         trail.bloomRadius = (std::clamp)(config_.glow.trailBloomRadius, 0.25f, 2.0f);
     }
@@ -922,8 +958,10 @@ void SurvivorRunController::ConfigurePickups()
         trail.colorCurvePower = config_.glow.trailFadeCurve;
         trail.tailWidthScale = trail.headWidthScale * (std::max)(0.0f, config_.glow.trailTailWidth);
         trail.lifetime = config_.glow.trailSeconds;
+        trail.playerTrails = !NeedleShots();
         world_.resources.bulletManager_->SetTrailSettings(trail);
     }
+    ApplyNeedleLook();
 }
 
 void SurvivorRunController::UpdateTuningPanel()

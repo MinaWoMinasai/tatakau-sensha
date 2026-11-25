@@ -31,6 +31,7 @@ void Bullet::Initialize(const myEngine::Vector3& position, const myEngine::Vecto
     burstRepeats_ = 0;
     colorOverride_ = {0, 0, 0, 0};
     visualTrailScale_ = 1;
+    visualAge_ = 0.0f;
     isReflectable_ = reflectable;
     bulletHp_ = (std::max)(0.1f, bulletHp);
     bulletPenetration_ = (std::max)(0.1f, bulletPenetration);
@@ -65,6 +66,7 @@ void Bullet::Update(float deltaTime)
     if (isDead_) {
         return;
     }
+    visualAge_ += deltaTime;
     // 高速弾の接触判定と装甲反射の方向計算に使うため、今回の移動より先に前回位置を保存する。
     previousPosition_ = GetWorldPosition();
     if (shooter_.boomerang) {
@@ -337,6 +339,9 @@ void Bullet::AttachTrail(myEngine::TrailManager* trailManager, BulletTrailSettin
 
     // 設定も軌跡も借用する。BulletManagerは弾の参照を外してから軌跡の実体を消去する。
     trailSettings_ = trailSettings;
+    if (trailSettings_ && !trailSettings_->playerTrails && owner_ == kPlayer && specialKind_ == SpecialKind::None) {
+        return;
+    }
     trail_ = trailManager->CreateInstance();
     trail_->SetIsPermanent(false);
     trail_->SetActive(true);

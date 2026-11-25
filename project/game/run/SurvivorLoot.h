@@ -141,6 +141,19 @@ struct GlowConfig {
         float flow = 0.55f;
         float color[3]{0.25f, 1.0f, 0.55f};
     } tank;
+    /// @brief 自機の弾を細い針で描く（計画書 p10 の16章の M2。無限の場）。芯・にじみは敵の管と同じ。線の太さ（敵の線に対する倍）・
+    /// 先の長さ（中心から後ろ・前）・尾の長さ・尾の明るさ・色の明るさ（倍）・近いにじみ（敵に対する倍）と、軌跡のブルーム（強さと明るさの倍）。
+    struct NeedleLook {
+        bool enabled = false;
+        float line = 1.0f;
+        float back = 0.7f;
+        float front = 0.3f;
+        float tail = 1.5f;
+        float tailAlpha = 0.5f;
+        float brightness = 1.0f;
+        float nearGlow = 0.6f;
+        float bloom = 0.3f;
+    } needle;
 };
 
 /// @brief 床に落ちる物1つの中身。id は弾の種類・素材・部品・武器の番号（kind による）。

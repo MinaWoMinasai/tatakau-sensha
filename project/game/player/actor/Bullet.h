@@ -28,6 +28,8 @@ struct BulletTrailSettings {
     float trailTailIntensity = 0.45f;
     float trailHeadAlpha = 1.0f;
     float trailTailAlpha = 0.0f;
+    /// @brief 自機の弾に軌跡を付けるか（針の弾では、尾を針と一緒に描くので付けない）。
+    bool playerTrails = true;
     float playerTrailLifetimeScale = 1.0f;
     float playerTrailAlphaScale = 1.0f;
     myEngine::Vector4 playerObjectColor = {1.0f, 0.78f, 0.28f, 1.0f};
@@ -205,6 +207,12 @@ public:
     {
         radius_ = .5f * (std::clamp)(size, .5f, 2.0f);
         visualTrailScale_ = (std::clamp)(trail, .5f, 2.0f);
+    }
+
+    /// @brief 撃たれてからの秒（見た目だけに使う）。
+    float GetVisualAge() const
+    {
+        return visualAge_;
     }
 
     /// @brief 弾の特殊な命中によって発生した演出情報を表す。
@@ -393,6 +401,8 @@ private:
     int burstRepeats_ = 0;
     myEngine::Vector4 colorOverride_{0, 0, 0, 0};
     float visualTrailScale_ = 1;
+    /// @brief 撃たれてからの秒（見た目だけ。針の弾が砲口から伸びる）。
+    float visualAge_ = 0.0f;
 
     // ワールドトランスフォーム
     myEngine::Transform worldTransform_;

@@ -53,7 +53,7 @@ void SurvivorRunController::RequestCapture(const std::string& name)
 bool SurvivorRunController::UpdateLookDemo()
 {
     // 出撃して4秒から、自機を止めて下を向かせ、順に並べて撮る：0 止まった敵、2 動く敵、4 動く塊、6 命中の瞬間、
-    // 8 走る自機、10 乱戦（副武器7つと、倒せる敵）、12 乱戦の Q、14 160体（5秒間のコマ数を look_fps.json に書く）。
+    // 8 走る自機、10 乱戦（副武器7つと、倒せる敵）、12 乱戦の Q、14 弾帯、16 160体（5秒間のコマ数を look_fps.json に書く）。
     // 撮ったときの敵の画面の位置（1920×1080）を look_(名前).json に書く。
     if (elapsed_ < 4.0f || IsPaused()) {
         return false;
@@ -207,22 +207,41 @@ bool SurvivorRunController::UpdateLookDemo()
         break;
     case 13:
         aim = self + myEngine::Vector3{8.0f, 4.0f, 0.0f};
-        if (wait >= 0.9f) {
+        // 弾がいちばん多く飛んでいる頃（6発以上）を撮る。
+        if ((wait >= 0.25f && world_.resources.bulletManager_->GetBulletCounts().player >= 6) || wait >= 0.9f) {
             shoot("barrage");
         }
         break;
     case 14:
+        // 弾が増えた状態：弾帯を最大にし、離れた敵へ続けて撃つ。
         if (ready && wait >= 2.5f) {
+            place({{"Square", 19.0f, 5.0f, 1.0f}, {"Triangle", 19.5f, -1.0f, 1.0f}, {"Pentagon", 18.0f, 9.0f, 1.0f}}, false);
+            subWeaponTiers_.fill(0);
+            heroSkillTiers_[static_cast<size_t>(survivor::HeroSkill::AmmoBelt)] = 5;
+        }
+        aim = self + myEngine::Vector3{19.0f, 5.0f, 0.0f};
+        break;
+    case 15: {
+        aim = self + myEngine::Vector3{19.0f, 5.0f, 0.0f};
+        // 3発以上が飛んでいる瞬間を撮る（来なければ6秒で撮る）。
+        const auto shots = world_.resources.bulletManager_->GetBulletCounts().player;
+        if ((wait >= 0.8f && shots >= 3) || wait > 6.0f) {
+            shoot("belt");
+        }
+        break;
+    }
+    case 16:
+        if (ready) {
             std::vector<Demo> mass;
             for (int i = 0; i < 160; ++i) {
                 mass.push_back({i % 3 == 0 ? "Square" : i % 3 == 1 ? "Triangle" : "Pentagon", -19.5f + static_cast<float>(i % 16) * 2.6f,
                                 -10.4f + static_cast<float>(i / 16) * 2.3f, 1.0f});
             }
             place(mass, true);
-            subWeaponTiers_.fill(0);
+            heroSkillTiers_[static_cast<size_t>(survivor::HeroSkill::AmmoBelt)] = 0;
         }
         break;
-    case 15:
+    case 17:
         // 並べて2秒たってから5秒間、描いたコマ数を実際の時間で割る。
         if (wait >= 2.0f && autoLookDemoFrames_ == 0) {
             autoLookDemoFrames_ = drawnFrames_;
@@ -362,7 +381,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
     }
     // MYENGINE_SURVIVOR_LOOKDEMO=1：見た目を測るための写真（計画書 p10 の13章）。
-    if (HeroMode() && autoLookDemoState_ < 16 && !baseScreenOpen_ && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOKDEMO", nullptr, 0) > 0 &&
+    if (HeroMode() && autoLookDemoState_ < 18 && !baseScreenOpen_ && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOKDEMO", nullptr, 0) > 0 &&
         UpdateLookDemo()) {
         return;
     }
@@ -1373,6 +1392,8 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 roundTrip = loaded.growth.enabled == config_.growth.enabled && loaded.growth.points.size() == config_.growth.points.size() &&
                             same(loaded.growth.hpPerMinute, config_.growth.hpPerMinute) && same(loaded.spawnForward, config_.spawnForward) &&
                             same(loaded.separation.radiusScale, config_.separation.radiusScale) &&
+                            loaded.glow.needle.enabled == config_.glow.needle.enabled && same(loaded.glow.needle.line, config_.glow.needle.line) &&
+                            same(loaded.glow.needle.tail, config_.glow.needle.tail) && same(loaded.glow.needle.bloom, config_.glow.needle.bloom) &&
                             same(loaded.glow.neon.enemyGrid, config_.glow.neon.enemyGrid) && loaded.glow.tank.enabled == config_.glow.tank.enabled &&
                             same(loaded.glow.tank.line, config_.glow.tank.line) && same(loaded.glow.tank.nearGlow, config_.glow.tank.nearGlow) &&
                             same(loaded.glow.tank.turn, config_.glow.tank.turn) && same(loaded.glow.tank.color[1], config_.glow.tank.color[1]) &&
