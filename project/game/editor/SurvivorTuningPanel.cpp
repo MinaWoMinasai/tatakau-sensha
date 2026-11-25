@@ -684,7 +684,8 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
         changed |= ImGui::Checkbox("前のコマと混ぜてなじませる（TAA。動く線が少し重なる）", &look.temporal);
         changed |= ImGui::SliderFloat("画面の端の色ずれ", &look.colorShift, 0.0f, 1.5f, "×%.2f");
         changed |= ImGui::SliderFloat("床の格子", &look.worldGrid, 0.0f, 1.5f, "×%.2f");
-        changed |= ImGui::SliderFloat("自機と敵のまわりの格子", &look.localGrid, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機のまわりの格子", &look.localGrid, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("敵のまわりの格子（上の値にさらに掛ける。0 で無し）", &look.enemyGrid, 0.0f, 1.5f, "×%.2f");
         changed |= ImGui::SliderFloat("壁の線", &look.walls, 0.0f, 1.5f, "×%.2f");
         changed |= ImGui::SliderFloat("床の明かり", &look.floorLight, 0.0f, 1.5f, "×%.2f");
         ImGui::TextDisabled("ブルーム");

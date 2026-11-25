@@ -319,6 +319,7 @@ struct NeonPresentationState {
         float nearGlowRadius = 0.5f;
         float worldGrid = 1.0f;
         float localGrid = 1.0f;
+        float enemyGrid = 1.0f;
         float walls = 1.0f;
         float floorLight = 1.0f;
         float bloom = 1.0f;

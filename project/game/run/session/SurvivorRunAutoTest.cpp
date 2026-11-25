@@ -2,6 +2,7 @@
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
 #include "game/render/settings/ArenaCameraProfile.h"
+#include "RuntimeProfiler.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -51,7 +52,8 @@ void SurvivorRunController::RequestCapture(const std::string& name)
 
 bool SurvivorRunController::UpdateLookDemo()
 {
-    // 出撃して4秒から、自機を止めて下を向かせ、順に並べて撮る：0 止まった敵、2 動く敵、4 動く塊、6 命中の瞬間。
+    // 出撃して4秒から、自機を止めて下を向かせ、順に並べて撮る：0 止まった敵、2 動く敵、4 動く塊、6 命中の瞬間、
+    // 8 乱戦（副武器7つと、倒せる敵）、10 乱戦の Q、12 160体（5秒間のコマ数を look_fps.json に書く）。
     // 撮ったときの敵の画面の位置（1920×1080）を look_(名前).json に書く。
     if (elapsed_ < 4.0f || IsPaused()) {
         return false;
@@ -157,6 +159,71 @@ bool SurvivorRunController::UpdateLookDemo()
         }
         break;
     }
+    case 8:
+        if (ready) {
+            std::vector<Demo> ring;
+            for (int i = 0; i < 40; ++i) {
+                const float angle = static_cast<float>(i) * 2.399f;
+                const float radius = 4.0f + static_cast<float>(i) * 0.2f;
+                ring.push_back({i % 3 == 0 ? "Square" : i % 3 == 1 ? "Triangle" : "Pentagon", std::cos(angle) * radius * 1.4f,
+                                std::sin(angle) * radius * 0.8f, i == 20 ? 1.7f : 1.0f});
+            }
+            place(ring, true);
+            // 乱戦では倒せる HP にし、副武器を全部3段で動かす。
+            for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+                enemy->SetHp(24);
+            }
+            subWeaponTiers_.fill(3);
+        }
+        break;
+    case 9:
+        aim = self + myEngine::Vector3{8.0f, 4.0f, 0.0f};
+        if (wait >= 1.4f) {
+            shoot("brawl");
+        }
+        break;
+    case 10:
+        aim = self + myEngine::Vector3{8.0f, 4.0f, 0.0f};
+        if (ready) {
+            ultimateCharge_ = Hero().ultimateCharge;
+            autoHeroPress_[static_cast<size_t>(survivor::AbilitySlot::Ultimate)] = true;
+            autoLookDemoAt_ = elapsed_;
+            ++autoLookDemoState_;
+        }
+        break;
+    case 11:
+        aim = self + myEngine::Vector3{8.0f, 4.0f, 0.0f};
+        if (wait >= 0.9f) {
+            shoot("barrage");
+        }
+        break;
+    case 12:
+        if (ready && wait >= 2.5f) {
+            std::vector<Demo> mass;
+            for (int i = 0; i < 160; ++i) {
+                mass.push_back({i % 3 == 0 ? "Square" : i % 3 == 1 ? "Triangle" : "Pentagon", -19.5f + static_cast<float>(i % 16) * 2.6f,
+                                -10.4f + static_cast<float>(i / 16) * 2.3f, 1.0f});
+            }
+            place(mass, true);
+            subWeaponTiers_.fill(0);
+        }
+        break;
+    case 13:
+        // 並べて2秒たってから5秒間、描いたコマ数を実際の時間で割る。
+        if (wait >= 2.0f && autoLookDemoFrames_ == 0) {
+            autoLookDemoFrames_ = drawnFrames_;
+            autoLookDemoClock_ = std::chrono::steady_clock::now();
+            // 5秒の間の内訳（CPU・GPU の区間ごとの時間）も書き出す（計測が使えるビルドだけ）。
+            myEngine::RuntimeProfiler::Get().StartCapture(std::string(kAutoTestDirectory) + "/look_profile.csv", 60, 5);
+        } else if (autoLookDemoFrames_ != 0) {
+            const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - autoLookDemoClock_).count();
+            if (seconds >= 5.0) {
+                std::ofstream(std::string(kAutoTestDirectory) + "/look_fps.json")
+                    << "{\"fps\":" << static_cast<double>(drawnFrames_ - autoLookDemoFrames_) / seconds << ",\"alive\":" << CountAlive().total << "}\n";
+                shoot("mass");
+            }
+        }
+        break;
     default:
         break;
     }
@@ -281,7 +348,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
     }
     // MYENGINE_SURVIVOR_LOOKDEMO=1：見た目を測るための写真（計画書 p10 の13章）。
-    if (HeroMode() && autoLookDemoState_ < 8 && !baseScreenOpen_ && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOKDEMO", nullptr, 0) > 0 &&
+    if (HeroMode() && autoLookDemoState_ < 14 && !baseScreenOpen_ && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOKDEMO", nullptr, 0) > 0 &&
         UpdateLookDemo()) {
         return;
     }
@@ -1292,6 +1359,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 roundTrip = loaded.growth.enabled == config_.growth.enabled && loaded.growth.points.size() == config_.growth.points.size() &&
                             same(loaded.growth.hpPerMinute, config_.growth.hpPerMinute) && same(loaded.spawnForward, config_.spawnForward) &&
                             same(loaded.separation.radiusScale, config_.separation.radiusScale) &&
+                            same(loaded.glow.neon.enemyGrid, config_.glow.neon.enemyGrid) &&
                             loaded.glow.neon.temporal == config_.glow.neon.temporal &&
                             loaded.glow.neon.flatBody == config_.glow.neon.flatBody && same(loaded.glow.neon.enemyLine, config_.glow.neon.enemyLine) &&
                             same(loaded.glow.neon.nebula, config_.glow.neon.nebula) && same(loaded.glow.neon.colorShift, config_.glow.neon.colorShift) &&

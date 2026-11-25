@@ -669,6 +669,25 @@ void SurvivorRunController::SeparateEnemies()
     separationDeepPairs_ += static_cast<uint64_t>(deepPairs);
     separationDeepPairsMax_ = (std::max)(separationDeepPairsMax_, deepPairs);
     const float maxPush = (std::max)(0.0f, config_.separation.maxPush);
+    // 壁の判定は、使っている壁だけを1回集めて使い回す（敵ごとに全部の升を調べると、敵の多い場面で重い）。
+    separationWalls_.clear();
+    for (const auto& line : world_.resources.stage_->GetBlocks()) {
+        for (const Block& block : line) {
+            if (block.isActive) {
+                separationWalls_.push_back(block.obb);
+            }
+        }
+    }
+    auto hitsWall = [&](const myEngine::Vector3& at, float radius) {
+        for (const myEngine::OBB& wall : separationWalls_) {
+            const float dx = at.x - wall.center.x, dy = at.y - wall.center.y;
+            const float reach = radius + wall.halfExtents.x + wall.halfExtents.y + wall.halfExtents.z;
+            if (dx * dx + dy * dy <= reach * reach && myEngine::CheckSphereVsOBB({at, radius}, wall).hit) {
+                return true;
+            }
+        }
+        return false;
+    };
     for (SeparationItem& item : separationItems_) {
         if (item.push.x == 0.0f && item.push.y == 0.0f) {
             continue;
@@ -682,7 +701,7 @@ void SurvivorRunController::SeparateEnemies()
             }
         }
         const myEngine::Vector3 moved = item.position + item.push;
-        if (!world_.resources.stage_->IsCollisionWithAnyBlock(moved, item.radius)) {
+        if (!hitsWall(moved, item.radius)) {
             item.enemy->SetWorldPosition(moved);
         }
     }

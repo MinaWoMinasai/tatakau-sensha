@@ -977,6 +977,12 @@ bool Stage::IsCollisionWithAnyBlock(const myEngine::Vector3& pos, float radius)
             if (!block.isActive) {
                 continue;
             }
+            // 届かない遠さの壁は、先に外接する球どうしの距離で省く（敵が多い場面で、全部の壁を毎回調べると重い）。
+            const myEngine::Vector3 away = pos - block.obb.center;
+            const float reach = radius + std::abs(block.obb.halfExtents.x) + std::abs(block.obb.halfExtents.y) + std::abs(block.obb.halfExtents.z);
+            if (away.x * away.x + away.y * away.y > reach * reach) {
+                continue;
+            }
             // 既存の判定関数（CheckSphereVsOBB）を利用
             myEngine::CollisionResult hit = myEngine::CheckSphereVsOBB(spawnSphere, block.obb);
             if (hit.hit) {

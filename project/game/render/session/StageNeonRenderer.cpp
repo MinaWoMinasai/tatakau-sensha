@@ -82,6 +82,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     };
     const float worldGridBrightness = world_.presentation.runNeonLook_.worldGrid;
     const float localGridBrightness = world_.presentation.runNeonLook_.localGrid;
+    const float enemyGridBrightness = localGridBrightness * world_.presentation.runNeonLook_.enemyGrid;
     if (world_.presentation.showNeonGrid_) {
         const float minX = 0.0f;
         const float minY = 0.0f;
@@ -113,7 +114,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         }
         int expEnemyLocalGridCount = 0;
         for (ExpEnemy* expEnemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
-            if (expEnemy && !expEnemy->IsDead()) {
+            if (expEnemy && !expEnemy->IsDead() && enemyGridBrightness > 0.0f) {
                 if (world_.presentation.maxExpEnemyLocalGrids_ >= 0 &&
                     expEnemyLocalGridCount >= world_.presentation.maxExpEnemyLocalGrids_) {
                     break;
@@ -126,7 +127,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
                 world_.resources.neonGridRenderer_->QueueLocalGridClipped(
                     expEnemy->GetWorldPosition(), world_.presentation.actorGridRadius_ * 0.45f, world_.presentation.actorGridSpacing_,
                     gridWidth(world_.presentation.actorGridLineWidth_ * 0.8f),
-                    gridColor(world_.presentation.expEnemyGridColor_, world_.presentation.actorGridLineWidth_ * 0.8f, localGridBrightness),
+                    gridColor(world_.presentation.expEnemyGridColor_, world_.presentation.actorGridLineWidth_ * 0.8f, enemyGridBrightness),
                     fieldMinX, fieldMaxX,
                     fieldMinY, fieldMaxY, localGridZ);
                 ++expEnemyLocalGridCount;

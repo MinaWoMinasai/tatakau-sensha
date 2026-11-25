@@ -768,6 +768,7 @@ void SurvivorRunController::ApplyNeonLook(float dt)
     out.nearGlowRadius = look.nearGlowRadius;
     out.worldGrid = look.worldGrid;
     out.localGrid = look.localGrid;
+    out.enemyGrid = look.enemyGrid;
     out.walls = look.walls;
     out.floorLight = look.floorLight;
     // 自動の露出合わせ：敵が多いほどブルームを弱める（0.5秒ほどでならす）。

@@ -119,6 +119,8 @@ struct GlowConfig {
         float nearGlowRadius = 0.5f;
         float worldGrid = 1.0f;
         float localGrid = 1.0f;
+        /// @brief 敵のまわりの格子（localGrid にさらに掛ける倍。0 で描かない。計画書 p10 の16章の M0）。
+        float enemyGrid = 1.0f;
         float walls = 1.0f;
         float floorLight = 1.0f;
         float bloom = 1.0f;

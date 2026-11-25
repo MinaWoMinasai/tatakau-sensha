@@ -280,6 +280,7 @@ private:
     };
     std::vector<SeparationItem> separationItems_;
     std::vector<uint32_t> separationOrder_;
+    std::vector<myEngine::OBB> separationWalls_;
     // 押し離しにかかった時間（200体の fps の確認で記録する）。
     bool separationEnabled_ = true;
     double separationSeconds_ = 0.0;
@@ -438,6 +439,8 @@ private:
     int autoLookDemoState_ = 0;
     float autoLookDemoAt_ = 0.0f;
     float autoLookDemoHitAt_ = 0.0f;
+    uint64_t autoLookDemoFrames_ = 0;
+    std::chrono::steady_clock::time_point autoLookDemoClock_{};
     /// @brief 見た目を測る写真を順に撮る。撮っている間は true（ボットは動かさない）。
     bool UpdateLookDemo();
     bool autoLevelUpCloseCaptured_ = false;

@@ -1300,6 +1300,8 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(neon, "colorShift", look.colorShift);
             number(neon, "persistence", look.persistence);
             number(neon, "scanline", look.scanline);
+            number(neon, "enemyGrid", look.enemyGrid);
+            look.enemyGrid = (std::clamp)(look.enemyGrid, 0.0f, 3.0f);
             if (neon.contains("temporal") && neon.at("temporal").is_boolean()) {
                 look.temporal = neon.at("temporal").get<bool>();
             }
@@ -1961,6 +1963,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         neon["colorShift"] = round(look.colorShift);
         neon["persistence"] = round(look.persistence);
         neon["scanline"] = round(look.scanline);
+        neon["enemyGrid"] = round(look.enemyGrid);
         neon["temporal"] = look.temporal;
         neon["nearGlow"] = round(look.nearGlow);
         neon["nearGlowRadius"] = round(look.nearGlowRadius);

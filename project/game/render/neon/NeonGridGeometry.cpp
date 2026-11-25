@@ -4,6 +4,9 @@
 #include <array>
 #include <cmath>
 
+// 敵の輪郭だけで1コマに20万頂点を作るので、ここは大きさより速さを優先して組み立てる（全体の設定は MinSpace）。
+#pragma optimize("gt", on)
+
 namespace myEngine {
 
 namespace {
@@ -227,8 +230,8 @@ void NeonGridGeometry::QueueContourPolygon(const Vector3* points, uint32_t point
         }
         normals[point] = Cross(forward, direction / length);
     }
-    // サイズ上限付きのスタック作業領域。オブジェクトごとの確保や可変な描画スタイル状態は持たない。
-    std::array<ContourSection, kContourMaxPoints * 8> sections{};
+    // サイズ上限付きの作業領域（使い回す。毎回 0 で埋めると、敵の多い場面で頂点を作る時間の大半になる）。
+    thread_local std::array<ContourSection, kContourMaxPoints * 8> sections;
     uint32_t sectionCount = 0;
     for (uint32_t point = 0; point < pointCount; ++point) {
         const Vector3 previous = normals[(point + pointCount - 1) % pointCount], next = normals[point];
@@ -262,21 +265,60 @@ void NeonGridGeometry::QueueContourPolygon(const Vector3* points, uint32_t point
     if (required > vertexCapacity_ || vertexCount_ > vertexCapacity_ - required) {
         return;
     }
-    for (uint32_t section = 0; section < sectionCount; ++section) {
-        const ContourSection& a = sections[section];
-        const ContourSection& b = sections[(section + 1) % sectionCount];
-        for (uint32_t offset = 0; offset + 1 < kContourOffsets; ++offset) {
-            const Vector3 p0 = ContourSectionPoint(a, offset, profile), p1 = ContourSectionPoint(a, offset + 1, profile);
-            const Vector3 p2 = ContourSectionPoint(b, offset, profile), p3 = ContourSectionPoint(b, offset + 1, profile);
-            const Vector4 c0 = ContourSectionColor(offset, profile), c1 = ContourSectionColor(offset + 1, profile);
-            PushVertex(p0, c0, {0.5f, 0.5f});
-            PushVertex(p1, c1, {0.5f, 0.5f});
-            PushVertex(p2, c0, {0.5f, 0.5f});
-            PushVertex(p1, c1, {0.5f, 0.5f});
-            PushVertex(p3, c1, {0.5f, 0.5f});
-            PushVertex(p2, c0, {0.5f, 0.5f});
-        }
+    // 断面ごとに8点を1回だけ求め、隣り合う断面の間を三角形で埋める（頂点の並びと値は PushVertex で積むのと同じ）。
+    // 書き込み先は GPU へ送る領域なので、前から順に書くだけにする（読まない）。
+    std::array<Vector4, kContourOffsets> colors;
+    for (uint32_t offset = 0; offset < kContourOffsets; ++offset) {
+        colors[offset] = ContourSectionColor(offset, profile);
     }
+    std::array<Vector3, kContourOffsets> first, previous, current;
+    auto sectionPoints = [&](const ContourSection& section, std::array<Vector3, kContourOffsets>& out) {
+        const float cx = section.center.x, cy = section.center.y, cz = section.center.z;
+        for (uint32_t i = 0; i < kContourRadii; ++i) {
+            const float radius = profile.radii[kContourRadii - 1 - i];
+            out[i].x = cx - section.negative.x * radius;
+            out[i].y = cy - section.negative.y * radius;
+            out[i].z = cz - section.negative.z * radius;
+        }
+        for (uint32_t i = 0; i < kContourRadii; ++i) {
+            const float radius = profile.radii[i];
+            out[kContourRadii + i].x = cx + section.positive.x * radius;
+            out[kContourRadii + i].y = cy + section.positive.y * radius;
+            out[kContourRadii + i].z = cz + section.positive.z * radius;
+        }
+    };
+    TrailVertex* out = vertexData_ + vertexCount_;
+    auto put = [&out](const Vector3& p, const Vector4& c) {
+        out->pos.x = p.x;
+        out->pos.y = p.y;
+        out->pos.z = p.z;
+        out->color.x = c.x;
+        out->color.y = c.y;
+        out->color.z = c.z;
+        out->color.w = c.w;
+        out->uv.x = 0.5f;
+        out->uv.y = 0.5f;
+        ++out;
+    };
+    sectionPoints(sections[0], first);
+    previous = first;
+    for (uint32_t section = 0; section < sectionCount; ++section) {
+        if (section + 1 < sectionCount) {
+            sectionPoints(sections[section + 1], current);
+        } else {
+            current = first;
+        }
+        for (uint32_t offset = 0; offset + 1 < kContourOffsets; ++offset) {
+            put(previous[offset], colors[offset]);
+            put(previous[offset + 1], colors[offset + 1]);
+            put(current[offset], colors[offset]);
+            put(previous[offset + 1], colors[offset + 1]);
+            put(current[offset + 1], colors[offset + 1]);
+            put(current[offset], colors[offset]);
+        }
+        previous = current;
+    }
+    vertexCount_ += required;
 }
 
 void NeonGridGeometry::QueueContourTriangle(const Vector3& a, const Vector3& b, const Vector3& c, float lineWidth, const Vector4& color,
