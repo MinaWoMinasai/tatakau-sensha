@@ -54,6 +54,9 @@ void SurvivorRunController::StartHero()
     healsCollected_ = 0;
     healedByPickups_ = 0;
     subWeaponTiers_.fill(0);
+    mainOfferMissed_ = -1;
+    mainOffers_ = 0;
+    levelUpsOpened_ = 0;
     // 自動確認：MYENGINE_SURVIVOR_PERKS=1,1,1,1,1 のように、F4 で足したパーク（会心・大きさ・経験値・反応装甲・予備の動力）の段を始めから決める。
     wchar_t newPerks[32]{};
     if (autoTest_ != AutoTest::None && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_PERKS", newPerks, 32) > 0) {

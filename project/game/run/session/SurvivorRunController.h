@@ -23,6 +23,7 @@
 #include <random>
 #include <sstream>
 #include <unordered_map>
+#include <nlohmann/json_fwd.hpp>
 
 namespace gameplay {
 /// @brief 育つ戦車の試作（RunMode::Survivor）の進行を担当し、同じプレイの共有状態を借用する。
@@ -263,6 +264,10 @@ private:
     };
     MortalTest mortal_;
     bool autoMortal_ = false;
+    // MYENGINE_SURVIVOR_MORTAL_PICK=nomain：強化で主武器を選ばない。
+    bool autoMortalNoMain_ = false;
+    /// @brief 今の組み立て（主武器の段・副武器・パーク・専用スキル・主武器の札が出た回数）。記録に書く。
+    nlohmann::json BuildRecord() const;
     /// @brief MYENGINE_SURVIVOR_MORTAL=1 なら、ダメージを受ける自動確認にする。
     void StartMortalTest(uint32_t seed);
     void UpdateMortalAutoTest(float dt);
@@ -1003,6 +1008,18 @@ private:
     /// @brief 区画の時計が来た出来事を起こし、倒された中ボスのごほうびを渡す。
     void UpdateTimeline();
     void RunTimelineEvent(const survivor::SpawnConfig::TimelineEvent& event);
+    // 包囲の輪の切れ目（計画書 p11 の B2b）：知らせている輪の時刻と、切れ目の向き（無ければ at が負）。
+    struct RingWarning {
+        float at = -1.0f;
+        float lead = 0.0f;
+        float angle = 0.0f;
+        float gap = 0.0f;
+        float radius = 0.0f;
+    };
+    RingWarning ringWarning_;
+    /// @brief 切れ目の向きを、自機の進む側でなく、部屋の中で抜けられる方から選ぶ。
+    float PickRingGap(float radius);
+    void QueueRingWarning(myEngine::NeonGridRenderer& renderer) const;
     /// @brief prefab を position に湧かせ、HP を倍率に合わせ、speed で自機へ寄らせる。湧けたら敵を返す。
     ExpEnemy* SpawnChaser(const std::string& prefab, const myEngine::Vector3& position, float speed);
     // 次に起こす出来事の番号・起こした数。中ボス（敵の id と、倒したときに選べる3択の回数）・倒した数。
@@ -1056,6 +1073,10 @@ private:
     std::vector<ShopOffer> heroLevelUpOffers_;
     // 選んだ物の記録（レベル:名前）。
     std::vector<std::string> heroLevelUpLog_;
+    // 主武器の札の出方（計画書 p11 の B2b）：札が出なかった続きの回数（-1 は、まだ1回も開いていない）、主武器の札が出た回数、開いた回数。
+    int mainOfferMissed_ = -1;
+    int mainOffers_ = 0;
+    int levelUpsOpened_ = 0;
     bool autoLevelUpCaptured_ = false;
     bool autoSubWeaponCaptured_ = false;
     /// @brief 並んでいる offer 番目を買う。お金が足りなければ何もしない。買えたら真。
@@ -1096,6 +1117,10 @@ private:
     float HeroPowerScale() const override
     {
         return 1.0f + fillerPower_;
+    }
+    float SubWeaponPower() const override
+    {
+        return HeroMode() ? config_.heroes.subWeaponPower : 1.0f;
     }
     /// @brief 波の間のショップの画面を作る。
     void RefreshShop();

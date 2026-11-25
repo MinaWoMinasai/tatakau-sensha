@@ -145,6 +145,7 @@ void SurvivorRunController::Initialize()
     nextTank_ = config_.tanks.from;
     nextBigPentagon_ = config_.bigPentagon.from;
     timelineNext_ = 0;
+    ringWarning_.at = -1.0f;
     midBosses_.clear();
     healPickups_.clear();
     hasLastPlayerPosition_ = false;
@@ -1173,6 +1174,7 @@ void SurvivorRunController::QueueWorldVisuals()
     QueueHeroVisuals(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
     QueueHealPickups(*world_.resources.neonGridRenderer_);
     QueueLevelUpBurst(*world_.resources.neonGridRenderer_);
+    QueueRingWarning(*world_.resources.neonGridRenderer_);
     // 予告：輪は自機のまわりに、群れは湧く場所に、赤い破線の円を描く。湧く時刻が近いほど速く点滅する。
     for (const PendingWave& wave : pendingWaves_) {
         const float left = (std::max)(0.0f, wave.at - elapsed_);

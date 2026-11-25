@@ -137,7 +137,7 @@ void HeroAbilityCore::UpdateSubWeapons(float dt)
         if (tick) {
             orbitTick_ += kOrbitTick;
         }
-        const auto amount = static_cast<uint32_t>((std::max)(1.0f, std::round(HeroDamageUnit(t.damage))));
+        const auto amount = static_cast<uint32_t>((std::max)(1.0f, std::round(HeroDamageUnit(t.damage * SubWeaponPower()))));
         for (ExpEnemy* enemy : heroWorld_.resources.enemyManager_->GetEnemyPtrs()) {
             if (!tick || !enemy || enemy->IsDead() || enemy->IsRunResource()) {
                 continue;
@@ -221,7 +221,7 @@ void HeroAbilityCore::UpdateSubWeapons(float dt)
                 for (size_t i = 0; i < (std::min)(found, static_cast<size_t>(t.targets)); ++i) {
                     Player::SurvivorShot shot;
                     shot.direction = myEngine::Vector3{targets[i].second.x - self.x, targets[i].second.y - self.y, 0.0f};
-                    shot.damageScale = t.damage * HeroPowerScale();
+                    shot.damageScale = t.damage * SubPowerScale();
                     shot.speedScale = 1.6f;
                     shot.size = 0.7f;
                     shot.pierce = t.pierce;
@@ -266,14 +266,14 @@ void HeroAbilityCore::UpdateSubWeapons(float dt)
                 continue;
             }
             const float mineRadius = t.radius * HeroAreaScale();
-            player.TriggerBlastAt(it->position, mineRadius, t.damage * HeroPowerScale(), kMineColor, 0.0f);
+            player.TriggerBlastAt(it->position, mineRadius, t.damage * SubPowerScale(), kMineColor, 0.0f);
             ++mineBlasts_;
             // 覚醒：まわりに小さな爆発が3つ続く。
             if (tier >= survivor::kMaxSubWeaponTier) {
                 for (int i = 0; i < 3; ++i) {
                     const float a = orbitAngle_ + 6.2831853f * static_cast<float>(i) / 3.0f;
                     const myEngine::Vector3 offset{std::cos(a) * mineRadius * 0.9f, std::sin(a) * mineRadius * 0.9f, 0.0f};
-                    player.TriggerBlastAt(it->position + offset, mineRadius * 0.6f, t.damage * 0.5f * HeroPowerScale(), kMineColor, 0.15f + 0.05f * static_cast<float>(i));
+                    player.TriggerBlastAt(it->position + offset, mineRadius * 0.6f, t.damage * 0.5f * SubPowerScale(), kMineColor, 0.15f + 0.05f * static_cast<float>(i));
                 }
             }
             it = mines_.erase(it);
@@ -343,7 +343,7 @@ void HeroAbilityCore::UpdateNewSubWeapons(float dt)
             ++it;
             continue;
         }
-        player.TriggerBlastAt(it->position, it->radius, it->damage * HeroPowerScale(), kMortarColor, 0.0f);
+        player.TriggerBlastAt(it->position, it->radius, it->damage * SubPowerScale(), kMortarColor, 0.0f);
         ++mortarBlasts_;
         it = mortarShells_.erase(it);
     }
@@ -389,7 +389,7 @@ void HeroAbilityCore::UpdateNewSubWeapons(float dt)
                 }
                 Player::SurvivorShot shot;
                 shot.direction = myEngine::Vector3{target.x - from.x, target.y - from.y, 0.0f};
-                shot.damageScale = t.damage * HeroPowerScale();
+                shot.damageScale = t.damage * SubPowerScale();
                 shot.speedScale = 1.5f;
                 shot.size = 0.6f;
                 shot.pierce = t.pierce;
@@ -425,8 +425,8 @@ void HeroAbilityCore::UpdateNewSubWeapons(float dt)
             if (flameTick_ <= 0.0f) {
                 flameTick_ += kFlameTick;
                 const float cosHalf = std::cos(t.halfAngle * 3.14159265f / 180.0f);
-                const auto amount = static_cast<uint32_t>((std::max)(1.0f, std::round(HeroDamageUnit(t.damage))));
-                const float burn = HeroDamageUnit(t.burn);
+                const auto amount = static_cast<uint32_t>((std::max)(1.0f, std::round(HeroDamageUnit(t.damage * SubWeaponPower()))));
+                const float burn = HeroDamageUnit(t.burn * SubWeaponPower());
                 auto inside = [&](const myEngine::Vector3& position, float radius) {
                     const myEngine::Vector3 to{position.x - self.x, position.y - self.y, 0.0f};
                     const float distance = myEngine::Length(to);
@@ -462,7 +462,7 @@ void HeroAbilityCore::UpdateNewSubWeapons(float dt)
         if (pulseTimer_ <= 0.0f) {
             pulseTimer_ += t.interval;
             pulseTimer_ = (std::max)(pulseTimer_, 0.1f);
-            TriggerShockwave(self, t.radius, HeroDamageUnit(t.damage), t.push, tier >= survivor::kMaxSubWeaponTier);
+            TriggerShockwave(self, t.radius, HeroDamageUnit(t.damage * SubWeaponPower()), t.push, tier >= survivor::kMaxSubWeaponTier);
             ++pulses_;
         }
     }

@@ -183,8 +183,63 @@ ExpEnemy* SurvivorRunController::SpawnChaser(const std::string& prefab, const my
     return enemy;
 }
 
+float SurvivorRunController::PickRingGap(float radius)
+{
+    constexpr float kTurn = 6.2831853f;
+    const myEngine::Vector3 self = world_.resources.player_->GetWorldPosition();
+    std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+    const bool moving = myEngine::Length(playerVelocity_) > 1.0f;
+    const float heading = std::atan2(playerVelocity_.y, playerVelocity_.x);
+    float angle = 0.0f;
+    for (int attempt = 0; attempt < 12; ++attempt) {
+        // 進む向きの左右60度を除いた、残りの240度から選ぶ。止まっているときは、どこでもよい。
+        angle = moving ? heading + kTurn * (1.0f / 6.0f + unit(random_) * 2.0f / 3.0f) : unit(random_) * kTurn;
+        const float x = self.x + std::cos(angle) * radius, y = self.y + std::sin(angle) * radius;
+        if (x > kSpawnMinX && x < kSpawnMaxX && y > kSpawnMinY && y < kSpawnMaxY) {
+            break;
+        }
+    }
+    return angle;
+}
+
+void SurvivorRunController::QueueRingWarning(myEngine::NeonGridRenderer& renderer) const
+{
+    if (ringWarning_.at < 0.0f) {
+        return;
+    }
+    // 自機のまわりの赤い点の輪。切れ目には点が無く、両端に外へ開く短い線を置く。輪は画面に入る大きさにする（湧く輪は画面の外まである）。
+    const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition();
+    const float radius = (std::min)(ringWarning_.radius, arenacamera::HalfViewHeight() - 3.6f);
+    const float left = (std::clamp)((ringWarning_.at - elapsed_) / (std::max)(0.1f, ringWarning_.lead), 0.0f, 1.0f);
+    const float blink = 0.5f + 0.5f * std::sin(elapsed_ * (10.0f + 14.0f * (1.0f - left)));
+    const myEngine::Vector4 color{1.8f, 0.18f, 0.22f, 0.45f + 0.55f * blink};
+    const float half = ringWarning_.gap * 0.5f * 3.1415927f / 180.0f;
+    auto at = [&](float angle, float r) {
+        return center + myEngine::Vector3{std::cos(angle) * r, std::sin(angle) * r, -0.3f};
+    };
+    constexpr int kDots = 44;
+    for (int n = 0; n < kDots; ++n) {
+        const float angle = 6.2831853f * static_cast<float>(n) / kDots;
+        if (std::abs(std::remainder(angle - ringWarning_.angle, 6.2831853f)) <= half) {
+            continue;
+        }
+        renderer.QueueLine(at(angle - 0.012f, radius), at(angle + 0.012f, radius), 0.24f, color);
+    }
+    for (const float side : {-1.0f, 1.0f}) {
+        const float edge = ringWarning_.angle + side * half;
+        renderer.QueueLine(at(edge, radius), at(edge - side * 0.06f, radius + 1.8f), 0.16f, color);
+    }
+}
+
 void SurvivorRunController::UpdateTimeline()
 {
+    // 切れ目のある輪は、warn 秒前に切れ目の向きを決めて知らせる。
+    for (size_t i = timelineNext_; i < config_.timeline.size() && ringWarning_.at < 0.0f; ++i) {
+        const auto& event = config_.timeline[i];
+        if (event.kind == "ring" && event.gap > 0.0f && event.warn > 0.0f && elapsed_ < event.at && elapsed_ >= event.at - event.warn) {
+            ringWarning_ = {event.at, event.warn, PickRingGap(event.radius), event.gap, event.radius};
+        }
+    }
     while (timelineNext_ < config_.timeline.size() && elapsed_ >= config_.timeline[timelineNext_].at) {
         RunTimelineEvent(config_.timeline[timelineNext_++]);
     }
@@ -234,8 +289,14 @@ void SurvivorRunController::RunTimelineEvent(const survivor::SpawnConfig::Timeli
         const int count = (std::max)(1, event.count);
         std::uniform_real_distribution<float> turn(0.0f, 6.2831853f);
         const float start = turn(random_);
+        const bool gap = event.gap > 0.0f;
+        const float gapAngle = !gap ? 0.0f : ringWarning_.at >= 0.0f ? ringWarning_.angle : PickRingGap(event.radius);
+        ringWarning_.at = -1.0f;
         for (int i = 0; i < count; ++i) {
             const float angle = start + 6.2831853f * static_cast<float>(i) / static_cast<float>(count);
+            if (gap && std::abs(std::remainder(angle - gapAngle, 6.2831853f)) <= event.gap * 0.5f * 3.1415927f / 180.0f) {
+                continue;
+            }
             SpawnChaser(event.shape, {player.x + std::cos(angle) * event.radius, player.y + std::sin(angle) * event.radius, 0.0f}, event.speed);
         }
     } else if (event.kind == "surge") {

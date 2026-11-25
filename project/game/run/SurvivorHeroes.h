@@ -163,6 +163,11 @@ struct HeroesConfig {
     float healDropHeal = 0.0f;
     float healDropLife = 45.0f;
     int healDropMax = 6;
+    /// @brief 主武器の札の出方（計画書 p11 の B2b）。最初のレベルアップと、主武器が (mainOfferPity - 1) 回続けて出なかった次のレベルアップでは、
+    /// 主武器の札を必ず並べる（Q の強化は主武器と別の種類にする）。0 なら何もしない。
+    int mainOfferPity = 0;
+    /// @brief 副武器7つの全部の威力（爆発・炎・燃えも）に掛ける倍率。
+    float subWeaponPower = 1.0f;
 };
 
 /// @brief 設定ファイルが無いときの機体。ソルジャー型（K1）・吸収型（K2）・タンク型（K7。最初に解放する）。

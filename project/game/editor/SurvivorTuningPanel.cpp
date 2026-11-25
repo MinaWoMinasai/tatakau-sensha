@@ -1042,6 +1042,11 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
         ImGui::TextUnformatted(text.str().c_str());
     }
 
+    // 強化の出方と副武器（計画書 p11 の B2b）
+    ImGui::SeparatorText("強化の札と副武器");
+    changed |= ImGui::SliderInt("主武器の札を必ず出す間（回に1回、0 で無し）", &config.heroes.mainOfferPity, 0, 8);
+    changed |= ImGui::SliderFloat("副武器の威力", &config.heroes.subWeaponPower, 0.5f, 5.0f, "×%.2f");
+
     // スパナ
     if (config.heroes.healDropHeal > 0.0f || config.heroes.healDropChance > 0.0f) {
         ImGui::SeparatorText("スパナ（途中の回復）");

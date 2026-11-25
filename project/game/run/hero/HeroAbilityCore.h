@@ -73,6 +73,16 @@ protected:
     {
         return 1.0f;
     }
+    /// @brief 副武器だけの威力の倍率（計画書 p11 の B2b）。
+    virtual float SubWeaponPower() const
+    {
+        return 1.0f;
+    }
+    /// @brief 副武器の威力の倍率（HeroPowerScale も含む）。
+    float SubPowerScale() const
+    {
+        return HeroPowerScale() * SubWeaponPower();
+    }
     /// @brief 大きな弾頭（計画書 p8 の F4）の、弾・爆発・炎・衝撃の輪の大きさの倍率。
     float HeroAreaScale() const
     {

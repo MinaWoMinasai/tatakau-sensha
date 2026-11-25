@@ -388,6 +388,10 @@ struct SpawnConfig {
         float intervalScale = 1.0f;
         float countScale = 1.0f;
         int maxAliveAdd = 0;
+        /// @brief kind "ring"（計画書 p11 の B2b）：gap 度の幅の切れ目を1つ、自機の進む側でない方に空ける（0 なら空けない。切れ目に入る敵は並べない）。
+        /// warn 秒前から、赤い点の輪で切れ目の位置も知らせる（0 なら知らせない）。
+        float gap = 0.0f;
+        float warn = 0.0f;
         std::string text;
     };
     std::vector<TimelineEvent> timeline;
@@ -1032,6 +1036,10 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(heroes, "healDropHeal", config.heroes.healDropHeal);
         number(heroes, "healDropLife", config.heroes.healDropLife);
         number(heroes, "healDropMax", config.heroes.healDropMax);
+        number(heroes, "mainOfferPity", config.heroes.mainOfferPity);
+        number(heroes, "subWeaponPower", config.heroes.subWeaponPower);
+        config.heroes.mainOfferPity = (std::clamp)(config.heroes.mainOfferPity, 0, 20);
+        config.heroes.subWeaponPower = (std::clamp)(config.heroes.subWeaponPower, 0.1f, 10.0f);
         config.heroes.perkMaxTier = (std::clamp)(config.heroes.perkMaxTier, 1, 9);
         config.heroes.subWeaponSlots = (std::clamp)(config.heroes.subWeaponSlots, 0, 12);
         config.heroes.perkSlots = (std::clamp)(config.heroes.perkSlots, 0, 12);
@@ -1143,6 +1151,10 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(item, "intervalScale", event.intervalScale);
             number(item, "countScale", event.countScale);
             number(item, "maxAliveAdd", event.maxAliveAdd);
+            number(item, "gap", event.gap);
+            number(item, "warn", event.warn);
+            event.gap = (std::clamp)(event.gap, 0.0f, 300.0f);
+            event.warn = (std::clamp)(event.warn, 0.0f, 10.0f);
             for (auto [key, target] : {std::pair<const char*, std::string*>{"kind", &event.kind}, {"shape", &event.shape}, {"side", &event.side},
                                        {"text", &event.text}}) {
                 if (item.contains(key) && item.at(key).is_string()) {
@@ -1902,6 +1914,12 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         heroes["healDropLife"] = round(config.heroes.healDropLife);
         heroes["healDropMax"] = config.heroes.healDropMax;
     }
+    if (config.heroes.mainOfferPity > 0 || heroes.contains("mainOfferPity")) {
+        heroes["mainOfferPity"] = config.heroes.mainOfferPity;
+    }
+    if (config.heroes.subWeaponPower != 1.0f || heroes.contains("subWeaponPower")) {
+        heroes["subWeaponPower"] = round(config.heroes.subWeaponPower);
+    }
     for (const auto& hero : config.heroes.heroes) {
         auto& item = heroes[hero.key];
         item["name"] = hero.name;
@@ -1996,6 +2014,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
                 surge["intervalScale"] = round(event.intervalScale);
                 surge["countScale"] = round(event.countScale);
                 surge["maxAliveAdd"] = event.maxAliveAdd;
+            }
+            if (event.gap > 0.0f) {
+                timeline.back()["gap"] = round(event.gap);
+                timeline.back()["warn"] = round(event.warn);
             }
         }
     }

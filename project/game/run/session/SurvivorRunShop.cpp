@@ -287,14 +287,25 @@ void SurvivorRunController::OpenHeroLevelUp()
         return OfferAwakens(a) && !OfferAwakens(b);
     });
     heroLevelUpOffers_.clear();
+    // 主武器の札（計画書 p11 の B2b）：最初と、続けて出なかったときは、必ず並べる（上がりきっていれば候補に無い）。
+    const int pity = config_.heroes.mainOfferPity;
+    const auto isMain = [](const ShopOffer& offer) {
+        return offer.upgrade && offer.index == 0;
+    };
+    if (pity > 0 && (mainOfferMissed_ < 0 || mainOfferMissed_ >= pity - 1)) {
+        if (const auto main = std::find_if(pool.begin(), pool.end(), isMain); main != pool.end()) {
+            std::rotate(pool.begin(), main, main + 1);
+        }
+    }
     // [0] 技の強化、[1] パーク、[2] 副武器、[3] 専用スキル（計画書 p8 の F2）。種類ごとに1つまでで、並べた順に3つ。
-    const std::array<int, 4> limits = subWeapons ? std::array<int, 4>{1, 1, 1, 1} : std::array<int, 4>{2, 1, 0, 1};
-    std::array<int, 4> taken{};
+    // [4] 主武器の他の技の強化（Q など）。札の出方を決めるときだけ、主武器と別の種類にする。
+    const std::array<int, 5> limits = subWeapons ? std::array<int, 5>{1, 1, 1, 1, 1} : std::array<int, 5>{2, 1, 0, 1, 1};
+    std::array<int, 5> taken{};
     for (const ShopOffer& offer : pool) {
         if (heroLevelUpOffers_.size() >= 3) {
             break;
         }
-        const size_t kind = offer.upgrade ? 0 : offer.sub ? 2 : offer.skill ? 3 : 1;
+        const size_t kind = offer.upgrade ? (pity > 0 && !isMain(offer) ? 4 : 0) : offer.sub ? 2 : offer.skill ? 3 : 1;
         if (taken[kind] < limits[kind]) {
             heroLevelUpOffers_.push_back(offer);
             ++taken[kind];
@@ -324,6 +335,10 @@ void SurvivorRunController::OpenHeroLevelUp()
             heroLevelUpOffers_.push_back(offer);
         }
     }
+    const bool mainOffered = std::any_of(heroLevelUpOffers_.begin(), heroLevelUpOffers_.end(), isMain);
+    mainOfferMissed_ = mainOffered ? 0 : (std::max)(0, mainOfferMissed_) + 1;
+    mainOffers_ += mainOffered ? 1 : 0;
+    ++levelUpsOpened_;
     heroLevelUpOpen_ = true;
     audio_.Play("ui_click");
     RefreshHeroLevelUp();

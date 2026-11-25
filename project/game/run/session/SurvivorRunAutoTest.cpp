@@ -1444,7 +1444,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 roundTrip = loaded.growth.enabled == config_.growth.enabled && loaded.growth.points.size() == config_.growth.points.size() &&
                             same(loaded.growth.hpPerMinute, config_.growth.hpPerMinute) && same(loaded.spawnForward, config_.spawnForward) &&
                             same(loaded.separation.radiusScale, config_.separation.radiusScale) &&
-                            loaded.heroes.single == config_.heroes.single &&
+                            loaded.heroes.single == config_.heroes.single && loaded.heroes.mainOfferPity == config_.heroes.mainOfferPity &&
+                            same(loaded.heroes.subWeaponPower, config_.heroes.subWeaponPower) &&
+                            std::equal(loaded.timeline.begin(), loaded.timeline.end(), config_.timeline.begin(), config_.timeline.end(), [&](const auto& a, const auto& b) { return same(a.gap, b.gap) && same(a.warn, b.warn); }) &&
                             loaded.glow.effects.enabled == config_.glow.effects.enabled && loaded.glow.effects.topMost == config_.glow.effects.topMost &&
                             same(loaded.glow.effects.edgeSpeed, config_.glow.effects.edgeSpeed) && same(loaded.glow.effects.edgeVary, config_.glow.effects.edgeVary) &&
                             same(loaded.glow.effects.edgeHold, config_.glow.effects.edgeHold) && same(loaded.glow.effects.edgeShift, config_.glow.effects.edgeShift) &&

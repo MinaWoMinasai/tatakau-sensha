@@ -56,6 +56,8 @@ void SurvivorRunController::StartMortalTest(uint32_t seed)
     }
     world_.presentation.debugPlayerNoDamage_ = false;
     world_.resources.player_->SetDebugNoDamage(false);
+    char pick[16]{};
+    autoMortalNoMain_ = GetEnvironmentVariableA("MYENGINE_SURVIVOR_MORTAL_PICK", pick, sizeof(pick)) > 0 && std::string(pick) == "nomain";
     mortal_ = {};
     mortal_.seed = seed;
     // 動きの乱数は、湧きの乱数と分ける（動き方を変えても、湧きの並びの始まりは同じになる）。
@@ -85,7 +87,7 @@ void SurvivorRunController::UpdateMortalAutoTest(float dt)
         m.samples += (m.samples.empty() ? "" : ",") + ("{\"t\":" + std::to_string(static_cast<int>(std::lround(m.nextSample)))) +
                      ",\"alive\":" + std::to_string(alive.total) + ",\"level\":" + std::to_string(level_) + ",\"hp\":" + std::to_string(player.GetHp()) +
                      ",\"wound\":" + std::to_string(player.GetSurvivorWound()) + ",\"hits\":" + std::to_string(m.hits) +
-                     ",\"damage\":" + std::to_string(m.damage) + ",\"kills\":" + std::to_string(world_.combat.defeatedEnemies_) + "}";
+                     ",\"damage\":" + std::to_string(m.damage) + ",\"main\":" + std::to_string(UpgradeTier(0)) + ",\"kills\":" + std::to_string(world_.combat.defeatedEnemies_) + "}";
         m.nextSample += kSampleSeconds;
     }
     const double wall = std::chrono::duration<double>(std::chrono::steady_clock::now() - m.start).count();
@@ -99,10 +101,10 @@ void SurvivorRunController::UpdateMortalAutoTest(float dt)
             return;
         }
         size_t pick = 0;
-        int best = 0;
+        int best = -2;
         for (size_t i = 0; i < heroLevelUpOffers_.size(); ++i) {
             const ShopOffer& offer = heroLevelUpOffers_[i];
-            const int score = offer.upgrade && offer.index == 0 ? 2 : offer.sub ? 1 : 0;
+            const int score = offer.upgrade && offer.index == 0 ? (autoMortalNoMain_ ? -1 : 2) : offer.sub ? 1 : 0;
             if (score > best) {
                 best = score;
                 pick = i;
@@ -263,6 +265,10 @@ void SurvivorRunController::FinishMortalTest(const char* outcome, double wall)
     nlohmann::json root{{"mortal", true},
                         {"config", ConfigPath()},
                         {"seed", m.seed},
+                        {"pick", autoMortalNoMain_ ? "nomain" : "main"},
+                        {"build", BuildRecord()},
+                        {"mainOfferPity", config_.heroes.mainOfferPity},
+                        {"subWeaponPower", config_.heroes.subWeaponPower},
                         {"outcome", outcome},
                         {"seconds", elapsed_},
                         {"killer", dead ? player.GetSurvivorLastHit() : std::string()},
@@ -288,6 +294,27 @@ void SurvivorRunController::FinishMortalTest(const char* outcome, double wall)
     PostQuitMessage(0);
 }
 
+nlohmann::json SurvivorRunController::BuildRecord() const
+{
+    nlohmann::json subs = nlohmann::json::object(), perks = nlohmann::json::object(), skills = nlohmann::json::object();
+    for (size_t i = 0; i < subWeaponTiers_.size(); ++i) {
+        if (subWeaponTiers_[i] > 0) {
+            subs[survivor::GetSubWeaponInfo(static_cast<survivor::SubWeapon>(i)).name] = subWeaponTiers_[i];
+        }
+    }
+    for (size_t i = 0; i < perks_.size(); ++i) {
+        if (perks_[i] > 0) {
+            perks[survivor::GetPerkInfo(static_cast<survivor::PerkId>(i)).name] = perks_[i];
+        }
+    }
+    for (size_t i = 0; i < heroSkillTiers_.size(); ++i) {
+        if (heroSkillTiers_[i] > 0) {
+            skills[survivor::GetHeroSkillInfo(static_cast<survivor::HeroSkill>(i)).name] = heroSkillTiers_[i];
+        }
+    }
+    return {{"mainTier", UpgradeTier(0)}, {"subs", subs}, {"perks", perks}, {"skills", skills}, {"mainOffers", mainOffers_}, {"levelUps", levelUpsOpened_}};
+}
+
 void SurvivorRunController::AppendPlayLog(const char* outcome)
 {
     // 人が遊んだ回だけ：自動確認・説明・タイトルの後ろ・画面の出入りの確認・隠した窓では書かない。
@@ -310,13 +337,14 @@ void SurvivorRunController::AppendPlayLog(const char* outcome)
     char at[32]{};
     sprintf_s(at, "%04u-%02u-%02uT%02u:%02u:%02u", now.wYear, now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond);
     const bool dead = std::string(outcome) == "dead";
-    const nlohmann::json line{{"at", at},
+    nlohmann::json line{{"at", at},
                               {"outcome", outcome},
                               {"seconds", std::round(elapsed_ * 10.0) / 10.0},
                               {"level", level_},
                               {"kills", world_.combat.defeatedEnemies_},
                               {"hits", player.GetSurvivorHits() - playLogHitsBase_},
                               {"killer", dead ? player.GetSurvivorLastHit() : std::string()}};
+    line.update(BuildRecord());
     std::error_code error;
     const std::filesystem::path file(path);
     if (file.has_parent_path()) {
