@@ -69,6 +69,15 @@ void CombatEffects::UpdateDeathPostPulse(float deltaTime)
         world_.presentation.deathPostChromAbAmount_ * world_.presentation.deathPostPulseScale_ * impactEnvelope;
 }
 
+float CombatEffects::BirthShare(const myEngine::Vector3& position) const
+{
+    int overlapping = 0;
+    for (const RecentKill& kill : recentKills_) {
+        overlapping += kill.age < 0.12f && myEngine::Length(kill.position - position) < 8.0f ? 1 : 0;
+    }
+    return 1.0f / (1.0f + world_.presentation.runNeonLook_.effectOverlap * static_cast<float>((std::max)(0, overlapping - 1)));
+}
+
 void CombatEffects::SpawnBrokenTube(const ExpEnemy& enemy)
 {
     const auto& look = world_.presentation.runNeonLook_;
@@ -81,10 +90,27 @@ void CombatEffects::SpawnBrokenTube(const ExpEnemy& enemy)
     color.z *= look.enemyColor;
     color.w = 1.0f;
     recentKills_.push_back({enemy.GetWorldPosition(), color, 0.0f});
+    const float share = BirthShare(enemy.GetWorldPosition());
+    // 閃光：種類の色の広い淡い光を、倒した瞬間に 0.08 秒だけ出す。
+    if (look.effectFlash > 0.0f) {
+        NeonTriangleParticle flash{};
+        flash.position = enemy.GetWorldPosition() + myEngine::Vector3{0.0f, 0.0f, 0.35f};
+        flash.shape = myEngine::NeonParticleShape::Flash;
+        flash.radius = 1.6f;
+        flash.endRadius = 2.8f;
+        flash.life = flash.maxLife = 0.08f;
+        flash.birth = share;
+        flash.color = color;
+        world_.presentation.neonTriangleParticles_.push_back(flash);
+    }
     if (!look.effectEdges) {
         return;
     }
     // 今の形の角を求め、辺ごとに、中心から外へ飛びながら回る線にする（角の決め方は敵の線と同じ）。
+    // 速さ・向き・回り方・消える時刻は辺ごとにばらばらにする（見本の「選んだ形」）。長さは縮めない。
+    auto random = [this](float low, float high) {
+        return std::uniform_real_distribution<float>(low, high)(edgeRandom_);
+    };
     const myEngine::Vector3 visual = enemy.GetVisualScale();
     const float scale = (std::max)({visual.x, visual.y, visual.z});
     const float rotation = enemy.GetVisualRotation();
@@ -104,14 +130,19 @@ void CombatEffects::SpawnBrokenTube(const ExpEnemy& enemy)
         const myEngine::Vector3 middle = (a + b) * 0.5f, along = b - a;
         NeonTriangleParticle particle{};
         particle.position = center + middle;
-        particle.velocity = myEngine::NormalizeOr(middle, myEngine::Vector3{1.0f, 0.0f, 0.0f}, 0.001f) * (7.0f + 1.3f * static_cast<float>(i % 3));
+        const myEngine::Vector3 out = myEngine::NormalizeOr(middle, myEngine::Vector3{1.0f, 0.0f, 0.0f}, 0.001f);
+        const float speed = look.edgeSpeed * (1.0f + look.edgeVary * random(-1.0f, 1.0f));
+        const float turn = random(-0.45f, 0.45f) * look.edgeVary;
+        particle.velocity = myEngine::Vector3{out.x * std::cos(turn) - out.y * std::sin(turn), out.x * std::sin(turn) + out.y * std::cos(turn), 0.0f} * speed;
         particle.initialVelocity = particle.velocity;
         // 線の向きは「上の向き」からの角度で持つ（ほかの粒子と同じ）。
         particle.rotation = std::atan2(along.y, along.x) - 1.57079633f;
-        particle.angularVelocity = (i % 2 == 0 ? 5.5f : -4.2f);
-        particle.radius = myEngine::Length(along) * 0.5f;
-        particle.endRadius = particle.radius * 0.8f;
-        particle.life = particle.maxLife = 0.6f;
+        particle.angularVelocity = random(3.0f, 9.0f) * (random(0.0f, 1.0f) < 0.5f ? -1.0f : 1.0f) * (0.4f + look.edgeVary);
+        particle.radius = particle.endRadius = myEngine::Length(along) * 0.5f;
+        // 大きい敵は、辺の長さに合わせて光っている秒を少し伸ばす。
+        particle.edgeOff = look.edgeHold * (std::clamp)(scale, 1.0f, look.edgeLong) + random(0.0f, look.edgeShift);
+        particle.life = particle.maxLife = particle.edgeOff + (look.calmBlink ? 0.12f : 0.05f);
+        particle.birth = share;
         particle.shape = myEngine::NeonParticleShape::Sliver;
         particle.edge = true;
         particle.color = color;
@@ -174,33 +205,48 @@ void CombatEffects::UpdateNeonTriangleParticles(float deltaTime)
         particle.endRadius = event.endRadius;
         particle.color = event.color;
         if (look.tubeEffects) {
-            // 倒した敵の破片と輪は、種類の色にする（2色目の水色の破片はそのまま）。
-            if (!(particle.color.x < 0.2f && particle.color.z > 1.2f)) {
-                for (const RecentKill& kill : recentKills_) {
-                    if (myEngine::Length(kill.position - particle.position) < 0.05f) {
-                        particle.color = {kill.color.x, kill.color.y, kill.color.z, particle.color.w};
-                        break;
-                    }
+            // 倒した敵の破片と輪は、種類の色にそろえる（2色目の水色の破片も）。
+            bool fromKill = false;
+            for (const RecentKill& kill : recentKills_) {
+                if (myEngine::Length(kill.position - particle.position) < 0.05f) {
+                    particle.color = {kill.color.x, kill.color.y, kill.color.z, particle.color.w};
+                    fromKill = true;
+                    break;
                 }
             }
-            // 命中：火花のまとまりごとに1回、弾の色の淡い光を 0.17 秒だけ出す（命中の火花は、撃破の火花と違いカメラを向かない）。
-            if (particle.shape == myEngine::NeonParticleShape::Spark && !particle.isBillboard && look.effectFlash > 0.0f &&
+            // 脇役（輪・欠け・火花）：明るさと寿命を下げて、飛ぶ辺を主役にする。命中の火花（カメラを向かない火花）は下げない。
+            const bool impact = particle.shape == myEngine::NeonParticleShape::Spark && !particle.isBillboard;
+            if (!impact) {
+                particle.color.w *= look.effectSoft;
+                if (particle.shape != myEngine::NeonParticleShape::Ring) {
+                    particle.life *= look.effectSoftLife;
+                    particle.maxLife = particle.life;
+                }
+            }
+            if (particle.shape == myEngine::NeonParticleShape::Ring && !fromKill) {
+                recentKills_.push_back({particle.position, particle.color, 0.0f});
+            }
+            // 撃破の欠けと火花は、同じ点から24個出るので、生まれた瞬間の強さを弱め、散るまでの間は薄くする（中心が白い玉に見えないように）。
+            particle.fadeIn = fromKill && particle.shape != myEngine::NeonParticleShape::Ring ? 0.08f : 0.0f;
+            particle.birth = BirthShare(particle.position) * (fromKill && particle.shape != myEngine::NeonParticleShape::Ring ? 0.3f : 1.0f);
+            // 命中：火花のまとまりごとに1回、弾の色の淡い光を 0.10 秒だけ出す（主役は火花の線）。
+            if (impact && look.effectFlash > 0.0f &&
                 (!hasImpact || myEngine::Length(lastImpact - particle.position) > 0.6f)) {
                 hasImpact = true;
                 lastImpact = particle.position;
                 NeonTriangleParticle flash = particle;
                 flash.shape = myEngine::NeonParticleShape::Flash;
                 flash.velocity = {};
-                flash.radius = 1.8f;
-                flash.endRadius = 2.3f;
-                flash.life = flash.maxLife = 0.17f;
+                flash.radius = 1.2f;
+                flash.endRadius = 1.5f;
+                flash.life = flash.maxLife = 0.10f;
                 flash.color.w = 0.2f;
                 world_.presentation.neonTriangleParticles_.push_back(flash);
             }
             if (particle.shape == myEngine::NeonParticleShape::Ring) {
                 particle.endRadius *= look.effectRing;
-                // 閃光：白い玉ではなく、種類の色の広い淡い光を 0.08 秒だけ出す。
-                if (look.effectFlash > 0.0f) {
+                // 爆発の閃光：白い玉ではなく、その色の広い淡い光を 0.08 秒だけ出す（撃破の閃光は倒した瞬間に出している）。
+                if (look.effectFlash > 0.0f && !fromKill) {
                     NeonTriangleParticle flash = particle;
                     flash.shape = myEngine::NeonParticleShape::Flash;
                     flash.velocity = {};
@@ -216,10 +262,15 @@ void CombatEffects::UpdateNeonTriangleParticles(float deltaTime)
 
     for (NeonTriangleParticle& particle : world_.presentation.neonTriangleParticles_) {
         particle.life -= deltaTime;
-        const float drag = particle.shape == myEngine::NeonParticleShape::Triangle ? 2.52573f : myEngine::NeonParticleDrag(particle.shape);
+        const float drag = particle.edge                                                 ? world_.presentation.runNeonLook_.edgeDrag
+                           : particle.shape == myEngine::NeonParticleShape::Triangle ? 2.52573f
+                                                                                     : myEngine::NeonParticleDrag(particle.shape);
         particle.velocity = particle.velocity * std::exp(-drag * deltaTime);
         particle.position += particle.velocity * deltaTime;
         particle.rotation += particle.angularVelocity * deltaTime;
+        if (particle.edge) {
+            particle.angularVelocity *= std::exp(-1.6f * deltaTime);
+        }
     }
 
     world_.presentation.neonTriangleParticles_.erase(std::remove_if(world_.presentation.neonTriangleParticles_.begin(),
@@ -247,7 +298,11 @@ void CombatEffects::QueueNeonTriangleParticles(const myEngine::Vector3& cameraRi
             myEngine::Vector4 color = particle.color;
             color.w *= (1.0f - age * age) * tubefx::Clear(tubeLook, particle.position);
             const float c = std::cos(particle.rotation), sn = std::sin(particle.rotation);
-            const float boost = tubefx::Birth(tubeLook, particle.maxLife - particle.life);
+            const float alive = particle.maxLife - particle.life;
+            if (particle.fadeIn > 0.0f) {
+                color.w *= (std::min)(1.0f, alive / particle.fadeIn);
+            }
+            const float boost = 1.0f + (tubefx::Birth(tubeLook, alive) - 1.0f) * particle.birth;
             auto& renderer = *world_.resources.neonGridRenderer_;
             if (particle.shape == myEngine::NeonParticleShape::Flash) {
                 const myEngine::Vector4 light = tubefx::GlowColor(tubeLook, particle.color);
@@ -255,7 +310,7 @@ void CombatEffects::QueueNeonTriangleParticles(const myEngine::Vector3& cameraRi
                 const float strength = tubeLook.effectFlash / peak;
                 renderer.QueueSoftEllipse(particle.position, cameraRight * radius, cameraUp * radius,
                                           {light.x * strength, light.y * strength, light.z * strength,
-                                           (1.0f - age) * particle.color.w * tubefx::Clear(tubeLook, particle.position)},
+                                           (1.0f - age) * particle.color.w * particle.birth * tubefx::Clear(tubeLook, particle.position)},
                                           0.28f);
                 continue;
             }
@@ -265,8 +320,25 @@ void CombatEffects::QueueNeonTriangleParticles(const myEngine::Vector3& cameraRi
             }
             const myEngine::Vector3 axisU = cameraRight * c + cameraUp * sn, axisV = cameraUp * c - cameraRight * sn;
             if (particle.edge) {
-                tubefx::Line(renderer, tubeLook, particle.position - axisV * radius, particle.position + axisV * radius, 0.048f, color, cameraForward,
-                             boost);
+                // 主役の辺：消えるまで明るさを保ち、消える前に edgeBlink 回だけ暗くなり（0 にはしない）、消えた直後に暗い線が少し残る。
+                float light = 1.0f;
+                if (tubeLook.calmBlink) {
+                    light = alive <= particle.edgeOff ? 1.0f : (std::max)(0.0f, 1.0f - (alive - particle.edgeOff) / 0.12f);
+                } else if (alive > particle.edgeOff) {
+                    light = 0.10f * (std::max)(0.0f, 1.0f - (alive - particle.edgeOff) / 0.05f);
+                } else {
+                    for (int blink = 1; blink <= tubeLook.edgeBlink; ++blink) {
+                        const float at = particle.edgeOff - static_cast<float>(blink) * tubeLook.edgeGap * 1.9f;
+                        if (alive > at && alive < at + tubeLook.edgeGap) {
+                            light = 0.07f;
+                        }
+                    }
+                }
+                const bool dark = !tubeLook.calmBlink && light < 0.5f;
+                myEngine::Vector4 lit = particle.color;
+                lit.w = tubefx::Clear(tubeLook, particle.position) * (dark ? light * 3.0f : tubeLook.calmBlink ? light : 1.0f);
+                tubefx::Line(renderer, tubeLook, particle.position - axisV * radius, particle.position + axisV * radius, 0.048f, lit, cameraForward,
+                             dark ? 1.0f : tubeLook.edgeBright * boost, 1.0f, dark ? 0.33f : 1.0f);
                 continue;
             }
             if (particle.shape == myEngine::NeonParticleShape::Spark || particle.shape == myEngine::NeonParticleShape::Triangle) {

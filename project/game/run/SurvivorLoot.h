@@ -174,6 +174,23 @@ struct GlowConfig {
         float flash = 0.5f;
         bool edges = true;
         float crowd = 0.5f;
+        /// @brief 撃破の主役の、割れて飛ぶ辺（計画書 p10 の23章）：飛ぶ速さと、速さ・向き・回り方のばらつき（割合）、光っている秒、
+        /// 消える前にちかちかする回数と暗い間の秒、消える時刻の辺ごとのずれ（秒）、明るさ（倍）、減速、大きい敵で光っている秒を伸ばす上限（倍）。
+        /// calmBlink は点滅を弱める（ちかちかせず、0.12秒で薄くなる）。
+        float edgeSpeed = 9.0f;
+        float edgeVary = 0.6f;
+        float edgeHold = 0.42f;
+        int edgeBlink = 2;
+        float edgeGap = 0.07f;
+        float edgeShift = 0.18f;
+        float edgeBright = 1.15f;
+        float edgeDrag = 3.2f;
+        float edgeLong = 1.3f;
+        bool calmBlink = false;
+        /// @brief 脇役（輪・欠け・火花）の明るさ（倍）と、欠け・火花の寿命（倍）。同じ時刻の撃破が重なったときに、生まれた瞬間の強さを割り引く強さ。
+        float soft = 0.7f;
+        float softLife = 0.75f;
+        float overlap = 0.6f;
         /// @brief 自機の黒い面の濃さ（1 で真っ黒）と、縁をぼかす幅（ワールド単位）。
         float plate = 0.85f;
         float plateFeather = 0.16f;

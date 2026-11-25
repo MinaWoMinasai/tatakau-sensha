@@ -100,7 +100,8 @@ inline void Circle(myEngine::NeonGridRenderer& renderer, const Look& look, const
 
 /// @brief 1本の管の線を描く。
 inline void Line(myEngine::NeonGridRenderer& renderer, const Look& look, const myEngine::Vector3& a, const myEngine::Vector3& b, float width,
-                 const myEngine::Vector4& color, const myEngine::Vector3& cameraForward, float boost = 1.0f, float reachScale = 1.0f)
+                 const myEngine::Vector4& color, const myEngine::Vector3& cameraForward, float boost = 1.0f, float reachScale = 1.0f,
+                 float glowScale = 1.0f)
 {
     if (color.w <= 0.005f) {
         return;
@@ -114,7 +115,7 @@ inline void Line(myEngine::NeonGridRenderer& renderer, const Look& look, const m
             const myEngine::Vector3 side = myEngine::Cross(cameraForward, along);
             const float reach = look.nearGlowRadius * reachScale;
             // 楕円は中心の一点だけが明るいので、敵の線の帯より強めにする。
-            const myEngine::Vector4 glow = GlowColor(look, color, boost * 2.2f);
+            const myEngine::Vector4 glow = GlowColor(look, color, boost * 2.2f * glowScale);
             renderer.QueueSoftEllipse((a + b) * 0.5f, along * (length + reach), side * reach, glow);
         }
     }

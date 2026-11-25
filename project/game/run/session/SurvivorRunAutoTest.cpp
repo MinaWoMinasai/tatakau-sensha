@@ -53,7 +53,7 @@ void SurvivorRunController::RequestCapture(const std::string& name)
 bool SurvivorRunController::UpdateLookDemo()
 {
     // 出撃して4秒から、自機を止めて下を向かせ、順に並べて撮る：0 止まった敵、2 動く敵、4 動く塊、6 命中の瞬間、
-    // 8 走る自機、10 乱戦（副武器7つと、倒せる敵）、12 乱戦の Q、14 弾帯、16 160体（5秒間のコマ数を look_fps.json に書く）。
+    // 8 走る自機、10 乱戦（副武器7つと、倒せる敵）、12 乱戦の Q、14 弾帯、16 撃破（3種類）、18 撃破（12体まとめて）、20 160体（5秒間のコマ数を look_fps.json に書く）。
     // 撮ったときの敵の画面の位置（1920×1080）を look_(名前).json に書く。
     if (elapsed_ < 4.0f || IsPaused()) {
         return false;
@@ -231,6 +231,53 @@ bool SurvivorRunController::UpdateLookDemo()
         break;
     }
     case 16:
+    case 18:
+        // 撃破：離れた所に並べ、次の段で一度に倒す（16 は3種類を1体ずつ、18 は12体まとめて）。
+        if (ready) {
+            heroSkillTiers_[static_cast<size_t>(survivor::HeroSkill::AmmoBelt)] = 0;
+            std::vector<Demo> targets;
+            if (autoLookDemoState_ == 16) {
+                targets = {{"Square", -10.0f, 5.5f, 1.0f}, {"Triangle", 0.0f, 7.0f, 1.0f}, {"Pentagon", 10.0f, 5.5f, 1.0f}};
+            } else {
+                for (int i = 0; i < 12; ++i) {
+                    targets.push_back({i % 3 == 0 ? "Square" : i % 3 == 1 ? "Triangle" : "Pentagon", -9.0f + static_cast<float>(i % 4) * 6.0f,
+                                       4.0f + static_cast<float>(i / 4) * 3.0f, 1.0f});
+                }
+            }
+            place(targets, false);
+            autoLookDemoKillAt_ = -1.0f;
+            autoLookDemoShot_ = 0;
+        }
+        break;
+    case 17:
+    case 19: {
+        // 並べて0.5秒後に倒し、0.05・0.2・0.4・0.5・0.6秒を続けて撮る。
+        if (autoLookDemoKillAt_ < 0.0f) {
+            if (wait >= 0.5f) {
+                autoLookDemoKillAt_ = elapsed_;
+                for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+                    if (enemy && !enemy->IsDead() && enemy->GetHp() > 50000) {
+                        enemy->SetHp(1);
+                        enemy->TakeDirectionalDamage(1, self);
+                    }
+                }
+            }
+            break;
+        }
+        constexpr std::array<float, 5> kShots{0.05f, 0.2f, 0.4f, 0.5f, 0.6f};
+        constexpr std::array<const char*, 5> kNames{"05", "20", "40", "50", "60"};
+        if (autoLookDemoShot_ < static_cast<int>(kShots.size())) {
+            const size_t index = static_cast<size_t>(autoLookDemoShot_);
+            if (elapsed_ - autoLookDemoKillAt_ >= kShots[index] && ready) {
+                RequestCapture(std::string(autoLookDemoState_ == 17 ? "look_kill_" : "look_killmany_") + kNames[index]);
+                ++autoLookDemoShot_;
+            }
+        } else if (ready) {
+            ++autoLookDemoState_;
+        }
+        break;
+    }
+    case 20:
         if (ready) {
             std::vector<Demo> mass;
             for (int i = 0; i < 160; ++i) {
@@ -241,7 +288,7 @@ bool SurvivorRunController::UpdateLookDemo()
             heroSkillTiers_[static_cast<size_t>(survivor::HeroSkill::AmmoBelt)] = 0;
         }
         break;
-    case 17:
+    case 21:
         // 並べて2秒たってから5秒間、描いたコマ数を実際の時間で割る。
         if (wait >= 2.0f && autoLookDemoFrames_ == 0) {
             autoLookDemoFrames_ = drawnFrames_;
@@ -386,7 +433,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         }
     }
     // MYENGINE_SURVIVOR_LOOKDEMO=1：見た目を測るための写真（計画書 p10 の13章）。
-    if (HeroMode() && autoLookDemoState_ < 18 && !baseScreenOpen_ && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOKDEMO", nullptr, 0) > 0 &&
+    if (HeroMode() && autoLookDemoState_ < 22 && !baseScreenOpen_ && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOKDEMO", nullptr, 0) > 0 &&
         UpdateLookDemo()) {
         return;
     }
@@ -1398,6 +1445,11 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             same(loaded.growth.hpPerMinute, config_.growth.hpPerMinute) && same(loaded.spawnForward, config_.spawnForward) &&
                             same(loaded.separation.radiusScale, config_.separation.radiusScale) &&
                             loaded.glow.effects.enabled == config_.glow.effects.enabled && loaded.glow.effects.topMost == config_.glow.effects.topMost &&
+                            same(loaded.glow.effects.edgeSpeed, config_.glow.effects.edgeSpeed) && same(loaded.glow.effects.edgeVary, config_.glow.effects.edgeVary) &&
+                            same(loaded.glow.effects.edgeHold, config_.glow.effects.edgeHold) && same(loaded.glow.effects.edgeShift, config_.glow.effects.edgeShift) &&
+                            same(loaded.glow.effects.edgeBright, config_.glow.effects.edgeBright) && same(loaded.glow.effects.edgeDrag, config_.glow.effects.edgeDrag) &&
+                            loaded.glow.effects.edgeBlink == config_.glow.effects.edgeBlink && loaded.glow.effects.calmBlink == config_.glow.effects.calmBlink &&
+                            same(loaded.glow.effects.soft, config_.glow.effects.soft) && same(loaded.glow.effects.overlap, config_.glow.effects.overlap) &&
                             same(loaded.glow.effects.glow, config_.glow.effects.glow) && same(loaded.glow.effects.birth, config_.glow.effects.birth) &&
                             same(loaded.glow.effects.flash, config_.glow.effects.flash) && loaded.glow.effects.edges == config_.glow.effects.edges &&
                             same(loaded.glow.effects.plate, config_.glow.effects.plate) && same(loaded.glow.effects.crowd, config_.glow.effects.crowd) &&

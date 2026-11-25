@@ -525,12 +525,25 @@ void ActorNeonRenderer::DrawPlayerTank(const myEngine::Vector3& cameraForward, c
         renderer.QueueBeveledPolygonFill(points.data(), static_cast<uint32_t>(points.size()), {0.0f, 0.0f, 0.0f, dark}, {0.0f, 0.0f, 0.0f, 0.0f},
                                          {0.0f, 1.0f, 0.0f});
         if (plate && look.tankPlateFeather > 0.0f) {
-            for (size_t i = 0; i < points.size(); ++i) {
-                const myEngine::Vector3 a = points[i], b = points[(i + 1) % points.size()];
-                auto spread = [&](const myEngine::Vector3& p) {
-                    return p + myEngine::NormalizeOr(p - center, myEngine::Vector3{1.0f, 0.0f, 0.0f}, 0.001f) * (look.tankPlateFeather * scale);
-                };
-                renderer.QueueGradientQuad(a, b, spread(a), spread(b), {0.0f, 0.0f, 0.0f, dark}, {0.0f, 0.0f, 0.0f, 0.0f});
+            // 角の向きは両隣の辺の外向きの法線の平均にする（中心から外へ伸ばすと、角が黒く尖る）。
+            const size_t count = points.size();
+            float area = 0.0f;
+            for (size_t i = 0; i < count; ++i) {
+                const myEngine::Vector3 &a = points[i], &b = points[(i + 1) % count];
+                area += a.x * b.y - b.x * a.y;
+            }
+            const float side = area >= 0.0f ? 1.0f : -1.0f;
+            auto normal = [&](size_t i) {
+                const myEngine::Vector3 edge = points[(i + 1) % count] - points[i];
+                return myEngine::NormalizeOr(myEngine::Vector3{edge.y * side, -edge.x * side, 0.0f}, myEngine::Vector3{1.0f, 0.0f, 0.0f}, 0.0001f);
+            };
+            auto spread = [&](size_t i) {
+                const myEngine::Vector3 n = normal((i + count - 1) % count) + normal(i);
+                return points[i] + myEngine::NormalizeOr(n, myEngine::Vector3{1.0f, 0.0f, 0.0f}, 0.0001f) * (look.tankPlateFeather * scale);
+            };
+            for (size_t i = 0; i < count; ++i) {
+                const size_t next = (i + 1) % count;
+                renderer.QueueGradientQuad(points[i], points[next], spread(i), spread(next), {0.0f, 0.0f, 0.0f, dark}, {0.0f, 0.0f, 0.0f, 0.0f});
             }
         }
         firstFill = false;

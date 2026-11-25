@@ -512,8 +512,11 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer, cons
             const myEngine::Vector3 forward{std::cos(a), std::sin(a), 0.0f}, side{-std::sin(a), std::cos(a), 0.0f};
             const myEngine::Vector3 c = balls[i] + myEngine::Vector3{0.0f, 0.0f, -0.3f};
             const myEngine::Vector4 color{0.25f * glow, 0.6f * glow, 0.8f * glow, 0.9f};
-            tubefx::Line(renderer, tube, c - forward * 0.16f + side * 0.26f, c + forward * 0.26f, 0.04f, color, cameraForward);
-            tubefx::Line(renderer, tube, c - forward * 0.16f - side * 0.26f, c + forward * 0.26f, 0.04f, color, cameraForward);
+            for (int chevron = 0; chevron < 2; ++chevron) {
+                const myEngine::Vector3 tip = c + forward * (0.26f - 0.24f * static_cast<float>(chevron));
+                tubefx::Line(renderer, tube, tip - forward * 0.18f + side * 0.16f, tip, 0.032f, color, cameraForward);
+                tubefx::Line(renderer, tube, tip - forward * 0.18f - side * 0.16f, tip, 0.032f, color, cameraForward);
+            }
         }
     }
     // 迫撃砲：落ちる所に、赤い輪が縮みながら点滅する。

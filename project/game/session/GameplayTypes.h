@@ -420,6 +420,12 @@ struct NeonTriangleParticle {
     float endRadius = -1.0f;
     /// @brief 割れた管の辺（1本の線）か。長さは radius の2倍。
     bool edge = false;
+    /// @brief 辺が消える秒（生まれてから。この前にちかちかし、この後 0.05 秒だけ暗く残る）。
+    float edgeOff = 0.0f;
+    /// @brief 生まれた瞬間の強さの割り引き（1 でそのまま、0 で強くしない）。
+    float birth = 1.0f;
+    /// @brief 現れきるまでの秒（撃破の欠けと火花。同じ点に重なっている間は薄くする）。
+    float fadeIn = 0.0f;
     myEngine::Vector4 color{1.0f, 0.4f, 1.0f, 1.0f};
 };
 } // namespace gameplay

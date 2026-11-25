@@ -344,6 +344,20 @@ struct NeonPresentationState {
         float effectBirth = 1.0f;
         float effectFlash = 0.0f;
         bool effectEdges = false;
+        /// @brief 割れて飛ぶ辺と、脇役の割合（計画書 p10 の23章。意味は SurvivorLoot.h の EffectLook）。
+        float edgeSpeed = 9.0f;
+        float edgeVary = 0.6f;
+        float edgeHold = 0.42f;
+        int edgeBlink = 2;
+        float edgeGap = 0.07f;
+        float edgeShift = 0.18f;
+        float edgeBright = 1.15f;
+        float edgeDrag = 3.2f;
+        float edgeLong = 1.3f;
+        bool calmBlink = false;
+        float effectSoft = 1.0f;
+        float effectSoftLife = 1.0f;
+        float effectOverlap = 0.0f;
         float tankPlate = 1.0f;
         float tankPlateFeather = 0.0f;
         float effectClearRadius = 0.0f;

@@ -1,5 +1,7 @@
 #pragma once
 #include "game/session/GameWorld.h"
+#include <random>
+#include <vector>
 
 namespace gameplay {
 /// @brief CombatEffectsの処理を担当し、同じプレイの共有状態を借用する。
@@ -35,6 +37,10 @@ private:
         float age = 0.0f;
     };
     std::vector<RecentKill> recentKills_;
+    /// @brief 近くで同じ頃に起きた撃破・爆発の数から、生まれた瞬間の強さの割り引きを求める（重なっても白くならないように）。
+    float BirthShare(const myEngine::Vector3& position) const;
+    /// @brief 割れた辺の速さ・向き・消える時刻の乱数（見た目だけ。遊びの乱数は使わない）。
+    std::minstd_rand edgeRandom_{20251125u};
     /// @brief 破片と火花を割合で間引くときの端数（計画書 p10 の16章の M3）。
     float tubeSparkCarry_ = 0.0f;
     float tubeDebrisCarry_ = 0.0f;
