@@ -274,7 +274,7 @@ protected:
     /// @brief 共通パーク（計画書 p8 の F4）：会心・大きさを自機へ渡し、反応装甲を構え直し、予備の動力を持たせる。
     void UpdateHeroPerks(float dt);
     /// @brief 衛星の球と置いた地雷を積む。QueueHeroVisuals から呼ぶ。
-    void QueueSubWeapons(myEngine::NeonGridRenderer& renderer) const;
+    void QueueSubWeapons(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraForward) const;
     /// @brief 衛星の球の位置（段で数と輪の半径が変わる）。
     size_t OrbitPositions(std::array<myEngine::Vector3, 4>& out) const;
     int SubWeaponTier(survivor::SubWeapon weapon) const

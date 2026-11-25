@@ -24,5 +24,8 @@ public:
 
 private:
     GameWorld& world_;
+    /// @brief 破片と火花を割合で間引くときの端数（計画書 p10 の16章の M3）。
+    float tubeSparkCarry_ = 0.0f;
+    float tubeDebrisCarry_ = 0.0f;
 };
 } // namespace gameplay

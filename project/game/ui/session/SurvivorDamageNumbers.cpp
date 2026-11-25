@@ -1,6 +1,7 @@
 #include "game/ui/session/SurvivorDamageNumbers.h"
 #include "SpriteCommon.h"
 #include <algorithm>
+#include <cmath>
 
 namespace gameplay {
 
@@ -84,7 +85,8 @@ void SurvivorDamageNumbers::Spawn(uint64_t id, const myEngine::Vector3& world, u
     ++spawned_;
 }
 
-void SurvivorDamageNumbers::Update(float dt, const std::function<myEngine::Vector2(const myEngine::Vector3&)>& worldToScreen)
+void SurvivorDamageNumbers::Update(float dt, const std::function<myEngine::Vector2(const myEngine::Vector3&)>& worldToScreen,
+                                   const myEngine::Vector3& player)
 {
     const float life = (std::max)(0.1f, config_.lifeSeconds);
     for (Entry& entry : entries_) {
@@ -100,6 +102,17 @@ void SurvivorDamageNumbers::Update(float dt, const std::function<myEngine::Vecto
         return;
     }
     for (const Entry& entry : entries_) {
+        // 自機のまわりでは薄くする（自機が数字で隠れないように）。会心は半分より薄くしない。
+        float strength = entry.critical ? 1.0f : config_.alpha;
+        if (config_.nearRadius > 0.0f) {
+            const float dx = entry.world.x - player.x, dy = entry.world.y - player.y;
+            const float t = (std::clamp)((std::sqrt(dx * dx + dy * dy) / config_.nearRadius - 0.6f) / 0.4f, 0.0f, 1.0f);
+            const float low = entry.critical ? (std::max)(0.5f, config_.nearAlpha) : config_.nearAlpha;
+            strength *= low + (1.0f - low) * t * t * (3.0f - 2.0f * t);
+        }
+        if (strength <= 0.02f) {
+            continue;
+        }
         const std::string text = std::to_string((std::min)(entry.amount, 999999u));
         if (usedSprites_ + text.size() + 1 > sprites_.size()) {
             break;
@@ -109,8 +122,8 @@ void SurvivorDamageNumbers::Update(float dt, const std::function<myEngine::Vecto
         const float pop = entry.age < kPopSeconds * (entry.critical ? 1.6f : 1.0f)
                               ? 1.0f + popSize * (1.0f - entry.age / (kPopSeconds * (entry.critical ? 1.6f : 1.0f)))
                               : 1.0f;
-        const float scale = config_.scale * (entry.critical ? config_.critScale : entry.big ? 1.35f : 1.0f) * pop;
-        const float alpha = (std::clamp)((life - entry.age) / kFadeSeconds, 0.0f, 1.0f);
+        const float scale = config_.scale * (entry.critical ? config_.critScale : entry.big ? config_.bigScale : 1.0f) * pop;
+        const float alpha = (std::clamp)((life - entry.age) / kFadeSeconds, 0.0f, 1.0f) * strength;
         const myEngine::Vector4 color{1.0f, 1.0f, 1.0f, alpha};
         const size_t set = entry.critical ? 2 : entry.big ? 1 : 0;
         // 数字の間は、文字の縁取りと余白の分だけ詰める（会心は縁が太いので、もう少し詰める）。

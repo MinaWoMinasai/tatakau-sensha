@@ -23,7 +23,8 @@ public:
 
     /// @brief 自機を履帯戦車で描く（計画書 p10 の16章の M1）。黒い面と線を部品の奥から順に、今の描画先へ直接描く。
     /// @note 敵の線を描き終えてから呼ぶ（敵が重なっても、自機の中は黒いままにする）。
-    void DrawPlayerTank(const myEngine::Vector3& cameraForward, const myEngine::Matrix4x4& viewProjection, bool noDepth);
+    /// @param overlay 光を重ねた後にもう一度描くとき：近いにじみを描かず、黒い面と線だけを重ねる。
+    void DrawPlayerTank(const myEngine::Vector3& cameraForward, const myEngine::Matrix4x4& viewProjection, bool noDepth, bool overlay = false);
 
 private:
     /// @brief 武器の切り替えの間なら、自機の線と塗りへディゾルブを掛け始める（EndLineDissolve で外す）。

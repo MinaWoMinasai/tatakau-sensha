@@ -453,7 +453,7 @@ void ActorNeonRenderer::QueueActorNeonBillboards(const myEngine::Vector3& camera
     }
 }
 
-void ActorNeonRenderer::DrawPlayerTank(const myEngine::Vector3& cameraForward, const myEngine::Matrix4x4& viewProjection, bool noDepth)
+void ActorNeonRenderer::DrawPlayerTank(const myEngine::Vector3& cameraForward, const myEngine::Matrix4x4& viewProjection, bool noDepth, bool overlay)
 {
     const auto& look = world_.presentation.runNeonLook_;
     if (!world_.resources.neonGridRenderer_ || !world_.resources.player_ || world_.resources.player_->IsDead() || !look.playerTank ||
@@ -491,6 +491,11 @@ void ActorNeonRenderer::DrawPlayerTank(const myEngine::Vector3& cameraForward, c
         style.haloWidthScale = look.enemyHaloWidth;
     }
     const float nearGlow = look.nearGlow * look.tankNearGlow;
+    // もう一度重ねるときはブルームが掛からないので、その分だけ芯を明るくする。
+    if (overlay) {
+        style.coreIntensity *= 1.5f;
+        style.shoulderIntensity *= 1.5f;
+    }
     myEngine::NeonContourStyle glow = myEngine::ActorNeonContourStyle();
     glow.coreWidthRatio = 0.08f;
     glow.coreIntensity = nearGlow;
@@ -848,6 +853,10 @@ void ActorNeonRenderer::DrawActorNeonBodyFillPass(bool restoreOutlines, BodySet 
     world_.resources.neonGridRenderer_->SetBodyShadingEye(nullptr);
     const uint32_t fillCount = world_.resources.neonGridRenderer_->GetVertexCount() - fillStart;
     world_.resources.neonGridRenderer_->DrawRangeSolid(fillStart, fillCount, vp);
+    // 履帯戦車（計画書 p10 の16章の M3）：まわりの光が中の黒い面へにじまないよう、光を重ねた後にもう一度描く。
+    if (drawRound && world_.presentation.runNeonLook_.tankTopMost) {
+        DrawPlayerTank(myEngine::Cross(cameraRight, cameraUp), vp, false, true);
+    }
     if (!restoreOutlines) {
         return;
     }

@@ -333,6 +333,18 @@ struct NeonPresentationState {
         /// @brief 被弾の「ダメージ」の文字を出すかと、被弾の揺れの倍率（計画書 p9 の H3）。
         bool hurtText = true;
         float hurtShake = 1.0f;
+        /// @brief 爆発・破片・副武器を管の線で描くか、その線の太さ・明るさ・破片と火花と輪の割合、自機のまわりを薄くする所（計画書 p10 の16章の M3）。
+        bool tubeEffects = false;
+        float effectLine = 1.0f;
+        float effectBrightness = 0.9f;
+        float effectDebris = 1.0f;
+        float effectSparks = 1.0f;
+        float effectRing = 1.0f;
+        float effectClearRadius = 0.0f;
+        float effectClearAlpha = 1.0f;
+        myEngine::Vector3 effectClearCenter{};
+        /// @brief 自機の戦車を、光を重ねた後にもう一度描くか。
+        bool tankTopMost = false;
         /// @brief 自機を履帯戦車で描くか、その線・明るさ・近いにじみ・大きさ（倍）と色（計画書 p10 の16章の M1）。
         bool playerTank = false;
         float tankLine = 1.0f;

@@ -154,6 +154,20 @@ struct GlowConfig {
         float nearGlow = 0.6f;
         float bloom = 0.3f;
     } needle;
+    /// @brief 爆発・破片・副武器を管の線で描く（計画書 p10 の16章の M3。無限の場）：白い玉を出さず、広がる輪と線だけにする。
+    /// 線の太さ・明るさ（倍）、破片と火花の数（割合）、倒したときの輪の大きさ（倍）と、自機のまわりを薄くする半径と残す濃さ。
+    /// topMost は、自機の黒い面と線を光の後にもう一度重ね、まわりの光が中へにじまないようにする。
+    struct EffectLook {
+        bool enabled = false;
+        float line = 1.0f;
+        float brightness = 0.9f;
+        float debris = 0.45f;
+        float sparks = 0.5f;
+        float ring = 0.6f;
+        float clearRadius = 3.2f;
+        float clearAlpha = 0.2f;
+        bool topMost = true;
+    } effects;
 };
 
 /// @brief 床に落ちる物1つの中身。id は弾の種類・素材・部品・武器の番号（kind による）。

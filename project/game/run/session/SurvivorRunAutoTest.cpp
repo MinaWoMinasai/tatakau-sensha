@@ -245,6 +245,9 @@ bool SurvivorRunController::UpdateLookDemo()
         // 並べて2秒たってから5秒間、描いたコマ数を実際の時間で割る。
         if (wait >= 2.0f && autoLookDemoFrames_ == 0) {
             autoLookDemoFrames_ = drawnFrames_;
+            // 入力の無い自機が敵に押されても、車体が回らないことを確かめる（始めの向き）。
+            autoLookDemoHull_ = tankHullAngle_;
+            autoLookDemoSelf_ = self;
             autoLookDemoClock_ = std::chrono::steady_clock::now();
             // 5秒の間の内訳（CPU・GPU の区間ごとの時間）も書き出す（計測が使えるビルドだけ）。
             myEngine::RuntimeProfiler::Get().StartCapture(std::string(kAutoTestDirectory) + "/look_profile.csv", 60, 5);
@@ -252,7 +255,9 @@ bool SurvivorRunController::UpdateLookDemo()
             const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - autoLookDemoClock_).count();
             if (seconds >= 5.0) {
                 std::ofstream(std::string(kAutoTestDirectory) + "/look_fps.json")
-                    << "{\"fps\":" << static_cast<double>(drawnFrames_ - autoLookDemoFrames_) / seconds << ",\"alive\":" << CountAlive().total << "}\n";
+                    << "{\"fps\":" << static_cast<double>(drawnFrames_ - autoLookDemoFrames_) / seconds << ",\"alive\":" << CountAlive().total
+                    << ",\"hullTurn\":" << std::fabs(std::remainder(tankHullAngle_ - autoLookDemoHull_, 6.2831853f))
+                    << ",\"pushed\":" << myEngine::Length(self - autoLookDemoSelf_) << "}\n";
                 shoot("mass");
             }
         }
@@ -1392,6 +1397,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 roundTrip = loaded.growth.enabled == config_.growth.enabled && loaded.growth.points.size() == config_.growth.points.size() &&
                             same(loaded.growth.hpPerMinute, config_.growth.hpPerMinute) && same(loaded.spawnForward, config_.spawnForward) &&
                             same(loaded.separation.radiusScale, config_.separation.radiusScale) &&
+                            loaded.glow.effects.enabled == config_.glow.effects.enabled && loaded.glow.effects.topMost == config_.glow.effects.topMost &&
+                            same(loaded.glow.effects.debris, config_.glow.effects.debris) &&
+                            same(loaded.glow.effects.clearRadius, config_.glow.effects.clearRadius) &&
                             loaded.glow.needle.enabled == config_.glow.needle.enabled && same(loaded.glow.needle.line, config_.glow.needle.line) &&
                             same(loaded.glow.needle.tail, config_.glow.needle.tail) && same(loaded.glow.needle.bloom, config_.glow.needle.bloom) &&
                             same(loaded.glow.neon.enemyGrid, config_.glow.neon.enemyGrid) && loaded.glow.tank.enabled == config_.glow.tank.enabled &&
@@ -1406,6 +1414,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             loaded.glow.neon.enabled == config_.glow.neon.enabled && same(loaded.glow.neon.bloom, config_.glow.neon.bloom) &&
                             loaded.damageNumbers.enemyHpBars == config_.damageNumbers.enemyHpBars &&
                             same(loaded.damageNumbers.critScale, config_.damageNumbers.critScale) &&
+                            same(loaded.damageNumbers.scale, config_.damageNumbers.scale) && same(loaded.damageNumbers.alpha, config_.damageNumbers.alpha) &&
+                            same(loaded.damageNumbers.bigScale, config_.damageNumbers.bigScale) &&
+                            same(loaded.damageNumbers.nearRadius, config_.damageNumbers.nearRadius) &&
                             loaded.hud.compact == config_.hud.compact && loaded.hud.hurtNumbers == config_.hud.hurtNumbers &&
                             loaded.hud.levelUpScreen == config_.hud.levelUpScreen &&
                             loaded.hud.levelUpEffect == config_.hud.levelUpEffect && same(loaded.hud.levelUpSlow, config_.hud.levelUpSlow) &&

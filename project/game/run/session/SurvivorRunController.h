@@ -452,6 +452,8 @@ private:
     float tankTreadRight_ = 0.0f;
     float tankSpeed_ = 0.0f;
     uint64_t autoLookDemoFrames_ = 0;
+    float autoLookDemoHull_ = 0.0f;
+    myEngine::Vector3 autoLookDemoSelf_{};
     std::chrono::steady_clock::time_point autoLookDemoClock_{};
     /// @brief 見た目を測る写真を順に撮る。撮っている間は true（ボットは動かさない）。
     bool UpdateLookDemo();

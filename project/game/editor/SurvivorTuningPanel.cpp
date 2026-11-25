@@ -724,6 +724,21 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
         ImGui::TreePop();
     }
 
+    // 爆発・破片・副武器（計画書 p10 の16章の M3）
+    if (ImGui::TreeNodeEx("爆発・破片・副武器（管の線）", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto& effects = config.glow.effects;
+        changed |= ImGui::Checkbox("管の線で描く（切ると前の演出）", &effects.enabled);
+        changed |= ImGui::SliderFloat("演出の線の太さ", &effects.line, 0.3f, 3.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("演出の明るさ", &effects.brightness, 0.2f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("破片の数", &effects.debris, 0.0f, 1.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("火花の数", &effects.sparks, 0.0f, 1.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("倒したときの輪の大きさ", &effects.ring, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機のまわりを薄くする半径", &effects.clearRadius, 0.0f, 8.0f, "%.1f");
+        changed |= ImGui::SliderFloat("そこで残す濃さ", &effects.clearAlpha, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::Checkbox("自機を光の上にもう一度重ねる", &effects.topMost);
+        ImGui::TreePop();
+    }
+
     // 文字を減らした HUD（計画書 p9 の H4）
     if (ImGui::TreeNodeEx("HUD（自機の下のゲージ）", ImGuiTreeNodeFlags_DefaultOpen)) {
         changed |= ImGui::Checkbox("文字を減らした HUD を使う（切ると前の HUD）", &config.hud.compact);
@@ -743,6 +758,11 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
     // 数字と HP バー（計画書 p9 の H2）
     if (ImGui::TreeNodeEx("数字と HP バー", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto& numbers = config.damageNumbers;
+        changed |= ImGui::SliderFloat("数字の大きさ", &numbers.scale, 0.3f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("ふつうの数字の濃さ", &numbers.alpha, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("大きな数字の大きさ", &numbers.bigScale, 0.5f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機のまわりで薄くする半径", &numbers.nearRadius, 0.0f, 10.0f, "%.1f");
+        changed |= ImGui::SliderFloat("自機のまわりで残す濃さ", &numbers.nearAlpha, 0.0f, 1.0f, "%.2f");
         changed |= ImGui::Checkbox("小さい敵の HP バーを出す（中ボス・大きい敵はいつも出す）", &numbers.enemyHpBars);
         changed |= ImGui::Checkbox("ダメージの数字を出す", &numbers.enabled);
         changed |= ImGui::SliderFloat("数字の大きさ", &numbers.scale, 0.3f, 2.5f, "×%.2f");

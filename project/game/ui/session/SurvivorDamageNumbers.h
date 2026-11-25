@@ -28,6 +28,11 @@ public:
         float mergeSeconds = 0.15f;
         /// @brief 会心の数字の大きさ（ふつうに対する倍。計画書 p9 の H2）。
         float critScale = 1.5f;
+        /// @brief ふつうの数字の濃さ、大きな数字の大きさ（倍）、自機のまわりで薄くする半径（0 で無し）と、そこで残す濃さ（計画書 p10 の18章）。
+        float alpha = 1.0f;
+        float bigScale = 1.35f;
+        float nearRadius = 0.0f;
+        float nearAlpha = 0.0f;
     };
 
     /// @brief 0〜9 の数字の画像と、数字を並べる板を作る。
@@ -42,7 +47,8 @@ public:
     /// @param critical 会心（金色で大きく、後ろに「!」を付ける）。
     void Spawn(uint64_t id, const myEngine::Vector3& world, uint32_t amount, float bigThreshold, bool critical = false);
     /// @brief 数字を進め、画面の位置と見た目を板へ反映する。更新の段階で呼ぶ（描画中には板を書き換えない）。
-    void Update(float dt, const std::function<myEngine::Vector2(const myEngine::Vector3&)>& worldToScreen);
+    /// @param player 自機の位置。近くの数字を薄くするのに使う。
+    void Update(float dt, const std::function<myEngine::Vector2(const myEngine::Vector3&)>& worldToScreen, const myEngine::Vector3& player);
     void Draw();
     void Clear();
     /// @brief これまでに出した数字の数（自動確認用）。

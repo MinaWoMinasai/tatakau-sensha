@@ -239,6 +239,12 @@ struct SpawnConfig {
         /// @brief 会心の数字の大きさ（ふつうの数字に対する倍。計画書 p9 の H2）と、小さい敵の HP バーを出すか（中ボス・大きい敵はいつも出す）。
         float critScale = 1.5f;
         bool enemyHpBars = true;
+        /// @brief ふつうの数字の濃さ、大きな数字の大きさ（倍）、自機のまわりで薄くする半径（ワールド単位、0 で無し）と、そこで残す濃さ
+        /// （計画書 p10 の18章。会心は半分より薄くしない）。
+        float alpha = 1.0f;
+        float bigScale = 1.35f;
+        float nearRadius = 0.0f;
+        float nearAlpha = 0.0f;
     } damageNumbers;
 
     /// @brief 文字を減らした HUD（計画書 p9 の H4。機体の遊び方だけ）：自機の下に HP・経験値・Lv・Q、上の真ん中に残り時間とボスの印。
@@ -747,6 +753,14 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(numbers, "bigRatio", config.damageNumbers.bigRatio);
         number(numbers, "mergeSeconds", config.damageNumbers.mergeSeconds);
         number(numbers, "critScale", config.damageNumbers.critScale);
+        number(numbers, "alpha", config.damageNumbers.alpha);
+        number(numbers, "bigScale", config.damageNumbers.bigScale);
+        number(numbers, "nearRadius", config.damageNumbers.nearRadius);
+        number(numbers, "nearAlpha", config.damageNumbers.nearAlpha);
+        config.damageNumbers.alpha = (std::clamp)(config.damageNumbers.alpha, 0.0f, 1.0f);
+        config.damageNumbers.bigScale = (std::clamp)(config.damageNumbers.bigScale, 0.5f, 4.0f);
+        config.damageNumbers.nearRadius = (std::clamp)(config.damageNumbers.nearRadius, 0.0f, 20.0f);
+        config.damageNumbers.nearAlpha = (std::clamp)(config.damageNumbers.nearAlpha, 0.0f, 1.0f);
         if (numbers.contains("enemyHpBars") && numbers.at("enemyHpBars").is_boolean()) {
             config.damageNumbers.enemyHpBars = numbers.at("enemyHpBars").get<bool>();
         }
@@ -1329,6 +1343,30 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             look.enemyCoreWhite = (std::clamp)(look.enemyCoreWhite, 0.0f, 1.0f);
             look.crowdCount = (std::max)(1.0f, look.crowdCount);
         }
+        if (glow.contains("effects") && glow.at("effects").is_object()) {
+            const auto& effects = glow.at("effects");
+            auto& look = out.effects;
+            if (effects.contains("enabled") && effects.at("enabled").is_boolean()) {
+                look.enabled = effects.at("enabled").get<bool>();
+            }
+            if (effects.contains("topMost") && effects.at("topMost").is_boolean()) {
+                look.topMost = effects.at("topMost").get<bool>();
+            }
+            number(effects, "line", look.line);
+            number(effects, "brightness", look.brightness);
+            number(effects, "debris", look.debris);
+            number(effects, "sparks", look.sparks);
+            number(effects, "ring", look.ring);
+            number(effects, "clearRadius", look.clearRadius);
+            number(effects, "clearAlpha", look.clearAlpha);
+            look.line = (std::clamp)(look.line, 0.1f, 4.0f);
+            look.brightness = (std::clamp)(look.brightness, 0.0f, 4.0f);
+            look.debris = (std::clamp)(look.debris, 0.0f, 1.0f);
+            look.sparks = (std::clamp)(look.sparks, 0.0f, 1.0f);
+            look.ring = (std::clamp)(look.ring, 0.0f, 2.0f);
+            look.clearRadius = (std::clamp)(look.clearRadius, 0.0f, 12.0f);
+            look.clearAlpha = (std::clamp)(look.clearAlpha, 0.0f, 1.0f);
+        }
         if (glow.contains("needle") && glow.at("needle").is_object()) {
             const auto& needle = glow.at("needle");
             auto& look = out.needle;
@@ -1647,6 +1685,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     numbers["bigRatio"] = round(config.damageNumbers.bigRatio);
     numbers["mergeSeconds"] = round(config.damageNumbers.mergeSeconds);
     numbers["critScale"] = round(config.damageNumbers.critScale);
+    numbers["alpha"] = round(config.damageNumbers.alpha);
+    numbers["bigScale"] = round(config.damageNumbers.bigScale);
+    numbers["nearRadius"] = round(config.damageNumbers.nearRadius);
+    numbers["nearAlpha"] = round(config.damageNumbers.nearAlpha);
     numbers["enemyHpBars"] = config.damageNumbers.enemyHpBars;
     if (config.hud.compact || config.hud.hurtNumbers || config.hud.levelUpScreen || config.hud.levelUpEffect || data.contains("hud")) {
         auto& hud = section("hud");
@@ -2022,6 +2064,19 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         neon["bloom"] = round(look.bloom);
         neon["crowdBloom"] = round(look.crowdBloom);
         neon["crowdCount"] = round(look.crowdCount);
+    }
+    if (config.glow.effects.enabled || glow.contains("effects")) {
+        const auto& look = config.glow.effects;
+        auto& effects = glow["effects"];
+        effects["enabled"] = look.enabled;
+        effects["line"] = round(look.line);
+        effects["brightness"] = round(look.brightness);
+        effects["debris"] = round(look.debris);
+        effects["sparks"] = round(look.sparks);
+        effects["ring"] = round(look.ring);
+        effects["clearRadius"] = round(look.clearRadius);
+        effects["clearAlpha"] = round(look.clearAlpha);
+        effects["topMost"] = look.topMost;
     }
     if (config.glow.needle.enabled || glow.contains("needle")) {
         const auto& look = config.glow.needle;

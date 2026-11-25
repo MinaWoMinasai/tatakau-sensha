@@ -698,9 +698,12 @@ void SurvivorRunController::Update(float dt)
             }
             weaponHud_.Update(dt, state);
         }
-        damageNumbers_.Update(dt, [this](const myEngine::Vector3& world) {
-            return world_.gameplayHud->WorldToScreen(world);
-        });
+        damageNumbers_.Update(
+            dt,
+            [this](const myEngine::Vector3& world) {
+                return world_.gameplayHud->WorldToScreen(world);
+            },
+            world_.resources.player_->GetWorldPosition());
         UpdateCompactHud(dt);
         UpdatePlayerNumbers(dt);
     }
@@ -750,6 +753,21 @@ void SurvivorRunController::ApplyNeonLook(float dt)
     out.hurtText = !HurtNumbers();
     out.hurtShake = HurtNumbers() ? config_.hud.hurtShake : 1.0f;
     out.playerTank = look.enabled && config_.glow.tank.enabled;
+    // 爆発・破片・副武器（計画書 p10 の16章の M3）。粒子は、立体の粒ではなく線の粒で出す（白い玉は出さない）。
+    const auto& effects = config_.glow.effects;
+    out.tubeEffects = look.enabled && effects.enabled;
+    out.effectLine = effects.line;
+    out.effectBrightness = effects.brightness;
+    out.effectDebris = effects.debris;
+    out.effectSparks = effects.sparks;
+    out.effectRing = effects.ring;
+    out.effectClearRadius = out.tubeEffects ? effects.clearRadius : 0.0f;
+    out.effectClearAlpha = effects.clearAlpha;
+    out.effectClearCenter = world_.resources.player_->GetWorldPosition();
+    out.tankTopMost = out.playerTank && out.tubeEffects && effects.topMost;
+    myEngine::ParticleManager::GetInstance()->SetNeonTriangleEffectMode(
+        out.tubeEffects ? myEngine::ParticleManager::NeonTriangleEffectMode::Outline
+                        : static_cast<myEngine::ParticleManager::NeonTriangleEffectMode>(world_.presentation.neonTriangleEffectMode_));
     myEngine::Object3dCommon::GetInstance()->SetDebugUiEnabled(!out.hideDevWindows);
     if (!look.enabled) {
         return;
@@ -931,6 +949,10 @@ void SurvivorRunController::ApplyDamageNumberConfig()
     numbers.bigRatio = config_.damageNumbers.bigRatio;
     numbers.mergeSeconds = config_.damageNumbers.mergeSeconds;
     numbers.critScale = config_.damageNumbers.critScale;
+    numbers.alpha = config_.damageNumbers.alpha;
+    numbers.bigScale = config_.damageNumbers.bigScale;
+    numbers.nearRadius = config_.damageNumbers.nearRadius;
+    numbers.nearAlpha = config_.damageNumbers.nearAlpha;
     damageNumbers_.SetConfig(numbers);
 }
 

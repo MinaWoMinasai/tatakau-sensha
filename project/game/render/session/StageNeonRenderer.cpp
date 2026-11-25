@@ -183,18 +183,6 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         if (queueExpEnemyNeonInGridPass) {
             world_.resourceNeonRenderer->QueueExpEnemyNeonShapes(cameraRight, cameraUp, cameraForward);
         }
-        // 履帯戦車の自機：ここまでの敵の線を先に描き、その上に黒い面と線を重ねる。
-        if (world_.presentation.runNeonLook_.playerTank) {
-            auto& renderer = *world_.resources.neonGridRenderer_;
-            const myEngine::Matrix4x4 tankVp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
-                                                   ? world_.resources.debugCamera->GetViewProjectionMatrix()
-                                                   : world_.resources.camera->GetViewProjectionMatrix();
-            const bool noDepth =
-                world_.resources.neonDepthCameraScoped_ && !myEngine::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV();
-            renderer.DrawRange(foregroundStart, renderer.GetVertexCount() - foregroundStart, tankVp, noDepth);
-            world_.actorNeonRenderer->DrawPlayerTank(cameraForward, tankVp, noDepth);
-            foregroundStart = renderer.GetVertexCount();
-        }
         if (queueActorBillboards) {
             world_.actorNeonRenderer->QueueActorNeonBillboards(cameraRight, cameraUp);
         }
@@ -215,9 +203,16 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     myEngine::Matrix4x4 vp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
                                  ? world_.resources.debugCamera->GetViewProjectionMatrix()
                                  : world_.resources.camera->GetViewProjectionMatrix();
-    world_.resources.neonGridRenderer_->DrawRange(
-        foregroundStart, world_.resources.neonGridRenderer_->GetVertexCount() - foregroundStart, vp,
-        world_.resources.neonDepthCameraScoped_ && !myEngine::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV());
+    const bool noDepth = world_.resources.neonDepthCameraScoped_ && !myEngine::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV();
+    world_.resources.neonGridRenderer_->DrawRange(foregroundStart, world_.resources.neonGridRenderer_->GetVertexCount() - foregroundStart, vp,
+                                                  noDepth);
+    // 履帯戦車の自機：敵の線・破片・演出を描き終えてから、その上に黒い面と線を重ねる（自機が埋もれないように）。
+    if (world_.presentation.runNeonLook_.playerTank) {
+        const myEngine::Matrix4x4 view = myEngine::Inverse(myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
+                                                               ? world_.resources.debugCamera->GetViewMatrix()
+                                                               : world_.resources.camera->GetViewMatrix());
+        world_.actorNeonRenderer->DrawPlayerTank(myEngine::Normalize({view.m[2][0], view.m[2][1], view.m[2][2]}), vp, noDepth);
+    }
 }
 
 void StageNeonRenderer::DrawStageBlockNeonPass()

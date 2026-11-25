@@ -297,7 +297,7 @@
     "musicVolume": 0.5
   },
   "glow": {
-    "comment": "光り方（武器の枠を使う遊び方だけ）。trailBloom* は弾の軌跡のにじみ（強さ・明るさ・広がり 0〜0.9・半径 0.25〜2）。trailTailBrightness は先端に対する尾の明るさ（1 で同じ色合い）、trailFadeCurve は色の薄れ方（大きいほど尾の近くまで先端の色を保つ）、trailTailWidth は先端に対する尾の太さ、trailSeconds は軌跡が残る秒。lootRing* は拾い物を囲む輪の半径と太さ（敵と見分ける印、0 で無し）。lootTrail* は吸い込まれる物の光の尾の秒と太さ。collectFlash* は拾ったところに広がる輪の秒と半径。neon（計画書 p9 の H1。無限の場）はネオン管の見た目：enabled のときだけ、敵の輪郭の芯の白さ・芯の明るさ・にじみの明るさと幅・色の明るさ、敵の中を陰影の無い黒い平面にするか（flatBody）、敵の線の太さ（enemyLine、倍）、背景の雲（nebula、倍）、画面の端の色ずれ（colorShift、倍）、画面全体の残像（persistence、倍。0 で無し）と走査線（scanline、倍）、前のコマと混ぜてなじませるか（temporal。動く線が二重に見えるので切る）、敵の線のまわりの近いにじみの強さ（nearGlow、0 で無し）と広さ（nearGlowRadius）、敵のまわりの格子（enemyGrid、localGrid にさらに掛ける倍。0 で無し）、（tank は自機の履帯戦車：線・明るさ・近いにじみ・大きさの倍率、車体が回る速さ turn、履帯の流れ flow、色。形は player_tank_shape.json。needle は自機の弾の細い針：太さ・先の後ろと前・尾の長さと明るさ・色の明るさ・近いにじみ・ブルームの倍率）、床の格子・自機と敵のまわりの格子・壁の線・床の明かりの明るさ（倍）、ブルームの強さ（倍）と、敵が crowdCount 体いるときに crowdBloom 倍まで弱める自動の露出合わせ。",
+    "comment": "光り方（武器の枠を使う遊び方だけ）。trailBloom* は弾の軌跡のにじみ（強さ・明るさ・広がり 0〜0.9・半径 0.25〜2）。trailTailBrightness は先端に対する尾の明るさ（1 で同じ色合い）、trailFadeCurve は色の薄れ方（大きいほど尾の近くまで先端の色を保つ）、trailTailWidth は先端に対する尾の太さ、trailSeconds は軌跡が残る秒。lootRing* は拾い物を囲む輪の半径と太さ（敵と見分ける印、0 で無し）。lootTrail* は吸い込まれる物の光の尾の秒と太さ。collectFlash* は拾ったところに広がる輪の秒と半径。neon（計画書 p9 の H1。無限の場）はネオン管の見た目：enabled のときだけ、敵の輪郭の芯の白さ・芯の明るさ・にじみの明るさと幅・色の明るさ、敵の中を陰影の無い黒い平面にするか（flatBody）、敵の線の太さ（enemyLine、倍）、背景の雲（nebula、倍）、画面の端の色ずれ（colorShift、倍）、画面全体の残像（persistence、倍。0 で無し）と走査線（scanline、倍）、前のコマと混ぜてなじませるか（temporal。動く線が二重に見えるので切る）、敵の線のまわりの近いにじみの強さ（nearGlow、0 で無し）と広さ（nearGlowRadius）、敵のまわりの格子（enemyGrid、localGrid にさらに掛ける倍。0 で無し）、（tank は自機の履帯戦車：線・明るさ・近いにじみ・大きさの倍率、車体が回る速さ turn、履帯の流れ flow、色。形は player_tank_shape.json。effects は爆発・破片・副武器の管の線：線の太さ・明るさ・破片と火花の数・倒したときの輪・自機のまわりを薄くする半径と残す濃さ・自機を光の上に重ねるか topMost。needle は自機の弾の細い針：太さ・先の後ろと前・尾の長さと明るさ・色の明るさ・近いにじみ・ブルームの倍率）、床の格子・自機と敵のまわりの格子・壁の線・床の明かりの明るさ（倍）、ブルームの強さ（倍）と、敵が crowdCount 体いるときに crowdBloom 倍まで弱める自動の露出合わせ。",
     "collectFlashRadius": 1.3,
     "collectFlashSeconds": 0.25,
     "lootRingRadius": 0.5,
@@ -305,6 +305,7 @@
     "lootTrailSeconds": 0.14,
     "lootTrailWidth": 0.2,
     "neon": {"enabled":true,"enemyCoreWhite":0.06,"enemyCoreIntensity":1.6,"enemyHaloIntensity":0.6,"enemyHaloWidth":4.3,"enemyColor":0.9,"flatBody":true,"enemyLine":0.6,"nearGlow":0.045,"nearGlowRadius":0.4,"persistence":0.0,"scanline":0.2,"temporal":false,"colorShift":0.0,"nebula":0.22,"worldGrid":0.18,"localGrid":0.08,"enemyGrid":0.0,"walls":0.4,"floorLight":0.1,"bloom":1.0,"crowdBloom":0.9,"crowdCount":100},
+    "effects": {"enabled":true,"line":1.5,"brightness":1.2,"debris":0.6,"sparks":0.7,"ring":0.6,"clearRadius":3.2,"clearAlpha":0.2,"topMost":true},
     "needle": {"enabled":true,"line":1.1,"back":0.7,"front":0.3,"tail":2.2,"tailAlpha":0.9,"brightness":1.25,"nearGlow":1.2,"bloom":0.3},
     "tank": {"enabled":true,"line":0.9,"brightness":1.0,"nearGlow":0.5,"scale":1.0,"turn":10.0,"flow":0.55,"red":0.25,"green":1.0,"blue":0.55},
     "trailBloomGain": 1.9,
@@ -387,15 +388,19 @@
     "scale": 2.2
   },
   "damageNumbers": {
-    "comment": "敵に当てたときのダメージの数字（ネオン風）。同じ敵へ mergeSeconds 秒以内に続けて当てた分は1つにまとめて足す。同時に maxActive 個まで、lifeSeconds 秒で上へ動きながら消える。主砲1発の bigRatio 倍以上は橙で大きく出す。scale は文字の大きさの倍率。会心（計画書 p9 の H2）は金色の太い縁で critScale 倍にし、後ろに「!」を付ける（同じ敵の数字とまとめない）。enemyHpBars が false なら小さい敵の HP バーを出さない（中ボス・大きい敵はいつも出す）。",
+    "comment": "敵に当てたときのダメージの数字（ネオン風）。同じ敵へ mergeSeconds 秒以内に続けて当てた分は1つにまとめて足す。同時に maxActive 個まで、lifeSeconds 秒で上へ動きながら消える。主砲1発の bigRatio 倍以上は橙で大きく出す。scale は文字の大きさの倍率。alpha はふつうの数字の濃さ、bigScale は大きな数字の倍率、自機から nearRadius より近い数字は nearAlpha まで薄くする（会心は半分まで）。会心（計画書 p9 の H2）は金色の太い縁で critScale 倍にし、後ろに「!」を付ける（同じ敵の数字とまとめない）。enemyHpBars が false なら小さい敵の HP バーを出さない（中ボス・大きい敵はいつも出す）。",
     "bigRatio": 2.5,
     "enabled": true,
     "lifeSeconds": 0.7,
     "maxActive": 40,
-    "critScale": 1.5,
+    "alpha": 0.75,
+    "bigScale": 1.15,
+    "critScale": 2.0,
     "enemyHpBars": false,
     "mergeSeconds": 0.0,
-    "scale": 1.0
+    "nearAlpha": 0.0,
+    "nearRadius": 3.6,
+    "scale": 0.65
   },
   "hud": {
     "comment": "文字を減らした HUD（計画書 p9 の H4。機体の遊び方だけ）：自機の下に HP・経験値・Lv・Q、上の真ん中に残り時間とボスの印。compact が false なら前の HUD。scale は大きさ、offset は自機からバーまでの縦の間（1280×720 の座標）。hurtNumbers（計画書 p9 の H3）は、被弾・回復・立ち直りを自機の上の数字で出し、「ダメージ」などの文字を出さない。hurtScale は数字の大きさ、hurtEdge は画面の縁の赤の強さ（0 で無し）、hurtShake は被弾の揺れの倍率。levelUpScreen（計画書 p9 の L1）は強化の画面を、右に縦3段の札・左に動くプレビュー・左下に持ち物の形にする（Tab の持ち物の画面も）。levelUpEffect（計画書 p9 の L2）はレベルアップの瞬間に光の輪で敵を押し返し、levelUpSlow 秒ゆっくりにしてから画面を開き、選んだ札を自機へ吸い込ませる。",

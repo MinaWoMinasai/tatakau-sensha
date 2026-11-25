@@ -1,4 +1,5 @@
 #include "game/effects/session/CombatEffects.h"
+#include "game/render/session/TubeEffects.h"
 #include "game/session/GameplaySystems.h"
 #include "game/weapon/CombatTypes.h"
 #include "RuntimeProfiler.h"
@@ -71,6 +72,28 @@ void CombatEffects::UpdateNeonTriangleParticles(float deltaTime)
 {
     for (const myEngine::ParticleManager::NeonTriangleEvent& event :
          myEngine::ParticleManager::GetInstance()->ConsumeNeonTriangleEvents()) {
+        // 管の線で描くとき（計画書 p10 の16章の M3）：白い玉は出さず、破片と火花は決めた割合だけ出す。
+        const auto& look = world_.presentation.runNeonLook_;
+        if (look.tubeEffects) {
+            if (event.shape == myEngine::NeonParticleShape::Flash) {
+                continue;
+            }
+            const bool spark = event.shape == myEngine::NeonParticleShape::Spark || event.shape == myEngine::NeonParticleShape::Triangle;
+            const float keep = event.shape == myEngine::NeonParticleShape::Ring ? (look.effectRing > 0.0f ? 1.0f : 0.0f)
+                               : spark                                         ? look.effectSparks
+                                                                               : look.effectDebris;
+            // 割合の端数を貯めて間引く（乱数を使わない）。
+            float& carry = spark ? tubeSparkCarry_ : tubeDebrisCarry_;
+            if (event.shape != myEngine::NeonParticleShape::Ring) {
+                carry += keep;
+                if (carry < 1.0f) {
+                    continue;
+                }
+                carry -= 1.0f;
+            } else if (keep <= 0.0f) {
+                continue;
+            }
+        }
         NeonTriangleParticle particle{};
         particle.position = event.position;
         particle.velocity = event.velocity;
@@ -87,6 +110,14 @@ void CombatEffects::UpdateNeonTriangleParticles(float deltaTime)
         particle.shape = event.shape;
         particle.endRadius = event.endRadius;
         particle.color = event.color;
+        if (look.tubeEffects) {
+            if (particle.shape == myEngine::NeonParticleShape::Ring) {
+                particle.endRadius *= look.effectRing;
+            } else {
+                particle.life *= 0.75f;
+                particle.maxLife = particle.life;
+            }
+        }
         world_.presentation.neonTriangleParticles_.push_back(particle);
     }
 
@@ -113,6 +144,29 @@ void CombatEffects::QueueNeonTriangleParticles(const myEngine::Vector3& cameraRi
         return;
     }
 
+    const auto& tubeLook = world_.presentation.runNeonLook_;
+    if (tubeLook.tubeEffects) {
+        // 破片は1本の線（割れた管）、火花は短い線、輪は1本の管。自機のまわりは薄くする。
+        for (const NeonTriangleParticle& particle : world_.presentation.neonTriangleParticles_) {
+            const float age = std::clamp(1.0f - particle.life / particle.maxLife, 0.0f, 1.0f);
+            const float endRadius = particle.endRadius >= 0.0f ? particle.endRadius : particle.radius * 0.6f;
+            const float radius = particle.radius + (endRadius - particle.radius) * age;
+            myEngine::Vector4 color = particle.color;
+            color.w *= (1.0f - age) * (1.0f - age * age) * tubefx::Clear(tubeLook, particle.position);
+            const float c = std::cos(particle.rotation), sn = std::sin(particle.rotation);
+            if (particle.shape == myEngine::NeonParticleShape::Ring) {
+                tubefx::Circle(*world_.resources.neonGridRenderer_, tubeLook, particle.position, radius * 0.52f, 0.06f, color, 0.0f, 32,
+                               cameraForward);
+                continue;
+            }
+            const bool spark = particle.shape == myEngine::NeonParticleShape::Spark || particle.shape == myEngine::NeonParticleShape::Triangle;
+            const myEngine::Vector3 axis = cameraUp * c - cameraRight * sn;
+            const float half = radius * (spark ? 0.65f : 0.75f);
+            tubefx::Line(*world_.resources.neonGridRenderer_, tubeLook, particle.position - axis * half, particle.position + axis * half,
+                         spark ? 0.03f : 0.034f, color, cameraForward);
+        }
+        return;
+    }
     for (const NeonTriangleParticle& particle : world_.presentation.neonTriangleParticles_) {
         if (particle.shape != myEngine::NeonParticleShape::Triangle) {
             const float age = std::clamp(1.0f - particle.life / particle.maxLife, 0.0f, 1.0f);

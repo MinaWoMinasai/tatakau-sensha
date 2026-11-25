@@ -1,5 +1,6 @@
 #include "game/enemy/actor/Enemy.h"
 #include "game/render/neon/NeonGridRenderer.h"
+#include "game/render/session/TubeEffects.h"
 #include "game/run/hero/HeroAbilityCore.h"
 #include "game/session/GameWorld.h"
 #include "game/session/GameplaySystems.h"
@@ -467,9 +468,16 @@ void HeroAbilityCore::UpdateNewSubWeapons(float dt)
     }
 }
 
-void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer) const
+void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraForward) const
 {
+    // 管の線で描くとき（計画書 p10 の16章の M3）：太さをそろえた1本の線にし、中の白い輪は描かない。
+    const auto& tube = heroWorld_.presentation.runNeonLook_;
+    const bool tubes = tube.tubeEffects;
     auto circle = [&](const myEngine::Vector3& center, float radius, float width, const myEngine::Vector4& color, float phase, int sides) {
+        if (tubes) {
+            tubefx::Circle(renderer, tube, center, radius, 0.05f + width * 0.1f, color, phase, sides, cameraForward);
+            return;
+        }
         for (int n = 0; n < sides; ++n) {
             const float a = phase + 6.2831853f * static_cast<float>(n) / static_cast<float>(sides),
                         b = phase + 6.2831853f * static_cast<float>(n + 1) / static_cast<float>(sides);
@@ -494,7 +502,9 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer) cons
     const float glow = SubWeaponTier(SubWeapon::Orbit) >= 3 ? 1.3f : 1.0f;
     for (size_t i = 0; i < count; ++i) {
         circle(balls[i], kOrbitBall, 0.16f, {0.5f * glow, 1.6f * glow, 2.2f * glow, 0.95f}, orbitAngle_ * 3.0f, 12);
-        circle(balls[i], kOrbitBall * 0.45f, 0.2f, {1.2f, 2.0f, 2.4f, 0.9f}, -orbitAngle_ * 4.0f, 8);
+        if (!tubes) {
+            circle(balls[i], kOrbitBall * 0.45f, 0.2f, {1.2f, 2.0f, 2.4f, 0.9f}, -orbitAngle_ * 4.0f, 8);
+        }
     }
     // 迫撃砲：落ちる所に、赤い輪が縮みながら点滅する。
     for (const MortarShell& shell : mortarShells_) {
@@ -508,7 +518,9 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer) cons
         for (int i = 0; i < kDrone[static_cast<size_t>(tier - 1)].count; ++i) {
             const myEngine::Vector3& p = dronePositions_[static_cast<size_t>(i)];
             circle(p, 0.42f, 0.14f, kDroneColor, droneAngle_ * 4.0f, 3);
-            circle(p, 0.16f, 0.16f, {2.4f, 2.2f, 1.2f, 0.9f}, 0.0f, 6);
+            if (!tubes) {
+                circle(p, 0.16f, 0.16f, {2.4f, 2.2f, 1.2f, 0.9f}, 0.0f, 6);
+            }
         }
     }
     // 火炎放射：扇の中に、ゆらめく橙と黄の炎の筋を何本も出す。
@@ -519,6 +531,10 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer) cons
             const float base = std::atan2(flameDirection_.y, flameDirection_.x);
             const float half = t.halfAngle * 3.14159265f / 180.0f;
             for (int n = 0; n < 14; ++n) {
+                // 管の線では、半分の数の細い筋を、自機から離れた所から出す。
+                if (tubes && n % 2 == 1) {
+                    continue;
+                }
                 // 時間と筋の番号から、ゆらぎを作る。
                 const float wobble = std::sin(flameAge_ * 23.0f + static_cast<float>(n) * 2.7f);
                 const float a = base + half * (static_cast<float>(n) / 6.5f - 1.0f) + 0.08f * wobble;
@@ -527,6 +543,12 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer) cons
                 const myEngine::Vector3 start = self + dir * 0.9f;
                 const bool core = n % 3 == 1;
                 const myEngine::Vector4 color = core ? myEngine::Vector4{2.4f, 1.9f, 0.5f, 0.85f} : myEngine::Vector4{2.4f, 0.75f, 0.15f, 0.7f};
+                if (tubes) {
+                    const float from = (std::min)(length * 0.55f, 1.6f + 0.35f * wobble);
+                    tubefx::Line(renderer, tube, self + dir * from + myEngine::Vector3{0.0f, 0.0f, -0.3f},
+                                 self + dir * length + myEngine::Vector3{0.0f, 0.0f, -0.3f}, 0.06f, {color.x, color.y, color.z, 0.7f}, cameraForward);
+                    continue;
+                }
                 renderer.QueueLine(start + myEngine::Vector3{0.0f, 0.0f, -0.3f}, self + dir * length + myEngine::Vector3{0.0f, 0.0f, -0.3f},
                                    core ? 0.16f : 0.22f, color);
             }
