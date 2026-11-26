@@ -509,6 +509,9 @@ void SurvivorRunController::Update(float dt)
     // 自動で撃つのは、戦っている間に機体の入力を読むとき（UpdateHeroInput）だけ入れる。ショップ・持ち物・ポーズでは撃たない。
     world_.resources.player_->SetAutoFire(false);
     if (world_.combat.phase_ != Phase::kMain) {
+        // 始まりのフェードインの間も、今の見た目と自機の形にしておく（計画書 p11 の B3 の5。前は既定の見た目と前の自機が約1秒出ていた）。
+        ApplyNeonLook(0.0f);
+        UpdateTankPose(0.0f);
         return;
     }
     if (autoTest_ == AutoTest::Tour) {
@@ -649,6 +652,10 @@ void SurvivorRunController::Update(float dt)
             UpdateMoveDirection(gameDt);
         }
         ApplyNeonLook(dt);
+        if (world_.resources.bulletManager_) {
+            world_.resources.bulletManager_->SetBlastShake(config_.hud.blastShake);
+        }
+        CountShake(dt);
         UpdateTankPose(gameDt);
         if (gameDt > 0.0f && separationEnabled_) {
             const auto separationStart = std::chrono::steady_clock::now();

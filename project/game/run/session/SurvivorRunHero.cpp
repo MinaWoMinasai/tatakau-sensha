@@ -55,6 +55,8 @@ void SurvivorRunController::StartHero()
     healedByPickups_ = 0;
     subWeaponTiers_.fill(0);
     mainOfferMissed_ = -1;
+    mainMaxedAt_ = -1.0f;
+    shakeCount_ = {};
     mainOffers_ = 0;
     levelUpsOpened_ = 0;
     // 自動確認：MYENGINE_SURVIVOR_PERKS=1,1,1,1,1 のように、F4 で足したパーク（会心・大きさ・経験値・反応装甲・予備の動力）の段を始めから決める。

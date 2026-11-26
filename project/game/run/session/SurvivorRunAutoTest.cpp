@@ -1445,7 +1445,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             same(loaded.growth.hpPerMinute, config_.growth.hpPerMinute) && same(loaded.spawnForward, config_.spawnForward) &&
                             same(loaded.separation.radiusScale, config_.separation.radiusScale) &&
                             loaded.heroes.single == config_.heroes.single && loaded.heroes.mainOfferPity == config_.heroes.mainOfferPity &&
-                            same(loaded.heroes.subWeaponPower, config_.heroes.subWeaponPower) &&
+                            same(loaded.heroes.subWeaponPower, config_.heroes.subWeaponPower) && same(loaded.hud.blastShake, config_.hud.blastShake) &&
                             std::equal(loaded.timeline.begin(), loaded.timeline.end(), config_.timeline.begin(), config_.timeline.end(), [&](const auto& a, const auto& b) { return same(a.gap, b.gap) && same(a.warn, b.warn); }) &&
                             loaded.glow.effects.enabled == config_.glow.effects.enabled && loaded.glow.effects.topMost == config_.glow.effects.topMost &&
                             same(loaded.glow.effects.edgeSpeed, config_.glow.effects.edgeSpeed) && same(loaded.glow.effects.edgeVary, config_.glow.effects.edgeVary) &&
@@ -1567,6 +1567,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"stillShots\":" << player.GetStillShots() << ",\"trait\":\"" << survivor::TraitKey(trait_) << "\",\"coolPerSecond\":" << player.GetHeat().GetConfig().coolPerSecond
             << ",\"coolPerSecondWhileFiring\":" << player.GetHeat().GetConfig().coolPerSecondWhileFiring
             << ",\"heatMax\":" << player.GetHeat().GetMaxHeat() << ",\"shieldMax\":" << player.GetShieldMax() << ",\"shieldCheck\":[" << autoShieldLog_.str() << "]"
+            << ",\"shake\":" << ShakeRecord().dump() << ",\"build\":" << BuildRecord().dump()
             << ",\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_ << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_
             << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"removals\":" << removals_ << ",\"maxLoad\":" << maxLoad_
             << ",\"loadAtEnd\":" << survivor::LoadOf(config_.parts, partLevels_) << ",\"capacityAtEnd\":" << Capacity()

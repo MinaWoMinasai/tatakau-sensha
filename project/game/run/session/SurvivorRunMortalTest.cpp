@@ -1,5 +1,6 @@
 #include "game/run/session/SurvivorRunController.h"
 #include "game/debug/MenuFlow.h"
+#include "game/settings/UserSettings.h"
 #include "game/render/settings/ArenaCameraProfile.h"
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
@@ -267,6 +268,7 @@ void SurvivorRunController::FinishMortalTest(const char* outcome, double wall)
                         {"seed", m.seed},
                         {"pick", autoMortalNoMain_ ? "nomain" : "main"},
                         {"build", BuildRecord()},
+                        {"shake", ShakeRecord()},
                         {"mainOfferPity", config_.heroes.mainOfferPity},
                         {"subWeaponPower", config_.heroes.subWeaponPower},
                         {"outcome", outcome},
@@ -312,7 +314,46 @@ nlohmann::json SurvivorRunController::BuildRecord() const
             skills[survivor::GetHeroSkillInfo(static_cast<survivor::HeroSkill>(i)).name] = heroSkillTiers_[i];
         }
     }
-    return {{"mainTier", UpgradeTier(0)}, {"subs", subs}, {"perks", perks}, {"skills", skills}, {"mainOffers", mainOffers_}, {"levelUps", levelUpsOpened_}};
+    // 秒は 0.1 秒に丸める。まだなら -1（主武器が6段になった秒、ボスが出た秒・倒した秒。計画書 p11 の B3）。
+    const auto at = [](float seconds) {
+        return seconds < 0.0f ? -1.0 : std::round(seconds * 10.0) / 10.0;
+    };
+    return {{"mainTier", UpgradeTier(0)}, {"subs", subs}, {"perks", perks}, {"skills", skills}, {"mainOffers", mainOffers_}, {"levelUps", levelUpsOpened_},
+            {"mainMaxedAt", at(mainMaxedAt_)}, {"bossAt", at(rivalSpawnedAt_)}, {"bossDefeatedAt", at(rivalDefeatedAt_)}};
+}
+
+void SurvivorRunController::CountShake(float dt)
+{
+    // 残り時間が前のフレームより増えたら、ゆれが始まったか、強まって延びた（同じフレームに何度起きても1回）。
+    const auto& presentation = world_.presentation;
+    ShakeCount& c = shakeCount_;
+    if (presentation.cameraShakeTimer_ > c.previousTimer + 0.0001f) {
+        const float power = presentation.cameraShakePower_ * usersettings::ShakeScale();
+        ++c.count;
+        c.strong += power > 0.5f ? 1 : 0;
+        c.powerSum += power;
+        c.powerMax = (std::max)(c.powerMax, power);
+    }
+    c.activeSeconds += presentation.cameraShakeTimer_ > 0.0f ? dt : 0.0f;
+    c.seconds += dt;
+    c.previousTimer = presentation.cameraShakeTimer_;
+}
+
+nlohmann::json SurvivorRunController::ShakeRecord() const
+{
+    const ShakeCount& c = shakeCount_;
+    const double seconds = (std::max)(0.001f, c.seconds);
+    const auto r = [](double value) {
+        return std::round(value * 1000.0) / 1000.0;
+    };
+    return {{"count", c.count},
+            {"perSecond", r(c.count / seconds)},
+            {"strong", c.strong},
+            {"meanPower", r(c.count > 0 ? c.powerSum / c.count : 0.0)},
+            {"maxPower", r(c.powerMax)},
+            {"powerPerSecond", r(c.powerSum / seconds)},
+            {"activeRatio", r(c.activeSeconds / seconds)},
+            {"blastShake", config_.hud.blastShake}};
 }
 
 void SurvivorRunController::AppendPlayLog(const char* outcome)

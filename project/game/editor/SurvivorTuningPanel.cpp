@@ -771,6 +771,7 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
         changed |= ImGui::SliderFloat("被弾・回復の数字の大きさ", &config.hud.hurtScale, 0.5f, 2.5f, "×%.2f");
         changed |= ImGui::SliderFloat("画面の縁の赤（0 で無し）", &config.hud.hurtEdge, 0.0f, 1.0f, "%.2f");
         changed |= ImGui::SliderFloat("被弾の揺れ", &config.hud.hurtShake, 0.0f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("主武器の爆発の揺れ（光と画面の脈打ちはそのまま）", &config.hud.blastShake, 0.0f, 2.0f, "×%.2f");
         ImGui::TreePop();
     }
 

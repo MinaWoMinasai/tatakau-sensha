@@ -10,7 +10,8 @@ public:
     explicit CombatEffects(GameWorld& world) : world_(world) {}
 
     /// @brief 死亡後処理パルスを発動させる。
-    void TriggerDeathPostPulse(const myEngine::Vector3& worldPosition, float strength);
+    /// @param shakeScale カメラのゆれだけに掛ける倍率（計画書 p11 の B3。光と画面の脈打ちはそのまま）。
+    void TriggerDeathPostPulse(const myEngine::Vector3& worldPosition, float strength, float shakeScale = 1.0f);
 
     /// @brief 死亡後処理パルスを更新する。
     /// @param deltaTime この処理で進める経過時間（秒）。

@@ -67,6 +67,12 @@ public:
         impactBlastColor_ = color;
     }
 
+    /// @brief 当たった所の爆発と印の起爆（よく起きる爆発）のカメラのゆれの倍率（計画書 p11 の B3）。光と画面の脈打ちはそのまま。
+    void SetBlastShake(float scale)
+    {
+        blastShake_ = (std::max)(0.0f, scale);
+    }
+
     void SetMarkThreshold(int normal, int boss, bool onKill = false)
     {
         markNeeded_ = (std::clamp)(normal, 1, 8);
@@ -225,6 +231,7 @@ private:
     float impactBlastCenter_ = 0.0f;
     float impactBlastSplash_ = 0.0f;
     myEngine::Vector4 impactBlastColor_{1.9f, 0.7f, 0.2f, 1.0f};
+    float blastShake_ = 1.0f;
     float chainRadiusScale_ = 1.0f;
     std::vector<BuildEvent> buildEvents_;
     tankshooter::MarkLedger marks_{};

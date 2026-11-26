@@ -268,6 +268,20 @@ private:
     bool autoMortalNoMain_ = false;
     /// @brief 今の組み立て（主武器の段・副武器・パーク・専用スキル・主武器の札が出た回数）。記録に書く。
     nlohmann::json BuildRecord() const;
+    /// @brief 画面のゆれ（計画書 p11 の B3）：ゆれが始まった・強まった回数、そのときの強さ（設定の「画面のゆれ」を掛けた後）、ゆれていた秒。
+    nlohmann::json ShakeRecord() const;
+    void CountShake(float dt);
+    struct ShakeCount {
+        float previousTimer = 0.0f;
+        uint32_t count = 0;
+        uint32_t strong = 0;
+        double powerSum = 0.0;
+        float powerMax = 0.0f;
+        float activeSeconds = 0.0f;
+        float seconds = 0.0f;
+    };
+    ShakeCount shakeCount_;
+    float mainMaxedAt_ = -1.0f;
     /// @brief MYENGINE_SURVIVOR_MORTAL=1 なら、ダメージを受ける自動確認にする。
     void StartMortalTest(uint32_t seed);
     void UpdateMortalAutoTest(float dt);

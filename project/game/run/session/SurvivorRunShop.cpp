@@ -262,6 +262,10 @@ void SurvivorRunController::ApplyOffer(const ShopOffer& offer)
     }
     if (offer.upgrade) {
         upgradeTiers_[static_cast<size_t>(offer.index)] = (std::min)(survivor::MaxUpgradeTier(Hero(), offer.index), UpgradeTier(offer.index) + 1);
+        // 主武器が上がりきった秒（計画書 p11 の B3。遊んだ記録に残す）。
+        if (offer.index == 0 && mainMaxedAt_ < 0.0f && UpgradeTier(0) >= survivor::MaxUpgradeTier(Hero(), 0)) {
+            mainMaxedAt_ = elapsed_;
+        }
     } else {
         int& tier = perks_[static_cast<size_t>(offer.index)];
         tier = (std::min)(PerkMaxTierOf(static_cast<size_t>(offer.index)), tier + 1);

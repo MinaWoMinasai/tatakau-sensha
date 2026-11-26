@@ -16,6 +16,8 @@ struct State {
     std::vector<std::string> lines;
     size_t next = 0;
     std::string screen, detail, shot, command;
+    std::string burstName;
+    int burstLeft = 0, burstIndex = 0;
     uint64_t frame = 0;
     int wait = 0, waitLimit = 0, hold = 0;
     bool waiting = false, failed = false, done = false;
@@ -194,6 +196,13 @@ void Run(State& s, myEngine::Input& input)
     } else if (op == "shot") {
         s.shot = a;
         s.wait = 12;
+    } else if (op == "frames") {
+        s.burstName = a;
+        line >> s.burstLeft;
+        s.burstIndex = 0;
+        std::error_code error;
+        std::filesystem::create_directories("generated/menu_flow/" + a, error);
+        Log(s, "frames " + a);
     } else if (op == "blur") {
         input.OnFocusChanged(false);
         s.wait = 3;
@@ -219,6 +228,29 @@ void SetScreen(const std::string& name, const std::string& detail)
         s.screen = name;
         s.detail = detail;
         Log(s, "screen");
+    }
+}
+
+bool TakeFrameShot(std::string& path)
+{
+    State& s = Get();
+    if (!s.active || s.burstLeft <= 0) {
+        return false;
+    }
+    char name[16]{};
+    snprintf(name, sizeof(name), "%03d", s.burstIndex);
+    path = "generated/menu_flow/" + s.burstName + "/" + name + ".png";
+    Log(s, "frame " + s.burstName + " " + name);
+    ++s.burstIndex;
+    --s.burstLeft;
+    return true;
+}
+
+void Note(const std::string& text)
+{
+    State& s = Get();
+    if (s.active && s.burstLeft > 0) {
+        Log(s, text);
     }
 }
 

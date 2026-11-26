@@ -659,7 +659,7 @@ void CombatFramePipeline::Update()
                                                          world_.resources.debugCamera.get());
     }
     for (const myEngine::ParticleManager::ScreenPulseEvent& event : myEngine::ParticleManager::GetInstance()->ConsumeScreenPulseEvents()) {
-        world_.combatEffects->TriggerDeathPostPulse(event.position, event.strength);
+        world_.combatEffects->TriggerDeathPostPulse(event.position, event.strength, event.shake);
     }
     // 死亡演出・通貨回収の終了条件を見て結果画面へ移る。戦闘の時間倍率には合わせない。
     world_.combatFlow->UpdateGameFlow(baseDeltaTime);

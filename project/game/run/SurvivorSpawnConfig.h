@@ -265,6 +265,8 @@ struct SpawnConfig {
         float hurtScale = 1.0f;
         float hurtEdge = 0.3f;
         float hurtShake = 1.0f;
+        /// @brief 主武器の当たった所の爆発と印の起爆（よく起きる爆発）のカメラのゆれの倍率（計画書 p11 の B3）。1 で今まで。光と画面の脈打ちには掛けない。
+        float blastShake = 1.0f;
     } hud;
 
     /// @brief 排熱砲（Q）。熱が minHeat 未満なら使えない。威力の倍率は 熱 × damagePerHeat × 効果の強さ（Lv）。使うと cooldown 秒待つ。
@@ -792,6 +794,8 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(hud, "hurtScale", config.hud.hurtScale);
         number(hud, "hurtEdge", config.hud.hurtEdge);
         number(hud, "hurtShake", config.hud.hurtShake);
+        number(hud, "blastShake", config.hud.blastShake);
+        config.hud.blastShake = (std::clamp)(config.hud.blastShake, 0.0f, 3.0f);
         config.hud.hurtScale = (std::clamp)(config.hud.hurtScale, 0.4f, 3.0f);
         config.hud.hurtEdge = (std::clamp)(config.hud.hurtEdge, 0.0f, 1.0f);
         config.hud.hurtShake = (std::clamp)(config.hud.hurtShake, 0.0f, 3.0f);
@@ -1759,6 +1763,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         hud["hurtScale"] = round(config.hud.hurtScale);
         hud["hurtEdge"] = round(config.hud.hurtEdge);
         hud["hurtShake"] = round(config.hud.hurtShake);
+        hud["blastShake"] = round(config.hud.blastShake);
     }
     auto& fusions = section("fusions");
     fusions["thunderExtraTargets"] = config.fusions.thunderExtraTargets;

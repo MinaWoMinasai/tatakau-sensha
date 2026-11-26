@@ -1,5 +1,7 @@
 #include "game/session/GameSession.h"
 #include "game/settings/UserSettings.h"
+#include "game/debug/MenuFlow.h"
+#include "game/render/settings/ArenaLookConfig.h"
 #include "game/session/GameplaySystems.h"
 
 namespace gameplay {
@@ -129,6 +131,24 @@ void GameSession::RecordDeveloperPostParameters(const myEngine::BloomParam& para
 void GameSession::RecordDeveloperFrame(myEngine::DirectXCommon& dx)
 {
     world_->gameplayQueries->RecordDeveloperFrame(dx);
+    // 画面の出入りの確認の frames：描いたコマを毎回撮る（読み込みの途中で更新が回っていないコマも撮る）。前のコマの写しはここで書き出す。
+    if (std::string path; world_->arenaRunController && menuflow::TakeFrameShot(path)) {
+        world_->arenaRunController->FinishTankRunCapture();
+        world_->run.tankRunCapturePath_ = path;
+        world_->arenaRunController->CopyTankRunCapture();
+        IScene::ArenaLookSettings look = arenalook::Get();
+        ApplyArenaLookOverrides(look);
+        const auto effect = GetScreenEffectState();
+        menuflow::Note("values phase " + std::to_string(static_cast<int>(world_->combat.phase_)) + " nebula " + std::to_string(look.nebulaIntensity) +
+                       " bloom " + std::to_string(effect.bloomScale) + " temporal " + std::to_string(!effect.suppressTemporal) + " tank " +
+                       std::to_string(world_->presentation.runNeonLook_.playerTank) + " active " + std::to_string(effect.active) + " decay " +
+                       std::to_string(look.phosphorDecay) + " exposure " + std::to_string(effect.param.exposure) + " intensity " +
+                       std::to_string(effect.param.intensity) + " vignette " + std::to_string(effect.param.vignetteIntensity) + " gray " +
+                       std::to_string(effect.param.isGrayscale) + " gauss " + std::to_string(effect.param.gaussianIntensity) + " dt " +
+                       std::to_string(GetFinalDeltaTime()) + " paused " +
+                       std::to_string(world_->run.IsSurvivorRun() && world_->survivorRunController->IsPaused()) + " scale " +
+                       std::to_string(world_->run.IsSurvivorRun() ? world_->survivorRunController->GetTimeScale() : 1.0f));
+    }
     if (world_->run.UsesPrototypeRules()) {
         world_->arenaRunController->CopyTankRunCapture();
     }

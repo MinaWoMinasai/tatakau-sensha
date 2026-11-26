@@ -29,7 +29,7 @@ namespace gameplay {
 
 using namespace detail;
 
-void CombatEffects::TriggerDeathPostPulse(const myEngine::Vector3& worldPosition, float strength)
+void CombatEffects::TriggerDeathPostPulse(const myEngine::Vector3& worldPosition, float strength, float shakeScale)
 {
     if (!world_.presentation.enableDeathPostPulse_) {
         return;
@@ -44,7 +44,7 @@ void CombatEffects::TriggerDeathPostPulse(const myEngine::Vector3& worldPosition
 
     world_.presentation.cameraShakeTimer_ = world_.presentation.cameraShakeDuration_;
     world_.presentation.cameraShakePower_ =
-        (std::max)(world_.presentation.cameraShakePower_, 0.65f * world_.presentation.deathPostPulseScale_);
+        (std::max)(world_.presentation.cameraShakePower_, 0.65f * world_.presentation.deathPostPulseScale_ * (std::max)(0.0f, shakeScale));
 }
 
 void CombatEffects::UpdateDeathPostPulse(float deltaTime)

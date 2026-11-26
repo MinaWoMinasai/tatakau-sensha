@@ -23,7 +23,7 @@
   "shapes": {
     "comment": "生存数の目標（時間, 数）を直線でつなぐ。最後の点より後は overtimePerMinute ずつ増える。",
     "chase": {"pentagon":[5.0,3.6],"square":[5.5,3.7],"triangle":[7.0,3.8]},
-    "growth": {"comment":"湧きを足し続ける形（計画書 p8 の G1）。enabled なら targetAlive は使わず、points の [秒, 足す間隔の秒, 一度に足す数, 生きている図形の上限] を直線でつないだ値で、間隔ごとに図形を足し続ける（上限に届いている間は待つ。倒しきれないと溜まる）。敵の HP は 経過分ごとに hpPerMinute 倍（指数。中ボスや大五角にも効く）、寄る速さは 1 + speedPerMinute × 経過分（speedMax まで。湧いたときに決まる）。時間割の surge で、しばらく間隔と数と上限を変えられる。","enabled":true,"hpPerMinute":1.1,"points":[[0.0,0.8,1.0,60.0],[60.0,0.75,1.0,85.0],[120.0,0.75,1.4,105.0],[180.0,0.7,1.7,120.0],[300.0,0.6,2.2,140.0],[420.0,0.55,2.7,150.0],[540.0,0.5,3.0,160.0]],"speedMax":1.25,"speedPerMinute":0.01},
+    "growth": {"comment":"湧きを足し続ける形（計画書 p8 の G1）。enabled なら targetAlive は使わず、points の [秒, 足す間隔の秒, 一度に足す数, 生きている図形の上限] を直線でつないだ値で、間隔ごとに図形を足し続ける（上限に届いている間は待つ。倒しきれないと溜まる）。敵の HP は 経過分ごとに hpPerMinute 倍（指数。中ボスや大五角にも効く）、寄る速さは 1 + speedPerMinute × 経過分（speedMax まで。湧いたときに決まる）。時間割の surge で、しばらく間隔と数と上限を変えられる。","enabled":true,"hpPerMinute":1.1,"points":[[0.0,0.8,1.0,60.0],[60.0,0.75,1.0,85.0],[120.0,0.75,1.4,105.0],[180.0,0.7,1.7,120.0],[240.0,0.55,2.2,130.0],[300.0,0.45,2.8,150.0],[420.0,0.38,3.5,165.0],[540.0,0.32,4.0,175.0]],"speedMax":1.25,"speedPerMinute":0.01},
     "overtimePerMinute": 15.0,
     "targetAlive": [[0.0,30.0],[60.0,50.0],[180.0,80.0],[300.0,110.0],[420.0,140.0],[540.0,180.0]],
     "weights": [{"from":0.0,"pentagon":1.0,"square":6.0,"triangle":3.0},{"from":120.0,"pentagon":2.0,"square":5.0,"triangle":3.0}]
@@ -158,7 +158,7 @@
   "heroes": {
     "comment": "機体（計画書 p4）。enabled が true なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイール・リロード・拠点の画面・お金以外の落とし物を止める）。start は出撃する機体。機体ごとに、name は名前、primary は主武器（weapons のキー。弾は数えず熱だけで撃つ）、primaryHeatScale は主武器の1発の熱の倍率の上書き（0 なら武器の値。撃ち続けられる長さが決まる）、ultimateCharge は Q のゲージが満タンになるまでに要る量（与えたダメージ＋回復した量）。maxHp は最大HP（0 なら自機の値のまま）。unlockCost は解放に要る解放ポイント（0 なら最初から使える）、unlockFirst は最初に解放する機体（まだなら次に解放できるのはその機体だけ。それ以外は2〜3体から選ぶ）。primaryAbility を書くと、主武器は弾ではなく技の部品になる（primary の武器は見た目だけ）。secondary（右クリック）・mobility（Shift）・skill（E）・ultimate（Q）は技の部品で、kind は種類（none・sprint 走る・barrier バリア・rocket 爆発する弾・healZone 回復の場・barrage 自動で狙う弾幕・drainBeam 吸い付く光線・selfHeal 吸収ゲージで自分を回復・phase 無敵ですり抜ける移動・bounceOrb 敵の間を跳ねる球・charge 突進・shockwave 衝撃波・fortress 全周のバリア・lance 太い光線）、name は画面の名前、cooldown は次に使えるまでの秒（Q はゲージ）、duration は効いている秒（selfHeal は吸収ゲージの上限の秒）、power は種類ごとの強さ（sprint・phase は速さの倍率、rocket・barrage は主砲1発に対する威力の倍率、drainBeam・bounceOrb・lance は毎秒の威力の主砲1発に対する倍率、healZone・selfHeal は毎秒の回復の最大HPに対する割合）、radius は半径や長さ（rocket は爆発、healZone は場、barrage は狙う範囲、drainBeam は届く距離、lance は光線の長さ）、rate は弾幕の毎秒の発射数・跳ねる球の速さ、size は光線の太さ・跳ねる球の半径、gain は与えた威力1ごとに溜まる吸収ゲージの秒。charge は duration 秒・速さ power 倍で、触れた敵を rate の強さで押し飛ばし主砲1発の size 倍を与える。shockwave は半径 radius の敵を rate の強さで押し返し主砲1発の power 倍を与える。fortress は duration 秒、半径 radius の全周のバリアで、終わりに半径 radius×1.6 で爆発し主砲1発の power 倍＋止めた弾1つごとに rate 倍を与える。バリアと selfHeal は押している間だけ効く（バリアは設定の barrier とスタミナを使う）。mainOfferPity（計画書 p11 の B2b）：主武器の札。最初のレベルアップと、(この値 - 1) 回続けて出なかった次は必ず並べる。Q などは主武器と別の種類として引く。0 で今までどおり。subWeaponPower：副武器7つの威力の倍率（爆発・炎・燃えも）。1 でそのまま。timeline の ring の gap は輪の切れ目の幅（度。進む向きでない側に空く。0 で無し）、warn は出る何秒前に切れ目の位置を見せるか。",
     "autoFire": true,
-    "mainOfferPity": 3,
+    "mainOfferPity": 4,
     "single": true,
     "enabled": true,
     "fillerHeal": 0.3,
@@ -406,7 +406,8 @@
     "scale": 0.65
   },
   "hud": {
-    "comment": "文字を減らした HUD（計画書 p9 の H4。機体の遊び方だけ）：自機の下に HP・経験値・Lv・Q、上の真ん中に残り時間とボスの印。compact が false なら前の HUD。scale は大きさ、offset は自機からバーまでの縦の間（1280×720 の座標）。hurtNumbers（計画書 p9 の H3）は、被弾・回復・立ち直りを自機の上の数字で出し、「ダメージ」などの文字を出さない。hurtScale は数字の大きさ、hurtEdge は画面の縁の赤の強さ（0 で無し）、hurtShake は被弾の揺れの倍率。levelUpScreen（計画書 p9 の L1）は強化の画面を、右に縦3段の札・左に動くプレビュー・左下に持ち物の形にする（Tab の持ち物の画面も）。levelUpEffect（計画書 p9 の L2）はレベルアップの瞬間に光の輪で敵を押し返し、levelUpSlow 秒ゆっくりにしてから画面を開き、選んだ札を自機へ吸い込ませる。",
+    "comment": "文字を減らした HUD（計画書 p9 の H4。機体の遊び方だけ）：自機の下に HP・経験値・Lv・Q、上の真ん中に残り時間とボスの印。compact が false なら前の HUD。scale は大きさ、offset は自機からバーまでの縦の間（1280×720 の座標）。hurtNumbers（計画書 p9 の H3）は、被弾・回復・立ち直りを自機の上の数字で出し、「ダメージ」などの文字を出さない。hurtScale は数字の大きさ、hurtEdge は画面の縁の赤の強さ（0 で無し）、hurtShake は被弾の揺れの倍率。levelUpScreen（計画書 p9 の L1）は強化の画面を、右に縦3段の札・左に動くプレビュー・左下に持ち物の形にする（Tab の持ち物の画面も）。levelUpEffect（計画書 p9 の L2）はレベルアップの瞬間に光の輪で敵を押し返し、levelUpSlow 秒ゆっくりにしてから画面を開き、選んだ札を自機へ吸い込ませる。blastShake（計画書 p11 の B3）：主武器の当たった所の爆発と印の起爆のカメラのゆれの倍率。撃破の光と画面の脈打ちには掛けない。1 で今まで。",
+    "blastShake": 0.5,
     "compact": true,
     "hurtEdge": 0.3,
     "hurtNumbers": true,
