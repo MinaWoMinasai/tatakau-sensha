@@ -1174,8 +1174,7 @@ void ParticleManager::Draw()
     commandList->SetPipelineState(pso.graphicsState_.Get());
 
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->IASetVertexBuffers(0, 1, &model_->GetVertexBufferView());
-    commandList->IASetIndexBuffer(&model_->GetIndexBufferView());
+    model_->BindMeshBuffers(commandList.Get());
 
     // RootParameter [0]:Material, [1]:Light, [2]:Camera, [3]:InstancingSRV, [4]:Texture
     // 各エンジンのCBVリソースから取得してセット
