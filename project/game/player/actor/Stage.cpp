@@ -48,25 +48,28 @@ void Stage::InitializeSurfaceModels()
 
 namespace {
 /// @brief 表面描画用のマテリアル設定をオブジェクトへ適用する。
-void ApplySurfaceMaterial(myEngine::Object3d& object, const myEngine::Vector4& color, float metallic, float roughness, float lightIntensity)
+void ApplySurfaceMaterial(myEngine::Object3d& object, const myEngine::Vector4& color, float metallic, float roughness, float lightIntensity,
+                          float normalDetail = 0.0f, float normalDetailScale = 1.0f)
 {
     object.SetColor(color);
     object.SetLighting(true);
-    object.SetLightingMode(2); // 既存のCook-Torrance/シーンの法線 + マテリアル出力。
-    object.SetMetallic(metallic);
-    object.SetRoughness(roughness);
-    object.SetAmbientOcclusion(1.0f);
-    object.SetEmissive({0.0f, 0.0f, 0.0f}, 0.0f);
-    object.SetEnvironmentCoefficient(0.10f);
-    object.SetIBLIntensity(0.10f, 0.16f);
-    object.SetShadowReceiveStrength(0.0f); // 現在、ステージ用のシャドウマップのパスは無い。
-    object.SetNormalDetail(0.0f, 1.0f);
-    object.SetPointLightPosition({-10000.0f, -10000.0f, -10000.0f});
+    myEngine::Object3d::SurfaceMaterial surface;
+    surface.lightingMode = 2; // 既存のCook-Torrance/シーンの法線 + マテリアル出力。
+    surface.metallic = metallic;
+    surface.roughness = roughness;
+    surface.ambientOcclusion = 1.0f;
+    surface.environmentCoefficient = 0.10f;
+    surface.iblDiffuseIntensity = 0.10f;
+    surface.iblSpecularIntensity = 0.16f;
+    surface.shadowReceiveStrength = 0.0f; // 現在、ステージ用のシャドウマップのパスは無い。
+    surface.normalDetailStrength = normalDetail;
+    surface.normalDetailScale = normalDetailScale;
+    object.SetSurfaceMaterial(surface);
+    object.ClearPointLight();
     object.Update();
     // Updateは全体のライト方向をコピーする。行列がそろった後で、このオブジェクトの
     // キーライトだけを上書きする。アクターと影用のカメラは変えない。
-    object.SetDirectionalLightDirection({-0.40f, -0.55f, 0.80f});
-    object.SetInsensity(lightIntensity);
+    object.SetDirectionalLight({-0.40f, -0.55f, 0.80f}, lightIntensity);
 }
 
 /// @brief ブロックの表面描画用オブジェクトを作成する。
@@ -115,11 +118,9 @@ uint32_t Stage::DrawSurfaceFloor(const stagesurface::Settings& settings, const m
     surfaceFloor_->SetTransform({{(maxX - minX) * 0.5f, (maxY - minY) * 0.5f, 1.0f},
                                  {0.0f, 0.0f, 0.0f},
                                  {(minX + maxX) * 0.5f, (minY + maxY) * 0.5f, settings.floorDepth}});
+    const bool detail = settings.floorDetail > 0.0f;
     ApplySurfaceMaterial(*surfaceFloor_, settings.floorColor, settings.floorMetallic, settings.floorRoughness,
-                         settings.floorLightIntensity);
-    if (settings.floorDetail > 0.0f) {
-        surfaceFloor_->SetNormalDetail(settings.floorDetail, 120.0f);
-    }
+                         settings.floorLightIntensity, detail ? settings.floorDetail : 0.0f, detail ? 120.0f : 1.0f);
     if (settings.floorLocalLight) {
         surfaceFloor_->SetPointLight({lightPosition.x, lightPosition.y, -settings.floorLocalHeight},
                                      {settings.floorLightColor.x, settings.floorLightColor.y, settings.floorLightColor.z},

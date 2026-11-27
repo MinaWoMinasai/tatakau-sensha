@@ -303,7 +303,7 @@ void NeonSkinnedPreview::Draw()
     }
     myEngine::RuntimeProfiler::GpuScope gpuScope("Neon Character");
     if (neonMode_) {
-        renderer_.Draw(*model_, object_->GetTransformationResource()->GetGPUVirtualAddress(), GetCameraPosition());
+        renderer_.Draw(*model_, object_->GetTransformationAddress(), GetCameraPosition());
         myEngine::StartupTrace::Count("neon_preview.neon_draws");
     } else {
         object_->DrawSkinned(*model_);

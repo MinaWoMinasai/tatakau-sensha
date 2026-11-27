@@ -156,7 +156,7 @@ public:
     void SetSubmeshFeatureDistanceMasks(const std::vector<std::optional<uint32_t>>& srvIndices);
 
     // transformationCbvはObject3d::Update()等で更新済みのTransformationMatrix(WithShadow)を指す。
-    // 例: object.GetTransformationResource()->GetGPUVirtualAddress()。World / WVPは再計算しない。
+    // 例: object.GetTransformationAddress()。World / WVPは再計算しない。
     // cameraWorldPositionはそのTransformを作成したCamera / DebugCameraのワールド位置。
     // Render Target / Viewportは変更しない。後続パスは自身のRoot Signature / PSO等を再Bindする。
     // Renderer / Model / Transform CBはGPU実行完了まで保持し、途中で内容を上書きしないこと。
