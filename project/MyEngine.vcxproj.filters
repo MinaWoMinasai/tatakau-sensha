@@ -1,953 +1,1241 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <None Include="resources\effects\hit_spark.json">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="resources\configs\gameText.json">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="resources\levels\level_test.json">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="resources\projects\default.project.json">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="resources\levels\prefab_dictionary.json">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="resources\levels\ai_edit_prompt_template.md">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="resources\levels\ai_balance_handoff.md">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="tools\blender\export_level_test.py">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="tools\blender\import_level_test.py">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="tools\blender\README.md">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="tools\level_aiditor\level_aiditor.py">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="tools\level_aiditor\README.md">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="resources\shaders\ObjectPostComposite.PS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-	<None Include="resources\shaders\Random.PS.hlsl">
-	  <Filter>DirectX\shaders</Filter>
-	</None>
-    <None Include="resources\shaders\ObjectPostBloomAdd.PS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-    <Filter Include="ソース ファイル">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    <Filter Include="game">
+      <UniqueIdentifier>{33b49514-bf7e-62f3-fdc7-1b0798f2443a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ヘッダー ファイル">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    <Filter Include="game\collision">
+      <UniqueIdentifier>{6763c2d2-c0c8-1839-ebe7-066085f9a438}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    <Filter Include="game\debug">
+      <UniqueIdentifier>{51070fa2-4135-849a-afd3-7565e758a4b0}</UniqueIdentifier>
     </Filter>
-    <Filter Include="imgui">
-      <UniqueIdentifier>{ec9f3dc1-7844-4f4d-ad84-4dc97c202047}</UniqueIdentifier>
+    <Filter Include="game\debug\session">
+      <UniqueIdentifier>{c5a0f5a1-9ac2-e59a-6924-9225a512f9c6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX">
-      <UniqueIdentifier>{6ebd44cc-603e-47aa-9354-5b70040d4f24}</UniqueIdentifier>
+    <Filter Include="game\demo">
+      <UniqueIdentifier>{dbe934c4-f543-6ad5-f036-0689736e08e9}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX\engine">
-      <UniqueIdentifier>{91d91a2e-7345-4ec1-b88d-7331b3c7529f}</UniqueIdentifier>
+    <Filter Include="game\editor">
+      <UniqueIdentifier>{c366504a-4f44-6006-4c43-0d8db8eca682}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX\shaders">
-      <UniqueIdentifier>{8c95a2c1-0d8f-4727-a162-c383bb65cd3b}</UniqueIdentifier>
+    <Filter Include="game\editor\session">
+      <UniqueIdentifier>{3cf12f21-b609-a9f5-f3e1-e7f449cf109a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Game">
-      <UniqueIdentifier>{c5c2c58f-7451-4494-b172-0870f49cec55}</UniqueIdentifier>
+    <Filter Include="game\effects">
+      <UniqueIdentifier>{7de206b0-ddcb-69cb-5df1-da265c9cbc2a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX\engine\2d">
-      <UniqueIdentifier>{65e96b40-d19a-4d3b-b8e0-db49bc8769f0}</UniqueIdentifier>
+    <Filter Include="game\effects\session">
+      <UniqueIdentifier>{1af7b9eb-ec87-d982-b8f8-405538183205}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX\engine\3d">
-      <UniqueIdentifier>{07fd8102-ae11-479c-af6e-ddcd77b0d043}</UniqueIdentifier>
+    <Filter Include="game\encounter">
+      <UniqueIdentifier>{5fb2bcc5-7b4e-9e49-848d-940d6225f83f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX\engine\audio">
-      <UniqueIdentifier>{cec9acb5-e141-4da2-8ed7-2bae2292c7b8}</UniqueIdentifier>
+    <Filter Include="game\enemy">
+      <UniqueIdentifier>{15323195-5caf-fc6d-0151-95a67f3ff6e3}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX\engine\calc">
-      <UniqueIdentifier>{41dcb063-345e-4400-8d5d-4ede16902d8b}</UniqueIdentifier>
+    <Filter Include="game\enemy\actor">
+      <UniqueIdentifier>{12c5f379-f9ac-c7c7-77c9-6c03d138d29a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX\engine\common">
-      <UniqueIdentifier>{6b34fc79-2c6c-4041-8399-089e894b87c4}</UniqueIdentifier>
+    <Filter Include="game\enemy\visual">
+      <UniqueIdentifier>{bb7ff2ba-dd13-f508-e357-504d061c99b4}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX\engine\debugCamera">
-      <UniqueIdentifier>{eed5fa8f-5ce9-428e-a182-b0458ef1ce63}</UniqueIdentifier>
+    <Filter Include="game\exp">
+      <UniqueIdentifier>{6bb7fd68-e9d5-0595-0134-efb0a4cf481f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX\engine\dump">
-      <UniqueIdentifier>{f2ddf850-220b-43ac-ab4c-6360b60b4a99}</UniqueIdentifier>
+    <Filter Include="game\flow">
+      <UniqueIdentifier>{51648ba2-a09a-a2b5-2ef3-9fe1195c3c3d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX\engine\easing">
-      <UniqueIdentifier>{c21eb4e1-0d5b-470a-a702-ac486865b45e}</UniqueIdentifier>
+    <Filter Include="game\level">
+      <UniqueIdentifier>{00d258ca-9607-0377-e12e-34be7fdd1f2b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX\engine\input">
-      <UniqueIdentifier>{4e4c84af-b306-40bc-bc52-3677d7368fa8}</UniqueIdentifier>
+    <Filter Include="game\mapchip">
+      <UniqueIdentifier>{9fc6410f-9fc4-8672-6a5a-cfeb43447a0d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX\engine\struct">
-      <UniqueIdentifier>{a0317ee1-1bae-4fb8-bd52-6aa237e53633}</UniqueIdentifier>
+    <Filter Include="game\modules">
+      <UniqueIdentifier>{67e8f790-4446-6b92-d0c8-440a51b2447c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\player">
+      <UniqueIdentifier>{7e0101c8-9b5d-c850-9512-9cff849bf854}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\player\actor">
+      <UniqueIdentifier>{9a52282a-8cb7-3cf7-4ba7-d88d54245129}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\player\combat">
+      <UniqueIdentifier>{68a78e6e-a938-3a91-8d3b-29a491abaf7c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\player\editor">
+      <UniqueIdentifier>{95b6ad19-8696-d819-0a52-174d040ae93e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\player\progression">
+      <UniqueIdentifier>{d17e5275-d83d-5ef4-ad16-ce4d66dfcf30}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\player\ui">
+      <UniqueIdentifier>{e2c71951-1ed0-c19b-8f85-116b0f236509}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\render">
+      <UniqueIdentifier>{b8842d4c-a60e-0217-210b-5df33cfcb183}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\render\neon">
+      <UniqueIdentifier>{edaddbcc-7240-6e6e-2711-f734cc52ebf7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\render\session">
+      <UniqueIdentifier>{cdd46f7e-51d2-eee3-633e-88660d0d07d0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\render\settings">
+      <UniqueIdentifier>{2dee8a48-7cbb-a618-410c-62001738745d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\run">
+      <UniqueIdentifier>{21790694-8c50-09c1-e5c1-35f8db4fd5f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\run\hero">
+      <UniqueIdentifier>{d2c9b10b-e14c-b030-69eb-9322539b9ab8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\run\session">
+      <UniqueIdentifier>{e77139dc-f2cd-f9ed-9e1b-6ac5bd778a2c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\scene">
+      <UniqueIdentifier>{294539a5-5845-00bc-6715-55dc00faa7c5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\session">
+      <UniqueIdentifier>{19054fb2-6f6d-8999-968f-ffa0f1e746a7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\session\state">
+      <UniqueIdentifier>{1d8ba5ea-0416-9a28-8e6f-d7377ed8f6fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\ui">
+      <UniqueIdentifier>{72fd3a12-1449-f8f7-6cc1-45cff530983d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\ui\session">
+      <UniqueIdentifier>{d368fa6f-250b-f3e6-79dc-4c90f982ed6b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\weapon">
+      <UniqueIdentifier>{fb56e58d-a501-8844-704b-f8c9716e2c35}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources">
+      <UniqueIdentifier>{82985fcb-63f1-0734-48ab-6a61e9c6e4da}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\configs">
+      <UniqueIdentifier>{817d3a87-3184-224c-4b33-f3147bc2bd39}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\effects">
+      <UniqueIdentifier>{49eae5fa-b6c2-d93e-78fd-0bd21ed8cf29}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\levels">
+      <UniqueIdentifier>{5a06e534-3f48-5328-bf9c-3be70c8a107b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\maps">
+      <UniqueIdentifier>{085bc0ee-1af3-1f1a-b8c3-34c9993cd9e8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\models">
+      <UniqueIdentifier>{15d685eb-9721-8ad8-eb7c-57363c80e610}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\models\neon_hologram">
+      <UniqueIdentifier>{5169dd74-db2d-73c9-de67-c9a40358798f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\projects">
+      <UniqueIdentifier>{2c9bc2e8-0455-5862-608b-f806a7a3fc08}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\shaders">
+      <UniqueIdentifier>{2171aad3-1cb4-868f-a77e-9f53123656e6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tools">
+      <UniqueIdentifier>{2a8c1d1d-0c65-20f1-056b-ced9059e44b2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tools\blender">
+      <UniqueIdentifier>{4f642e4a-8f29-150f-e15c-cd7310befb1d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tools\level_aiditor">
+      <UniqueIdentifier>{f1934abd-bbb6-51a7-a611-a2681023e9c2}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="game\collision\Collider.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>game\collision</Filter>
     </ClCompile>
     <ClCompile Include="game\collision\CollisionConfig.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>game\collision</Filter>
     </ClCompile>
     <ClCompile Include="game\collision\CollisionManager.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>game\collision</Filter>
     </ClCompile>
     <ClCompile Include="game\collision\CombatCollisionRules.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>game\collision</Filter>
     </ClCompile>
-    <ClCompile Include="game\enemy\actor\Enemy.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\debug\GameplayScenarioSession.cpp">
+      <Filter>game\debug</Filter>
     </ClCompile>
-    <ClCompile Include="game\mapchip\MapChip.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\debug\NeonDissolvePreviewController.cpp">
+      <Filter>game\debug</Filter>
     </ClCompile>
-    <ClCompile Include="game\player\actor\AttackController.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\debug\NeonPreviewAnimations.cpp">
+      <Filter>game\debug</Filter>
     </ClCompile>
-    <ClCompile Include="game\player\actor\Bullet.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\debug\NeonShowcaseCapture.cpp">
+      <Filter>game\debug</Filter>
     </ClCompile>
-    <ClCompile Include="game\player\actor\BulletManager.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\debug\NeonSkinnedPreview.cpp">
+      <Filter>game\debug</Filter>
     </ClCompile>
-    <ClCompile Include="game\player\actor\Player.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\debug\session\CombatValidation.cpp">
+      <Filter>game\debug\session</Filter>
     </ClCompile>
-    <ClCompile Include="game\player\actor\PlayerVisuals.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\debug\session\DepthValidation.cpp">
+      <Filter>game\debug\session</Filter>
     </ClCompile>
-    <ClCompile Include="game\player\actor\PlayerUiHelpers.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\debug\session\ExperienceValidation.cpp">
+      <Filter>game\debug\session</Filter>
     </ClCompile>
-    <ClCompile Include="game\player\actor\PlayerDrone.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\debug\session\GameplayScenarioRunner.cpp">
+      <Filter>game\debug\session</Filter>
     </ClCompile>
-    <ClCompile Include="game\ui\NeonProgressBar.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\debug\session\PerformanceMonitor.cpp">
+      <Filter>game\debug\session</Filter>
     </ClCompile>
-    <ClCompile Include="game\ui\NeonSegmentedBar.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\debug\session\RouteReplay.cpp">
+      <Filter>game\debug\session</Filter>
     </ClCompile>
-    <ClCompile Include="game\ui\NeonTextEffect.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\debug\session\SpecialValidation.cpp">
+      <Filter>game\debug\session</Filter>
     </ClCompile>
-    <ClCompile Include="game\ui\TankButtonUI.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\demo\TitleDemoController.cpp">
+      <Filter>game\demo</Filter>
     </ClCompile>
-    <ClCompile Include="game\player\actor\Stage.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\editor\ExpeditionContentEditor.cpp">
+      <Filter>game\editor</Filter>
     </ClCompile>
-    <ClCompile Include="game\scene\Fade.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\editor\ExpeditionMapEditor.cpp">
+      <Filter>game\editor</Filter>
     </ClCompile>
-    <ClCompile Include="game\scene\GameScene.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\editor\ExpeditionRoomEditor.cpp">
+      <Filter>game\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="game\editor\session\ClassConfigWatcher.cpp">
+      <Filter>game\editor\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\editor\session\ExpeditionAuthoring.cpp">
+      <Filter>game\editor\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\editor\session\ExpeditionBalanceEditor.cpp">
+      <Filter>game\editor\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\editor\session\GameplayEditor.cpp">
+      <Filter>game\editor\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\editor\session\GameplaySettings.cpp">
+      <Filter>game\editor\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\editor\SurvivorTuningPanel.cpp">
+      <Filter>game\editor</Filter>
     </ClCompile>
     <ClCompile Include="game\effects\ScreenEffectDirector.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>game\effects</Filter>
     </ClCompile>
-    <ClCompile Include="game\modules\BuiltInGameModule.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\effects\session\CombatEffects.cpp">
+      <Filter>game\effects\session</Filter>
     </ClCompile>
-    <ClCompile Include="game\modules\GameModuleBootstrap.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\effects\session\PlayerAttackEffects.cpp">
+      <Filter>game\effects\session</Filter>
     </ClCompile>
-    <ClCompile Include="game\scene\TitleScene.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\encounter\DepthEncounter.cpp">
+      <Filter>game\encounter</Filter>
     </ClCompile>
-    <ClCompile Include="game\scene\Game.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="game\enemy\actor\Enemy.cpp">
+      <Filter>game\enemy\actor</Filter>
+    </ClCompile>
+    <ClCompile Include="game\enemy\actor\Enemy.NeonDepth.cpp">
+      <Filter>game\enemy\actor</Filter>
+    </ClCompile>
+    <ClCompile Include="game\enemy\visual\NeonBossVisual.cpp">
+      <Filter>game\enemy\visual</Filter>
+    </ClCompile>
+    <ClCompile Include="game\enemy\visual\NeonDepthEffects.cpp">
+      <Filter>game\enemy\visual</Filter>
     </ClCompile>
     <ClCompile Include="game\exp\EnemyManager.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>game\exp</Filter>
     </ClCompile>
     <ClCompile Include="game\exp\ExpEnemy.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>game\exp</Filter>
+    </ClCompile>
+    <ClCompile Include="game\flow\CombatFlow.cpp">
+      <Filter>game\flow</Filter>
+    </ClCompile>
+    <ClCompile Include="game\flow\CombatTutorial.cpp">
+      <Filter>game\flow</Filter>
     </ClCompile>
     <ClCompile Include="game\level\LevelLoader.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>game\level</Filter>
     </ClCompile>
+    <ClCompile Include="game\level\LevelRuntime.cpp">
+      <Filter>game\level</Filter>
+    </ClCompile>
+    <ClCompile Include="game\mapchip\MapChip.cpp">
+      <Filter>game\mapchip</Filter>
+    </ClCompile>
+    <ClCompile Include="game\modules\BuiltInGameModule.cpp">
+      <Filter>game\modules</Filter>
+    </ClCompile>
+    <ClCompile Include="game\modules\GameModuleBootstrap.cpp">
+      <Filter>game\modules</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\actor\AttackController.cpp">
+      <Filter>game\player\actor</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\actor\Bullet.cpp">
+      <Filter>game\player\actor</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\actor\BulletManager.cpp">
+      <Filter>game\player\actor</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\actor\Player.cpp">
+      <Filter>game\player\actor</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\actor\PlayerDrone.cpp">
+      <Filter>game\player\actor</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\actor\PlayerUiHelpers.cpp">
+      <Filter>game\player\actor</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\actor\PlayerVisuals.cpp">
+      <Filter>game\player\actor</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\actor\Stage.cpp">
+      <Filter>game\player\actor</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\combat\PlayerWeapons.cpp">
+      <Filter>game\player\combat</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\editor\PlayerClassEditor.cpp">
+      <Filter>game\player\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\PlayerClassCatalog.cpp">
+      <Filter>game\player</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\progression\PlayerProgression.cpp">
+      <Filter>game\player\progression</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\ui\PlayerEvolution.cpp">
+      <Filter>game\player\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="game\player\ui\PlayerHud.cpp">
+      <Filter>game\player\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="game\render\NeonProjectileRenderer.cpp">
+      <Filter>game\render</Filter>
+    </ClCompile>
+    <ClCompile Include="game\render\neon\NeonGridGeometry.cpp">
+      <Filter>game\render\neon</Filter>
+    </ClCompile>
+    <ClCompile Include="game\render\neon\NeonGridRenderer.cpp">
+      <Filter>game\render\neon</Filter>
+    </ClCompile>
+    <ClCompile Include="game\render\neon\NeonSkinnedRenderer.cpp">
+      <Filter>game\render\neon</Filter>
+    </ClCompile>
+    <ClCompile Include="game\render\session\ActorNeonRenderer.cpp">
+      <Filter>game\render\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\render\session\BossPresentation.cpp">
+      <Filter>game\render\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\render\session\GameplayRenderer.cpp">
+      <Filter>game\render\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\render\session\ResourceNeonRenderer.cpp">
+      <Filter>game\render\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\render\session\StageNeonRenderer.cpp">
+      <Filter>game\render\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\render\settings\RunVisualSettings.cpp">
+      <Filter>game\render\settings</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\hero\ExpeditionHeroAbilities.cpp">
+      <Filter>game\run\hero</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\hero\HeroAbilityCore.cpp">
+      <Filter>game\run\hero</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\hero\HeroBarrier.cpp">
+      <Filter>game\run\hero</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\hero\HeroSubWeapons.cpp">
+      <Filter>game\run\hero</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\ArenaRunController.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\ExpeditionBossDirector.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\ExpeditionBuildSelection.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\ExpeditionController.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\ExpeditionExperience.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\ExpeditionMapController.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\ExpeditionOverdrive.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorAudio.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorLootField.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorPickups.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunAudio.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunAutoTest.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunBase.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunCinematic.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunController.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunElites.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunHeals.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunHero.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunLoadout.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunLoot.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunRest.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunResult.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunScreens.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunShop.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunSpawns.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunUnlock.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunWaves.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\scene\Fade.cpp">
+      <Filter>game\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="game\scene\Game.cpp">
+      <Filter>game\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="game\scene\GameScene.cpp">
+      <Filter>game\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="game\scene\TitleScene.cpp">
+      <Filter>game\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="game\session\CombatFramePipeline.cpp">
+      <Filter>game\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\session\GameplayQueries.cpp">
+      <Filter>game\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\session\GameSession.cpp">
+      <Filter>game\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\session\GameWorld.cpp">
+      <Filter>game\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\session\SessionBootstrap.cpp">
+      <Filter>game\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\NeonProgressBar.cpp">
+      <Filter>game\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\NeonSegmentedBar.cpp">
+      <Filter>game\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\NeonTextEffect.cpp">
+      <Filter>game\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\GameplayHud.cpp">
+      <Filter>game\ui\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorChoiceHud.cpp">
+      <Filter>game\ui\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorDamageNumbers.cpp">
+      <Filter>game\ui\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorItemScreen.cpp">
+      <Filter>game\ui\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorLoadoutHud.cpp">
+      <Filter>game\ui\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorWeaponHud.cpp">
+      <Filter>game\ui\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\TankButtonUI.cpp">
+      <Filter>game\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\TankRewardCard.cpp">
+      <Filter>game\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\TankRewardPreviewRenderer.cpp">
+      <Filter>game\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="resources\shaders\BloomPyramidDownsample.PS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\BloomPyramidExtract.PS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\BloomPyramidUpsample.PS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\ModelParticle.PS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\ModelParticle.VS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\NeonSkinned.PS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\NeonSkinned.VS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\NeonSkinnedGeometry.PS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\NeonSkinnedOutline.PS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\NeonSkinnedOutline.VS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\NeonSkinnedStencilClear.PS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\NeonSkinnedStencilClear.VS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
     <FxCompile Include="resources\shaders\Object3d.PS.hlsl">
-      <Filter>DirectX\shaders</Filter>
+      <Filter>resources\shaders</Filter>
     </FxCompile>
     <FxCompile Include="resources\shaders\Object3d.VS.hlsl">
-      <Filter>DirectX\shaders</Filter>
+      <Filter>resources\shaders</Filter>
     </FxCompile>
     <FxCompile Include="resources\shaders\Particle.PS.hlsl">
-      <Filter>DirectX\shaders</Filter>
+      <Filter>resources\shaders</Filter>
     </FxCompile>
     <FxCompile Include="resources\shaders\Particle.VS.hlsl">
-      <Filter>DirectX\shaders</Filter>
+      <Filter>resources\shaders</Filter>
     </FxCompile>
-    <FxCompile Include="resources\shaders\ModelParticle.PS.hlsl" />
-    <FxCompile Include="resources\shaders\ModelParticle.VS.hlsl" />
-    <FxCompile Include="resources\shaders\Shadow.VS.hlsl" />
-    <FxCompile Include="resources\shaders\Shadow.PS.hlsl" />
-    <FxCompile Include="resources\shaders\Trail.PS.hlsl" />
-    <FxCompile Include="resources\shaders\Trail.VS.hlsl" />
+    <FxCompile Include="resources\shaders\Shadow.PS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\Shadow.VS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\SkinningObject3d.VS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\SkinningShadow.VS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\Trail.PS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\Trail.VS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game\collision\Collider.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\collision</Filter>
     </ClInclude>
     <ClInclude Include="game\collision\CollisionConfig.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\collision</Filter>
     </ClInclude>
     <ClInclude Include="game\collision\CollisionManager.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\collision</Filter>
     </ClInclude>
     <ClInclude Include="game\collision\CombatCollisionRules.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\collision</Filter>
     </ClInclude>
-    <ClInclude Include="game\enemy\actor\Enemy.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\debug\GameplayScenario.h">
+      <Filter>game\debug</Filter>
     </ClInclude>
-    <ClInclude Include="game\enemy\actor\PrototypeBossCombat.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\debug\GameplayScenarioSession.h">
+      <Filter>game\debug</Filter>
     </ClInclude>
-    <ClInclude Include="game\mapchip\MapChip.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\player\actor\AttackController.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\player\actor\Bullet.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\player\actor\BulletManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\player\actor\Player.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\player\actor\PlayerTargets.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\player\actor\PlayerUiHelpers.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\player\TankRunModifiers.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\TankRunCopy.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\TankExpeditionAudio.h" />
-    <ClInclude Include="game\run\TankExpeditionEncounters.h" />
-    <ClInclude Include="game\player\TankExpeditionLoadout.h" />
-    <ClInclude Include="game\exp\ExpEnemyCombatCycle.h" />
-    <ClInclude Include="game\exp\ExpEnemyNavigation.h" />
-    <ClInclude Include="game\run\TankExpeditionDirector.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\TankRunDirector.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\TankCardId.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\player\actor\PlayerDrone.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\ui\NeonProgressBar.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\ui\NeonSegmentedBar.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\ui\NeonTextEffect.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\ui\TankButtonUI.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\player\actor\Stage.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\scene\Fade.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\scene\GameScene.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\effects\ScreenEffectDirector.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\scene\TitleScene.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\scene\Game.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\exp\EnemyManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\exp\ExpEnemy.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\modules\BuiltInGameModule.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\modules\GameModuleBootstrap.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\level\LevelLoader.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="resources\shaders\Object3d.hlsli">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-    <None Include="resources\shaders\Particle.hlsli">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-    <None Include="resources\shaders\ModelParticle.hlsli" />
-    <None Include="resources\shaders\Trail.hlsli" />
-  </ItemGroup>
-  <ItemGroup>
-  </ItemGroup>  <ItemGroup>
-    <ClInclude Include="game\run\TankExpeditionBalance.h" />
-    <ClInclude Include="game\run\TankExpeditionTutorial.h" />
-    <None Include="resources\configs\tankExpeditionBalance.json" />
-    <None Include="resources\configs\survivor_proto.json" />
-    <None Include="resources\maps\expedition_outskirts.csv" />
-    <None Include="resources\maps\survivor_arena.csv" />
-    <None Include="resources\projects\tank_game.project.json" />
-    <None Include="resources\projects\tank_survivor.project.json" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="game\ui\TankRewardCard.cpp" />
-    <ClInclude Include="game\ui\TankRewardCard.h" />
-    <ClInclude Include="game\ui\TankRewardCardDemo.h" />
-    <ClInclude Include="game\run\TankBuildStyle.h" />
-    <ClCompile Include="game\editor\ExpeditionRoomEditor.cpp" />
-    <ClCompile Include="game\editor\ExpeditionMapEditor.cpp" />
-    <ClCompile Include="game\editor\ExpeditionContentEditor.cpp" />
-    <ClCompile Include="game\editor\SurvivorTuningPanel.cpp" />
-    <ClInclude Include="game\run\TankExpeditionMap.h" />
-    <ClInclude Include="game\run\TankExpeditionTransition.h" />
-    <ClInclude Include="game\run\TankGuidedCombatTutorial.h" />
-    <ClInclude Include="game\exp\ExpEnemyMagazineCycle.h" />
-    <ClInclude Include="game\enemy\actor\RivalBossCombat.h" />
-    <ClInclude Include="game\run\TankExpeditionRooms.h" />
-    <ClInclude Include="game\run\TankExpeditionContent.h" />
-    <ClInclude Include="game\run\SurvivorSpawnConfig.h" />
-    <ClInclude Include="game\run\SurvivorForms.h" />
-    <ClInclude Include="game\run\SurvivorParts.h" />
-    <ClInclude Include="game\run\SurvivorWeapons.h" />
-    <ClInclude Include="game\run\SurvivorHeroes.h" />
-    <ClInclude Include="game\run\hero\HeroAbilityCore.h" />
-    <ClInclude Include="game\run\hero\ExpeditionHeroAbilities.h" />
-    <ClInclude Include="game\run\SurvivorShop.h" />
-    <ClInclude Include="game\run\SurvivorSubWeapons.h" />
-    <ClInclude Include="game\run\SurvivorHeroSkills.h" />
-    <ClInclude Include="game\run\SurvivorHeroSave.h" />
-    <ClInclude Include="game\run\SurvivorLoot.h" />
-    <ClInclude Include="game\run\SurvivorSave.h" />
-    <ClInclude Include="game\run\SurvivorCrafting.h" />
-    <ClInclude Include="game\run\SurvivorAudioConfig.h" />
-    <ClInclude Include="game\run\session\SurvivorAudio.h" />
-    <ClInclude Include="game\editor\ExpeditionRoomEditor.h" />
-    <ClInclude Include="game\editor\ExpeditionMapEditor.h" />
-    <ClInclude Include="game\editor\ExpeditionContentEditor.h" />
-    <ClInclude Include="game\editor\SurvivorTuningPanel.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="game\ui\TankRewardPreviewRenderer.cpp" />
-    <ClCompile Include="game\render\NeonProjectileRenderer.cpp" />
-    <ClCompile Include="game\render\neon\NeonSkinnedRenderer.cpp" />
-    <ClCompile Include="game\render\neon\NeonGridGeometry.cpp" />
-    <ClCompile Include="game\render\neon\NeonGridRenderer.cpp" />
-    <ClInclude Include="game\render\NeonProjectileRenderer.h" />
-    <ClInclude Include="game\render\neon\NeonCharacterStyle.h" />
-    <ClInclude Include="game\render\neon\NeonDissolve.h" />
-    <ClInclude Include="game\render\neon\NeonSkinnedRenderer.h" />
-    <ClInclude Include="game\render\neon\NeonGridGeometry.h" />
-    <ClInclude Include="game\render\neon\NeonGridRenderer.h" />
-    <ClInclude Include="game\ui\TankRewardPreviewRenderer.h" />
-    <ClInclude Include="game\ui\TankCombatNeonGeometry.h" />
-    <ClInclude Include="game\player\TankCombatStyleBalance.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="game\debug\NeonSkinnedPreview.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClInclude Include="game\debug\NeonSkinnedPreview.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClCompile Include="game\debug\NeonDissolvePreviewController.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClInclude Include="game\debug\NeonDissolvePreviewController.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\debug</Filter>
     </ClInclude>
-    <None Include="resources\shaders\NeonDissolve.hlsli">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-    <ClCompile Include="game\debug\NeonShowcaseCapture.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClInclude Include="game\debug\NeonShowcaseCapture.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClCompile Include="game\enemy\visual\NeonBossVisual.cpp" />
-    <ClInclude Include="game\enemy\visual\NeonBossVisual.h" />
-    <ClInclude Include="game\flow\CombatFlowController.h" />
-    <ClInclude Include="game\enemy\visual\BossVisualBridge.h" />
-    <ClInclude Include="game\player\PlayerDerivedStats.h" />
-    <ClInclude Include="game\player\PlayerMovement.h" />
-    <ClInclude Include="game\debug\GameplayScenario.h" />
-    <ClInclude Include="game\debug\GameplayScenarioSession.h" />
-    <ClCompile Include="game\debug\GameplayScenarioSession.cpp" />
-    <ClInclude Include="game\enemy\visual\NeonBossVisualState.h" />
-    <ClCompile Include="game\debug\NeonPreviewAnimations.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClInclude Include="game\debug\NeonPreviewAnimations.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\debug</Filter>
     </ClInclude>
-    <None Include="resources\models\neon_hologram\AvatarSample_B.glb">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="resources\models\neon_hologram\README.md">
-      <Filter>リソース ファイル</Filter>
-    </None>
-    <None Include="resources\shaders\NeonSkinned.hlsli">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-    <None Include="resources\shaders\NeonSkinnedSkinning.hlsli">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-    <None Include="resources\shaders\NeonSkinnedSurface.hlsli">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-    <None Include="resources\shaders\NeonSkinnedBody.hlsli">
-      <Filter>DirectX\shaders</Filter>
-    </None>
-    <FxCompile Include="resources\shaders\NeonSkinnedGeometry.PS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="resources\shaders\NeonSkinnedStencilClear.PS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="resources\shaders\NeonSkinnedOutline.VS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="resources\shaders\NeonSkinnedOutline.PS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="resources\shaders\NeonSkinnedStencilClear.VS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="resources\shaders\NeonSkinned.VS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="resources\shaders\NeonSkinned.PS.hlsl">
-      <Filter>DirectX\shaders</Filter>
-    </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="game\player\PlayerClassCatalog.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClInclude Include="game\player\PlayerClassConfig.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\debug\NeonShowcaseCapture.h">
+      <Filter>game\debug</Filter>
     </ClInclude>
-    <ClInclude Include="game\player\PlayerClassCatalog.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="resources\shaders\BloomPyramidCommon.hlsli"><Filter>DirectX\shaders</Filter></None>
-    <FxCompile Include="resources\shaders\BloomPyramidExtract.PS.hlsl"><Filter>DirectX\shaders</Filter></FxCompile>
-    <FxCompile Include="resources\shaders\BloomPyramidDownsample.PS.hlsl"><Filter>DirectX\shaders</Filter></FxCompile>
-    <FxCompile Include="resources\shaders\BloomPyramidUpsample.PS.hlsl"><Filter>DirectX\shaders</Filter></FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="game\debug\session\PerformanceMonitor.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\session\SessionBootstrap.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\session\CombatFramePipeline.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\flow\CombatTutorial.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\flow\CombatFlow.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\editor\session\ClassConfigWatcher.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\session\GameplayQueries.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\render\session\GameplayRenderer.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\effects\session\CombatEffects.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\render\session\StageNeonRenderer.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\effects\session\PlayerAttackEffects.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\render\session\ActorNeonRenderer.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\render\session\ResourceNeonRenderer.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\level\LevelRuntime.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\editor\session\GameplaySettings.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\ui\session\GameplayHud.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\ui\session\SurvivorChoiceHud.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\ui\session\SurvivorLoadoutHud.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\ui\session\SurvivorDamageNumbers.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\ui\session\SurvivorItemScreen.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\ui\session\SurvivorWeaponHud.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\editor\session\GameplayEditor.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\demo\TitleDemoController.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\ArenaRunController.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunController.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunAutoTest.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunCinematic.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunLoadout.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunResult.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunSpawns.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorPickups.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorLootField.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunLoot.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunHeals.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunBase.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunRest.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\hero\HeroSubWeapons.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\hero\HeroAbilityCore.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\hero\HeroBarrier.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\hero\ExpeditionHeroAbilities.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunHero.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunWaves.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunShop.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunUnlock.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunScreens.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunElites.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorAudio.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\SurvivorRunAudio.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\render\settings\RunVisualSettings.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\ExpeditionController.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\ExpeditionMapController.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\ExpeditionBuildSelection.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\ExpeditionExperience.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\ExpeditionOverdrive.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\run\session\ExpeditionBossDirector.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\editor\session\ExpeditionBalanceEditor.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\editor\session\ExpeditionAuthoring.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\render\session\BossPresentation.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\encounter\DepthEncounter.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\debug\session\CombatValidation.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\debug\session\SpecialValidation.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\debug\session\ExperienceValidation.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\debug\session\GameplayScenarioRunner.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\debug\session\DepthValidation.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\debug\session\RouteReplay.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\session\GameWorld.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\session\GameSession.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="game\debug\session\PerformanceMonitor.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\session\SessionBootstrap.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\session\CombatFramePipeline.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\flow\CombatTutorial.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\flow\CombatFlow.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\editor\session\ClassConfigWatcher.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\session\GameplayQueries.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\render\session\GameplayRenderer.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\effects\session\CombatEffects.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\render\settings\StageSurfaceSettings.h" />
-    <ClInclude Include="game\render\StageSurfaceGeometry.h" />
-    <ClInclude Include="game\render\session\StageNeonRenderer.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\effects\session\PlayerAttackEffects.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\render\session\ActorNeonRenderer.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\render\session\ResourceNeonRenderer.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\level\LevelRuntime.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\editor\session\GameplaySettings.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\ui\session\GameplayHud.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\ui\session\SurvivorChoiceHud.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\ui\session\SurvivorLoadoutHud.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\ui\session\SurvivorDamageNumbers.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\ui\session\SurvivorItemScreen.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\ui\session\SurvivorWeaponHud.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\editor\session\GameplayEditor.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\demo\TitleDemoController.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\session\ArenaRunController.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\session\SurvivorRunController.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\session\SurvivorRunShared.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\session\SurvivorPickups.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\session\SurvivorLootField.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\render\settings\RunVisualSettings.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\session\ExpeditionController.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\session\ExpeditionMapController.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\session\ExpeditionBuildSelection.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\session\ExpeditionExperience.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\session\ExpeditionOverdrive.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\session\ExpeditionBossDirector.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\editor\session\ExpeditionBalanceEditor.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\editor\session\ExpeditionAuthoring.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\render\session\BossPresentation.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\encounter\DepthEncounter.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\debug\NeonSkinnedPreview.h">
+      <Filter>game\debug</Filter>
     </ClInclude>
     <ClInclude Include="game\debug\session\CombatValidation.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\debug\session\SpecialValidation.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\debug\session\ExperienceValidation.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\debug\session\GameplayScenarioRunner.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\debug\session</Filter>
     </ClInclude>
     <ClInclude Include="game\debug\session\DepthValidation.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\debug\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\debug\session\ExperienceValidation.h">
+      <Filter>game\debug\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\debug\session\GameplayScenarioRunner.h">
+      <Filter>game\debug\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\debug\session\PerformanceMonitor.h">
+      <Filter>game\debug\session</Filter>
     </ClInclude>
     <ClInclude Include="game\debug\session\RouteReplay.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\debug\session</Filter>
     </ClInclude>
-    <ClInclude Include="game\session\GameWorld.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\debug\session\SpecialValidation.h">
+      <Filter>game\debug\session</Filter>
     </ClInclude>
-    <ClInclude Include="game\session\GameplayTypes.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\demo\TitleDemoController.h">
+      <Filter>game\demo</Filter>
     </ClInclude>
-    <ClInclude Include="game\session\GameplaySystems.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\editor\ExpeditionContentEditor.h">
+      <Filter>game\editor</Filter>
     </ClInclude>
-    <ClInclude Include="game\session\GameSession.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\editor\ExpeditionMapEditor.h">
+      <Filter>game\editor</Filter>
     </ClInclude>
-    <ClInclude Include="game\session\RunMode.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\editor\ExpeditionRoomEditor.h">
+      <Filter>game\editor</Filter>
     </ClInclude>
-    <ClInclude Include="game\session\TitleDemoStatus.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\editor\session\ClassConfigWatcher.h">
+      <Filter>game\editor\session</Filter>
     </ClInclude>
-    <ClInclude Include="game\session\GameplayHelpers.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\editor\session\ExpeditionAuthoring.h">
+      <Filter>game\editor\session</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="game\player\ui\PlayerHud.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\player\ui\PlayerEvolution.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\player\editor\PlayerClassEditor.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="game\player\ui\PlayerHud.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\editor\session\ExpeditionBalanceEditor.h">
+      <Filter>game\editor\session</Filter>
     </ClInclude>
-    <ClInclude Include="game\player\ui\PlayerHudTarget.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\editor\session\GameplayEditor.h">
+      <Filter>game\editor\session</Filter>
     </ClInclude>
-    <ClInclude Include="game\player\ui\PlayerEvolution.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\editor\session\GameplaySettings.h">
+      <Filter>game\editor\session</Filter>
     </ClInclude>
-    <ClInclude Include="game\player\ui\PlayerEvolutionTarget.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\editor\SurvivorTuningPanel.h">
+      <Filter>game\editor</Filter>
     </ClInclude>
-    <ClInclude Include="game\player\editor\PlayerClassEditor.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\effects\ScreenEffectDirector.h">
+      <Filter>game\effects</Filter>
     </ClInclude>
-    <ClInclude Include="game\player\editor\PlayerClassEditorTarget.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\effects\session\CombatEffects.h">
+      <Filter>game\effects\session</Filter>
     </ClInclude>
-    <ClInclude Include="game\player\ui\PlayerUiState.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\effects\session\PlayerAttackEffects.h">
+      <Filter>game\effects\session</Filter>
     </ClInclude>
-    <ClInclude Include="game\player\ui\PlayerPresentation.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\effects\TankSpecialNeonGeometry.h">
+      <Filter>game\effects</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="game\session\state\TitleDemoState.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\encounter\DepthEncounter.h">
+      <Filter>game\encounter</Filter>
     </ClInclude>
-    <ClInclude Include="game\session\state\RunSessionState.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\enemy\actor\Enemy.h">
+      <Filter>game\enemy\actor</Filter>
     </ClInclude>
-    <ClInclude Include="game\session\state\WorldResources.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\enemy\actor\NeonDepthCombat.h">
+      <Filter>game\enemy\actor</Filter>
     </ClInclude>
-    <ClInclude Include="game\session\state\CombatUiState.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\enemy\actor\NeonDepthConfig.h">
+      <Filter>game\enemy\actor</Filter>
     </ClInclude>
-    <ClInclude Include="game\session\state\NeonPresentationState.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\enemy\actor\NeonDepthFloor.h">
+      <Filter>game\enemy\actor</Filter>
     </ClInclude>
-    <ClInclude Include="game\session\state\ValidationState.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\enemy\actor\PrototypeBossCombat.h">
+      <Filter>game\enemy\actor</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="game\player\combat\PlayerWeapons.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\player\progression\PlayerProgression.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
+    <ClInclude Include="game\enemy\actor\RivalBossCombat.h">
+      <Filter>game\enemy\actor</Filter>
+    </ClInclude>
+    <ClInclude Include="game\enemy\visual\BossVisualBridge.h">
+      <Filter>game\enemy\visual</Filter>
+    </ClInclude>
+    <ClInclude Include="game\enemy\visual\NeonBossVisual.h">
+      <Filter>game\enemy\visual</Filter>
+    </ClInclude>
+    <ClInclude Include="game\enemy\visual\NeonBossVisualState.h">
+      <Filter>game\enemy\visual</Filter>
+    </ClInclude>
+    <ClInclude Include="game\enemy\visual\NeonDepthAnimations.h">
+      <Filter>game\enemy\visual</Filter>
+    </ClInclude>
+    <ClInclude Include="game\enemy\visual\NeonDepthEffectGeometry.h">
+      <Filter>game\enemy\visual</Filter>
+    </ClInclude>
+    <ClInclude Include="game\enemy\visual\NeonDepthEffects.h">
+      <Filter>game\enemy\visual</Filter>
+    </ClInclude>
+    <ClInclude Include="game\enemy\visual\NeonDepthLifecycle.h">
+      <Filter>game\enemy\visual</Filter>
+    </ClInclude>
+    <ClInclude Include="game\enemy\visual\NeonDepthPlacement.h">
+      <Filter>game\enemy\visual</Filter>
+    </ClInclude>
+    <ClInclude Include="game\enemy\visual\NeonDepthPresentation.h">
+      <Filter>game\enemy\visual</Filter>
+    </ClInclude>
+    <ClInclude Include="game\exp\EnemyManager.h">
+      <Filter>game\exp</Filter>
+    </ClInclude>
+    <ClInclude Include="game\exp\ExpEnemy.h">
+      <Filter>game\exp</Filter>
+    </ClInclude>
+    <ClInclude Include="game\exp\ExpEnemyCombatCycle.h">
+      <Filter>game\exp</Filter>
+    </ClInclude>
+    <ClInclude Include="game\exp\ExpEnemyMagazineCycle.h">
+      <Filter>game\exp</Filter>
+    </ClInclude>
+    <ClInclude Include="game\exp\ExpEnemyNavigation.h">
+      <Filter>game\exp</Filter>
+    </ClInclude>
+    <ClInclude Include="game\exp\ExpGuardCombat.h">
+      <Filter>game\exp</Filter>
+    </ClInclude>
+    <ClInclude Include="game\flow\CombatFlow.h">
+      <Filter>game\flow</Filter>
+    </ClInclude>
+    <ClInclude Include="game\flow\CombatFlowController.h">
+      <Filter>game\flow</Filter>
+    </ClInclude>
+    <ClInclude Include="game\flow\CombatTutorial.h">
+      <Filter>game\flow</Filter>
+    </ClInclude>
+    <ClInclude Include="game\level\LevelLoader.h">
+      <Filter>game\level</Filter>
+    </ClInclude>
+    <ClInclude Include="game\level\LevelRuntime.h">
+      <Filter>game\level</Filter>
+    </ClInclude>
+    <ClInclude Include="game\mapchip\MapChip.h">
+      <Filter>game\mapchip</Filter>
+    </ClInclude>
+    <ClInclude Include="game\modules\BuiltInGameModule.h">
+      <Filter>game\modules</Filter>
+    </ClInclude>
+    <ClInclude Include="game\modules\GameModuleBootstrap.h">
+      <Filter>game\modules</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\actor\AttackController.h">
+      <Filter>game\player\actor</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\actor\Bullet.h">
+      <Filter>game\player\actor</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\actor\BulletManager.h">
+      <Filter>game\player\actor</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\actor\Player.h">
+      <Filter>game\player\actor</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\actor\PlayerDrone.h">
+      <Filter>game\player\actor</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\actor\PlayerTargets.h">
+      <Filter>game\player\actor</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\actor\PlayerUiHelpers.h">
+      <Filter>game\player\actor</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\actor\Stage.h">
+      <Filter>game\player\actor</Filter>
+    </ClInclude>
     <ClInclude Include="game\player\combat\PlayerHeat.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\player\combat\PlayerWeapons.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\player\progression\PlayerProgression.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\player\combat</Filter>
     </ClInclude>
     <ClInclude Include="game\player\combat\PlayerSystems.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\player\combat</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\combat\PlayerWeapons.h">
+      <Filter>game\player\combat</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\editor\PlayerClassEditor.h">
+      <Filter>game\player\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\editor\PlayerClassEditorTarget.h">
+      <Filter>game\player\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\PlayerClassCatalog.h">
+      <Filter>game\player</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\PlayerClassConfig.h">
+      <Filter>game\player</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\PlayerDerivedStats.h">
+      <Filter>game\player</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\PlayerMovement.h">
+      <Filter>game\player</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\progression\PlayerProgression.h">
+      <Filter>game\player\progression</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\TankCombatStyleBalance.h">
+      <Filter>game\player</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\TankExpeditionLoadout.h">
+      <Filter>game\player</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\TankRunModifiers.h">
+      <Filter>game\player</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\TankShooterAbilities.h">
+      <Filter>game\player</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\TankSpecialCombat.h">
+      <Filter>game\player</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\ui\PlayerEvolution.h">
+      <Filter>game\player\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\ui\PlayerEvolutionTarget.h">
+      <Filter>game\player\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\ui\PlayerHud.h">
+      <Filter>game\player\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\ui\PlayerHudTarget.h">
+      <Filter>game\player\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\ui\PlayerPresentation.h">
+      <Filter>game\player\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\player\ui\PlayerUiState.h">
+      <Filter>game\player\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\NeonProjectileRenderer.h">
+      <Filter>game\render</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\neon\NeonCharacterStyle.h">
+      <Filter>game\render\neon</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\neon\NeonDissolve.h">
+      <Filter>game\render\neon</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\neon\NeonGridGeometry.h">
+      <Filter>game\render\neon</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\neon\NeonGridRenderer.h">
+      <Filter>game\render\neon</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\neon\NeonSkinnedRenderer.h">
+      <Filter>game\render\neon</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\session\ActorNeonRenderer.h">
+      <Filter>game\render\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\session\BossPresentation.h">
+      <Filter>game\render\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\session\GameplayRenderer.h">
+      <Filter>game\render\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\session\ResourceNeonRenderer.h">
+      <Filter>game\render\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\session\StageNeonRenderer.h">
+      <Filter>game\render\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\settings\RunVisualSettings.h">
+      <Filter>game\render\settings</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\settings\StageSurfaceSettings.h">
+      <Filter>game\render\settings</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\StageSurfaceGeometry.h">
+      <Filter>game\render</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\hero\ExpeditionHeroAbilities.h">
+      <Filter>game\run\hero</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\hero\HeroAbilityCore.h">
+      <Filter>game\run\hero</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\ArenaRunController.h">
+      <Filter>game\run\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\ExpeditionBossDirector.h">
+      <Filter>game\run\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\ExpeditionBuildSelection.h">
+      <Filter>game\run\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\ExpeditionController.h">
+      <Filter>game\run\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\ExpeditionExperience.h">
+      <Filter>game\run\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\ExpeditionMapController.h">
+      <Filter>game\run\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\ExpeditionOverdrive.h">
+      <Filter>game\run\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\SurvivorAudio.h">
+      <Filter>game\run\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\SurvivorLootField.h">
+      <Filter>game\run\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\SurvivorPickups.h">
+      <Filter>game\run\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\SurvivorRunController.h">
+      <Filter>game\run\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\session\SurvivorRunShared.h">
+      <Filter>game\run\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorAudioConfig.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorCrafting.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorForms.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorHeroes.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorHeroSave.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorHeroSkills.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorLoot.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorParts.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorSave.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorShop.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorSpawnConfig.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorSubWeapons.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorWeapons.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankBuildStyle.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankCardId.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankExpeditionAudio.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankExpeditionBalance.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankExpeditionContent.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankExpeditionDirector.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankExpeditionEncounters.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankExpeditionMap.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankExpeditionRooms.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankExpeditionTransition.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankExpeditionTutorial.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankGuidedCombatTutorial.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankRunCopy.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankRunDirector.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankSubmissionValidation.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\TankTutorialCopy.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\scene\Fade.h">
+      <Filter>game\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="game\scene\Game.h">
+      <Filter>game\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="game\scene\GameScene.h">
+      <Filter>game\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="game\scene\GameStartMode.h">
+      <Filter>game\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="game\scene\TitleScene.h">
+      <Filter>game\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\CombatFramePipeline.h">
+      <Filter>game\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\GameplayHelpers.h">
+      <Filter>game\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\GameplayQueries.h">
+      <Filter>game\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\GameplaySystems.h">
+      <Filter>game\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\GameplayTypes.h">
+      <Filter>game\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\GameSession.h">
+      <Filter>game\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\GameWorld.h">
+      <Filter>game\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\RunMode.h">
+      <Filter>game\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\SessionBootstrap.h">
+      <Filter>game\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\state\CombatUiState.h">
+      <Filter>game\session\state</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\state\NeonPresentationState.h">
+      <Filter>game\session\state</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\state\RunSessionState.h">
+      <Filter>game\session\state</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\state\TitleDemoState.h">
+      <Filter>game\session\state</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\state\ValidationState.h">
+      <Filter>game\session\state</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\state\WorldResources.h">
+      <Filter>game\session\state</Filter>
+    </ClInclude>
+    <ClInclude Include="game\session\TitleDemoStatus.h">
+      <Filter>game\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\ColorMath.h">
+      <Filter>game\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\NeonProgressBar.h">
+      <Filter>game\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\NeonSegmentedBar.h">
+      <Filter>game\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\NeonTextEffect.h">
+      <Filter>game\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\GameplayHud.h">
+      <Filter>game\ui\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorChoiceHud.h">
+      <Filter>game\ui\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorDamageNumbers.h">
+      <Filter>game\ui\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorItemScreen.h">
+      <Filter>game\ui\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorLoadoutHud.h">
+      <Filter>game\ui\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorWeaponHud.h">
+      <Filter>game\ui\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\TankButtonUI.h">
+      <Filter>game\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\TankCombatNeonGeometry.h">
+      <Filter>game\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\TankRewardCard.h">
+      <Filter>game\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\TankRewardCardDemo.h">
+      <Filter>game\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\TankRewardPreviewRenderer.h">
+      <Filter>game\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="game\weapon\CombatTypes.h">
+      <Filter>game\weapon</Filter>
+    </ClInclude>
+    <ClInclude Include="game\weapon\WeaponMount.h">
+      <Filter>game\weapon</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="game\player\TankShooterAbilities.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\TankSubmissionValidation.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\run\TankTutorialCopy.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\scene\GameStartMode.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\weapon\WeaponMount.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
+    <None Include="resources\configs\gameText.json">
+      <Filter>resources\configs</Filter>
+    </None>
+    <None Include="resources\configs\screenEffects.json">
+      <Filter>resources\configs</Filter>
+    </None>
+    <None Include="resources\configs\survivor_proto.json">
+      <Filter>resources\configs</Filter>
+    </None>
+    <None Include="resources\configs\tankExpeditionBalance.json">
+      <Filter>resources\configs</Filter>
+    </None>
+    <None Include="resources\effects\hit_spark.json">
+      <Filter>resources\effects</Filter>
+    </None>
+    <None Include="resources\levels\ai_balance_handoff.md">
+      <Filter>resources\levels</Filter>
+    </None>
+    <None Include="resources\levels\ai_edit_prompt_template.md">
+      <Filter>resources\levels</Filter>
+    </None>
+    <None Include="resources\levels\level_test.json">
+      <Filter>resources\levels</Filter>
+    </None>
+    <None Include="resources\levels\prefab_dictionary.json">
+      <Filter>resources\levels</Filter>
+    </None>
+    <None Include="resources\maps\expedition_outskirts.csv">
+      <Filter>resources\maps</Filter>
+    </None>
+    <None Include="resources\maps\survivor_arena.csv">
+      <Filter>resources\maps</Filter>
+    </None>
+    <None Include="resources\models\neon_hologram\AvatarSample_B.glb">
+      <Filter>resources\models\neon_hologram</Filter>
+    </None>
+    <None Include="resources\models\neon_hologram\README.md">
+      <Filter>resources\models\neon_hologram</Filter>
+    </None>
+    <None Include="resources\projects\default.project.json">
+      <Filter>resources\projects</Filter>
+    </None>
+    <None Include="resources\projects\tank_game.project.json">
+      <Filter>resources\projects</Filter>
+    </None>
+    <None Include="resources\projects\tank_survivor.project.json">
+      <Filter>resources\projects</Filter>
+    </None>
+    <None Include="resources\shaders\BloomPyramidCommon.hlsli">
+      <Filter>resources\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\ModelParticle.hlsli">
+      <Filter>resources\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\NeonDissolve.hlsli">
+      <Filter>resources\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\NeonSkinned.hlsli">
+      <Filter>resources\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\NeonSkinnedBody.hlsli">
+      <Filter>resources\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\NeonSkinnedSkinning.hlsli">
+      <Filter>resources\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\NeonSkinnedSurface.hlsli">
+      <Filter>resources\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\Object3d.hlsli">
+      <Filter>resources\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\ObjectPostBloomAdd.PS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\ObjectPostComposite.PS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\Particle.hlsli">
+      <Filter>resources\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\Random.PS.hlsl">
+      <Filter>resources\shaders</Filter>
+    </None>
+    <None Include="resources\shaders\Trail.hlsli">
+      <Filter>resources\shaders</Filter>
+    </None>
+    <None Include="tools\blender\export_level_test.py">
+      <Filter>tools\blender</Filter>
+    </None>
+    <None Include="tools\blender\import_level_test.py">
+      <Filter>tools\blender</Filter>
+    </None>
+    <None Include="tools\blender\README.md">
+      <Filter>tools\blender</Filter>
+    </None>
+    <None Include="tools\level_aiditor\level_aiditor.py">
+      <Filter>tools\level_aiditor</Filter>
+    </None>
+    <None Include="tools\level_aiditor\README.md">
+      <Filter>tools\level_aiditor</Filter>
+    </None>
   </ItemGroup>
 </Project>

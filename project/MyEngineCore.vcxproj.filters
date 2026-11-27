@@ -1,121 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="DirectX\engine\ui">
-      <UniqueIdentifier>{7d3f2a10-5b8e-4c61-9a2f-1e4b6c8d0f37}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="DirectX\engine\ecs">
-      <UniqueIdentifier>{32416152-f3d4-4058-a900-c89449e921ee}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="flecs">
-      <UniqueIdentifier>{00216c72-e410-417b-9ee0-bce3634dc28b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ソース ファイル">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="ヘッダー ファイル">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
-    </Filter>
-    <Filter Include="imguizmo">
-      <UniqueIdentifier>{6b0d3f2e-5a7c-4e1b-9c42-8f3a1d7e2b55}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="imgui">
-      <UniqueIdentifier>{ec9f3dc1-7844-4f4d-ad84-4dc97c202047}</UniqueIdentifier>
-    </Filter>
     <Filter Include="DirectX">
-      <UniqueIdentifier>{6ebd44cc-603e-47aa-9354-5b70040d4f24}</UniqueIdentifier>
+      <UniqueIdentifier>{4b6f72ca-d52c-6ec1-2710-42750fe2b365}</UniqueIdentifier>
     </Filter>
     <Filter Include="DirectX\engine">
-      <UniqueIdentifier>{91d91a2e-7345-4ec1-b88d-7331b3c7529f}</UniqueIdentifier>
+      <UniqueIdentifier>{a096a25a-7c4a-8b65-ca8f-0504378e829b}</UniqueIdentifier>
     </Filter>
     <Filter Include="DirectX\engine\2d">
-      <UniqueIdentifier>{65e96b40-d19a-4d3b-b8e0-db49bc8769f0}</UniqueIdentifier>
+      <UniqueIdentifier>{d7ac9a2a-99ba-7a15-bd93-fd192c331599}</UniqueIdentifier>
     </Filter>
     <Filter Include="DirectX\engine\3d">
-      <UniqueIdentifier>{07fd8102-ae11-479c-af6e-ddcd77b0d043}</UniqueIdentifier>
+      <UniqueIdentifier>{339246ab-68e8-8d15-eb55-3befca8e64fb}</UniqueIdentifier>
     </Filter>
     <Filter Include="DirectX\engine\audio">
-      <UniqueIdentifier>{cec9acb5-e141-4da2-8ed7-2bae2292c7b8}</UniqueIdentifier>
+      <UniqueIdentifier>{b138d75c-fe1f-948a-6695-93395227a654}</UniqueIdentifier>
     </Filter>
     <Filter Include="DirectX\engine\calc">
-      <UniqueIdentifier>{41dcb063-345e-4400-8d5d-4ede16902d8b}</UniqueIdentifier>
+      <UniqueIdentifier>{7b4d0a73-539a-c7fd-a345-9d55aba58e18}</UniqueIdentifier>
     </Filter>
     <Filter Include="DirectX\engine\common">
-      <UniqueIdentifier>{6b34fc79-2c6c-4041-8399-089e894b87c4}</UniqueIdentifier>
+      <UniqueIdentifier>{36c2caf7-d647-d363-eb21-ff51c94da555}</UniqueIdentifier>
     </Filter>
     <Filter Include="DirectX\engine\debugCamera">
-      <UniqueIdentifier>{eed5fa8f-5ce9-428e-a182-b0458ef1ce63}</UniqueIdentifier>
+      <UniqueIdentifier>{ad6a30c2-cefe-d682-8f83-5440b7369a5f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX\engine\dump">
-      <UniqueIdentifier>{f2ddf850-220b-43ac-ab4c-6360b60b4a99}</UniqueIdentifier>
+    <Filter Include="DirectX\engine\dumpClass">
+      <UniqueIdentifier>{4565447b-38ab-c5d1-aa2d-34ea2a36975a}</UniqueIdentifier>
     </Filter>
     <Filter Include="DirectX\engine\easing">
-      <UniqueIdentifier>{c21eb4e1-0d5b-470a-a702-ac486865b45e}</UniqueIdentifier>
+      <UniqueIdentifier>{85a29062-f996-3801-d96e-55a406e4056b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DirectX\engine\ecs">
+      <UniqueIdentifier>{d9b3dbba-3a46-8b39-3062-07d1a1de8d3b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DirectX\engine\graphics">
+      <UniqueIdentifier>{d8714d55-b7e7-c386-9438-026351b4893b}</UniqueIdentifier>
     </Filter>
     <Filter Include="DirectX\engine\input">
-      <UniqueIdentifier>{4e4c84af-b306-40bc-bc52-3677d7368fa8}</UniqueIdentifier>
+      <UniqueIdentifier>{ed65ebd5-6397-ed1c-7922-9ead0c42f729}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DirectX\engine\particle">
+      <UniqueIdentifier>{28347030-1027-b2af-0757-a1af50b0d7c2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DirectX\engine\platform">
+      <UniqueIdentifier>{f4ef9147-e9f7-3aa6-eb72-75eeafad55b6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DirectX\engine\postEffect">
+      <UniqueIdentifier>{1cc8a733-76ad-b645-dd14-d912083e5370}</UniqueIdentifier>
     </Filter>
     <Filter Include="DirectX\engine\struct">
-      <UniqueIdentifier>{a0317ee1-1bae-4fb8-bd52-6aa237e53633}</UniqueIdentifier>
+      <UniqueIdentifier>{4d28e938-9ce2-e534-5cb1-bda88a932e1b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DirectX\engine\trail">
+      <UniqueIdentifier>{9c9390eb-c74f-ab8d-838d-39979cf74286}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DirectX\engine\ui">
+      <UniqueIdentifier>{3eea89a6-e9f9-79d8-d89c-17b44b9692bf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="externals">
+      <UniqueIdentifier>{f0c77624-3e16-aa91-a0ae-69ee089ed0d1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="externals\flecs">
+      <UniqueIdentifier>{c4781a18-e73a-fd3e-b780-74c63a16d574}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="externals\imgui">
+      <UniqueIdentifier>{2dd4b839-a639-7ed4-ab0b-d6b91b1dc077}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="externals\imguizmo">
+      <UniqueIdentifier>{2db64bfc-db15-4985-ea18-b82ce9a14e6e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game">
+      <UniqueIdentifier>{c0108928-9acd-3391-5401-f5ff230e65bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\runtime">
+      <UniqueIdentifier>{cc7f7cd4-7164-ec2c-4d00-51da1ffbb3c3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game\scene">
+      <UniqueIdentifier>{6ce75f3f-617a-404b-4089-b870b0e2b547}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="externals\imgui\imgui.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_demo.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_draw.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_impl_dx12.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_impl_win32.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_tables.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_widgets.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\audio\Audio.cpp">
-      <Filter>DirectX\engine\audio</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\calc\Calculation.cpp">
-      <Filter>DirectX\engine\calc</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\graphics\DirectXCommon.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\graphics\ShaderCompiler.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\graphics\PipelineLibrary.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\dumpClass\Dump.cpp">
-      <Filter>DirectX\engine\dump</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\easing\Easing.cpp">
-      <Filter>DirectX\engine\easing</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\input\Input.cpp">
-      <Filter>DirectX\engine\input</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\ui\GlyphAtlas.cpp">
-      <Filter>DirectX\engine\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\ui\UiBatch.cpp">
-      <Filter>DirectX\engine\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\ui\UiContext.cpp">
-      <Filter>DirectX\engine\ui</Filter>
-    </ClCompile>
     <ClCompile Include="DirectX\engine\2d\DynamicTexture.cpp">
       <Filter>DirectX\engine\2d</Filter>
     </ClCompile>
@@ -131,8 +96,47 @@
     <ClCompile Include="DirectX\engine\2d\TextRenderer.cpp">
       <Filter>DirectX\engine\2d</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\graphics\InputDesc.cpp">
-      <Filter>DirectX\engine\common</Filter>
+    <ClCompile Include="DirectX\engine\2d\TextureManager.cpp">
+      <Filter>DirectX\engine\2d</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\3d\Animation.cpp">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\3d\Model.cpp">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\3d\ModelLoader.cpp">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\3d\ModelManager.cpp">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\3d\ModelPrimitives.cpp">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\3d\ModelTangents.cpp">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\3d\Object3d.cpp">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\3d\Object3dCommon.cpp">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\3d\Skeleton.cpp">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\3d\SkinCluster.cpp">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\3d\Skybox.cpp">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\audio\Audio.cpp">
+      <Filter>DirectX\engine\audio</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\calc\Calculation.cpp">
+      <Filter>DirectX\engine\calc</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\common\LogWrite.cpp">
       <Filter>DirectX\engine\common</Filter>
@@ -140,17 +144,11 @@
     <ClCompile Include="DirectX\engine\common\ResourcePaths.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\graphics\Resource.cpp">
+    <ClCompile Include="DirectX\engine\common\RuntimeProfiler.cpp">
       <Filter>DirectX\engine\common</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\graphics\Root.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\graphics\Texture.cpp">
-      <Filter>DirectX\engine\common</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\platform\WinApp.cpp">
-      <Filter>DirectX\engine\common</Filter>
+    <ClCompile Include="DirectX\engine\debugCamera\Camera.cpp">
+      <Filter>DirectX\engine\debugCamera</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\debugCamera\DebugCamera.cpp">
       <Filter>DirectX\engine\debugCamera</Filter>
@@ -158,125 +156,211 @@
     <ClCompile Include="DirectX\engine\debugCamera\MapCamera.cpp">
       <Filter>DirectX\engine\debugCamera</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\2d\TextureManager.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\dumpClass\Dump.cpp">
+      <Filter>DirectX\engine\dumpClass</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\Object3dCommon.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\easing\Easing.cpp">
+      <Filter>DirectX\engine\easing</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\Object3d.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\ecs\ComponentRegistry.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\Model.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\ecs\EcsComponents.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\ModelLoader.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\ecs\EditorCamera.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\ModelPrimitives.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\ecs\EditorHistory.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\ModelTangents.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\ecs\EntityEditor.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\ModelManager.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\ecs\RenderSync.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\debugCamera\Camera.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\ecs\SceneSerializer.cpp">
+      <Filter>DirectX\engine\ecs</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\graphics\SrvManager.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\graphics\DirectXCommon.cpp">
+      <Filter>DirectX\engine\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="game\scene\SceneManager.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\graphics\InputDesc.cpp">
+      <Filter>DirectX\engine\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="game\scene\SceneFactory.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\graphics\PipelineLibrary.cpp">
+      <Filter>DirectX\engine\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="game\runtime\SceneRegistry.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\graphics\Resource.cpp">
+      <Filter>DirectX\engine\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="game\runtime\Application.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\runtime\ApplicationMain.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\runtime\EntityScene.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\runtime\GameModuleRegistry.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\runtime\GameProject.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\postEffect\BloomConstantBuffer.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\postEffect\ObjectPostEffect.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\postEffect\PostEffect.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\postEffect\RenderTexture.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\graphics\Root.cpp">
+      <Filter>DirectX\engine\graphics</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\graphics\RtvManager.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>DirectX\engine\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\engine\particle\ParticleManager.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="DirectX\engine\graphics\ShaderCompiler.cpp">
+      <Filter>DirectX\engine\graphics</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\graphics\ShadowMap.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\graphics\SrvManager.cpp">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\graphics\Texture.cpp">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\input\Input.cpp">
+      <Filter>DirectX\engine\input</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\particle\ParticleManager.cpp">
+      <Filter>DirectX\engine\particle</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\platform\WinApp.cpp">
+      <Filter>DirectX\engine\platform</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\postEffect\Bloom.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>DirectX\engine\postEffect</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\postEffect\BloomConstantBuffer.cpp">
+      <Filter>DirectX\engine\postEffect</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\postEffect\BloomPyramid.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>DirectX\engine\postEffect</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\postEffect\ObjectPostEffect.cpp">
+      <Filter>DirectX\engine\postEffect</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\postEffect\PostEffect.cpp">
+      <Filter>DirectX\engine\postEffect</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\postEffect\RenderTexture.cpp">
+      <Filter>DirectX\engine\postEffect</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\postEffect\Shadow.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>DirectX\engine\postEffect</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\trail\RingManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\3d\Skybox.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>DirectX\engine\trail</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\trail\TrailInstance.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>DirectX\engine\trail</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\engine\trail\TrailManager.cpp">
-      <Filter>ソース ファイル</Filter>
+      <Filter>DirectX\engine\trail</Filter>
     </ClCompile>
-    <ClInclude Include="externals\imgui\imconfig.h">
-      <Filter>imgui</Filter>
+    <ClCompile Include="DirectX\engine\ui\GlyphAtlas.cpp">
+      <Filter>DirectX\engine\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\ui\UiBatch.cpp">
+      <Filter>DirectX\engine\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\engine\ui\UiContext.cpp">
+      <Filter>DirectX\engine\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\flecs\flecs.c">
+      <Filter>externals\flecs</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imguizmo\ImGuizmo.cpp">
+      <Filter>externals\imguizmo</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui.cpp">
+      <Filter>externals\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_demo.cpp">
+      <Filter>externals\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_draw.cpp">
+      <Filter>externals\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_impl_dx12.cpp">
+      <Filter>externals\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_impl_win32.cpp">
+      <Filter>externals\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_tables.cpp">
+      <Filter>externals\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_widgets.cpp">
+      <Filter>externals\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="game\runtime\Application.cpp">
+      <Filter>game\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="game\runtime\ApplicationMain.cpp">
+      <Filter>game\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="game\runtime\EntityScene.cpp">
+      <Filter>game\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="game\runtime\GameModuleRegistry.cpp">
+      <Filter>game\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="game\runtime\GameProject.cpp">
+      <Filter>game\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="game\runtime\SceneRegistry.cpp">
+      <Filter>game\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="game\scene\SceneFactory.cpp">
+      <Filter>game\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="game\scene\SceneManager.cpp">
+      <Filter>game\scene</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DirectX\engine\2d\DynamicTexture.h">
+      <Filter>DirectX\engine\2d</Filter>
     </ClInclude>
-    <ClInclude Include="externals\imgui\imgui.h">
-      <Filter>imgui</Filter>
+    <ClInclude Include="DirectX\engine\2d\GeneratedTextureCache.h">
+      <Filter>DirectX\engine\2d</Filter>
     </ClInclude>
-    <ClInclude Include="externals\imgui\imgui_impl_dx12.h">
-      <Filter>imgui</Filter>
+    <ClInclude Include="DirectX\engine\2d\Sprite.h">
+      <Filter>DirectX\engine\2d</Filter>
     </ClInclude>
-    <ClInclude Include="externals\imgui\imgui_impl_win32.h">
-      <Filter>imgui</Filter>
+    <ClInclude Include="DirectX\engine\2d\SpriteCommon.h">
+      <Filter>DirectX\engine\2d</Filter>
     </ClInclude>
-    <ClInclude Include="externals\imgui\imgui_internal.h">
-      <Filter>imgui</Filter>
+    <ClInclude Include="DirectX\engine\2d\TextLabel.h">
+      <Filter>DirectX\engine\2d</Filter>
     </ClInclude>
-    <ClInclude Include="externals\imgui\imstb_rectpack.h">
-      <Filter>imgui</Filter>
+    <ClInclude Include="DirectX\engine\2d\TextRenderer.h">
+      <Filter>DirectX\engine\2d</Filter>
     </ClInclude>
-    <ClInclude Include="externals\imgui\imstb_textedit.h">
-      <Filter>imgui</Filter>
+    <ClInclude Include="DirectX\engine\2d\TextureManager.h">
+      <Filter>DirectX\engine\2d</Filter>
     </ClInclude>
-    <ClInclude Include="externals\imgui\imstb_truetype.h">
-      <Filter>imgui</Filter>
+    <ClInclude Include="DirectX\engine\3d\Animation.h">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\3d\Model.h">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\3d\ModelInternal.h">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\3d\ModelManager.h">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\3d\Object3d.h">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\3d\Object3dCommon.h">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\3d\Skeleton.h">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\3d\SkinCluster.h">
+      <Filter>DirectX\engine\3d</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\3d\Skybox.h">
+      <Filter>DirectX\engine\3d</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\audio\Audio.h">
       <Filter>DirectX\engine\audio</Filter>
@@ -284,29 +368,188 @@
     <ClInclude Include="DirectX\engine\calc\Calculation.h">
       <Filter>DirectX\engine\calc</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\graphics\DirectXCommon.h">
+    <ClInclude Include="DirectX\engine\common\BackgroundLoader.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\graphics\ShaderCompiler.h">
+    <ClInclude Include="DirectX\engine\common\FixedTimestep.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\graphics\PipelineLibrary.h">
+    <ClInclude Include="DirectX\engine\common\FramePacer.h">
       <Filter>DirectX\engine\common</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\graphics\RenderTargetFormats.h">
+    <ClInclude Include="DirectX\engine\common\InitializationTask.h">
       <Filter>DirectX\engine\common</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\common\LogWrite.h">
+      <Filter>DirectX\engine\common</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\common\ResourcePaths.h">
+      <Filter>DirectX\engine\common</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\common\RuntimeProfiler.h">
+      <Filter>DirectX\engine\common</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\common\StartupTrace.h">
+      <Filter>DirectX\engine\common</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\common\StringUtils.h">
+      <Filter>DirectX\engine\common</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\common\Utf8Path.h">
+      <Filter>DirectX\engine\common</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\debugCamera\Camera.h">
+      <Filter>DirectX\engine\debugCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h">
+      <Filter>DirectX\engine\debugCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\debugCamera\MapCamera.h">
+      <Filter>DirectX\engine\debugCamera</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\dumpClass\Dump.h">
-      <Filter>DirectX\engine\dump</Filter>
+      <Filter>DirectX\engine\dumpClass</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\easing\Easing.h">
       <Filter>DirectX\engine\easing</Filter>
     </ClInclude>
+    <ClInclude Include="DirectX\engine\ecs\ComponentRegistry.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ecs\EcsComponents.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ecs\EcsFlecs.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ecs\EditorCamera.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ecs\EditorHistory.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ecs\EntityEditor.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ecs\RenderSync.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\ecs\SceneSerializer.h">
+      <Filter>DirectX\engine\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\graphics\DirectXCommon.h">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\graphics\InputDesc.h">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\graphics\PipelineLibrary.h">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\graphics\RenderTargetFormats.h">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\graphics\Resource.h">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\graphics\Root.h">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\graphics\RtvManager.h">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\graphics\ShaderCompiler.h">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\graphics\ShaderDiskCache.h">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\graphics\ShadowMap.h">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\graphics\SrvManager.h">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\graphics\Texture.h">
+      <Filter>DirectX\engine\graphics</Filter>
+    </ClInclude>
     <ClInclude Include="DirectX\engine\input\Input.h">
       <Filter>DirectX\engine\input</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\2d\SpriteCommon.h">
-      <Filter>DirectX\engine\2d</Filter>
+    <ClInclude Include="DirectX\engine\particle\ParticleManager.h">
+      <Filter>DirectX\engine\particle</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\platform\ScopedComApartment.h">
+      <Filter>DirectX\engine\platform</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\platform\WinApp.h">
+      <Filter>DirectX\engine\platform</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\postEffect\Bloom.h">
+      <Filter>DirectX\engine\postEffect</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\postEffect\BloomConstantBuffer.h">
+      <Filter>DirectX\engine\postEffect</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\postEffect\BloomPyramid.h">
+      <Filter>DirectX\engine\postEffect</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\postEffect\ObjectPostEffect.h">
+      <Filter>DirectX\engine\postEffect</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\postEffect\PostEffect.h">
+      <Filter>DirectX\engine\postEffect</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\postEffect\PostEffectSettings.h">
+      <Filter>DirectX\engine\postEffect</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\postEffect\RenderTexture.h">
+      <Filter>DirectX\engine\postEffect</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\postEffect\Shadow.h">
+      <Filter>DirectX\engine\postEffect</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\BlendMode.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\BloomParam.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\GeometryTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\GpuBufferTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\MaterialTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\MathTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\ModelTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\ParticleTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\Struct.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\struct\WaveFileTypes.h">
+      <Filter>DirectX\engine\struct</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\trail\RingManager.h">
+      <Filter>DirectX\engine\trail</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\trail\TrailInstance.h">
+      <Filter>DirectX\engine\trail</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\trail\TrailManager.h">
+      <Filter>DirectX\engine\trail</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\engine\trail\TrailStressFixture.h">
+      <Filter>DirectX\engine\trail</Filter>
     </ClInclude>
     <ClInclude Include="DirectX\engine\ui\GlyphAtlas.h">
       <Filter>DirectX\engine\ui</Filter>
@@ -317,262 +560,90 @@
     <ClInclude Include="DirectX\engine\ui\UiContext.h">
       <Filter>DirectX\engine\ui</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\2d\DynamicTexture.h">
-      <Filter>DirectX\engine\2d</Filter>
+    <ClInclude Include="externals\flecs\flecs.h">
+      <Filter>externals\flecs</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\2d\Sprite.h">
-      <Filter>DirectX\engine\2d</Filter>
+    <ClInclude Include="externals\imguizmo\ImGuizmo.h">
+      <Filter>externals\imguizmo</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\2d\TextLabel.h">
-      <Filter>DirectX\engine\2d</Filter>
+    <ClInclude Include="externals\imgui\imconfig.h">
+      <Filter>externals\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\2d\TextRenderer.h">
-      <Filter>DirectX\engine\2d</Filter>
+    <ClInclude Include="externals\imgui\imgui.h">
+      <Filter>externals\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\graphics\InputDesc.h">
-      <Filter>DirectX\engine\common</Filter>
+    <ClInclude Include="externals\imgui\imgui_impl_dx12.h">
+      <Filter>externals\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\LogWrite.h">
-      <Filter>DirectX\engine\common</Filter>
+    <ClInclude Include="externals\imgui\imgui_impl_win32.h">
+      <Filter>externals\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\ResourcePaths.h">
-      <Filter>DirectX\engine\common</Filter>
+    <ClInclude Include="externals\imgui\imgui_internal.h">
+      <Filter>externals\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\common\Utf8Path.h">
-      <Filter>DirectX\engine\common</Filter>
+    <ClInclude Include="externals\imgui\imstb_rectpack.h">
+      <Filter>externals\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\graphics\Resource.h">
-      <Filter>DirectX\engine\common</Filter>
+    <ClInclude Include="externals\imgui\imstb_textedit.h">
+      <Filter>externals\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\graphics\Root.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\graphics\Texture.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\platform\WinApp.h">
-      <Filter>DirectX\engine\common</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\struct\Struct.h">
-      <Filter>DirectX\engine\struct</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\struct\MathTypes.h">
-      <Filter>DirectX\engine\struct</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\struct\GeometryTypes.h">
-      <Filter>DirectX\engine\struct</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\struct\MaterialTypes.h">
-      <Filter>DirectX\engine\struct</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\struct\ModelTypes.h">
-      <Filter>DirectX\engine\struct</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\struct\GpuBufferTypes.h">
-      <Filter>DirectX\engine\struct</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\struct\BloomParam.h">
-      <Filter>DirectX\engine\struct</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\struct\BlendMode.h">
-      <Filter>DirectX\engine\struct</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\struct\ParticleTypes.h">
-      <Filter>DirectX\engine\struct</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\struct\WaveFileTypes.h">
-      <Filter>DirectX\engine\struct</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\debugCamera\DebugCamera.h">
-      <Filter>DirectX\engine\debugCamera</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\debugCamera\MapCamera.h">
-      <Filter>DirectX\engine\debugCamera</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\2d\TextureManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\Object3dCommon.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\Object3d.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\Model.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\ModelInternal.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\ModelManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\debugCamera\Camera.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\graphics\SrvManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\scene\SceneManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\BloomConstantBuffer.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\PostEffect.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\PostEffectSettings.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\RenderTexture.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\graphics\RtvManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\particle\ParticleManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\graphics\ShadowMap.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\scene\IScene.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\scene\AbstractSceneFactory.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\scene\SceneFactory.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\runtime\SceneRegistry.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\runtime\IGameModule.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="externals\imgui\imstb_truetype.h">
+      <Filter>externals\imgui</Filter>
     </ClInclude>
     <ClInclude Include="game\runtime\Application.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\runtime</Filter>
     </ClInclude>
     <ClInclude Include="game\runtime\ApplicationMain.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\runtime</Filter>
     </ClInclude>
     <ClInclude Include="game\runtime\EntityScene.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\runtime\IApplicationHooks.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\runtime</Filter>
     </ClInclude>
     <ClInclude Include="game\runtime\GameModuleRegistry.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\runtime</Filter>
     </ClInclude>
     <ClInclude Include="game\runtime\GameProject.h">
-      <Filter>ヘッダー ファイル</Filter>
+      <Filter>game\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\Bloom.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\runtime\IApplicationHooks.h">
+      <Filter>game\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\BloomPyramid.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\runtime\IGameModule.h">
+      <Filter>game\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\ObjectPostEffect.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\runtime\SceneRegistry.h">
+      <Filter>game\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\postEffect\Shadow.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\scene\AbstractSceneFactory.h">
+      <Filter>game\scene</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\trail\RingManager.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\scene\IScene.h">
+      <Filter>game\scene</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\3d\Skybox.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\scene\SceneFactory.h">
+      <Filter>game\scene</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\trail\TrailInstance.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="game\scene\SceneManager.h">
+      <Filter>game\scene</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\engine\trail\TrailManager.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt">
-      <Filter>imgui</Filter>
+      <Filter>externals\imgui</Filter>
     </Text>
-    <ClCompile Include="DirectX\engine\common\RuntimeProfiler.cpp" />
-    <ClInclude Include="DirectX\engine\common\RuntimeProfiler.h" />
-    <ClInclude Include="DirectX\engine\common\FramePacer.h" />
-    <ClInclude Include="DirectX\engine\common\FixedTimestep.h" />
-    <ClInclude Include="DirectX\engine\trail\TrailStressFixture.h" />
-    <ClInclude Include="DirectX\engine\common\StartupTrace.h" />
-    <ClInclude Include="DirectX\engine\graphics\ShaderDiskCache.h" />
-    <ClInclude Include="DirectX\engine\2d\GeneratedTextureCache.h" />
-    <ClCompile Include="externals\flecs\flecs.c">
-      <Filter>flecs</Filter>
-    </ClCompile>
-    <ClInclude Include="externals\flecs\flecs.h">
-      <Filter>flecs</Filter>
-    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
     <None Include="externals\flecs\LICENSE">
-      <Filter>flecs</Filter>
+      <Filter>externals\flecs</Filter>
     </None>
     <None Include="externals\flecs\README.md">
-      <Filter>flecs</Filter>
+      <Filter>externals\flecs</Filter>
     </None>
-    <ClCompile Include="externals\imguizmo\ImGuizmo.cpp">
-      <Filter>imguizmo</Filter>
-    </ClCompile>
-    <ClInclude Include="externals\imguizmo\ImGuizmo.h">
-      <Filter>imguizmo</Filter>
-    </ClInclude>
     <None Include="externals\imguizmo\LICENSE">
-      <Filter>imguizmo</Filter>
+      <Filter>externals\imguizmo</Filter>
     </None>
     <None Include="externals\imguizmo\README.md">
-      <Filter>imguizmo</Filter>
+      <Filter>externals\imguizmo</Filter>
     </None>
-    <ClCompile Include="DirectX\engine\ecs\EcsComponents.cpp">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClCompile>
-    <ClInclude Include="DirectX\engine\ecs\EcsComponents.h">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClInclude>
-    <ClCompile Include="DirectX\engine\ecs\ComponentRegistry.cpp">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClCompile>
-    <ClInclude Include="DirectX\engine\ecs\ComponentRegistry.h">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClInclude>
-    <ClCompile Include="DirectX\engine\ecs\SceneSerializer.cpp">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\ecs\RenderSync.cpp">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\ecs\EntityEditor.cpp">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\ecs\EditorHistory.cpp">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\engine\ecs\EditorCamera.cpp">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClCompile>
-    <ClInclude Include="DirectX\engine\ecs\SceneSerializer.h">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\ecs\RenderSync.h">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\ecs\EntityEditor.h">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\ecs\EditorHistory.h">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\ecs\EditorCamera.h">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\engine\ecs\EcsFlecs.h">
-      <Filter>DirectX\engine\ecs</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>
