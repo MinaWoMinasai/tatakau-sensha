@@ -427,8 +427,8 @@ void Application::InitializeImGui()
     ImGui_ImplDX12_InitInfo initInfo{};
     initInfo.Device = dxCommon_->GetDevice().Get();
     initInfo.CommandQueue = dxCommon_->GetQueue().Get();
-    initInfo.NumFramesInFlight = dxCommon_->GetSwapChainDesc().BufferCount;
-    initInfo.RTVFormat = dxCommon_->GetRtvDesc().Format;
+    initInfo.NumFramesInFlight = myEngine::DirectXCommon::kBackBufferCount;
+    initInfo.RTVFormat = myEngine::DirectXCommon::kBackBufferRtvFormat;
     initInfo.DSVFormat = DXGI_FORMAT_UNKNOWN;
     initInfo.SrvDescriptorHeap = srvManager_->GetSrvHeap().Get();
     initInfo.UserData = srvManager_.get();

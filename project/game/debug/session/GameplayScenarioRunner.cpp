@@ -99,7 +99,7 @@ void GameplayScenarioRunner::InitializeGameplayScenario()
             // DirectXのゲッターは非constだが、ここではデバイスへの処理やコピーを送信しない。
             auto* writableDx = myEngine::Object3dCommon::GetInstance()->GetDxCommon();
             const HRESULT hr =
-                writableDx->GetSwapChain()->GetBuffer(writableDx->GetSwapChain()->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&backbuffer));
+                writableDx->GetCurrentBackBuffer(backbuffer);
             RequireScenario(SUCCEEDED(hr), "Could not inspect the native recording backbuffer.");
             const auto desc = backbuffer->GetDesc();
             RequireScenario(desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM && desc.SampleDesc.Count == 1 && desc.Width <= 8192 &&
@@ -719,7 +719,7 @@ void GameplayScenarioRunner::RecordGameplayScenarioCapture(myEngine::DirectXComm
                 {"audio", "none"},
                 {"sceneTimeScale", world_.combat.timeScale_}};
             Microsoft::WRL::ComPtr<ID3D12Resource> backbuffer;
-            const HRESULT hr = dx.GetSwapChain()->GetBuffer(dx.GetSwapChain()->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&backbuffer));
+            const HRESULT hr = dx.GetCurrentBackBuffer(backbuffer);
             if (FAILED(hr)) {
                 session.Fail("Recording backbuffer inspection failed.");
                 world_.resources.gameplayScenarioCapture_.CancelRequest();

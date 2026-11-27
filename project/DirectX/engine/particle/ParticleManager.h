@@ -296,8 +296,8 @@ private:
     /// @brief GPU発生源をGPU計算を実行する。
     /// @return このフレームに発生を要求した数。
     uint32_t DispatchGpuEmitters();
-    /// @brief GPU更新の計算に使うルートとリソースを設定する。
-    void SetGpuParticleComputeRoot(DirectXCommon::PSO& pso);
+    /// @brief GPU更新の計算に使うルートとリソースを、コマンドリストに結び付ける。
+    void BindGpuParticleComputeRoot(DirectXCommon::PSO& pso);
     /// @brief GPU粒子を初期化する。
     void InitializeGpuParticles();
     /// @brief GPUパーティクルの発生を、次の更新まで積んでおく。

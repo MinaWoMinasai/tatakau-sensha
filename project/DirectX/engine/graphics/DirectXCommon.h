@@ -152,11 +152,8 @@ public:
         return device_;
     }
 
-    /// @brief DXGIファクトリーを返す。
-    Microsoft::WRL::ComPtr<IDXGIFactory7>& GetDxgiFactory()
-    {
-        return dxgiFactory_;
-    }
+    /// @brief 使っているアダプター（GPU）の説明を読む。読めなければ false。
+    bool QueryAdapterDescription(DXGI_ADAPTER_DESC3& description) const;
 
     /// @brief ビューポート矩形を返す。
     D3D12_VIEWPORT GetViewportRect()
@@ -164,22 +161,20 @@ public:
         return viewportRect_;
     }
 
-    /// @brief スワップチェーンを返す。
-    Microsoft::WRL::ComPtr<IDXGISwapChain4>& GetSwapChain()
+    /// @brief バックバッファの数と、バックバッファへ描くときの RTV の形式。
+    static constexpr UINT kBackBufferCount = 2;
+    static constexpr DXGI_FORMAT kBackBufferRtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
+    /// @brief 今描いているバックバッファを out に入れる（画面の写しを取るときなど）。
+    HRESULT GetCurrentBackBuffer(Microsoft::WRL::ComPtr<ID3D12Resource>& out) const
     {
-        return swapChain_;
+        return swapChain_->GetBuffer(swapChain_->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&out));
     }
 
-    /// @brief スワップチェーンの記述を返す。
-    DXGI_SWAP_CHAIN_DESC1 GetSwapChainDesc()
+    /// @brief GPU が終えたフェンスの値を返す（GetFenceValue 以下なら、その値までの描画は終わっている）。
+    uint64_t GetCompletedFenceValue() const
     {
-        return swapChainDesc_;
-    }
-
-    /// @brief フェンスを返す。
-    Microsoft::WRL::ComPtr<ID3D12Fence> GetFence()
-    {
-        return fence_;
+        return fence_->GetCompletedValue();
     }
 
     /// @brief コマンドキューを返す。
@@ -242,22 +237,9 @@ public:
         return pipelines_.GetTrailSceneNoDepthPipeline();
     }
 
-    /// @brief ヒープのindex番目のCPUハンドルを返す。
-    static D3D12_CPU_DESCRIPTOR_HANDLE GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap,
-                                                              uint32_t descriptorSize, uint32_t index);
-    /// @brief ヒープのindex番目のGPUハンドルを返す。
-    static D3D12_GPU_DESCRIPTOR_HANDLE GetDescriptorGPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap,
-                                                              uint32_t descriptorSize, uint32_t index);
-
     /// @brief デスクリプタヒープの生成
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors,
                                                                       bool shaderVisible);
-
-    /// @brief RTVの記述を返す。
-    D3D12_RENDER_TARGET_VIEW_DESC GetRtvDesc()
-    {
-        return rtvDesc_;
-    }
 
     /// @brief テクスチャリソースを生成する。
     Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(uint32_t width, uint32_t height, DXGI_FORMAT format,

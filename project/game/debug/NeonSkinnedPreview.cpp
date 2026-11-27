@@ -303,7 +303,7 @@ void NeonSkinnedPreview::Draw()
     }
     myEngine::RuntimeProfiler::GpuScope gpuScope("Neon Character");
     if (neonMode_) {
-        renderer_.Draw(*model_, object_->GetTransformationResource()->GetGPUVirtualAddress(), GetCameraPosition());
+        renderer_.Draw(*model_, object_->GetTransformationAddress(), GetCameraPosition());
         myEngine::StartupTrace::Count("neon_preview.neon_draws");
     } else {
         object_->DrawSkinned(*model_);
@@ -1324,11 +1324,8 @@ void NeonSkinnedPreview::UpdateShowcaseCamera(float deltaTime)
     const float distance = distances[showcaseFraming_];
     showcaseCamera_.SetTranslate({std::sin(showcaseYaw_) * distance, targets[showcaseFraming_], -std::cos(showcaseYaw_) * distance});
     showcaseCamera_.SetRotate({0, -showcaseYaw_, 0});
-    showcaseCamera_.SetFovY(0.45f);
-    showcaseCamera_.SetNearClip(0.03f);
-    showcaseCamera_.SetFarClip(100.0f);
     const auto viewport = myEngine::Object3dCommon::GetInstance()->GetDxCommon()->GetViewportRect();
-    showcaseCamera_.SetAspectRatio(viewport.Width / (std::max)(1.0f, viewport.Height));
+    showcaseCamera_.SetLens({0.45f, viewport.Width / (std::max)(1.0f, viewport.Height), 0.03f, 100.0f});
     showcaseCamera_.SetProjectionJitter({});
     showcaseCamera_.Update();
 }
@@ -1473,7 +1470,6 @@ nlohmann::json NeonSkinnedPreview::MakeShowcaseMetadata() const
                                                                {"rotation", {pose.rotate.x, pose.rotate.y, pose.rotate.z, pose.rotate.w}}});
         }
     }
-    Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter;
     auto* dx = myEngine::Object3dCommon::GetInstance()->GetDxCommon();
     const auto viewport = dx->GetViewportRect();
     metadata["resolution"] = {static_cast<uint32_t>(viewport.Width), static_cast<uint32_t>(viewport.Height)};
@@ -1485,9 +1481,9 @@ nlohmann::json NeonSkinnedPreview::MakeShowcaseMetadata() const
     if (SUCCEEDED(dx->GetQueue()->GetTimestampFrequency(&timestampFrequency))) {
         metadata["queueTimestampFrequencyHz"] = timestampFrequency;
     }
-    if (SUCCEEDED(dx->GetDxgiFactory()->EnumAdapterByLuid(dx->GetDevice()->GetAdapterLuid(), IID_PPV_ARGS(&adapter)))) {
+    {
         DXGI_ADAPTER_DESC3 description{};
-        if (SUCCEEDED(adapter->GetDesc3(&description))) {
+        if (dx->QueryAdapterDescription(description)) {
             char name[256]{};
             WideCharToMultiByte(CP_UTF8, 0, description.Description, -1, name, sizeof(name), nullptr, nullptr);
             metadata["gpu"] = {{"adapter", name},

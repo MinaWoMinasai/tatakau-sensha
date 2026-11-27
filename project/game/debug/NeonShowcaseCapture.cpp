@@ -36,7 +36,7 @@ void NeonShowcaseCapture::Record(myEngine::DirectXCommon& dx)
         return;
     }
     try {
-        Check(dx.GetSwapChain()->GetBuffer(dx.GetSwapChain()->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&source_)), "Backbuffer capture");
+        Check(dx.GetCurrentBackBuffer(source_), "Backbuffer capture");
         const auto desc = source_->GetDesc();
         if (desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM || desc.SampleDesc.Count != 1) {
             throw std::runtime_error("Showcase capture requires RGBA8 single-sample backbuffer.");
@@ -90,7 +90,7 @@ void NeonShowcaseCapture::Record(myEngine::DirectXCommon& dx)
 
 void NeonShowcaseCapture::Resolve(myEngine::DirectXCommon& dx)
 {
-    if (!pending_ || dx.GetFence()->GetCompletedValue() < fence_) {
+    if (!pending_ || dx.GetCompletedFenceValue() < fence_) {
         return;
     }
     uint8_t* bytes = nullptr;

@@ -122,10 +122,7 @@ void MapCamera::ApplyTo(Camera& camera) const
 {
     camera.SetTranslate(GetPosition());
     camera.SetRotate(GetRotate());
-    camera.SetFovY(settings_.fovY);
-    camera.SetAspectRatio(settings_.aspectRatio);
-    camera.SetNearClip(settings_.nearClip);
-    camera.SetFarClip(settings_.farClip);
+    camera.SetLens({settings_.fovY, settings_.aspectRatio, settings_.nearClip, settings_.farClip});
 }
 
 } // namespace myEngine

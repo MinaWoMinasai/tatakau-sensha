@@ -579,7 +579,7 @@ void NeonBossVisual::Draw()
         return;
     }
     myEngine::RuntimeProfiler::GpuScope scope("Neon Boss");
-    renderer_->Draw(*model_, object_->GetTransformationResource()->GetGPUVirtualAddress(), GetCameraPosition());
+    renderer_->Draw(*model_, object_->GetTransformationAddress(), GetCameraPosition());
     myEngine::Object3dCommon::GetInstance()->PreDraw(myEngine::kNormal);
     ++stats_.draws;
 }

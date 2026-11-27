@@ -557,7 +557,7 @@ void Bloom::Update(const BloomFrameSettings& frameSettings)
     }
     const float aspectRatio = static_cast<float>(WinApp::kRenderWidth) / static_cast<float>(WinApp::kRenderHeight);
     const float tanHalfFovY = std::tan(
-        (Object3dCommon::GetInstance()->GetDefaultCamera() ? Object3dCommon::GetInstance()->GetDefaultCamera()->GetFovY() : 0.45f) * 0.5f);
+        (Object3dCommon::GetInstance()->GetDefaultCamera() ? Object3dCommon::GetInstance()->GetDefaultCamera()->GetLens().fovY : 0.45f) * 0.5f);
     bloomParam_.ssrProjectionScale = {aspectRatio * tanHalfFovY, tanHalfFovY};
     bloomParam_.renderDebugMode =
         (enableMotionVector_ && bloomParam_.motionVectorScale < -0.5f) ? 15.0f : static_cast<float>(renderDebugMode_);
@@ -588,8 +588,8 @@ void Bloom::UpdateFrameCameraParameters(bool advanceMotionHistory)
         Camera* camera = developerShowcase_.camera;
         bloomParam_.ssrViewMatrix = camera->GetViewMatrix();
         currentMotionViewProjection = camera->GetViewProjectionMatrix();
-        bloomParam_.depthNearClip = camera->GetNearClip();
-        bloomParam_.depthFarClip = camera->GetFarClip();
+        bloomParam_.depthNearClip = camera->GetLens().nearClip;
+        bloomParam_.depthFarClip = camera->GetLens().farClip;
     } else if (objectCommon->GetIsDebugCamera() && objectCommon->GetDebugCamera()) {
         DebugCamera* debugCamera = objectCommon->GetDebugCamera();
         bloomParam_.ssrViewMatrix = debugCamera->GetViewMatrix();
@@ -601,8 +601,8 @@ void Bloom::UpdateFrameCameraParameters(bool advanceMotionHistory)
         Camera* camera = objectCommon->GetDefaultCamera();
         bloomParam_.ssrViewMatrix = camera->GetViewMatrix();
         currentMotionViewProjection = camera->GetViewProjectionMatrix();
-        bloomParam_.depthNearClip = camera->GetNearClip();
-        bloomParam_.depthFarClip = camera->GetFarClip();
+        bloomParam_.depthNearClip = camera->GetLens().nearClip;
+        bloomParam_.depthFarClip = camera->GetLens().farClip;
     }
 
     const bool resetHistory = !hasPreviousMotionViewProjection_ || previousMotionUsedDebugCamera_ != usingDebugCamera;

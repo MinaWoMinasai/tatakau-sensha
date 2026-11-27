@@ -442,8 +442,7 @@ void CombatFramePipeline::Update()
     }
 
     world_.combat.direction = myEngine::Normalize(world_.combat.direction);
-    world_.resources.ball_->SetDirectionalLightDirection(world_.combat.direction);
-    world_.resources.ball_->SetInsensity(world_.combat.insensity);
+    world_.resources.ball_->SetDirectionalLight(world_.combat.direction, world_.combat.insensity);
     world_.resources.ball_->SetShininess(world_.combat.shininess);
 
     world_.resources.ballObj_->Update();

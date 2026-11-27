@@ -978,7 +978,7 @@ void ArenaRunController::CopyTankRunCapture()
     }
     auto dx = myEngine::Object3dCommon::GetInstance()->GetDxCommon();
     Microsoft::WRL::ComPtr<ID3D12Resource> source;
-    if (FAILED(dx->GetSwapChain()->GetBuffer(dx->GetSwapChain()->GetCurrentBackBufferIndex(), IID_PPV_ARGS(&source)))) {
+    if (FAILED(dx->GetCurrentBackBuffer(source))) {
         return;
     }
     auto desc = source->GetDesc();

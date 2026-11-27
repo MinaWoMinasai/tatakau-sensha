@@ -554,7 +554,7 @@ void GameplayEditor::DrawGameplayDebugUi()
                 }
             }
             if (world_.resources.ball_) {
-                myEngine::Vector3 ballScale = world_.resources.ball_->GetScale();
+                myEngine::Vector3 ballScale = world_.resources.ball_->GetTransform().scale;
                 myEngine::Vector4 ballColor = world_.resources.ball_->GetColor();
                 if (ImGui::DragFloat3("デバッグ球スケール", &ballScale.x)) {
                     world_.resources.ball_->SetScale(ballScale);

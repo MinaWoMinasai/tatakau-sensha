@@ -491,17 +491,17 @@ void ParticleManager::DispatchGpu(float deltaTime, const Matrix4x4& viewProjecti
     // 生存分の詰め直しとフリーリストへの返却は、不可分操作ではなくパーティクルの番号順で行う。
     // 不可分操作の順序はウェーブの実行順で実行ごとに変わり、加算合成の描画順が揺れて画素が1ずれるため。
     // 1. 寿命と物理を進め、グループごとの生存数・死亡数を数える
-    SetGpuParticleComputeRoot(dxCommon_->GetPipeline(PipelineId::ParticleUpdate));
+    BindGpuParticleComputeRoot(dxCommon_->GetPipeline(PipelineId::ParticleUpdate));
     commandList->Dispatch(kUpdateGroupCount, 1, 1);
     AddUavBarrier({particleResource_.Get(), groupCountsResource_.Get()});
 
     // 2. グループごとの書き込み開始位置、InstanceCount、フリーリストの先頭を決める
-    SetGpuParticleComputeRoot(dxCommon_->GetPipeline(PipelineId::ParticleScan));
+    BindGpuParticleComputeRoot(dxCommon_->GetPipeline(PipelineId::ParticleScan));
     commandList->Dispatch(1, 1, 1);
     AddUavBarrier({groupCountsResource_.Get(), drawArgsResource_.Get(), freeListIndexResource_.Get()});
 
     // 3. 描画データを詰め、寿命が尽きたものをフリーリストへ返す
-    SetGpuParticleComputeRoot(dxCommon_->GetPipeline(PipelineId::ParticleCompact));
+    BindGpuParticleComputeRoot(dxCommon_->GetPipeline(PipelineId::ParticleCompact));
     commandList->Dispatch(kUpdateGroupCount, 1, 1);
     AddUavBarrier({particleResource_.Get(), gpuInstancingResource_.Get(), drawArgsResource_.Get(), freeListIndexResource_.Get(),
                    freeListResource_.Get()});
@@ -511,7 +511,7 @@ void ParticleManager::DispatchGpu(float deltaTime, const Matrix4x4& viewProjecti
     gpuDrawReady_ = true;
 }
 
-void ParticleManager::SetGpuParticleComputeRoot(DirectXCommon::PSO& pso)
+void ParticleManager::BindGpuParticleComputeRoot(DirectXCommon::PSO& pso)
 {
     auto commandList = dxCommon_->GetList();
     commandList->SetComputeRootSignature(pso.root_.GetSignature().Get());
@@ -1174,8 +1174,7 @@ void ParticleManager::Draw()
     commandList->SetPipelineState(pso.graphicsState_.Get());
 
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->IASetVertexBuffers(0, 1, &model_->GetVertexBufferView());
-    commandList->IASetIndexBuffer(&model_->GetIndexBufferView());
+    model_->BindMeshBuffers(commandList.Get());
 
     // RootParameter [0]:Material, [1]:Light, [2]:Camera, [3]:InstancingSRV, [4]:Texture
     // 各エンジンのCBVリソースから取得してセット

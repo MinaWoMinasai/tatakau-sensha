@@ -7,6 +7,13 @@ namespace myEngine {
 /// @brief ビュー行列・射影行列とカメラの位置・姿勢を管理する。
 class Camera {
 public:
+    /// @brief 射影の設定（縦の視野角・縦横比・近い面と遠い面の距離）。
+    struct Lens {
+        float fovY = 0.45f;
+        float aspectRatio = 16.0f / 9.0f;
+        float nearClip = 0.1f;
+        float farClip = 5000.0f;
+    };
     Camera();
 
     // 更新
@@ -25,28 +32,16 @@ public:
         transform_.translate = translate;
     }
 
-    /// @brief 縦方向の視野角を設定する。
-    void SetFovY(float fovY)
+    /// @brief 射影の設定をまとめて決める（次の Update で射影行列に反映する）。
+    void SetLens(const Lens& lens)
     {
-        fovY_ = fovY;
+        lens_ = lens;
     }
 
-    /// @brief 画面の縦横比を設定する。
-    void SetAspectRatio(float aspectRatio)
+    /// @brief 射影の設定を返す。一部だけ変えるときは、写してから SetLens に渡す。
+    const Lens& GetLens() const
     {
-        aspectRatio_ = aspectRatio;
-    }
-
-    /// @brief 近クリップ距離を設定する。
-    void SetNearClip(float nearClip)
-    {
-        nearClip_ = nearClip;
-    }
-
-    /// @brief 遠クリップ距離を設定する。
-    void SetFarClip(float farClip)
-    {
-        farClip_ = farClip;
+        return lens_;
     }
 
     /// @brief 射影射影ジッターを設定する。
@@ -107,28 +102,6 @@ public:
         return transform_.translate;
     }
 
-    /// @brief 近クリップ距離を返す。
-    float GetNearClip() const
-    {
-        return nearClip_;
-    }
-
-    /// @brief 遠クリップ距離を返す。
-    float GetFarClip() const
-    {
-        return farClip_;
-    }
-
-    float GetFovY() const
-    {
-        return fovY_;
-    }
-
-    float GetAspectRatio() const
-    {
-        return aspectRatio_;
-    }
-
 private:
     /// @brief 射影行列を更新する。
     void UpdateProjectionMatrices();
@@ -141,10 +114,7 @@ private:
     Matrix4x4 unjitteredProjectionMatrix_;
     Matrix4x4 unjitteredViewProjectionMatrix_;
     Vector2 projectionJitter_ = {0.0f, 0.0f};
-    float fovY_;
-    float aspectRatio_;
-    float nearClip_;
-    float farClip_;
+    Lens lens_;
 };
 
 } // namespace myEngine

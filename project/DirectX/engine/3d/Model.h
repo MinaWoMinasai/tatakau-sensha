@@ -64,16 +64,11 @@ public:
         return modelData_;
     }
 
-    /// @brief 頂点バッファ視点を返す。
-    const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView() const
+    /// @brief 頂点バッファと添字バッファを、描画の入力に結び付ける（描画は呼び出し側でする。インスタンス描画など）。
+    void BindMeshBuffers(ID3D12GraphicsCommandList* list) const
     {
-        return vertexBufferView;
-    }
-
-    /// @brief 添字バッファ視点を返す。
-    const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() const
-    {
-        return indexBufferView;
+        list->IASetVertexBuffers(0, 1, &vertexBufferView);
+        list->IASetIndexBuffer(&indexBufferView);
     }
 
 private:

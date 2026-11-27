@@ -53,10 +53,10 @@ void Skybox::Draw()
 
     // 2. SkyboxのRootSignature設定に合わせて順番にセット
     // [0]: Material (b0)
-    list->SetGraphicsRootConstantBufferView(0, object_->GetMaterialResource()->GetGPUVirtualAddress());
+    list->SetGraphicsRootConstantBufferView(0, object_->GetMaterialAddress());
 
     // [1]: TransformationMatrix (b0)
-    list->SetGraphicsRootConstantBufferView(1, object_->GetTransformationResource()->GetGPUVirtualAddress());
+    list->SetGraphicsRootConstantBufferView(1, object_->GetTransformationAddress());
 
     // [2]: DescriptorTable (t0: CubeMap)
     srvManager_->SetGraphicsRootDescriptorTable(2, textureIndex_);
@@ -64,10 +64,7 @@ void Skybox::Draw()
     // 3. 描画実行
     // object_->Draw() を呼ぶと Index 3 以降にアクセスしてクラッシュするため、
     // モデルの頂点バッファセットと描画コマンドだけを直接実行する
-    if (object_->GetModel()) {
-        // Modelクラスに実装されている「メッシュのみ描画」を呼び出す
-        object_->GetModel()->DrawOnlyMesh();
-    }
+    object_->DrawMeshOnly();
 }
 
 } // namespace myEngine

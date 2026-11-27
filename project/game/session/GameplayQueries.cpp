@@ -249,10 +249,9 @@ nlohmann::json GameplayQueries::MakeDeveloperGameCaptureMetadata(myEngine::Direc
         metadata["validation"]["errors"] = errors;
         metadata["validation"]["warnings"] = warnings;
     }
-    Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter;
-    if (SUCCEEDED(dx.GetDxgiFactory()->EnumAdapterByLuid(dx.GetDevice()->GetAdapterLuid(), IID_PPV_ARGS(&adapter)))) {
+    {
         DXGI_ADAPTER_DESC3 description{};
-        if (SUCCEEDED(adapter->GetDesc3(&description))) {
+        if (dx.QueryAdapterDescription(description)) {
             char name[256]{};
             WideCharToMultiByte(CP_UTF8, 0, description.Description, -1, name, sizeof(name), nullptr, nullptr);
             metadata["gpu"] = {{"adapter", name}, {"vendor", description.VendorId}, {"device", description.DeviceId}};

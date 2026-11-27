@@ -313,7 +313,7 @@ void RuntimeProfiler::FinishFrame(double frameMs, double presentMs, double fence
     }
     // リソース読み込みはUpdateの途中でコマンドを送ることがある。その場合のタイムスタンプ区間は
     // コマンド送信の間のCPU待ち時間を含んでしまうため、そうしたフレームは除外する。
-    if (resolved_ && resolveFence_ == beginFence_ + 1 && dx_->GetFence()->GetCompletedValue() >= resolveFence_) {
+    if (resolved_ && resolveFence_ == beginFence_ + 1 && dx_->GetCompletedFenceValue() >= resolveFence_) {
         UINT64* ticks = nullptr;
         D3D12_RANGE range{0, sizeof(UINT64) * gpuCount_ * 2};
         if (SUCCEEDED(readback_->Map(0, &range, reinterpret_cast<void**>(&ticks)))) {

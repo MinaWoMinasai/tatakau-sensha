@@ -6,10 +6,7 @@ namespace myEngine {
 Camera::Camera()
 {
     transform_ = {{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -20.0f}};
-    fovY_ = 0.45f;
-    aspectRatio_ = (float(WinApp::kClientWidth) / float(WinApp::kClientHeight));
-    nearClip_ = 0.1f;
-    farClip_ = 5000.0f;
+    lens_.aspectRatio = float(WinApp::kClientWidth) / float(WinApp::kClientHeight);
     worldMatrix_ = MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
     viewMatrix_ = Inverse(worldMatrix_);
     UpdateProjectionMatrices();
@@ -30,7 +27,7 @@ void Camera::SetProjectionJitter(const Vector2& jitter)
 
 void Camera::UpdateProjectionMatrices()
 {
-    unjitteredProjectionMatrix_ = MakePerspectiveForMatrix(fovY_, aspectRatio_, nearClip_, farClip_);
+    unjitteredProjectionMatrix_ = MakePerspectiveForMatrix(lens_.fovY, lens_.aspectRatio, lens_.nearClip, lens_.farClip);
     unjitteredViewProjectionMatrix_ = Multiply(viewMatrix_, unjitteredProjectionMatrix_);
     projectionMatrix_ = unjitteredProjectionMatrix_;
     projectionMatrix_.m[2][0] += projectionJitter_.x;

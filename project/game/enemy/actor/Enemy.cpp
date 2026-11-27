@@ -160,7 +160,7 @@ void Enemy::Initialize(myEngine::Object3d* object, const myEngine::Vector3& posi
 
     hpBarFill_ = std::make_unique<myEngine::Object3d>();
     hpBarFill_->Initialize();
-    myEngine::Vector3 hpBarFillScale = hpBarFill_->GetScale();
+    myEngine::Vector3 hpBarFillScale = hpBarFill_->GetTransform().scale;
     hpBarFillScale.y = 1.2f;
     hpBarFill_->SetScale(hpBarFillScale);
     hpBarFill_->SetModel("playerHPBarGreenLong.obj");
@@ -172,7 +172,7 @@ void Enemy::Initialize(myEngine::Object3d* object, const myEngine::Vector3& posi
 
     hpBarBG_ = std::make_unique<myEngine::Object3d>();
     hpBarBG_->Initialize();
-    myEngine::Vector3 hpBarBackgroundScale = hpBarBG_->GetScale();
+    myEngine::Vector3 hpBarBackgroundScale = hpBarBG_->GetTransform().scale;
     hpBarBackgroundScale.y = 1.2f;
     hpBarBG_->SetScale(hpBarBackgroundScale);
 

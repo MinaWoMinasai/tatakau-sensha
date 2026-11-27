@@ -36,22 +36,10 @@ public:
     /// @brief モデルを設定する。
     void SetModel(const std::string& filePath);
 
-    /// @brief 拡大率を返す。
-    const Vector3& GetScale() const
+    /// @brief 拡大率・回転角・平行移動を返す。
+    const Transform& GetTransform() const
     {
-        return transform_.scale;
-    }
-
-    /// @brief 回転角を返す。
-    const Vector3& GetRotate() const
-    {
-        return transform_.rotate;
-    }
-
-    /// @brief 平行移動を返す。
-    const Vector3& GetTranslate() const
-    {
-        return transform_.translate;
+        return transform_;
     }
 
     /// @brief 姿勢を設定する。
@@ -139,10 +127,41 @@ public:
         hasTextureOverride_ = false;
     }
 
-    /// @brief ライティング方式を設定する。
-    void SetLightingMode(int32_t mode)
+    /// @brief 物理ベースの面の設定（ライティング方式・金属度・粗さ・AO・自己発光・映り込み・IBL・影・ディテール法線）。
+    struct SurfaceMaterial {
+        int32_t lightingMode = 0;
+        float metallic = 0.0f;
+        float roughness = 0.5f;
+        float ambientOcclusion = 1.0f;
+        Vector3 emissiveColor{0.0f, 0.0f, 0.0f};
+        float emissiveIntensity = 0.0f;
+        float environmentCoefficient = 0.0f;
+        float iblDiffuseIntensity = 1.0f;
+        float iblSpecularIntensity = 1.0f;
+        float shadowReceiveStrength = 1.0f;
+        float normalDetailStrength = 0.0f;
+        float normalDetailScale = 1.0f;
+    };
+
+    /// @brief 物理ベースの面の設定をまとめて決める。金属度・粗さ・AO・自己発光は、モデルの値の代わりにこの値を使う。
+    void SetSurfaceMaterial(const SurfaceMaterial& surface)
     {
-        materialData_->lightingMode = mode;
+        materialData_->lightingMode = surface.lightingMode;
+        materialData_->metallic = surface.metallic;
+        materialData_->roughness = surface.roughness;
+        materialData_->ambientOcclusion = surface.ambientOcclusion;
+        materialData_->emissiveColor = surface.emissiveColor;
+        materialData_->emissiveIntensity = surface.emissiveIntensity;
+        materialData_->environmentCoefficient = surface.environmentCoefficient;
+        materialData_->iblDiffuseIntensity = surface.iblDiffuseIntensity;
+        materialData_->iblSpecularIntensity = surface.iblSpecularIntensity;
+        materialData_->shadowReceiveStrength = surface.shadowReceiveStrength;
+        materialData_->normalDetailStrength = surface.normalDetailStrength;
+        materialData_->normalDetailScale = surface.normalDetailScale;
+        userMetallicOverride_ = true;
+        userRoughnessOverride_ = true;
+        userAmbientOcclusionOverride_ = true;
+        userEmissiveOverride_ = true;
     }
 
     /// @brief ライティング有効であるか判定する。
@@ -151,10 +170,11 @@ public:
         return materialData_->enableLighting != 0;
     }
 
-    /// @brief 平行光のライト方向を設定する。
-    void SetDirectionalLightDirection(const Vector3& direction)
+    /// @brief この描画物だけの平行光の向きと強さを決める。Update で全体のライトの向きに戻るので、Update の後に呼ぶ。
+    void SetDirectionalLight(const Vector3& direction, float intensity)
     {
         directionalLightData->direction = Normalize(direction);
+        directionalLightData->intensity = intensity;
     }
 
     /// @brief Shininessを設定する。
@@ -163,16 +183,10 @@ public:
         materialData_->shininess = shininess;
     }
 
-    /// @brief Insensityを設定する。
-    void SetInsensity(float insensity)
+    /// @brief 局所光を、どこにも届かない遠くへ置いて消す。
+    void ClearPointLight()
     {
-        directionalLightData->intensity = insensity;
-    }
-
-    /// @brief 点ライト位置を設定する。
-    void SetPointLightPosition(const Vector3& position)
-    {
-        pointLightData->position = position;
+        pointLightData->position = {-10000.0f, -10000.0f, -10000.0f};
     }
 
     /// @brief この描画物だけに適用する局所光。ゲーム全体のライトは変更しない。
@@ -185,22 +199,24 @@ public:
         pointLightData->decay = decay;
     }
 
-    /// @brief 材質リソースを返す。
-    ID3D12Resource* GetMaterialResource()
+    /// @brief 材質の定数バッファの GPU アドレスを返す（自前で描くとき、ルートの CBV に渡す）。
+    D3D12_GPU_VIRTUAL_ADDRESS GetMaterialAddress() const
     {
-        return materialResource_.Get();
+        return materialResource_->GetGPUVirtualAddress();
     }
 
-    /// @brief Transformationリソースを返す。
-    ID3D12Resource* GetTransformationResource()
+    /// @brief 行列の定数バッファの GPU アドレスを返す（自前で描くとき、ルートの CBV に渡す）。
+    D3D12_GPU_VIRTUAL_ADDRESS GetTransformationAddress() const
     {
-        return transformationMatrixResource.Get();
+        return transformationMatrixResource->GetGPUVirtualAddress();
     }
 
-    /// @brief モデルを返す。
-    Model* GetModel()
+    /// @brief モデルのメッシュだけを描く（ルートと PSO は呼び出し側で決める）。モデルが無ければ何もしない。
+    void DrawMeshOnly()
     {
-        return model_;
+        if (model_) {
+            model_->DrawOnlyMesh();
+        }
     }
 
     /// @brief 環境マップを設定する。
@@ -219,96 +235,6 @@ public:
     float GetEnvironmentCoefficient() const
     {
         return materialData_->environmentCoefficient;
-    }
-
-    /// @brief 金属度を設定する。
-    void SetMetallic(float metallic)
-    {
-        materialData_->metallic = metallic;
-        userMetallicOverride_ = true;
-    }
-
-    /// @brief 粗さを設定する。
-    void SetRoughness(float roughness)
-    {
-        materialData_->roughness = roughness;
-        userRoughnessOverride_ = true;
-    }
-
-    /// @brief AmbientOcclusionを設定する。
-    void SetAmbientOcclusion(float ambientOcclusion)
-    {
-        materialData_->ambientOcclusion = ambientOcclusion;
-        userAmbientOcclusionOverride_ = true;
-    }
-
-    /// @brief 自己発光を設定する。
-    void SetEmissive(const Vector3& color, float intensity)
-    {
-        materialData_->emissiveColor = color;
-        materialData_->emissiveIntensity = intensity;
-        userEmissiveOverride_ = true;
-    }
-
-    /// @brief 結晶材質を設定する。
-    void SetCrystalMaterial(const CrystalMaterialSettings& settings);
-    /// @brief コースティクステクスチャを設定する。
-    void SetCausticsTexture(const std::string& filePath);
-    /// @brief コースティクス設定を設定する。
-    void SetCausticsSettings(bool enabled, float scale, float intensity, const Vector3& color);
-    /// @brief コースティクスアニメーション設定を設定する。
-    void SetCausticsAnimationSettings(bool enabled, float playbackTime, float loopDuration, uint32_t frameCount, uint32_t atlasColumns,
-                                      uint32_t atlasRows);
-
-    /// @brief IBL強度を設定する。
-    void SetIBLIntensity(float diffuseIntensity, float specularIntensity)
-    {
-        materialData_->iblDiffuseIntensity = diffuseIntensity;
-        materialData_->iblSpecularIntensity = specularIntensity;
-    }
-
-    /// @brief 影を受ける強さを設定する。
-    void SetShadowReceiveStrength(float strength)
-    {
-        materialData_->shadowReceiveStrength = strength;
-    }
-
-    /// @brief ディテール法線の強さと拡大率を設定する。
-    void SetNormalDetail(float strength, float scale)
-    {
-        materialData_->normalDetailStrength = strength;
-        materialData_->normalDetailScale = scale;
-    }
-
-    /// @brief 水面診断値を設定する。
-    void SetWaterDiagnostics(bool enabled, bool sunPathEnabled, bool atmosphereEnabled, bool farFlattenEnabled,
-                             bool proceduralCloudReflectionEnabled, int32_t debugMode, float atmosphereStrength, float farFlattenStrength)
-    {
-        materialData_->waterDiagnosticsEnabled = enabled ? 1.0f : 0.0f;
-        materialData_->waterSunPathEnabled = sunPathEnabled ? 1.0f : 0.0f;
-        materialData_->waterAtmosphereEnabled = atmosphereEnabled ? 1.0f : 0.0f;
-        materialData_->waterFarFlattenEnabled = farFlattenEnabled ? 1.0f : 0.0f;
-        materialData_->waterProceduralCloudReflectionEnabled = proceduralCloudReflectionEnabled ? 1.0f : 0.0f;
-        materialData_->waterDebugMode = static_cast<float>(debugMode);
-        materialData_->waterAtmosphereStrength = atmosphereStrength;
-        materialData_->waterFarFlattenStrength = farFlattenStrength;
-    }
-
-    /// @brief 海面に描く航跡の位置と向きを設定する。
-    void SetOceanWakeData(const std::array<Vector4, 16>& wakePoints, const std::array<Vector4, 16>& wakeDirections,
-                          const Vector4& parameters);
-
-    /// @brief キャラクター用の陰影（回り込み・影の柔らかさ・リム）を設定する。
-    void SetCharacterShading(float lightWrap, float shadowSoftness, float shadowStrength, float rimStrength, float rimPower,
-                             float specularStrength, float specularPower)
-    {
-        materialData_->characterLightWrap = lightWrap;
-        materialData_->characterShadowSoftness = shadowSoftness;
-        materialData_->characterShadowStrength = shadowStrength;
-        materialData_->characterRimStrength = rimStrength;
-        materialData_->characterRimPower = rimPower;
-        materialData_->characterSpecularStrength = specularStrength;
-        materialData_->characterSpecularPower = specularPower;
     }
 
     /// @brief 材質を Initialize の直後の既定値へ戻し、材質の上書きの印も消す。GPU の資源は作り直さない。
