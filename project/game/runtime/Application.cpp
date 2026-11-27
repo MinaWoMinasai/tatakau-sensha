@@ -358,6 +358,15 @@ void Application::InitializeEngine()
     timed("Engine.Object3d", [&] {
         myEngine::Object3dCommon::GetInstance()->Initialize(dxCommon_.get(), srvManager_.get(), shadow_->GetShadowMap());
     });
+    // 名前で使う基本の形（resources/configs/primitive_models.json）を登録する。
+    timed("Engine.PrimitiveModels", [&] {
+        std::string error;
+        const int registered = myEngine::ModelManager::GetInstance()->LoadPrimitivePresets("configs/primitive_models.json", error);
+        myEngine::StartupTrace::Count("Models.PrimitivePresets", registered);
+        if (!error.empty()) {
+            OutputDebugStringA(("[ModelManager] " + error + "\n").c_str());
+        }
+    });
     timed("Engine.Sprite", [&] {
         myEngine::SpriteCommon::GetInstance()->Initialize(dxCommon_.get());
     });

@@ -1,0 +1,11 @@
+{
+  "comment": "名前で使う基本の形（ModelManager::LoadPrimitivePresets が起動時に登録する）。shape は plane・grid・box・facetedCrystal・cylinder・uvSphere。size は [幅, 高さ, 奥行き]、radius は半径、segments は横の分割（grid の x・結晶の面・円柱と球の周）、rings は縦の分割（grid の z・球の緯度）。0 か省くと形の既定値。",
+  "presets": [
+    {"name": "primitive_plane", "shape": "plane", "size": [1.0, 0.0, 1.0]},
+    {"name": "primitive_grid", "shape": "grid", "size": [1.0, 0.0, 1.0], "segments": 8, "rings": 8},
+    {"name": "primitive_box", "shape": "box", "size": [1.0, 1.0, 1.0]},
+    {"name": "primitive_crystal", "shape": "facetedCrystal", "size": [0.0, 1.0, 0.0], "radius": 0.5, "segments": 8},
+    {"name": "primitive_cylinder", "shape": "cylinder", "size": [0.0, 1.0, 0.0], "radius": 0.5, "segments": 64},
+    {"name": "primitive_sphere", "shape": "uvSphere", "radius": 0.5, "segments": 32, "rings": 16}
+  ]
+}

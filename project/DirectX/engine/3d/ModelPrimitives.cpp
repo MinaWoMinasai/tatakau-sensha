@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <string>
+#include <utility>
 
 namespace myEngine {
 
@@ -43,9 +45,10 @@ void AddDoubleSidedTriangle(std::vector<uint32_t>& indices, uint32_t index0, uin
     indices.push_back(index1);
     indices.push_back(index0);
 }
-} // namespace
 
-ModelData Model::CreatePlane(float width, float depth)
+// 各形の作り方（Model::CreatePrimitive から呼ぶ）。
+
+ModelData BuildPlane(float width, float depth)
 {
     width = (std::max)(width, 0.001f);
     depth = (std::max)(depth, 0.001f);
@@ -68,7 +71,7 @@ ModelData Model::CreatePlane(float width, float depth)
     return modelData;
 }
 
-ModelData Model::CreateGrid(float width, float depth, uint32_t xSegments, uint32_t zSegments)
+ModelData BuildGrid(float width, float depth, uint32_t xSegments, uint32_t zSegments)
 {
     width = (std::max)(width, 0.001f);
     depth = (std::max)(depth, 0.001f);
@@ -118,7 +121,7 @@ ModelData Model::CreateGrid(float width, float depth, uint32_t xSegments, uint32
     return modelData;
 }
 
-ModelData Model::CreateBox(const Vector3& size)
+ModelData BuildBox(const Vector3& size)
 {
     const float halfX = (std::max)(std::abs(size.x), 0.001f) * 0.5f;
     const float halfY = (std::max)(std::abs(size.y), 0.001f) * 0.5f;
@@ -155,7 +158,7 @@ ModelData Model::CreateBox(const Vector3& size)
     return modelData;
 }
 
-ModelData Model::CreateFacetedCrystal(float radius, float height, uint32_t sides)
+ModelData BuildFacetedCrystal(float radius, float height, uint32_t sides)
 {
     constexpr float kPi = 3.14159265358979323846f;
     radius = (std::max)(std::abs(radius), 0.001f);
@@ -224,7 +227,7 @@ ModelData Model::CreateFacetedCrystal(float radius, float height, uint32_t sides
     return modelData;
 }
 
-ModelData Model::CreateCylinder(float radius, float height, uint32_t segments)
+ModelData BuildCylinder(float radius, float height, uint32_t segments)
 {
     constexpr float kPi = 3.14159265358979323846f;
     radius = (std::max)(radius, 0.001f);
@@ -295,7 +298,7 @@ ModelData Model::CreateCylinder(float radius, float height, uint32_t segments)
     return modelData;
 }
 
-ModelData Model::CreateUvSphere(float radius, uint32_t latitudeSegments, uint32_t longitudeSegments)
+ModelData BuildUvSphere(float radius, uint32_t latitudeSegments, uint32_t longitudeSegments)
 {
     constexpr float kPi = 3.14159265358979323846f;
     latitudeSegments = (std::max)(latitudeSegments, 3u);
@@ -359,6 +362,46 @@ ModelData Model::CreateUvSphere(float radius, uint32_t latitudeSegments, uint32_
     }
 
     return modelData;
+}
+
+
+} // namespace
+
+bool ParsePrimitiveShape(const std::string& name, PrimitiveShape& shape)
+{
+    static const std::pair<const char*, PrimitiveShape> kNames[] = {
+        {"plane", PrimitiveShape::Plane},       {"grid", PrimitiveShape::Grid},         {"box", PrimitiveShape::Box},
+        {"facetedCrystal", PrimitiveShape::FacetedCrystal}, {"cylinder", PrimitiveShape::Cylinder}, {"uvSphere", PrimitiveShape::UvSphere},
+    };
+    for (const auto& [key, value] : kNames) {
+        if (name == key) {
+            shape = value;
+            return true;
+        }
+    }
+    return false;
+}
+
+ModelData Model::CreatePrimitive(PrimitiveShape shape, const PrimitiveParams& params)
+{
+    const auto count = [](uint32_t value, uint32_t fallback) {
+        return value > 0 ? value : fallback;
+    };
+    switch (shape) {
+    case PrimitiveShape::Plane:
+        return BuildPlane(params.size.x, params.size.z);
+    case PrimitiveShape::Grid:
+        return BuildGrid(params.size.x, params.size.z, count(params.segments, 1u), count(params.rings, 1u));
+    case PrimitiveShape::Box:
+        return BuildBox(params.size);
+    case PrimitiveShape::FacetedCrystal:
+        return BuildFacetedCrystal(params.radius, params.size.y, count(params.segments, 8u));
+    case PrimitiveShape::Cylinder:
+        return BuildCylinder(params.radius, params.size.y, count(params.segments, 64u));
+    case PrimitiveShape::UvSphere:
+        return BuildUvSphere(params.radius, count(params.rings, 16u), count(params.segments, 32u));
+    }
+    return BuildBox(params.size);
 }
 
 } // namespace myEngine
