@@ -1,110 +1,103 @@
 # AvatarSample_B — Neon Skinned Preview
 
-本文中の`project/tools/`による生成・検証コマンドは作者のローカル環境向けの記録です。これらのスクリプトはGit管理対象外で、クローンには含まれません。同梱済みのモデル・マスクの読み込みに実行は不要です。
+ボスのネオン表示（Neon Skinned Visual）と、開発用の Neon Skinned Preview で使うモデルです。
 
-| 項目 | 記録 |
+| 項目 | 内容 |
 | --- | --- |
 | Model | AvatarSample_B |
-| Creator / Project | VRoid Project（VRM内のtitle / authorも一致） |
-| Original format | VRM（GLB 2.0コンテナ） |
+| Creator / Project | VRoid Project（VRM 内の title / author も同じ） |
+| Original format | VRM（GLB 2.0 コンテナ） |
 | Repository format | GLB: `AvatarSample_B.glb` |
-| 用途 | 本編ボスのNeon Skinned Visual（Development / Release）とDeveloper Preview |
-| 取得日 | 2026-10-01（作者提供のローカル入力をRepositoryへ取り込んだ日） |
+| 用途 | 本編ボスの Neon Skinned Visual（Development / Release）と Developer Preview |
+| 取り込んだ日 | 2026-10-01 |
 | 入力ファイル名 | `6493143135142452442.vrm` |
-| 取得元 | 作者のWindows Downloads内の指定ファイル。ダウンロード元URL・経路は未確認 |
 | 公式利用条件 | [VRoid Project: AvatarSample A〜Z](https://vroid.pixiv.help/hc/ja/articles/4402394424089-AvatarSample-A-Z) |
 
-このモデルは**CC0ではありません**。上記の公式条件では無料の営利・非営利利用、改変、キャラクターとしての利用が認められ、クレジット表記は不要とされています。改変したキャラクターモデルの公開・販売例も示されています。CC0への変更、キャラクター作成サービスへの利用、正当な理由のない有料再配布などの禁止事項を含む公式条件を確認してください。本書やRepositoryのコードライセンスはモデルをCC0として扱う根拠になりません。
+## 出典と利用条件
 
-今回の取り込みはVRMを**byte-for-byteでコピーし、出力ファイル名だけをGLBへ変更**したものです。Blender等での再エクスポート、バイナリ加工、再圧縮は行っていません。VRM拡張情報も元のまま残ります。元VRMはRepositoryに重複収録していません。
+このモデルは**CC0ではありません**。上記の公式条件では、無料の営利・非営利利用、改変、キャラクターとしての利用が認められ、クレジット表記は不要とされています。改変したキャラクターモデルの公開・販売例も示されています。CC0への変更、キャラクター作成サービスへの利用、正当な理由のない有料再配布などの禁止事項を含む公式条件に従ってください。本書やリポジトリのコードのライセンスは、モデルを CC0 として扱う根拠になりません。
+
+VRM を**バイト列を変えずにコピーし、ファイル名だけを GLB にした**ものです。Blender などでの再エクスポート、バイナリの加工、再圧縮はしていません。VRM の拡張情報も元のまま残ります。元の VRM は重ねて収録していません。
 
 - ファイルサイズ: 28,333,772 bytes
-- コピー元 / コピー先ともにSHA-256: `7FCA4A77FDC60AB2C78A9907430744562626180125FA386EB74FB2EA15C2E518`
+- SHA-256: `7FCA4A77FDC60AB2C78A9907430744562626180125FA386EB74FB2EA15C2E518`
 
-## 読み込み確認
+## モデルの内容
 
-エンジンと同じAssimpフラグ（Triangulate / JoinIdenticalVertices / GenSmoothNormals / CalcTangentSpace / LimitBoneWeights / ImproveCacheLocality）で確認しました。再検証: `project/tools/test_neon_skinned_model.ps1`。レポートは `generated/neon_skinned_model_tests/report.json` に出力します。
+エンジンと同じ Assimp のフラグ（Triangulate / JoinIdenticalVertices / GenSmoothNormals / CalcTangentSpace / LimitBoneWeights / ImproveCacheLocality）で読み込んだときの内容です。
 
-| 項目 | 結果 |
+| 項目 | 内容 |
 | --- | --- |
-| glTF Mesh / skin | 3 / 3（各skinのJointリストは113） |
-| Assimp Mesh / 描画Submesh | 7 / 7 |
-| Skeleton Node / Joint | 118（glTFの117 node + Assimpのroot） |
-| AssimpのユニークBone名 | 85、正のWeightを持つBoneは84 |
-| 頂点 / Skin Weight | 21,961頂点すべてに正規化済みWeightあり。正のWeight 40,145件、最大4 influence/vertex |
-| Material | glTF 7 / Assimp 8（追加の未使用defaultを含む） |
+| glTF Mesh / skin | 3 / 3（各 skin の Joint リストは 113） |
+| Assimp Mesh / 描画 Submesh | 7 / 7 |
+| Skeleton Node / Joint | 118（glTF の 117 node + Assimp の root） |
+| Assimp のユニークな Bone 名 | 85、正の Weight を持つ Bone は 84 |
+| 頂点 / Skin Weight | 21,961 頂点すべてに正規化済みの Weight。正の Weight 40,145 件、1 頂点あたり最大 4 |
+| Material | glTF 7 / Assimp 8（使われない default を含む） |
 | Embedded Texture | 6 |
-| GLB由来のAnimation | 0。元姿勢比較には既存SkinnedModelの空の`BindPose`クリップを利用 |
-| Preview生成クリップ | 2（`Preview_Idle` / `Preview_Attack`）。C++で生成し、GLBには保存しない |
+| GLB のアニメーション | 0。元の姿勢には SkinnedModel の空の `BindPose` クリップを使う |
+| Preview で作るクリップ | 2（`Preview_Idle` / `Preview_Attack`）。C++ で作り、GLB には保存しない |
 
-## Preview操作
+## Preview の開き方
 
-PowerShellや起動引数は不要です。Visual Studioで`project/MyEngine.sln`を開き、**Development / x64**を選んでF5（またはCtrl+F5）で普通に起動します。タイトル画面の「遠征をはじめる」からTANK_EXPEDITIONへ進み、**F3「制作ツール」→「Neon Skinned Previewを開く」**を押すと、F12デバッグコンソールの**Neon Preview**タブが開きます。F12でコンソールを表示してNeon Previewタブを直接選んでも確認できます。従来の「ツール」タブ内のNeon Skinned Previewセクションも利用できます。
+Visual Studio で `project/MyEngine.sln` を開き、**Development / x64** で起動します。タイトル画面の「遠征をはじめる」から TANK_EXPEDITION へ進み、**F3「制作ツール」→「Neon Skinned Previewを開く」**を押すと、F12 デバッグコンソールの **Neon Preview** タブが開きます。F12 でコンソールを出して Neon Preview タブを直接選ぶこともできます。「ツール」タブ内の Neon Skinned Preview の節からも使えます。
 
-Previewは開いただけでは有効になりません。下記の`Preview Enable`をオンにしてください。
+Preview は `Preview Enable` をオンにすると、モデルと GPU 資源を読み込みます。`Normal` は `Object3d::DrawSkinned()`、`Neon` は `NeonSkinnedRenderer::Draw()` で描き、同じモデル・Skeleton / Palette・Object3d の Transform を共有します。位置・回転（radian）・Scale と Neon のパラメータを操作できます。初期回転は正面（Y=0）です。`Place in front of camera` で今の Camera の 35 単位前へ移します。無効にしても GPU 資源は保持し、フレームの途中で破棄しません。
 
-`Preview Enable`で初めてモデル・GPU資源を読み込みます。`Normal`は既存`Object3d::DrawSkinned()`、`Neon`は既存`NeonSkinnedRenderer::Draw()`を使い、同じモデル・Skeleton / Palette / Object3dのTransformを共有します。位置・回転（radian）・ScaleとNeonパラメータを操作できます。初期回転は正面（Y=0）です。`Place in front of camera`で現在のCameraの35単位前へ移動します。無効化してもGPU資源は保持し、フレーム途中で破棄しません。
+初期状態では Preview は無効です。タイトルのデモには Preview を作りません。Release では Preview のクラスをビルドから外し、GameScene からの呼び出しもコンパイル時に無効にします。本編のボスは別の Presentation component から、同じ GLB と NeonSkinnedRenderer、生成したクリップを使います。実行時に読むのは `resources/models/neon_hologram/AvatarSample_B.glb` だけです。
 
-初期状態はPreview無効です。タイトルのデモにはPreviewを作りません。ReleaseではPreviewクラスをビルド対象から外し、PreviewへのGameSceneの呼び出しもコンパイル時に無効にします。本編のボスVisualは別のPresentation componentから同じGLBとNeonSkinnedRenderer、既存生成クリップを使用します。配布パッケージにはGLBと必要なshaderを含め、比較用`line_masks/`は引き続き除外します。Downloadsはコピー時にのみ参照し、実行時はRepository内の`resources/models/neon_hologram/AvatarSample_B.glb`だけを使用します。
+描画は `Bloom::PreDraw()` の直後、ObjectPostEffect の capture より前の Scene HDR / Normal / Material（3 MRT）+ D24S8 の中です。`BeginFrame()` は前フレームの Fence 完了後の Update で1回だけ呼び、Draw の後は通常の Object3d の Root Signature / PSO をもう一度 Bind します。
 
-描画は`Bloom::PreDraw()`直後、ObjectPostEffectのcaptureより前のScene HDR / Normal / Material（3 MRT）+ D24S8内です。`BeginFrame()`は前フレームのFence完了後のUpdateで1回だけ呼び、Draw後は通常Object3dのRoot Signature / PSOを再Bindします。
+## アニメーション
 
-## 検証用アニメーション
+初めて有効にしたときは `Preview_Idle` を再生します。`Animation` で、元の T ポーズの `BindPose`、3 秒ループの `Preview_Idle`、1.8 秒で終わる `Preview_Attack` を選べます。Idle は腕を下げ、肘を軽く曲げ、胸・首・腕を小さく動かします。Attack は右腕を引いて溜め、前へ押し出して戻り、終わると 0.2 秒のブレンドで Idle へ戻ります。`Play Attack` をもう一度押すと先頭から再生します。
 
-初回有効化では`Preview_Idle`を再生します。`Animation`で元のTポーズの`BindPose`、3秒ループの`Preview_Idle`、1.8秒非ループの`Preview_Attack`を選択できます。Idleは腕を下げ、肘を軽く曲げ、胸・首・腕を小さく動かします。Attackは右腕を引いて溜め、前へ押し出して戻り、終了後に0.2秒の既存ブレンドでIdleへ戻ります。`Play Attack`は再度押すと先頭から再実行します。
+`Play` / `Pause`、`Restart`、`Playback Speed`、今のクリップ名・ループ状態・時刻 / duration を表示します。Pause はポーズのブレンドも止めます。Pause 中に再生位置のスライダーを動かすと遷移を終え、その時刻の姿勢を表示します。Pause 中に Idle / Attack を選ぶだけでは今の姿勢を保ち、Play でブレンドを再開するか、Seek で直接姿勢を決めます。Restart は Pause の状態を保ったまま、選んだクリップの時刻 0 へ戻します。BindPose は Pause 中もすぐ元の姿勢へ戻し、duration=0 なのでスライダーは無効になります。Normal / Neon を切り替えても、再ロードや時刻のリセットはしません。
 
-`Play` / `Pause`、`Restart`、`Playback Speed`、現在のクリップ名・ループ状態・時刻 / durationを表示します。Pauseは進行中のポーズブレンドも停止します。Pause中の再生位置スライダーは遷移を終了し、その時刻のサンプル姿勢を表示します。Pause中のIdle / Attack選択だけでは現在姿勢を保持し、Playでブレンドを再開するかSeekで直接姿勢を指定できます。RestartはPause状態を維持し、指定クリップの時刻0へ戻します。BindPoseはPause中も直ちに元姿勢へ戻し、duration=0でスライダーを無効にします。Normal / Neonは再ロードや時刻リセットを行いません。
+`game/debug/NeonPreviewAnimations.cpp` がロード時に一度だけ回転のキーフレームを作り、`myEngine::SkinnedModel::RegisterAnimations()` が受け取って持ちます。`AnimationPlayer` → `SkeletonSystem` → `SkinCluster` / Palette を Update で1回だけ更新し、Body と Outline で共有します。登録は全クリップを確かめてから確定し、Player の参照をつなぎ直して時刻・再生・遷移の状態を保ちます。失敗したときは前の状態を保ち、Preview に足りないボーン名などを出して BindPose を使います。
 
-`game/debug/NeonPreviewAnimations.cpp`がロード時に一度だけ回転キーフレームを生成し、`myEngine::SkinnedModel::RegisterAnimations()`が検証後に所有します。既存`AnimationPlayer` → `SkeletonSystem` → `SkinCluster` / PaletteをUpdateで一回だけ更新し、BodyとOutlineで共有します。登録は全クリップを検証してからvectorを確定し、Playerの参照を再接続して時刻・再生・遷移状態を保ちます。失敗時は既存状態を維持し、Previewに不足ボーン名等を表示してBindPoseを使用します。
+動かすボーンは `J_Bip_C_Chest`、`J_Bip_C_Neck`、`J_Bip_L_UpperArm`、`J_Bip_R_UpperArm`、`J_Bip_L_LowerArm`、`J_Bip_R_LowerArm` です。Assimp / エンジンで変換した後の腕の bind 回転は単位 Quaternion で、左の子ボーンは +X、右は -X に伸びます。行ベクトルの回転行列では `R(qA*qB)=R(qB)*R(qA)` の順に合成し、ローカルの差分 `Rx*Ry*Rz` の後に bind 回転を当てます。左右の腕は Z の符号を反対にして下げ、肘は Y で曲げます。Translation / Scale の曲線は足さず bind の値のままで、root・脚・足は動かしません。glTF からの座標変換は足していません。Spring Bone、布の物理、表情、戦闘の処理はありません。
 
-対象は名前解決した`J_Bip_C_Chest`、`J_Bip_C_Neck`、`J_Bip_L_UpperArm`、`J_Bip_R_UpperArm`、`J_Bip_L_LowerArm`、`J_Bip_R_LowerArm`です。Assimp / エンジン変換後の腕のbind回転は単位Quaternion、左の子ボーンは+X、右は-Xに伸びます。行ベクトルの回転行列に対し`R(qA*qB)=R(qB)*R(qA)`となる合成順を数値テストで確認し、ローカル差分`Rx*Ry*Rz`の後にbind回転を適用します。左右の腕はZの符号を反転して下げ、肘はYで曲げます。Translation / Scale曲線は追加せずbind値を維持し、root・脚・足は動かしません。glTFからの座標変換は追加適用しません。
+## 暗い本体 + ネオンの外周線
 
-再検証は`project/tools/test_neon_preview_animations.ps1`。実GLBと既存Animation / Skeleton / SkinnedModel / SkinClusterをWARP upload bufferで数値検証します。Texture / descriptorサービスを隔離したテストのため、描画確認とは別です。登録の妥当性と失敗時の状態保持、vector再配置時の寿命、Quaternion正規化・合成順、Idle境界、途中姿勢・実WeightによるPalette変形、Pause / Resume / Restart / Seek / 速度、Attack再実行とIdle復帰、const getter維持を確認します。
+Preview を初めて開いたときは、下の `Recommended Line Art` を使います。Renderer の既定の表示は、暗い紫の本体と細いピンクの外周線です。同じ Skinning Palette で膨らませた Hull を重ねて描き、Scene Bloom へ HDR の光を渡します。
 
-2026-10-03のDevelopment実機では正面・側面のIdle / Attack、肩・肘・首、押し出し姿勢、同じ停止時刻でのNormal / Neon比較と外周・内部線の追従を確認しました。比較画像は`generated/neon_animation_preview/`に保存します。髪や細部の線の密集・一部の途切れ、Normal側の顔の白さは既存表現の制約です。全角度の連続動画によるちらつき評価や衝突の保証は行っていません。Spring Bone、布物理、表情、戦闘処理は追加していません。モデルのSHA-256は作業前後で上記と一致しました。
-
-## 暗い本体 + ネオン外周線
-
-Previewの初回表示は下記の`Recommended Line Art`を使用します。Renderer単体の既定表示は暗い紫の本体と細いピンクの外周線です。同じSkinning Paletteで膨張したHullを追加描画し、既存のScene BloomへHDR発光を渡します。
-
-- `Reset: dark body + neon lines`: 色・強度・線幅を既定値へ戻し、内部線を有効にする。
+- `Reset: dark body + neon lines`: 色・強さ・線幅を既定値へ戻し、内部線を有効にする。
 - `Outline Enable`: 外周線のオン／オフ。
-- `Outline width (pixels)`: 0〜8px、既定1.75px。0は線を描かない。
-- `Neon line color` / `Neon line intensity (HDR)`: 線の色と発光強度。既定はピンク／12.0。細い線も既存Bloomの半解像度・輝度しきい値へ届きやすい値を使い、Scene全体のBloom設定は変更しない。
-- `bodyColor`: 本体色。
-- `Optional body rim`: 面の補助発光。既定`rimStrength=0`。外周線の幅とは独立。
+- `Outline width (pixels)`: 0〜8px、既定 1.75px。0 なら線を描かない。
+- `Neon line color` / `Neon line intensity (HDR)`: 線の色と光の強さ。既定はピンク／12.0。細い線でも Bloom の半解像度・輝度のしきい値に届く値で、Scene 全体の Bloom の設定は変えない。
+- `bodyColor`: 本体の色。
+- `Optional body rim`: 面の補助の光。既定 `rimStrength=0`。外周線の幅とは別。
 
-本体を全Submesh描いた後、モデル全体のStencilマスクの外側だけに線を描きます。片面SubmeshはFront CullのHull、`doubleSided`の薄い面はCull Noneを使います。線はDepth Testを行い、DepthやNormal / Material MRTへ書き込みません。Stencil bit **0x80**はこのパス専用に予約し、Drawの前後でこのbitだけを消去します。他の7bitは保持します。同じDSVの0x80を別のパスが保持中の状態で呼び出さないでください。
+本体の Submesh を全部描いた後、モデル全体の Stencil マスクの外側だけに線を描きます。片面の Submesh は Front Cull の Hull、`doubleSided` の薄い面は Cull None を使います。線は Depth Test をし、Depth や Normal / Material の MRT へは書きません。Stencil の bit **0x80** はこのパス専用で、Draw の前後でこの bit だけを消します。他の 7bit は保持します。同じ DSV の 0x80 を別のパスが使っている間は呼ばないでください。
 
-`Draw(model, transformCbv, cameraPosition)`は既存の1280×720 Sceneサイズを使います。別サイズのRender Targetへ描く場合は`Draw(model, transformCbv, cameraPosition, viewportSize)`で実際のViewport寸法を渡してください。線幅は法線を画面方向へ投影して作るため、ハードエッジ・分割法線・正面を向いた薄い面などでは途切れや太さの差が出る場合があります。
+`Draw(model, transformCbv, cameraPosition)` は 1280×720 の Scene の大きさを使います。別の大きさの Render Target へ描くときは、`Draw(model, transformCbv, cameraPosition, viewportSize)` で実際の Viewport の寸法を渡してください。線幅は法線を画面の向きへ投影して作るので、ハードエッジ・分割した法線・正面を向いた薄い面では、途切れや太さの差が出ます。
 
-## Texture由来の内部特徴線
+## Texture から作る内部の線
 
-更新済みPaletteと同じVertex UVを使い、既存BaseColor Textureの色・alphaの境界をNeonのBody PSで検出します。画面微分から上下左右のTextureを`SampleGrad`で読み、暗い本体にHDR発光を追加します。三角形の分割線は描きません。モデル・Textureのバイナリや通常Skinning Shaderは変更しません。
+更新した Palette と同じ頂点の UV を使い、BaseColor Texture の色・alpha の境界を Neon の Body PS で見つけます。画面の微分から上下左右の Texture を `SampleGrad` で読み、暗い本体に HDR の光を足します。三角形の分割線は描きません。モデル・Texture のバイナリや通常の Skinning Shader は変えません。
 
-- `Internal Line Enable`: 内部線だけのオン／オフ。外周線とは独立。
-- `Internal width (pixels)`: 境界検出のサンプル間隔、既定1.0px（0〜4px）。線の正確な幾何幅を保証する値ではない。
-- `Internal intensity (HDR)`: 内部線の発光強度、既定8.0。色は外周と同じ`Neon line color`。
-- `Internal edge threshold`: 色・alpha差の閾値、既定0.12。陰影や細かい模様を拾いすぎる場合は0.2程度へ上げ、太く見える場合は幅を0.65程度へ下げて比較する。
-- `Texture alpha cutout`: Neonだけに簡易Cutoutを適用。Previewは既定オン。MASKは元の`alphaCutoff`、BLENDは0.03を初期値とする。
-- `Submesh / Material diagnostics`: Submeshごとの`Line strength`と`Alpha cutoff`を調整。不要な模様のSubmeshは強度0で内部線だけを止められる。
+- `Internal Line Enable`: 内部線だけのオン／オフ。外周線とは別。
+- `Internal width (pixels)`: 境界を探すサンプルの間隔、既定 1.0px（0〜4px）。線の幾何の幅そのものではない。
+- `Internal intensity (HDR)`: 内部線の光の強さ、既定 8.0。色は外周と同じ `Neon line color`。
+- `Internal edge threshold`: 色・alpha の差のしきい値、既定 0.12。陰影や細かい模様を拾いすぎるときは 0.2 ほどへ上げ、太く見えるときは幅を 0.65 ほどへ下げる。
+- `Texture alpha cutout`: Neon だけに簡易の Cutout を当てる。Preview は既定でオン。MASK は元の `alphaCutoff`、BLEND は 0.03 が初期値。
+- `Submesh / Material diagnostics`: Submesh ごとの `Line strength` と `Alpha cutoff`。不要な模様の Submesh は、強さ 0 で内部線だけを止められる。
 
-Root SignatureはTransform `b0`（VS）、Neon/Camera/Viewport `b1`（ALL）、Palette `t3`（VS）、BaseColor `t0`（PS）、Submesh用4 DWORDのRoot Constants `b2`（PS）、専用線マスク `t1`（PS）、linear clamp sampler `s0`です（合計11 DWORD）。Neonパラメータは128 bytes、Camera/Viewportを含むGPU定数は160 bytes、CBV領域は256 bytes、Submesh定数は16 bytesです。Material SRVは同じSrvManagerで初期化済みのSkinnedModelから共有し、DrawごとにCB内容・Root Constants・マスクSRVを記録します。`SetSubmeshParams()`と`SetSubmeshFeatureMasks()`は空またはモデルのSubmesh数に一致する配列を渡してください。マスクの`nullopt`はR/G=0を返す有効なnull Texture2D SRVへ戻ります。実マスクは同じHeapのLinearData Texture2Dとし、GPU完了までTextureManagerのキャッシュ等で保持してください。Renderer単体の既定値は内部線・Geometry Lines・Body emission・マスク適用がオフ、Cutoutなしのため、既存呼び出しの表示を維持します。
+Root Signature は、Transform `b0`（VS）、Neon/Camera/Viewport `b1`（ALL）、Palette `t3`（VS）、BaseColor `t0`（PS）、Submesh 用の 4 DWORD の Root Constants `b2`（PS）、専用の線マスク `t1`（PS）、linear clamp sampler `s0` です（合計 11 DWORD）。Neon のパラメータは 128 bytes、Camera/Viewport を含む GPU 定数は 160 bytes、CBV 領域は 256 bytes、Submesh の定数は 16 bytes です。Material の SRV は、同じ SrvManager で初期化した SkinnedModel と共有し、Draw ごとに CB の内容・Root Constants・マスクの SRV を記録します。`SetSubmeshParams()` と `SetSubmeshFeatureMasks()` には、空か、モデルの Submesh 数と同じ数の配列を渡してください。マスクの `nullopt` は R/G=0 を返す null Texture2D SRV になります。実際のマスクは同じ Heap の LinearData Texture2D にし、GPU が使い終わるまで TextureManager のキャッシュなどで保持してください。Renderer の既定値では、内部線・Geometry Lines・Body emission・マスクの適用はオフ、Cutout は無しなので、前からの呼び出しの表示は変わりません。
 
-参考イラストの描き込みをTexture境界だけで完全再現するものではありません。塗りの境界やハイライトも線になり、モデルに描かれていない髪の線・口の形を自動生成しません。遠距離の小さな顔、UV seam、細い髪のalpha境界では途切れやちらつきが残ります。次段階で線を厳密に指定する場合は専用Feature Maskを検討してください。Barycentricで全三角形を描く方式とは分けて設計します。
+Texture の境界から作る線なので、塗りの境界やハイライトも線になり、モデルに描かれていない髪の線・口の形は作りません。遠くの小さな顔、UV seam、細い髪の alpha の境界では、線が途切れたりちらついたりします。線を細かく決めたいときは、下の専用の線マスクを使います。
 
-`project/tools/test_neon_skinned_pipeline.ps1`は実DXC・WARPでBody / Outline / Stencil用の5種類のPSOと、対応時にはGeometry用2種類のPSOを生成します。`-Hardware`で実GPUも選べます。合成Skinned Geometryのreadbackで、定数配置、暗い本体と補助発光、外周のHDR発光、線幅、Depth遮蔽、MRT / Stencil保持、Palette追従、Drawごとの定数、Texture内部線・Submesh強度 / 閾値・Alpha CutoutとGeometry Linesの独立性を検証します。実モデルの見た目確認とは別の検証です。
+## おすすめのネオン線画プリセット
 
-## 推奨ネオン線画プリセット
+`Recommended Line Art` は見た目の設定だけを変えます。初めて読み込んだときにも当たります。`Legacy Neon comparison`（または Reset ボタン）で、前の設定とくらべられます。どちらも Animation / Pause / Seek の位置、Normal / Neon、Transform、手で決めた Alpha Cutout の設定を保ち、モデルを読み直しません。
 
-`Recommended Line Art`は外観設定だけを変更します。初回ロードにも適用します。`Legacy Neon comparison`（または既存Resetボタン）で調整前の設定と比較できます。両操作ともAnimation / Pause / Seek位置、Normal / Neon、Transform、手動のAlpha Cutout設定を保持し、モデルを再ロードしません。
+- 外周：1.15px、HDR 強さ 6、主線はピンク。内部線：サンプル間隔 0.7px、HDR 強さ 5、共通のしきい値 0.16。
+- 顔・目・口を優先し、髪の陰影の帯と服の細かい模様を抑えます。`Submesh / Material diagnostics` の `Line strength` と `Internal threshold scale` で個別に変えられます。後者は共通のしきい値への倍率です。
+- `Body tint` と `Body emission` は線とは別です。弱いピンク紫の面を視線と法線で補い、通常のライティングは足しません。Body emission=0 で前の固定の Body の色へ戻ります。
+- `Mesh Geometry Lines (diagnostic)` は初めは OFF で、折りたたんであります。OFF / Subtle / Full Mesh Diagnostic、色・幅・強さと各 Submesh の Geometry の強さをくらべられます。線画プリセットを当てると Geometry Lines は OFF になります。
 
-- 外周：1.15px、HDR強度6、主線はピンク。内部線：サンプル間隔0.7px、HDR強度5、共通閾値0.16。
-- 顔・目・口を優先し、髪の陰影帯と服の細かい模様を抑えます。`Submesh / Material diagnostics`の`Line strength`と`Internal threshold scale`で個別調整できます。後者は共通閾値への倍率です。
-- `Body tint`と`Body emission`は線から独立しています。弱いピンク紫の面を視線と法線で補助し、通常ライティングは追加しません。Body emission=0で従来の固定Body色へ戻ります。
-- `Mesh Geometry Lines (diagnostic)`は初期OFF・折りたたみです。OFF / Subtle / Full Mesh Diagnostic、色・幅・強度と各SubmeshのGeometry強度を引き続き比較できます。線画プリセットを適用するとGeometry LinesはOFFになります。
-
-| Materialの役割 | 内部線強度 | 閾値倍率 |
+| Material の役割 | 内部線の強さ | しきい値の倍率 |
 | --- | ---: | ---: |
 | FaceMouth | 1.4 | 0.8 |
 | EyeIris | 1.15 | 1.0 |
@@ -114,23 +107,21 @@ Root SignatureはTransform `b0`（VS）、Neon/Camera/Viewport `b1`（ALL）、P
 | Body Skin | 0.12 | 1.8 |
 | Shoes / Cloth | 0.45 | 1.4 |
 
-線は既存テクスチャの描き込みに依存します。鼻先や頬の薄い線が全距離で読める保証はなく、髪のハイライト境界と服の模様を意味的な線だけへ完全分離するものではありません。
+## 専用の線マスク（比較用）
 
-## 専用線マスクの比較試作
+Preview を初めて開いたときは専用マスクを使わず、おすすめの線画のままです。`Authored Feature Mask (candidate)` の `Load / apply mask candidate` で、`line_masks/bindings.json` に書いた顔・髪の PNG を一度だけ読み込みます。`Auto lines only` と `Apply candidate` で同じ姿勢をくらべられ、`Mask application` で当てる割合、`Authored line color` / `Authored line intensity (HDR)` で専用の線だけの色・強さを変えられます。これらは外周・Body・Geometry の設定、モデルの Transform、再生の時刻を変えません。
 
-初回のPreview表示では専用マスクを適用せず、従来の推奨線画を保持します。`Authored Feature Mask (candidate)`の`Load / apply mask candidate`で、`line_masks/bindings.json`に指定した顔・髪の候補PNGを一度だけ読み込みます。`Auto lines only`と`Apply candidate`で同じ姿勢を比較でき、`Mask application`で適用率、`Authored line color` / `Authored line intensity (HDR)`で専用線だけの色・強度を調整できます。これらの操作は外周・Body・Geometry設定、モデルTransform、再生時刻を変更しません。
+`Mask display` の R / G 表示は、モデルの表面の UV に沿ったグレースケールです。R は専用の線の coverage、G は自動の内部線を置き換える領域で、G=1 / R=0 は本体を残したまま内部線だけを消します。当てる割合が 0 なら、表示を選んだままでも前の表示に戻ります。表示では、マスクを決めていない Submesh は黒になります。BaseColor の alpha による Cutout は、このマスクとは別です。
 
-`Mask display`のR / G診断はモデル表面のUVに従うグレースケール表示です。Rは専用線のcoverage、Gは自動内部線を置き換える領域で、G=1 / R=0は本体を残したまま内部線だけを消します。適用率0なら診断を選んだままでも従来表示へ戻ります。診断ではマスク未指定のSubmeshは黒く表示します。BaseColor alphaによるCutoutはこのマスクから独立しています。
+対象の Material ごとに、パス・LinearData RGBA8 / UV0・解像度・読み込みの状態を表示します。設定や画像が読めないときは、その Material の自動の内部線を保ち、UI にエラーを出します。TextureManager のキャッシュと GPU 資源を保持するので、PNG を変えたときはアプリケーションを起動し直してください。髪には UV を共有する所があるので、対象の領域を広げると他の束にも線が出ることがあります。作り方・元データのハッシュ・対象の Material は [line_masks/README.md](line_masks/README.md) にあります。
 
-各対象Materialのパス・LinearData RGBA8 / UV0・解像度・読込状態を表示します。無効な設定や画像の読み込み失敗では該当Materialの自動内部線を保持し、UIへエラーを表示します。TextureManagerのキャッシュとGPU資源の寿命を保持するため、候補の修正はアプリケーション再起動後に反映してください。今回選んだ前髪の領域では前後の重複はありませんが、髪全体にはUV共有があり、対象領域を広げると他の束にも線が現れる可能性があります。制作方法・元データのハッシュ・対象Materialと調査結果は[line_masks/README.md](line_masks/README.md)を参照してください。
+## Material の制約
 
-## Materialの制約
+Neon のパスは、簡易の Alpha Cutout 付きの不透明な描画です。透明な部分は、本体の Depth / Stencil と Hull の両方から外します。BLEND も Cutout で近づけるので、半透明の合成・ソートや MToon、Morph Target、Spring Bone、Expression は再現しません。Normal 側は汎用の Skinning Material のままで、顔が白く見えます。
 
-現在のNeonパスは簡易Alpha Cutout付きの不透明描画です。透明部分は本体のDepth / StencilとHullの両方から除外します。BLENDもCutoutで近似するため、半透明合成・ソートやMToon、Morph Target、Spring Bone、Expressionを再現しません。Normal側は既存の汎用Skinning Materialをそのまま使用します。
+`Face (merged).baked-2` / `N00_000_00_EyeHighlight_00_EYE (Instance)`（BLEND、doubleSided=true）の透明な板は、Cutout が無いと瞳を覆い、顔の細部が消えます。Neon の Cutout で軽くしますが、小さな瞳や髪の端では線が密になり、Hair に描かれたハイライトも線になります。
 
-実機では`Face (merged).baked-2` / `N00_000_00_EyeHighlight_00_EYE (Instance)`（BLEND、doubleSided=true）の透明な板がCutoutなしでは瞳を覆い、顔の細部が失われます。NeonのCutoutで軽減しますが、小さな瞳や髪の端では線が密になり、Hairの描かれたハイライトも特徴線に含まれます。通常描画の顔が白く見える点も既存Material経路の制約です。Skinning不具合と区別し、大規模なVRM Material対応は行っていません。
-
-| Submesh（Assimp名） | Material | alpha mode | doubleSided |
+| Submesh（Assimp 名） | Material | alpha mode | doubleSided |
 | --- | --- | --- | --- |
 | `Face (merged).baked-0` | `N00_000_00_FaceMouth_00_FACE (Instance)` | MASK | false |
 | `Face (merged).baked-1` | `N00_000_00_EyeIris_00_EYE (Instance)` | BLEND | false |
@@ -140,6 +131,11 @@ Root SignatureはTransform `b0`（VS）、Neon/Camera/Viewport `b1`（ALL）、P
 | `Body (merged).baked-1` | `N00_005_01_Shoes_01_CLOTH (Instance)` | MASK | true |
 | `Hair001 (merged).baked` | `N00_000_Hair_00_HAIR_01 (Instance)` | MASK | true |
 
-## Submission Package
+## 提出パッケージ
 
-Repositoryには本モデルを収録しますが、現在の`TankSubmissionPackage.ps1`では**このGLBのパスとPreview専用の`models/neon_hologram/line_masks/`内だけ**を除外します。他のmodels、隣接ディレクトリ、本READMEは除外しません。正式なBossとしてReleaseで使用する段階で、モデルと必要なマスクの除外を見直してください。
+リポジトリにはこのモデルを収録しますが、`TankSubmissionPackage.ps1` は**この GLB と、Preview 専用の `models/neon_hologram/line_masks/` の中だけ**を外します。他の models、隣のディレクトリ、この README は外しません。
+
+## 配布する前に
+
+- モデルのダウンロード元の URL を記録する（今の記録は、取り込んだ日と入力ファイル名だけ）。
+- 正式なボスとして Release で使うときは、この GLB と必要なマスクを提出パッケージから外す設定を見直す。

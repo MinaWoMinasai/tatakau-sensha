@@ -11,7 +11,7 @@ public:
     void DrawGameplayDebugUi();
 
     /// @brief レベルの敵AIと性能を調整する画面を表示する。
-    void DrawLevelAiEditorBalanceLab(bool embedded = false);
+    void DrawLevelEditorBalanceLab(bool embedded = false);
 
     /// @brief レベルオブジェクトを現在の状態へ適用する。
     void ApplyLevelObject(const LevelObject& levelObject, bool allowBossSpawn);

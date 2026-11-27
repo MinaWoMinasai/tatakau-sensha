@@ -7,7 +7,7 @@ C++ / DirectX 12 による自作エンジンで制作しています。毎回変
 作者：**MinaWoMinasai**
 公式リポジトリ：[MinaWoMinasai/tatakau-sensha](https://github.com/MinaWoMinasai/tatakau-sensha)
 
-作品紹介とソースレビューのために公開しています。自作部分の利用条件は[COPYRIGHT.md](COPYRIGHT.md)、第三者製コード・素材の表示と確認事項は[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)を参照してください。
+作品紹介とソースレビューのために公開しています。自作部分の利用条件は[COPYRIGHT.md](COPYRIGHT.md)、第三者製コード・素材の表示は[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)を参照してください。
 
 ## ゲームの特徴
 
@@ -98,7 +98,7 @@ try {
 }
 ```
 
-実行ファイルだけをコピーしても動作しません。配布にはAssimp、DXC / DXILのDLL、`resources`と対応する第三者表示が必要です。同梱素材の出典・再配布条件に未確認項目があるため、[第三者表示と確認事項](THIRD_PARTY_NOTICES.md)を確認してください。
+実行ファイルだけをコピーしても動作しません。配布にはAssimp、DXC / DXILのDLL、`resources`と対応する第三者表示が必要です。
 
 ## リポジトリ構成・ソースの入口
 
@@ -127,3 +127,7 @@ try {
 **Copyright © 2025-2026 MinaWoMinasai. All Rights Reserved.**
 
 作者が権利を持つ自作部分の表示です。第三者のライセンスによる権利は妨げません。詳しくは[COPYRIGHT.md](COPYRIGHT.md)と[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)を参照してください。
+
+## 配布する前に
+
+配布する前に、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)の「配布する前に」の項目（DXC の再配布条件、素材の入手元など）を確かめてください。

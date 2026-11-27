@@ -198,7 +198,7 @@ nlohmann::json GameplaySettings::BuildBalanceJsonFromEditor() const
         world_.resources.currentLevelData_.balance["notes"].is_string()) {
         balance["notes"] = world_.resources.currentLevelData_.balance["notes"];
     } else {
-        balance["notes"] = "Level AI-ditor Balance Labで調整した値。";
+        balance["notes"] = "Level Editor の Balance Lab で調整した値。";
     }
     return balance;
 }
@@ -231,32 +231,6 @@ bool GameplaySettings::SaveBalanceEditorToLevelFile(const std::string& filePath)
     out << levelJson.dump(2) << std::endl;
     world_.resources.currentLevelData_.balance = levelJson["balance"];
     world_.resources.balanceEditor_.statusMessage = "Saved balance to " + filePath;
-    return true;
-}
-
-bool GameplaySettings::WriteBalanceAIHandoff(const std::string& filePath) const
-{
-    std::ofstream out(filePath);
-    if (!out.is_open()) {
-        return false;
-    }
-
-    out << "# Level AI-ditor Balance Handoff\n\n"
-        << "このファイルは、ゲーム内のBalance Labで調整した値をAIに渡すためのメモです。\n\n"
-        << "## 依頼例\n\n"
-        << "- 現在のプレイ感:\n"
-        << "- 困っていること:\n"
-        << "- もっと強くしたい要素:\n"
-        << "- もっと弱くしたい要素:\n"
-        << "- 残したい体験:\n\n"
-        << "## 現在のBalance JSON\n\n"
-        << "```json\n"
-        << BuildBalanceJsonFromEditor().dump(2) << "\n```\n\n"
-        << "## AIへのルール\n\n"
-        << "- C++の固定値変更ではなく、まず `resources/levels/level_test.json` の `balance` を調整してください。\n"
-        << "- プレイヤーHP、DamageBlock、Shooter弾、ボス通常弾は `balance` 内で調整してください。\n"
-        << "- ボスHPフェーズ中の弾性能だけは `bossPhases[].customProperties.bossAttack` で調整してください。\n"
-        << "- 変更後の `balance` JSONと、なぜその値にしたかを短く説明してください。\n";
     return true;
 }
 

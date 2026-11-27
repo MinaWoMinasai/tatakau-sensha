@@ -127,7 +127,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
             }
         }
     }
-    if (world_.presentation.showLevelAiEditorPreview_) {
+    if (world_.presentation.showLevelEditorPreview_) {
         world_.gameplayEditor->QueueLevelEditorPreview();
     }
     if (world_.run.UsesTankRunDirector()) {

@@ -567,7 +567,7 @@ void GameplayEditor::DrawGameplayDebugUi()
         }
 
         if (ImGui::BeginTabItem("バランス")) {
-            DrawLevelAiEditorBalanceLab(true);
+            DrawLevelEditorBalanceLab(true);
             ImGui::EndTabItem();
         }
 
@@ -672,7 +672,7 @@ void GameplayEditor::DrawBulletStatusDebugOverlay()
 #endif
 }
 
-void GameplayEditor::DrawLevelAiEditorBalanceLab(bool embedded)
+void GameplayEditor::DrawLevelEditorBalanceLab(bool embedded)
 {
 #ifdef USE_IMGUI
     if (!world_.resources.balanceEditor_.initialized && world_.resources.currentLevelData_.balance.is_object()) {
@@ -774,14 +774,6 @@ void GameplayEditor::DrawLevelAiEditorBalanceLab(bool embedded)
     ImGui::SameLine();
     if (ImGui::Button("level_test.jsonへ保存")) {
         world_.gameplaySettings->SaveBalanceEditorToLevelFile("resources/levels/level_test.json");
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("AI引き継ぎMD出力")) {
-        if (world_.gameplaySettings->WriteBalanceAIHandoff("resources/levels/ai_balance_handoff.md")) {
-            world_.resources.balanceEditor_.statusMessage = "Wrote resources/levels/ai_balance_handoff.md";
-        } else {
-            world_.resources.balanceEditor_.statusMessage = "Failed to write AI handoff file.";
-        }
     }
     if (ImGui::Button("JSONから再読み込み")) {
         LevelData levelData;
@@ -907,9 +899,9 @@ void GameplayEditor::UpdateLevelBossPhases()
         world_.presentation.cameraShakeTimer_ = (std::max)(world_.presentation.cameraShakeTimer_, 0.30f);
         world_.presentation.cameraShakeDuration_ = 0.30f;
         world_.presentation.cameraShakePower_ = (std::max)(world_.presentation.cameraShakePower_, 0.45f);
-        std::cerr << "[Level AI-ditor] Activate boss phase: " << runtimePhase.phase.name << std::endl;
+        std::cerr << "[Level Editor] Activate boss phase: " << runtimePhase.phase.name << std::endl;
         if (!runtimePhase.phase.message.empty()) {
-            std::cerr << "[Level AI-ditor] " << runtimePhase.phase.message << std::endl;
+            std::cerr << "[Level Editor] " << runtimePhase.phase.message << std::endl;
         }
         ApplyBossPhaseTuning(runtimePhase.phase);
         for (const LevelObject& object : runtimePhase.phase.objects) {
