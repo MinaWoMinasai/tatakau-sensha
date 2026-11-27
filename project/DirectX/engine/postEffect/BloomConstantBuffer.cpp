@@ -14,11 +14,10 @@ void BloomConstantBuffer::Initialize(DirectXCommon* dxCommon)
 
 void BloomConstantBuffer::Update(const BloomParam& param)
 {
-    const auto fence = dxCommon_->GetFence();
     const uint64_t fenceValue = dxCommon_->GetFenceValue();
     // DirectXCommonが送信したフレームの完了後にだけ再利用する。
     // 1つのコマンドリスト内の更新は、それぞれ独立した不変のGPUスナップショットを保つ。
-    if (fence && fenceValue > frameFence_ && fence->GetCompletedValue() >= fenceValue) {
+    if (fenceValue > frameFence_ && dxCommon_->GetCompletedFenceValue() >= fenceValue) {
         frameFence_ = fenceValue;
         nextSnapshot_ = 0;
     }

@@ -131,8 +131,7 @@ void NeonSkinnedRenderer::BeginFrame()
     }
     // 現エンジンはフレーム終端でFenceを待つ。将来Frames-in-flight化する場合も
     // 実行中のCBを再利用しないよう、この契約またはフレーム別の領域管理を維持する。
-    const auto fence = dxCommon_->GetFence();
-    if (fence && fence->GetCompletedValue() < dxCommon_->GetFenceValue()) {
+    if (dxCommon_->GetCompletedFenceValue() < dxCommon_->GetFenceValue()) {
         throw std::logic_error("Wait for the previous GPU submission before NeonSkinnedRenderer::BeginFrame.");
     }
     nextDrawIndex_ = 0;

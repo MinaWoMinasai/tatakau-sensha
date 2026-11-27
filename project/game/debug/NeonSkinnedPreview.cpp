@@ -1470,7 +1470,6 @@ nlohmann::json NeonSkinnedPreview::MakeShowcaseMetadata() const
                                                                {"rotation", {pose.rotate.x, pose.rotate.y, pose.rotate.z, pose.rotate.w}}});
         }
     }
-    Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter;
     auto* dx = myEngine::Object3dCommon::GetInstance()->GetDxCommon();
     const auto viewport = dx->GetViewportRect();
     metadata["resolution"] = {static_cast<uint32_t>(viewport.Width), static_cast<uint32_t>(viewport.Height)};
@@ -1482,9 +1481,9 @@ nlohmann::json NeonSkinnedPreview::MakeShowcaseMetadata() const
     if (SUCCEEDED(dx->GetQueue()->GetTimestampFrequency(&timestampFrequency))) {
         metadata["queueTimestampFrequencyHz"] = timestampFrequency;
     }
-    if (SUCCEEDED(dx->GetDxgiFactory()->EnumAdapterByLuid(dx->GetDevice()->GetAdapterLuid(), IID_PPV_ARGS(&adapter)))) {
+    {
         DXGI_ADAPTER_DESC3 description{};
-        if (SUCCEEDED(adapter->GetDesc3(&description))) {
+        if (dx->QueryAdapterDescription(description)) {
             char name[256]{};
             WideCharToMultiByte(CP_UTF8, 0, description.Description, -1, name, sizeof(name), nullptr, nullptr);
             metadata["gpu"] = {{"adapter", name},

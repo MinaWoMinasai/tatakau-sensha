@@ -222,7 +222,7 @@ void DirectXCommon::CreateSwapChain()
     swapChainDesc_.Format = DXGI_FORMAT_R8G8B8A8_UNORM;           // 色の形式
     swapChainDesc_.SampleDesc.Count = 1;                          // マルチサンプルしない
     swapChainDesc_.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; // 描画のターゲットとして利用する
-    swapChainDesc_.BufferCount = 2;                               // ダブルバッファ
+    swapChainDesc_.BufferCount = kBackBufferCount;                               // ダブルバッファ
     swapChainDesc_.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;    // モニタをうつしたら、中身を破棄
 
     // コマンドキュー、ウィンドウハンドル、設定を渡して生成する
@@ -285,7 +285,7 @@ void DirectXCommon::CreateSwapChainRtv()
     assert(SUCCEEDED(hr));
 
     // RTVの設定
-    rtvDesc_.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;      //
+    rtvDesc_.Format = kBackBufferRtvFormat;      //
     rtvDesc_.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D; //
     // ディスクリプタの先頭を取得する
     D3D12_CPU_DESCRIPTOR_HANDLE rtvStartHandle = rtvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
@@ -682,20 +682,11 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateUAVBufferResource(si
     return resource;
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap,
-                                                                  uint32_t descriptorSize, uint32_t index)
+bool DirectXCommon::QueryAdapterDescription(DXGI_ADAPTER_DESC3& description) const
 {
-    D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
-    handleCPU.ptr += (descriptorSize * index);
-    return handleCPU;
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetDescriptorGPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap,
-                                                                  uint32_t descriptorSize, uint32_t index)
-{
-    D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
-    handleGPU.ptr += (descriptorSize * index);
-    return handleGPU;
+    Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter;
+    return SUCCEEDED(dxgiFactory_->EnumAdapterByLuid(device_->GetAdapterLuid(), IID_PPV_ARGS(&adapter))) &&
+           SUCCEEDED(adapter->GetDesc3(&description));
 }
 
 void DirectXCommon::InitializeFixFPS()

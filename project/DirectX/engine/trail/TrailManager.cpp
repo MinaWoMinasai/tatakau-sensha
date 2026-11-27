@@ -37,7 +37,7 @@ void TrailManager::Initialize(DirectXCommon* dxcommon, Object3dCommon* object3dC
     const DWORD batchingLength = GetEnvironmentVariableA("MYENGINE_TRAIL_BATCHING", batchingSetting, sizeof(batchingSetting));
     batchingEnabled_ = batchingLength != 1 || batchingSetting[0] != '0';
 
-    PrepareVertexBuffer(kMaxVertices, dxCommon_->GetFence()->GetCompletedValue());
+    PrepareVertexBuffer(kMaxVertices, dxCommon_->GetCompletedFenceValue());
     builtVertices_.reserve(kMaxVertices);
 
     materialResource_ = dxCommon_->CreateBufferResource(sizeof(Material));
@@ -247,7 +247,7 @@ void TrailManager::DrawAll(const Matrix4x4& viewProjection)
         drawStats_.requestedVertices +=
             static_cast<uint64_t>(pointCount - 1) * (std::max)(1u, instance->GetConfig().interpolationSteps) * 2u;
     }
-    const uint64_t completedFence = dxCommon_->GetFence()->GetCompletedValue();
+    const uint64_t completedFence = dxCommon_->GetCompletedFenceValue();
     if (NeedsGeometryRebuild()) {
         const auto buildStart = Clock::now();
         BuildVertices();

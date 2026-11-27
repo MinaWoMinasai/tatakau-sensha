@@ -53,7 +53,7 @@ void NeonProjectileRenderer::BeginFrame(const std::vector<Bullet*>& bullets, con
         throw std::logic_error("Initialize projectile presentation before preparing a frame.");
     }
     const uint64_t fence = dx_->GetFenceValue();
-    if ((prepared_ && preparedFence_ == fence) || dx_->GetFence()->GetCompletedValue() < lastDrawFence_) {
+    if ((prepared_ && preparedFence_ == fence) || dx_->GetCompletedFenceValue() < lastDrawFence_) {
         throw std::logic_error("Prepare projectile presentation once after the previous frame Fence.");
     }
     prepared_ = true;
