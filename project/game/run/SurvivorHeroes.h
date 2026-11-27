@@ -122,11 +122,18 @@ struct HeroDefinition {
     bool unlockFirst = false;
 };
 
+/// @brief 古い機体の鍵を今の鍵へ読み替える（2026-11-27 に、標準型の鍵を仮の名前 "standard" に替えた）。
+/// 古いセーブ・設定・環境変数 MYENGINE_SURVIVOR_HERO も読めるように、読む所で通す。
+inline std::string CanonicalHeroKey(const std::string& key)
+{
+    return key == "soldier" ? std::string("standard") : key;
+}
+
 /// @brief 機体の設定。enabled なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイールとリロードなし）。
 struct HeroesConfig {
     bool enabled = true;
     /// @brief 出撃する機体（K6 で拠点の選ぶ画面にする）。
-    std::string start = "soldier";
+    std::string start = "standard";
     std::vector<HeroDefinition> heroes;
     /// @brief 機体の移動の速さの倍率（計画書 p7。敵とほぼ同じ速さにする。1 で今までと同じ）。
     float moveScale = 1.0f;
@@ -163,22 +170,22 @@ struct HeroesConfig {
     int healDropMax = 6;
 };
 
-/// @brief 設定ファイルが無いときの機体。ソルジャー型（K1）・モイラ型（K2）・タンク型（K7。最初に解放する）。
+/// @brief 設定ファイルが無いときの機体。標準型（K1）・モイラ型（K2）・タンク型（K7。最初に解放する）。
 inline std::vector<HeroDefinition> DefaultHeroes()
 {
 
-    // ソルジャー型（計画書 p4 の3章）：連射砲は熱だけで撃つ。群れへの答えはロケット、硬い敵への答えは連射砲。
-    HeroDefinition soldier;
-    soldier.key = "soldier";
-    soldier.name = "ソルジャー型";
-    soldier.primary = "machineGun";
-    soldier.primaryHeatScale = 1.0f;
-    soldier.abilities[static_cast<size_t>(AbilitySlot::Secondary)] = {AbilityKind::Rocket, "小型ロケット", 6.0f, 0.0f, 6.0f, 3.0f};
-    soldier.abilities[static_cast<size_t>(AbilitySlot::Mobility)] = {AbilityKind::Sprint, "全力で走る", 8.0f, 3.0f, 1.5f};
-    soldier.abilities[static_cast<size_t>(AbilitySlot::Skill)] = {AbilityKind::HealZone, "回復の場", 15.0f, 5.0f, 0.04f, 4.0f};
-    soldier.abilities[static_cast<size_t>(AbilitySlot::Ultimate)] = {AbilityKind::Barrage, "弾幕", 0.0f, 5.0f, 0.8f, 18.0f, 14.0f};
-    soldier.ultimateCharge = 2000.0f;
-    soldier.maxHp = 100;
+    // 標準型（計画書 p4 の3章）：連射砲は熱だけで撃つ。群れへの答えはロケット、硬い敵への答えは連射砲。
+    HeroDefinition standard;
+    standard.key = "standard";
+    standard.name = "標準型";
+    standard.primary = "machineGun";
+    standard.primaryHeatScale = 1.0f;
+    standard.abilities[static_cast<size_t>(AbilitySlot::Secondary)] = {AbilityKind::Rocket, "小型ロケット", 6.0f, 0.0f, 6.0f, 3.0f};
+    standard.abilities[static_cast<size_t>(AbilitySlot::Mobility)] = {AbilityKind::Sprint, "全力で走る", 8.0f, 3.0f, 1.5f};
+    standard.abilities[static_cast<size_t>(AbilitySlot::Skill)] = {AbilityKind::HealZone, "回復の場", 15.0f, 5.0f, 0.04f, 4.0f};
+    standard.abilities[static_cast<size_t>(AbilitySlot::Ultimate)] = {AbilityKind::Barrage, "弾幕", 0.0f, 5.0f, 0.8f, 18.0f, 14.0f};
+    standard.ultimateCharge = 2000.0f;
+    standard.maxHp = 100;
 
     // モイラ型（計画書 p4 の3章）：近づいて吸い取る。攻める → 吸収ゲージが溜まる → 生き残る。
     // 群れへの答えは跳ねる球、硬い敵への答えは吸い付く光線。
@@ -209,7 +216,7 @@ inline std::vector<HeroDefinition> DefaultHeroes()
     tank.maxHp = 150;
     tank.unlockCost = 1500;
     tank.unlockFirst = true;
-    return {soldier, moira, tank};
+    return {standard, moira, tank};
 }
 
 /// @brief キーから機体の番号を探す。無ければ -1。

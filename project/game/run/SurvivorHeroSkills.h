@@ -6,7 +6,7 @@
 
 namespace survivor {
 /// @brief 機体専用スキル（計画書 p8 の F2。HoloCure のキャラ専用スキルと同じく、自動で効く。各3段）。
-/// レベルアップの3択に、技の強化・パーク・副武器と並んで出る。今はソルジャー型の3つ（本人の選び：案A・B・C）。
+/// レベルアップの3択に、技の強化・パーク・副武器と並んで出る。今は標準型の3つ（本人の選び：案A・B・C）。
 enum class HeroSkill {
     SteadyAim,   // 狙いすます：止まっているか、ゆっくり歩いていると、主武器の威力が上がる（3段目は弾のばらけも半分）
     AmmoBelt,    // 弾帯：一度の連射で撃つ弾の数が増える
@@ -29,11 +29,11 @@ struct HeroSkillInfo {
 inline const HeroSkillInfo& GetHeroSkillInfo(HeroSkill skill)
 {
     static const std::array<HeroSkillInfo, kHeroSkillCount> kInfos{{
-        {"steadyAim", "狙いすます", "soldier", "chip_pierce", "止まっているか、ゆっくり歩いている間、主武器の威力が上がる",
+        {"steadyAim", "狙いすます", "standard", "chip_pierce", "止まっているか、ゆっくり歩いている間、主武器の威力が上がる",
          {"0.4秒ほど落ち着くと、主武器の威力 +20%", "威力 +35%", "威力 +50%、弾のばらけが半分になる"}},
-        {"ammoBelt", "弾帯", "soldier", "chip_loader", "一度の連射で撃つ弾が増える",
+        {"ammoBelt", "弾帯", "standard", "chip_loader", "一度の連射で撃つ弾が増える",
          {"弾 +1（5発→6発）", "弾 +2（7発）", "弾 +3（8発）"}},
-        {"battleSense", "戦場の勘", "soldier", "chip_morale", "倒すたびに2.5秒、連射が速くなる。倒し続けると重なる",
+        {"battleSense", "戦場の勘", "standard", "chip_morale", "倒すたびに2.5秒、連射が速くなる。倒し続けると重なる",
          {"1体ごとに連射 +5%、4つまで（+20%）", "7つまで（+35%）", "10まで（+50%）"}},
     }};
     return kInfos[static_cast<size_t>(skill)];

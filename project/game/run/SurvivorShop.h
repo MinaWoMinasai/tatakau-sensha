@@ -14,9 +14,9 @@ enum class PerkId {
     Speed,        // 共通：移動の速さを value 倍だけ上げる（0.12 なら +12%）
     Magnet,       // 共通：欠片を引き寄せる範囲を value 倍だけ広げる
     UltCharge,    // 共通：Q のゲージの溜まり方を value 倍だけ増やす
-    Coolant,      // ソルジャー型：主武器の1発の熱を value 倍にする
-    RocketRefund, // ソルジャー型：小型ロケットで倒すたびに、ロケットの待ち時間を value 秒縮める
-    FieldMedic,   // ソルジャー型：回復の場で回復した量の value 倍だけ、傷も治る
+    Coolant,      // 標準型：主武器の1発の熱を value 倍にする
+    RocketRefund, // 標準型：小型ロケットで倒すたびに、ロケットの待ち時間を value 秒縮める
+    FieldMedic,   // 標準型：回復の場で回復した量の value 倍だけ、傷も治る
     BeamKill,     // モイラ型：吸収ビームで倒すたびに、吸収ゲージを value 秒ぶん溜める
     PhaseHeal,    // モイラ型：消える移動の終わりに、最大HPの value 倍を回復する
     OrbAbsorb,    // モイラ型：跳ねる球の与えた威力でも、吸収ビームの value 倍だけ吸収ゲージが溜まる
@@ -55,9 +55,9 @@ inline const PerkInfo& GetPerkInfo(PerkId id)
         {"speed", "軽い足回り", "移動が速くなる", "", 150, 0.12f},
         {"magnet", "欠片の磁石", "欠片を遠くから引き寄せる", "", 150, 1.0f},
         {"ultCharge", "見せ場の予感", "Q のゲージが早く溜まる", "", 200, 0.25f},
-        {"coolant", "冷却材", "連射砲の熱が溜まりにくい", "soldier", 300, 0.75f},
-        {"rocketRefund", "ロケットの再装填", "小型ロケットで倒すたびに、ロケットの待ち時間が縮む", "soldier", 300, 1.0f},
-        {"fieldMedic", "野戦の手当て", "回復の場で回復すると、傷も治る", "soldier", 300, 0.5f},
+        {"coolant", "冷却材", "連射砲の熱が溜まりにくい", "standard", 300, 0.75f},
+        {"rocketRefund", "ロケットの再装填", "小型ロケットで倒すたびに、ロケットの待ち時間が縮む", "standard", 300, 1.0f},
+        {"fieldMedic", "野戦の手当て", "回復の場で回復すると、傷も治る", "standard", 300, 0.5f},
         {"beamKill", "吸い尽くす", "吸収ビームで倒すと、吸収ゲージが溜まる", "moira", 300, 0.5f},
         {"phaseHeal", "消える癒し", "消える移動の終わりに回復する", "moira", 300, 0.08f},
         {"orbAbsorb", "跳ねる吸収", "跳ねる球の威力でも吸収ゲージが溜まる", "moira", 300, 0.5f},
