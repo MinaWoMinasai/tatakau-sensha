@@ -201,7 +201,7 @@ struct NeonPresentationState {
 
     bool showActorLocalGrid_ = true;
 
-    bool showLevelAiEditorPreview_ = false;
+    bool showLevelEditorPreview_ = false;
 
     bool enableNeonGridPostEffect_ = true;
 

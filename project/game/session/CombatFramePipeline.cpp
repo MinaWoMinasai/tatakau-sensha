@@ -345,7 +345,7 @@ void CombatFramePipeline::Update()
     }
     if (!world_.demo.titleDemo_ &&
         world_.resources.input_->IsTrigger(world_.resources.input_->GetKey()[DIK_F11], world_.resources.input_->GetPreKey()[DIK_F11])) {
-        world_.presentation.showLevelAiEditorPreview_ = !world_.presentation.showLevelAiEditorPreview_;
+        world_.presentation.showLevelEditorPreview_ = !world_.presentation.showLevelEditorPreview_;
     }
     if (!world_.demo.titleDemo_ &&
         world_.resources.input_->IsTrigger(world_.resources.input_->GetKey()[DIK_F12], world_.resources.input_->GetPreKey()[DIK_F12])) {

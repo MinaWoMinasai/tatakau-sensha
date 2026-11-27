@@ -218,7 +218,11 @@ bool LevelLoader::Load(const std::string& filePath, LevelData& outLevel) const
     }
 
     outLevel = {};
-    outLevel.toolName = ReadString(json, "toolName", "Level AI-ditor");
+    outLevel.toolName = ReadString(json, "toolName", "Level Editor");
+    // 前の名前で書いたレベルも読む（2026-11-27 に Level Editor へ改名）。
+    if (outLevel.toolName == "Level AI-ditor") {
+        outLevel.toolName = "Level Editor";
+    }
     outLevel.editorMode = ReadString(json, "editorMode", "ArenaBattle");
     outLevel.levelName = ReadString(json, "levelName", "");
     ReadObjectInto(json, "balance", outLevel.balance);

@@ -46,7 +46,7 @@ void LevelRuntime::ReloadLevelData(bool resetSpawnPositions)
 {
     LevelData levelData;
     if (!LoadLevelFile(levelData)) {
-        std::cerr << "[Level AI-ditor] Reload failed." << std::endl;
+        std::cerr << "[Level Editor] Reload failed." << std::endl;
         return;
     }
 
@@ -64,7 +64,7 @@ void LevelRuntime::ReloadLevelData(bool resetSpawnPositions)
 
     ApplyLevelData(levelData);
     world_.presentation.stagePostCacheValid_ = false;
-    std::cerr << "[Level AI-ditor] Reloaded: " << levelData.levelName << std::endl;
+    std::cerr << "[Level Editor] Reloaded: " << levelData.levelName << std::endl;
 }
 
 void LevelRuntime::ClearAppliedLevelData()

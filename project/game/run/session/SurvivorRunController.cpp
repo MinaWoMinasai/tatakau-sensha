@@ -28,7 +28,7 @@ void SurvivorRunController::Initialize()
     modifiers.survivor = true;
     world_.resources.player_->SetRunModifiers(modifiers);
     world_.presentation.showPostProfileOverlay_ = false;
-    world_.presentation.showLevelAiEditorPreview_ = false;
+    world_.presentation.showLevelEditorPreview_ = false;
     world_.presentation.showGameDebugConsole_ = false;
     world_.runVisualSettings->InitializeTankRunVisuals();
 

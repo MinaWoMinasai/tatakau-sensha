@@ -1150,12 +1150,6 @@
     <None Include="resources\effects\hit_spark.json">
       <Filter>resources\effects</Filter>
     </None>
-    <None Include="resources\levels\ai_balance_handoff.md">
-      <Filter>resources\levels</Filter>
-    </None>
-    <None Include="resources\levels\ai_edit_prompt_template.md">
-      <Filter>resources\levels</Filter>
-    </None>
     <None Include="resources\levels\level_test.json">
       <Filter>resources\levels</Filter>
     </None>

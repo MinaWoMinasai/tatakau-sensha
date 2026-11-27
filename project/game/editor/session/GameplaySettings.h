@@ -44,7 +44,6 @@ public:
     bool SaveBalanceEditorToLevelFile(const std::string& filePath);
 
     /// @brief 性能調整AIHandoffを書き込む。
-    bool WriteBalanceAIHandoff(const std::string& filePath) const;
 
 private:
     GameWorld& world_;

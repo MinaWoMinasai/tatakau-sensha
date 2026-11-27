@@ -339,8 +339,6 @@
     <None Include="resources\levels\level_test.json" />
     <None Include="resources\projects\default.project.json" />
     <None Include="resources\levels\prefab_dictionary.json" />
-    <None Include="resources\levels\ai_edit_prompt_template.md" />
-    <None Include="resources\levels\ai_balance_handoff.md" />
     <None Include="tools\blender\export_level_test.py" />
     <None Include="tools\blender\import_level_test.py" />
     <None Include="tools\blender\README.md" />
