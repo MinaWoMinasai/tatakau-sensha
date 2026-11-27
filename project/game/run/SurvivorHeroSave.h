@@ -65,14 +65,18 @@ inline bool LoadHeroSave(const std::string& path, HeroSave& out, std::string& er
     }
     HeroSave save;
     save.points = (std::max)(0, data.value("points", 0));
-    save.selected = data.value("selected", std::string());
+    // 古い鍵のセーブも、今の鍵へ読み替える（CanonicalHeroKey）。
+    save.selected = CanonicalHeroKey(data.value("selected", std::string()));
     save.sorties = data.value("sorties", 0);
     save.clears = data.value("clears", 0);
     auto readKeys = [&](const char* key, std::vector<std::string>& keys) {
         if (data.contains(key) && data.at(key).is_array()) {
             for (const auto& item : data.at(key)) {
                 if (item.is_string()) {
-                    keys.push_back(item.get<std::string>());
+                    const std::string canonical = CanonicalHeroKey(item.get<std::string>());
+                    if (std::find(keys.begin(), keys.end(), canonical) == keys.end()) {
+                        keys.push_back(canonical);
+                    }
                 }
             }
         }

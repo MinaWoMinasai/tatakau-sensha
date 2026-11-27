@@ -279,7 +279,7 @@ struct SpawnConfig {
     /// @brief 区画の始めに持っている予備の弾（ライト・ヘビー・エネルギー）。
     std::array<int, kAmmoTypeCount> startReserve{600, 40, 300};
     // 機体（計画書 p4）。heroes.enabled なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、右クリック・Shift・E・Q は機体の技）。
-    HeroesConfig heroes{true, "soldier", DefaultHeroes()};
+    HeroesConfig heroes{true, "standard", DefaultHeroes()};
     /// @brief 敵が落とす物（お金・素材・弾・チップ・武器）の確率と量（W3）。
     LootConfig loot{};
     /// @brief 素材で作る・進化させる（派生の木）と、レア度の効き（W7）。
@@ -901,7 +901,7 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             config.heroes.enabled = heroes.at("enabled").get<bool>();
         }
         if (heroes.contains("start") && heroes.at("start").is_string()) {
-            config.heroes.start = heroes.at("start").get<std::string>();
+            config.heroes.start = CanonicalHeroKey(heroes.at("start").get<std::string>());
         }
         if (heroes.contains("moveScale") && heroes.at("moveScale").is_number()) {
             config.heroes.moveScale = (std::clamp)(heroes.at("moveScale").get<float>(), 0.2f, 2.0f);
@@ -947,10 +947,12 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             if (!item.value().is_object()) {
                 continue;
             }
-            int index = FindHero(config.heroes.heroes, item.key());
+            // 古い鍵で書いた設定も、今の機体に読む（CanonicalHeroKey）。
+            const std::string key = CanonicalHeroKey(item.key());
+            int index = FindHero(config.heroes.heroes, key);
             if (index < 0) {
                 HeroDefinition added{};
-                added.key = item.key();
+                added.key = key;
                 config.heroes.heroes.push_back(added);
                 index = static_cast<int>(config.heroes.heroes.size()) - 1;
             }

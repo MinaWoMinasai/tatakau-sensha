@@ -57,6 +57,8 @@ void SurvivorRunController::Initialize()
         for (DWORD i = 0; i < heroLength; ++i) {
             config_.heroes.start.push_back(static_cast<char>(heroKey[i]));
         }
+        // 古い鍵も当面は受け付ける（CanonicalHeroKey）。
+        config_.heroes.start = survivor::CanonicalHeroKey(config_.heroes.start);
         heroStartFromEnv_ = true;
     }
     world_.presentation.heroAbilityReady_.fill(-1.0f);
