@@ -24,4 +24,8 @@ Copyright © 2025-2026 MinaWoMinasai. All Rights Reserved.
 
 第三者製のライブラリ、コード、フォント、モデル、音楽その他の素材には、それぞれ元の権利者のライセンス・利用条件が適用されます。これらを MinaWoMinasai の自作物として主張しません。本書は、それらのライセンスにより認められる利用を制限しません。
 
-既存の著作権表示・LICENSE は保持しています。確認できた第三者製品と未確認の素材は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) にまとめています。権利者・出典が確認できていない素材を、本書だけを根拠に自作素材として扱うことはできません。
+既存の著作権表示・LICENSE は保持しています。第三者製のコードと素材の一覧は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) にあります。
+
+## 配布する前に
+
+本書は、権利者・出典の分からない素材を自作素材とする根拠にはなりません。配布する前に、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) の「配布する前に」の項目を確かめてください。
