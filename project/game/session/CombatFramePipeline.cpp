@@ -2,6 +2,7 @@
 #include "game/scene/PresentationToggles.h"
 #include "FixedTimestep.h"
 #include "game/render/settings/ArenaCameraProfile.h"
+#include "game/settings/UserSettings.h"
 #include "game/session/GameplaySystems.h"
 #include "game/weapon/CombatTypes.h"
 #include "RuntimeProfiler.h"
@@ -386,6 +387,11 @@ void CombatFramePipeline::Update()
             return target;
         };
         myEngine::Vector3 targetCameraPos = clampTarget({playerPos.x, playerPos.y, kCameraZ});
+        // タイトルの後ろ：題と項目は左なので、戦車は右寄りに、少し近くで映す（計画書 p11 の R1）。
+        if (world_.demo.titleDemo_ && world_.run.IsSurvivorRun()) {
+            constexpr float kNear = 0.9f, kShift = 0.17f * 2.0f;
+            targetCameraPos = {playerPos.x - arenacamera::HalfViewHeight() * arenacamera::kAspect * kNear * kShift, playerPos.y, kCameraZ * kNear};
+        }
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
         // キャプチャ用フィクスチャ専用: 通常と同じ見下ろしカメラで両方のアクターを映す。
         if ((world_.resources.neonBossAutoTest_ || GameplayScenarioSession::Get().IsActive()) &&
@@ -399,7 +405,7 @@ void CombatFramePipeline::Update()
         if (world_.presentation.cameraShakeTimer_ > 0.0f) {
             world_.presentation.cameraShakeTimer_ -= baseDeltaTime;
             float t = (std::clamp)(world_.presentation.cameraShakeTimer_ / world_.presentation.cameraShakeDuration_, 0.0f, 1.0f);
-            float power = world_.presentation.cameraShakePower_ * t * t;
+            float power = world_.presentation.cameraShakePower_ * t * t * (world_.run.IsSurvivorRun() ? usersettings::ShakeScale() : 1.0f);
             nextCameraPos.x += myEngine::Rand(-power, power);
             nextCameraPos.y += myEngine::Rand(-power, power);
         }
@@ -652,7 +658,7 @@ void CombatFramePipeline::Update()
                                                          world_.resources.debugCamera.get());
     }
     for (const myEngine::ParticleManager::ScreenPulseEvent& event : myEngine::ParticleManager::GetInstance()->ConsumeScreenPulseEvents()) {
-        world_.combatEffects->TriggerDeathPostPulse(event.position, event.strength);
+        world_.combatEffects->TriggerDeathPostPulse(event.position, event.strength, event.shake);
     }
     // 死亡演出・通貨回収の終了条件を見て結果画面へ移る。戦闘の時間倍率には合わせない。
     world_.combatFlow->UpdateGameFlow(baseDeltaTime);

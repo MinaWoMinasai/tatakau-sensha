@@ -17,13 +17,13 @@ enum class PerkId {
     Coolant,      // 標準型：主武器の1発の熱を value 倍にする
     RocketRefund, // 標準型：小型ロケットで倒すたびに、ロケットの待ち時間を value 秒縮める
     FieldMedic,   // 標準型：回復の場で回復した量の value 倍だけ、傷も治る
-    BeamKill,     // モイラ型：吸収ビームで倒すたびに、吸収ゲージを value 秒ぶん溜める
-    PhaseHeal,    // モイラ型：消える移動の終わりに、最大HPの value 倍を回復する
-    OrbAbsorb,    // モイラ型：跳ねる球の与えた威力でも、吸収ビームの value 倍だけ吸収ゲージが溜まる
+    BeamKill,     // 吸収型：吸収ビームで倒すたびに、吸収ゲージを value 秒ぶん溜める
+    PhaseHeal,    // 吸収型：消える移動の終わりに、最大HPの value 倍を回復する
+    OrbAbsorb,    // 吸収型：跳ねる球の与えた威力でも、吸収ビームの value 倍だけ吸収ゲージが溜まる
     ChargeShock,  // タンク型：突進の終わりに、半径 value の小さな衝撃波を出す
     BarrierHeal,  // タンク型：バリアで弾を止めるたびに、HP を value 回復する
     Quake,        // タンク型：衝撃波で押し返した数だけ、衝撃波の待ち時間を value 秒縮める
-    // 計画書 p8 の F4 で足した共通のパーク（HoloCure のアイテムに寄せる）。
+    // 計画書 p8 の F4 で足した共通のパーク。
     Crit,    // 共通：弾・爆発・直接の削りが、value の確率で2倍になる（会心）
     Area,    // 共通：弾・爆発・炎・衝撃の輪の大きさを value 倍だけ広げる
     ExpGain, // 共通：レベルの経験値を value 倍だけ多く入れる（ポイントは増えない）
@@ -58,9 +58,9 @@ inline const PerkInfo& GetPerkInfo(PerkId id)
         {"coolant", "冷却材", "連射砲の熱が溜まりにくい", "standard", 300, 0.75f},
         {"rocketRefund", "ロケットの再装填", "小型ロケットで倒すたびに、ロケットの待ち時間が縮む", "standard", 300, 1.0f},
         {"fieldMedic", "野戦の手当て", "回復の場で回復すると、傷も治る", "standard", 300, 0.5f},
-        {"beamKill", "吸い尽くす", "吸収ビームで倒すと、吸収ゲージが溜まる", "moira", 300, 0.5f},
-        {"phaseHeal", "消える癒し", "消える移動の終わりに回復する", "moira", 300, 0.08f},
-        {"orbAbsorb", "跳ねる吸収", "跳ねる球の威力でも吸収ゲージが溜まる", "moira", 300, 0.5f},
+        {"beamKill", "吸い尽くす", "吸収ビームで倒すと、吸収ゲージが溜まる", "drainer", 300, 0.5f},
+        {"phaseHeal", "消える癒し", "消える移動の終わりに回復する", "drainer", 300, 0.08f},
+        {"orbAbsorb", "跳ねる吸収", "跳ねる球の威力でも吸収ゲージが溜まる", "drainer", 300, 0.5f},
         {"chargeShock", "突進の衝撃", "突進の終わりに、小さな衝撃波を出す", "tank", 300, 3.5f},
         {"barrierHeal", "盾の手当て", "バリアで弾を止めるたびに、HP が少し戻る", "tank", 300, 1.0f},
         {"quake", "地鳴り", "衝撃波で押し返した数だけ、衝撃波の待ち時間が縮む", "tank", 300, 0.3f},
@@ -168,7 +168,7 @@ inline const AbilityDefinition& UpgradeTargetAbility(const HeroDefinition& hero,
     return target == 0 ? hero.primaryAbility : hero.abilities[static_cast<size_t>(target - 1)];
 }
 
-/// @brief 拡散連射（主武器の部品 BurstGun。計画書 p7 の E5）の強化の段の上限。HoloCure の武器と同じく Lv1〜7（段0〜6）で、最後が覚醒。
+/// @brief 拡散連射（主武器の部品 BurstGun。計画書 p7 の E5）の強化の段の上限。Lv1〜7（段0〜6）で、最後が覚醒。
 inline constexpr int kBurstGunMaxTier = 6;
 
 /// @brief 強化の段の上限（主武器が拡散連射なら7段、それ以外は3段）。
@@ -322,7 +322,7 @@ inline std::string UpgradeOfferName(const HeroDefinition& hero, int target, int 
 {
     const AbilityDefinition& ability = UpgradeTargetAbility(hero, target);
     const std::string name = target == 0 ? (ability.kind != AbilityKind::None ? ability.name : std::string("主武器")) : ability.name;
-    // 拡散連射は HoloCure と同じく Lv で数える（Lv1 が段0）。
+    // 拡散連射は Lv で数える（Lv1 が段0）。
     if (target == 0 && ability.kind == AbilityKind::BurstGun) {
         return name + " Lv" + std::to_string(tier + 2);
     }

@@ -83,6 +83,19 @@ inline bool LoadHeroSave(const std::string& path, HeroSave& out, std::string& er
     };
     readKeys("unlocked", save.unlocked);
     readKeys("cleared", save.cleared);
+    // 前のセーブの機体の名前（今は使わない）を、新しい名前に直す。
+    auto rename = [](std::string& key) {
+        if (key.size() == 5 && key[0] == 'm' && key.compare(1, 4, "oira") == 0) {
+            key = "drainer";
+        }
+    };
+    rename(save.selected);
+    for (std::string& key : save.unlocked) {
+        rename(key);
+    }
+    for (std::string& key : save.cleared) {
+        rename(key);
+    }
     out = std::move(save);
     return true;
 }

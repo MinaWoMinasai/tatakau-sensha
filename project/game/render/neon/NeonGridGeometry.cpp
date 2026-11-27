@@ -3,6 +3,10 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
+
+// 敵の輪郭だけで1コマに20万頂点を作るので、ここは大きさより速さを優先して組み立てる（全体の設定は MinSpace）。
+#pragma optimize("gt", on)
 
 namespace myEngine {
 
@@ -167,12 +171,34 @@ void NeonGridGeometry::QueueContourLine(const Vector3& a, const Vector3& b, floa
         PushVertex(p1, c1, {0.5f, 0.5f});
         PushVertex(p2, c2, {0.5f, 0.5f});
     };
-    for (uint32_t offset = 0; offset + 1 < kContourOffsets; ++offset) {
-        const Vector3 p0 = ContourSectionPoint(begin, offset, profile), p1 = ContourSectionPoint(begin, offset + 1, profile);
-        const Vector3 p2 = ContourSectionPoint(end, offset, profile), p3 = ContourSectionPoint(end, offset + 1, profile);
-        const Vector4 c0 = ContourSectionColor(offset, profile), c1 = ContourSectionColor(offset + 1, profile);
-        triangle(p0, c0, p1, c1, p2, c0);
-        triangle(p1, c1, p3, c1, p2, c0);
+    // 両端の断面の8点を1回だけ求め、1本分を手元で作ってから写す（QueueContourPolygon と同じ）。
+    {
+        std::array<Vector3, kContourOffsets> head, tail;
+        std::array<Vector4, kContourOffsets> colors;
+        for (uint32_t offset = 0; offset < kContourOffsets; ++offset) {
+            head[offset] = ContourSectionPoint(begin, offset, profile);
+            tail[offset] = ContourSectionPoint(end, offset, profile);
+            colors[offset] = ContourSectionColor(offset, profile);
+        }
+        std::array<TrailVertex, kContourSpanVertices> span;
+        TrailVertex* out = span.data();
+        auto put = [&out](const Vector3& p, const Vector4& c) {
+            out->pos = p;
+            out->color = c;
+            out->uv.x = 0.5f;
+            out->uv.y = 0.5f;
+            ++out;
+        };
+        for (uint32_t offset = 0; offset + 1 < kContourOffsets; ++offset) {
+            put(head[offset], colors[offset]);
+            put(head[offset + 1], colors[offset + 1]);
+            put(tail[offset], colors[offset]);
+            put(head[offset + 1], colors[offset + 1]);
+            put(tail[offset + 1], colors[offset + 1]);
+            put(tail[offset], colors[offset]);
+        }
+        std::memcpy(vertexData_ + vertexCount_, span.data(), sizeof(span));
+        vertexCount_ += kContourSpanVertices;
     }
     if (!style.roundCaps) {
         return;
@@ -227,8 +253,8 @@ void NeonGridGeometry::QueueContourPolygon(const Vector3* points, uint32_t point
         }
         normals[point] = Cross(forward, direction / length);
     }
-    // サイズ上限付きのスタック作業領域。オブジェクトごとの確保や可変な描画スタイル状態は持たない。
-    std::array<ContourSection, kContourMaxPoints * 8> sections{};
+    // サイズ上限付きの作業領域（使い回す。毎回 0 で埋めると、敵の多い場面で頂点を作る時間の大半になる）。
+    thread_local std::array<ContourSection, kContourMaxPoints * 8> sections;
     uint32_t sectionCount = 0;
     for (uint32_t point = 0; point < pointCount; ++point) {
         const Vector3 previous = normals[(point + pointCount - 1) % pointCount], next = normals[point];
@@ -262,21 +288,66 @@ void NeonGridGeometry::QueueContourPolygon(const Vector3* points, uint32_t point
     if (required > vertexCapacity_ || vertexCount_ > vertexCapacity_ - required) {
         return;
     }
-    for (uint32_t section = 0; section < sectionCount; ++section) {
-        const ContourSection& a = sections[section];
-        const ContourSection& b = sections[(section + 1) % sectionCount];
-        for (uint32_t offset = 0; offset + 1 < kContourOffsets; ++offset) {
-            const Vector3 p0 = ContourSectionPoint(a, offset, profile), p1 = ContourSectionPoint(a, offset + 1, profile);
-            const Vector3 p2 = ContourSectionPoint(b, offset, profile), p3 = ContourSectionPoint(b, offset + 1, profile);
-            const Vector4 c0 = ContourSectionColor(offset, profile), c1 = ContourSectionColor(offset + 1, profile);
-            PushVertex(p0, c0, {0.5f, 0.5f});
-            PushVertex(p1, c1, {0.5f, 0.5f});
-            PushVertex(p2, c0, {0.5f, 0.5f});
-            PushVertex(p1, c1, {0.5f, 0.5f});
-            PushVertex(p3, c1, {0.5f, 0.5f});
-            PushVertex(p2, c0, {0.5f, 0.5f});
-        }
+    // 断面ごとに8点を1回だけ求め、隣り合う断面の間を三角形で埋める（頂点の並びと値は PushVertex で積むのと同じ）。
+    // 書き込み先は GPU へ送る領域なので、前から順に書くだけにする（読まない）。
+    std::array<Vector4, kContourOffsets> colors;
+    for (uint32_t offset = 0; offset < kContourOffsets; ++offset) {
+        colors[offset] = ContourSectionColor(offset, profile);
     }
+    std::array<Vector3, kContourOffsets> first, previous, current;
+    auto sectionPoints = [&](const ContourSection& section, std::array<Vector3, kContourOffsets>& out) {
+        const float cx = section.center.x, cy = section.center.y, cz = section.center.z;
+        for (uint32_t i = 0; i < kContourRadii; ++i) {
+            const float radius = profile.radii[kContourRadii - 1 - i];
+            out[i].x = cx - section.negative.x * radius;
+            out[i].y = cy - section.negative.y * radius;
+            out[i].z = cz - section.negative.z * radius;
+        }
+        for (uint32_t i = 0; i < kContourRadii; ++i) {
+            const float radius = profile.radii[i];
+            out[kContourRadii + i].x = cx + section.positive.x * radius;
+            out[kContourRadii + i].y = cy + section.positive.y * radius;
+            out[kContourRadii + i].z = cz + section.positive.z * radius;
+        }
+    };
+    TrailVertex* target = vertexData_ + vertexCount_;
+    // 1つの断面の分を手元で作ってから、まとめて写す（GPU へ送る領域へ1つずつ書くより速い）。色と座標の定数は始めに1回だけ入れる。
+    std::array<TrailVertex, kContourSpanVertices> span;
+    TrailVertex* out = span.data();
+    auto put = [&out](const Vector3& p, const Vector4& c) {
+        out->pos.x = p.x;
+        out->pos.y = p.y;
+        out->pos.z = p.z;
+        out->color.x = c.x;
+        out->color.y = c.y;
+        out->color.z = c.z;
+        out->color.w = c.w;
+        out->uv.x = 0.5f;
+        out->uv.y = 0.5f;
+        ++out;
+    };
+    sectionPoints(sections[0], first);
+    previous = first;
+    for (uint32_t section = 0; section < sectionCount; ++section) {
+        if (section + 1 < sectionCount) {
+            sectionPoints(sections[section + 1], current);
+        } else {
+            current = first;
+        }
+        for (uint32_t offset = 0; offset + 1 < kContourOffsets; ++offset) {
+            put(previous[offset], colors[offset]);
+            put(previous[offset + 1], colors[offset + 1]);
+            put(current[offset], colors[offset]);
+            put(previous[offset + 1], colors[offset + 1]);
+            put(current[offset + 1], colors[offset + 1]);
+            put(current[offset], colors[offset]);
+        }
+        std::memcpy(target, span.data(), sizeof(span));
+        target += kContourSpanVertices;
+        out = span.data();
+        previous = current;
+    }
+    vertexCount_ += required;
 }
 
 void NeonGridGeometry::QueueContourTriangle(const Vector3& a, const Vector3& b, const Vector3& c, float lineWidth, const Vector4& color,
@@ -410,6 +481,61 @@ void NeonGridGeometry::QueueBillboardDisc(const Vector3& center, float radius, c
         PushVertex(p0, color, {0.0f, 0.0f});
         PushVertex(p1, color, {1.0f, 1.0f});
     }
+}
+
+void NeonGridGeometry::QueueSoftEllipse(const Vector3& center, const Vector3& axisU, const Vector3& axisV, const Vector4& color, float middle)
+{
+    constexpr uint32_t kSegments = 12;
+    if (color.w <= 0.001f || !ContourFinite(center) || !ContourFinite(axisU) || !ContourFinite(axisV) ||
+        vertexCount_ + kSegments * 9 > vertexCapacity_) {
+        return;
+    }
+    // 中心 1、半分の所 middle、縁 0 の3段で、なだらかに消す。
+    const Vector4 half{color.x, color.y, color.z, color.w * middle};
+    const Vector4 rim{color.x, color.y, color.z, 0.0f};
+    // 12等分の cos・sin（30度ごと）。
+    static constexpr std::array<std::array<float, 2>, kSegments> kCircle{{{1.0f, 0.0f},
+                                                                         {0.8660254f, 0.5f},
+                                                                         {0.5f, 0.8660254f},
+                                                                         {0.0f, 1.0f},
+                                                                         {-0.5f, 0.8660254f},
+                                                                         {-0.8660254f, 0.5f},
+                                                                         {-1.0f, 0.0f},
+                                                                         {-0.8660254f, -0.5f},
+                                                                         {-0.5f, -0.8660254f},
+                                                                         {0.0f, -1.0f},
+                                                                         {0.5f, -0.8660254f},
+                                                                         {0.8660254f, -0.5f}}};
+    std::array<Vector3, kSegments> inner, edge;
+    for (uint32_t i = 0; i < kSegments; ++i) {
+        const Vector3 reach{axisU.x * kCircle[i][0] + axisV.x * kCircle[i][1], axisU.y * kCircle[i][0] + axisV.y * kCircle[i][1],
+                            axisU.z * kCircle[i][0] + axisV.z * kCircle[i][1]};
+        inner[i] = {center.x + reach.x * 0.5f, center.y + reach.y * 0.5f, center.z + reach.z * 0.5f};
+        edge[i] = {center.x + reach.x, center.y + reach.y, center.z + reach.z};
+    }
+    std::array<TrailVertex, kSegments * 9> span;
+    TrailVertex* out = span.data();
+    auto put = [&out](const Vector3& p, const Vector4& c) {
+        out->pos = p;
+        out->color = c;
+        out->uv.x = 0.5f;
+        out->uv.y = 0.5f;
+        ++out;
+    };
+    for (uint32_t i = 0; i < kSegments; ++i) {
+        const uint32_t next = (i + 1) % kSegments;
+        put(center, color);
+        put(inner[i], half);
+        put(inner[next], half);
+        put(inner[i], half);
+        put(edge[i], rim);
+        put(inner[next], half);
+        put(edge[i], rim);
+        put(edge[next], rim);
+        put(inner[next], half);
+    }
+    std::memcpy(vertexData_ + vertexCount_, span.data(), sizeof(span));
+    vertexCount_ += static_cast<uint32_t>(span.size());
 }
 
 void NeonGridGeometry::QueueBillboardRegularPolygonFill(const Vector3& center, int segments, float radius, float rotationRad,

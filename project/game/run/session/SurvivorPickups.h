@@ -50,6 +50,17 @@ public:
         shards_.clear();
     }
 
+    /// @brief 全部の欠片の位置を返す。
+    std::vector<myEngine::Vector3> GetPositions() const
+    {
+        std::vector<myEngine::Vector3> positions;
+        positions.reserve(shards_.size());
+        for (const Shard& shard : shards_) {
+            positions.push_back(shard.position);
+        }
+        return positions;
+    }
+
     size_t GetCount() const
     {
         return shards_.size();

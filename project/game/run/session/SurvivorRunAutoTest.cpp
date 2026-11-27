@@ -2,6 +2,7 @@
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
 #include "game/render/settings/ArenaCameraProfile.h"
+#include "RuntimeProfiler.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -49,6 +50,272 @@ void SurvivorRunController::RequestCapture(const std::string& name)
     }
 }
 
+bool SurvivorRunController::UpdateLookDemo()
+{
+    // 出撃して4秒から、自機を止めて下を向かせ、順に並べて撮る：0 止まった敵、2 動く敵、4 動く塊、6 命中の瞬間、
+    // 8 走る自機、10 乱戦（副武器7つと、倒せる敵）、12 乱戦の Q、14 弾帯、16 撃破（3種類）、18 撃破（12体まとめて）、20 160体（5秒間のコマ数を look_fps.json に書く）。
+    // 撮ったときの敵の画面の位置（1920×1080）を look_(名前).json に書く。
+    if (elapsed_ < 4.0f || IsPaused()) {
+        return false;
+    }
+    auto& player = *world_.resources.player_;
+    const myEngine::Vector3 self = player.GetWorldPosition();
+    struct Demo {
+        const char* shape;
+        float x, y, scale;
+    };
+    auto place = [&](const std::vector<Demo>& demos, bool chase) {
+        world_.resources.enemyManager_->ClearRunActors();
+        world_.resources.bulletManager_->ClearAll();
+        for (const Demo& demo : demos) {
+            if (!SpawnShape(demo.shape, self + myEngine::Vector3{demo.x, demo.y, 0.0f}, false)) {
+                continue;
+            }
+            ExpEnemy* enemy = world_.resources.enemyManager_->GetEnemyPtrs().back();
+            const size_t kind = std::string(demo.shape) == "Square" ? 0 : std::string(demo.shape) == "Triangle" ? 1 : 2;
+            enemy->SetPlayerChase(chase ? config_.shapeChase[kind].first : 0.0f, chase ? config_.shapeChase[kind].second : 0.0f);
+            enemy->SetHp(100000);
+            enemy->SetSizeScale(demo.scale);
+        }
+        autoLookDemoAt_ = elapsed_;
+        ++autoLookDemoState_;
+    };
+    auto shoot = [&](const char* name) {
+        std::ofstream out(std::string(kAutoTestDirectory) + "/look_" + name + ".json");
+        out << "[";
+        bool first = true;
+        for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (!enemy || enemy->IsDead() || enemy->GetHp() < 50000) {
+                continue;
+            }
+            const myEngine::Vector2 at = world_.gameplayHud->WorldToScreen(enemy->GetWorldPosition());
+            out << (first ? "" : ",") << "{\"x\":" << at.x * 1.5f << ",\"y\":" << at.y * 1.5f << ",\"type\":" << static_cast<int>(enemy->GetType())
+                << ",\"scale\":" << enemy->GetSizeScale() << "}";
+            first = false;
+        }
+        out << "]\n";
+        RequestCapture(std::string("look_") + name);
+        ++autoLookDemoState_;
+    };
+    myEngine::Vector3 aim = self + myEngine::Vector3{0.0f, -20.0f, 0.0f};
+    myEngine::Vector2 move{0.0f, 0.0f};
+    const bool ready = world_.run.tankRunCapturePath_.empty();
+    const float wait = elapsed_ - autoLookDemoAt_;
+    const std::vector<Demo> row{{"Square", -9.0f, 5.5f, 1.0f}, {"Triangle", -3.5f, 6.0f, 1.0f}, {"Pentagon", 2.0f, 5.8f, 1.0f}, {"Square", 8.5f, 5.0f, 1.7f}};
+    std::vector<Demo> crowd;
+    for (int i = 0; i < 45; ++i) {
+        crowd.push_back({i % 3 == 0 ? "Square" : i % 3 == 1 ? "Triangle" : "Pentagon", 9.0f + static_cast<float>(i % 7) * 1.6f,
+                         1.0f + static_cast<float>(i / 7) * 1.5f, 1.0f});
+    }
+    switch (autoLookDemoState_) {
+    case 0:
+        if (ready) {
+            place(row, false);
+        }
+        break;
+    case 1:
+        if (wait >= 1.0f) {
+            shoot("static");
+        }
+        break;
+    case 2:
+        if (ready) {
+            place({{"Square", -13.0f, 7.0f, 1.0f}, {"Triangle", -6.0f, 9.0f, 1.0f}, {"Pentagon", 5.0f, 9.0f, 1.0f}, {"Square", 14.0f, 6.0f, 1.7f}}, true);
+        }
+        break;
+    case 3:
+        if (wait >= 1.0f) {
+            shoot("move");
+        }
+        break;
+    case 4:
+        if (ready) {
+            place(crowd, true);
+        }
+        break;
+    case 5:
+        if (wait >= 1.2f) {
+            shoot("crowd");
+        }
+        break;
+    case 6:
+        if (ready) {
+            place({{"Square", 7.0f, 0.0f, 1.0f}, {"Triangle", -9.0f, 5.5f, 1.0f}, {"Pentagon", 2.0f, 5.8f, 1.0f}}, false);
+        }
+        break;
+    case 7: {
+        // 右の四角を撃ち、当たった直後（0.05秒）を撮る。
+        aim = self + myEngine::Vector3{7.0f, 0.0f, 0.0f};
+        int lowest = 100000;
+        for (const ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+            if (enemy && !enemy->IsDead() && enemy->GetHp() > 50000) {
+                lowest = (std::min)(lowest, enemy->GetHp());
+            }
+        }
+        if (lowest == 100000) {
+            autoLookDemoHitAt_ = elapsed_;
+        }
+        if ((lowest < 100000 && elapsed_ >= autoLookDemoHitAt_ + 0.05f) || wait > 6.0f) {
+            shoot("hit");
+        }
+        break;
+    }
+    case 8:
+        // 走る自機：右上へ走りながら左上を狙う（車体と砲塔の向きの違いを見る）。
+        if (ready) {
+            place(row, false);
+        }
+        break;
+    case 9:
+        aim = self + myEngine::Vector3{-8.0f, 6.0f, 0.0f};
+        move = {0.9f, 0.45f};
+        if (wait >= 0.7f) {
+            shoot("drive");
+        }
+        break;
+    case 10:
+        if (ready) {
+            std::vector<Demo> ring;
+            for (int i = 0; i < 40; ++i) {
+                const float angle = static_cast<float>(i) * 2.399f;
+                const float radius = 4.0f + static_cast<float>(i) * 0.2f;
+                ring.push_back({i % 3 == 0 ? "Square" : i % 3 == 1 ? "Triangle" : "Pentagon", std::cos(angle) * radius * 1.4f,
+                                std::sin(angle) * radius * 0.8f, i == 20 ? 1.7f : 1.0f});
+            }
+            place(ring, true);
+            // 乱戦では倒せる HP にし、副武器を全部3段で動かす。
+            for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+                enemy->SetHp(24);
+            }
+            subWeaponTiers_.fill(3);
+        }
+        break;
+    case 11:
+        aim = self + myEngine::Vector3{8.0f, 4.0f, 0.0f};
+        if (wait >= 1.4f) {
+            shoot("brawl");
+        }
+        break;
+    case 12:
+        aim = self + myEngine::Vector3{8.0f, 4.0f, 0.0f};
+        if (ready) {
+            ultimateCharge_ = Hero().ultimateCharge;
+            autoHeroPress_[static_cast<size_t>(survivor::AbilitySlot::Ultimate)] = true;
+            autoLookDemoAt_ = elapsed_;
+            ++autoLookDemoState_;
+        }
+        break;
+    case 13:
+        aim = self + myEngine::Vector3{8.0f, 4.0f, 0.0f};
+        // 弾がいちばん多く飛んでいる頃（6発以上）を撮る。
+        if ((wait >= 0.25f && world_.resources.bulletManager_->GetBulletCounts().player >= 6) || wait >= 0.9f) {
+            shoot("barrage");
+        }
+        break;
+    case 14:
+        // 弾が増えた状態：弾帯を最大にし、離れた敵へ続けて撃つ。
+        if (ready && wait >= 2.5f) {
+            place({{"Square", 19.0f, 5.0f, 1.0f}, {"Triangle", 19.5f, -1.0f, 1.0f}, {"Pentagon", 18.0f, 9.0f, 1.0f}}, false);
+            subWeaponTiers_.fill(0);
+            heroSkillTiers_[static_cast<size_t>(survivor::HeroSkill::AmmoBelt)] = 5;
+        }
+        aim = self + myEngine::Vector3{19.0f, 5.0f, 0.0f};
+        break;
+    case 15: {
+        aim = self + myEngine::Vector3{19.0f, 5.0f, 0.0f};
+        // 3発以上が飛んでいる瞬間を撮る（来なければ6秒で撮る）。
+        const auto shots = world_.resources.bulletManager_->GetBulletCounts().player;
+        if ((wait >= 0.8f && shots >= 3) || wait > 6.0f) {
+            shoot("belt");
+        }
+        break;
+    }
+    case 16:
+    case 18:
+        // 撃破：離れた所に並べ、次の段で一度に倒す（16 は3種類を1体ずつ、18 は12体まとめて）。
+        if (ready) {
+            heroSkillTiers_[static_cast<size_t>(survivor::HeroSkill::AmmoBelt)] = 0;
+            std::vector<Demo> targets;
+            if (autoLookDemoState_ == 16) {
+                targets = {{"Square", -10.0f, 5.5f, 1.0f}, {"Triangle", 0.0f, 7.0f, 1.0f}, {"Pentagon", 10.0f, 5.5f, 1.0f}};
+            } else {
+                for (int i = 0; i < 12; ++i) {
+                    targets.push_back({i % 3 == 0 ? "Square" : i % 3 == 1 ? "Triangle" : "Pentagon", -9.0f + static_cast<float>(i % 4) * 6.0f,
+                                       4.0f + static_cast<float>(i / 4) * 3.0f, 1.0f});
+                }
+            }
+            place(targets, false);
+            autoLookDemoKillAt_ = -1.0f;
+            autoLookDemoShot_ = 0;
+        }
+        break;
+    case 17:
+    case 19: {
+        // 並べて0.5秒後に倒し、0.05・0.2・0.4・0.5・0.6秒を続けて撮る。
+        if (autoLookDemoKillAt_ < 0.0f) {
+            if (wait >= 0.5f) {
+                autoLookDemoKillAt_ = elapsed_;
+                for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
+                    if (enemy && !enemy->IsDead() && enemy->GetHp() > 50000) {
+                        enemy->SetHp(1);
+                        enemy->TakeDirectionalDamage(1, self);
+                    }
+                }
+            }
+            break;
+        }
+        constexpr std::array<float, 5> kShots{0.05f, 0.2f, 0.4f, 0.5f, 0.6f};
+        constexpr std::array<const char*, 5> kNames{"05", "20", "40", "50", "60"};
+        if (autoLookDemoShot_ < static_cast<int>(kShots.size())) {
+            const size_t index = static_cast<size_t>(autoLookDemoShot_);
+            if (elapsed_ - autoLookDemoKillAt_ >= kShots[index] && ready) {
+                RequestCapture(std::string(autoLookDemoState_ == 17 ? "look_kill_" : "look_killmany_") + kNames[index]);
+                ++autoLookDemoShot_;
+            }
+        } else if (ready) {
+            ++autoLookDemoState_;
+        }
+        break;
+    }
+    case 20:
+        if (ready) {
+            std::vector<Demo> mass;
+            for (int i = 0; i < 160; ++i) {
+                mass.push_back({i % 3 == 0 ? "Square" : i % 3 == 1 ? "Triangle" : "Pentagon", -19.5f + static_cast<float>(i % 16) * 2.6f,
+                                -10.4f + static_cast<float>(i / 16) * 2.3f, 1.0f});
+            }
+            place(mass, true);
+            heroSkillTiers_[static_cast<size_t>(survivor::HeroSkill::AmmoBelt)] = 0;
+        }
+        break;
+    case 21:
+        // 並べて2秒たってから5秒間、描いたコマ数を実際の時間で割る。
+        if (wait >= 2.0f && autoLookDemoFrames_ == 0) {
+            autoLookDemoFrames_ = drawnFrames_;
+            // 入力の無い自機が敵に押されても、車体が回らないことを確かめる（始めの向き）。
+            autoLookDemoHull_ = tankHullAngle_;
+            autoLookDemoSelf_ = self;
+            autoLookDemoClock_ = std::chrono::steady_clock::now();
+            // 5秒の間の内訳（CPU・GPU の区間ごとの時間）も書き出す（計測が使えるビルドだけ）。
+            myEngine::RuntimeProfiler::Get().StartCapture(std::string(kAutoTestDirectory) + "/look_profile.csv", 60, 5);
+        } else if (autoLookDemoFrames_ != 0) {
+            const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - autoLookDemoClock_).count();
+            if (seconds >= 5.0) {
+                std::ofstream(std::string(kAutoTestDirectory) + "/look_fps.json")
+                    << "{\"fps\":" << static_cast<double>(drawnFrames_ - autoLookDemoFrames_) / seconds << ",\"alive\":" << CountAlive().total
+                    << ",\"hullTurn\":" << std::fabs(std::remainder(tankHullAngle_ - autoLookDemoHull_, 6.2831853f))
+                    << ",\"pushed\":" << myEngine::Length(self - autoLookDemoSelf_) << "}\n";
+                shoot("mass");
+            }
+        }
+        break;
+    default:
+        break;
+    }
+    player.SetDemoInput(true, move, aim, false, false);
+    return true;
+}
+
 void SurvivorRunController::UpdateSectorAutoTest(float dt)
 {
     // 部屋の中央の周りを回りながら近い敵を撃ち続け、近くの欠片は拾いに行く。4:00 を過ぎたら出口へ向かう
@@ -71,10 +338,32 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
         if (!world_.run.tankRunCapturePath_.empty()) {
             return;
         }
+        // 新しい強化の画面（計画書 p9 の L1）：入力を受けない間と、プレビューが動き出すまで少し待つ（最初の数回は長め）。
+        if (LevelUpScreenOn() && !levelUpScreen_.IsClosing() && levelUpScreen_.GetAge() < (heroLevelUpLog_.size() < 3 ? 2.0f : 0.4f)) {
+            return;
+        }
         if (heroLevelUpLog_.empty() && !autoLevelUpCaptured_) {
             autoLevelUpCaptured_ = true;
             RequestCapture("hero_levelup");
             return;
+        }
+        // 新しい強化の画面（計画書 p9 の L1）：始めの4回は、選ぶ札を替えて画面を保存する。
+        // MYENGINE_SURVIVOR_PREVIEWS=1 なら、最初の画面で全部のプレビューを1つずつ保存する。
+        if (LevelUpScreenOn() && !levelUpScreen_.IsClosing()) {
+            if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_PREVIEWS", nullptr, 0) > 0 &&
+                autoPreviewNext_ < SurvivorLevelUpScreen::IconNames().size()) {
+                const std::string& key = SurvivorLevelUpScreen::IconNames()[autoPreviewNext_++];
+                levelUpScreen_.ShowPreview(key, 5, autoPreviewNext_ % 2 == 0, 3.2f);
+                RequestCapture("preview_" + key);
+                return;
+            }
+            if (autoLevelUpShots_ <= heroLevelUpLog_.size() && heroLevelUpLog_.size() >= 1 && heroLevelUpLog_.size() <= 4) {
+                autoLevelUpShots_ = heroLevelUpLog_.size() + 1;
+                levelUpScreen_.Select(heroLevelUpLog_.size() % 3);
+                levelUpScreen_.ShowPreview(OfferCard(heroLevelUpOffers_[levelUpScreen_.GetSelected()]).icon, 3, false, 2.0f);
+                RequestCapture("hero_levelup_" + std::to_string(heroLevelUpLog_.size() + 1));
+                return;
+            }
         }
         // 主武器の強化（E5 の拡散連射は7段）、次に副武器（E4）を確かめるため、並んでいればその順に選ぶ。
         // MYENGINE_SURVIVOR_PICK=perk なら、パークを先に選ぶ（パークの段と埋め草を確かめる。計画書 p8 の F1）。
@@ -103,11 +392,26 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 pick = i;
             }
         }
+        // 新しい強化の画面では、決めてから閉じる演出（計画書 p9 の L2）を通す。途中の画面を1回保存する。
+        if (LevelUpScreenOn()) {
+            if (!levelUpScreen_.IsClosing()) {
+                levelUpScreen_.Pick(pick);
+            } else if (LevelUpEffectOn() && !autoLevelUpCloseCaptured_ && heroLevelUpLog_.size() >= 1 && levelUpScreen_.GetClosing() >= 0.12f) {
+                autoLevelUpCloseCaptured_ = true;
+                RequestCapture("hero_levelup_close");
+            }
+            return;
+        }
         ChooseHeroLevelUp(pick);
         if (heroLevelUpOpen_) {
             RefreshHeroLevelUp();
         }
         return;
+    }
+    // レベルアップの瞬間の輪（計画書 p9 の L2）を1回保存する。
+    if (levelUpDelay_ > 0.0f && levelUpBurstAge_ >= 0.12f && !autoLevelUpBurstCaptured_ && world_.run.tankRunCapturePath_.empty()) {
+        autoLevelUpBurstCaptured_ = true;
+        RequestCapture("hero_levelup_burst");
     }
     // 時間割の出来事（E6）：起きた1.5秒後に画面を保存する（timeline_1.png から順に）。
     if (timelineEvents_ > autoTimelineSeen_) {
@@ -126,6 +430,28 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             const myEngine::Vector3 self = world_.resources.player_->GetWorldPosition();
             healPickups_.push_back({self + myEngine::Vector3{-7.0f, 4.0f, 0.0f}, 0.0f, false});
             healPickups_.push_back({self + myEngine::Vector3{7.0f, 4.0f, 0.0f}, 0.0f, true});
+        }
+    }
+    // MYENGINE_SURVIVOR_LOOKDEMO=1：見た目を測るための写真（計画書 p10 の13章）。
+    if (HeroMode() && autoLookDemoState_ < 22 && !baseScreenOpen_ && GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_LOOKDEMO", nullptr, 0) > 0 &&
+        UpdateLookDemo()) {
+        return;
+    }
+    // 自機の上の数字（計画書 p9 の H3）：被弾・回復・立ち直りが初めて出たら、少し後に一度ずつ画面を保存する。
+    if (HurtNumbers() && world_.run.tankRunCapturePath_.empty()) {
+        auto shown = [&](SurvivorPlayerNumbers::Kind kind, bool& captured, const char* name) {
+            const float age = playerNumbers_.GetNewestAge(kind);
+            if (captured || age < 0.06f || age > 0.25f) {
+                return false;
+            }
+            captured = true;
+            RequestCapture(name);
+            return true;
+        };
+        if (shown(SurvivorPlayerNumbers::Kind::Hurt, autoHurtCaptured_, "number_hurt") ||
+            shown(SurvivorPlayerNumbers::Kind::Heal, autoHealNumberCaptured_, "number_heal") ||
+            shown(SurvivorPlayerNumbers::Kind::Revive, autoReviveCaptured_, "number_revive")) {
+            return;
         }
     }
     // スパナ（計画書 p8 の F5）が初めて落ちたら、少し後に一度だけ画面を保存する。
@@ -531,7 +857,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             autoHealthCheck_ << "{\"maxHp\":" << maxHp << ",\"taken\":[" << taken[0] << "," << taken[1] << "," << taken[2] << ","
                              << taken[3] << "],\"wound\":" << wound << ",\"hpAfterHeal\":" << player.GetHp() << "}";
         }
-        // 自分を回復（モイラ型）：吸収ゲージがほぼ満タンで HP も満タンなら HP を半分にし（自動確認は無敵なので）、
+        // 自分を回復（吸収型）：吸収ゲージがほぼ満タンで HP も満タンなら HP を半分にし（自動確認は無敵なので）、
         // HP が減っていてゲージがあれば押し続ける。
         if (const survivor::AbilityDefinition* heal = FindAbility(survivor::AbilityKind::SelfHeal)) {
             if (absorb_ >= heal->duration * 0.95f && player.GetHp() == player.GetMaxHp() && player.IsDebugNoDamage()) {
@@ -552,7 +878,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                 autoFortressCaptured_ = true;
             }
         }
-        // 技の画面（モイラ型）：吸い付いた光線・跳ねる球・太い光線・消える移動を、それぞれ1回ずつ保存する。
+        // 技の画面（吸収型）：吸い付いた光線・跳ねる球・太い光線・消える移動を、それぞれ1回ずつ保存する。
         if (world_.run.tankRunCapturePath_.empty() && HeroBeamPrimary()) {
             if (!autoBeamCaptured_ && beamTarget_ != 0 && elapsed_ >= 6.0f) {
                 RequestCapture("hero_beam");
@@ -662,11 +988,11 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
     }
     if (inventoryOpen_) {
         autoInventoryTimer_ += dt;
-        if (autoInventoryState_ == 1 && world_.run.tankRunCapturePath_.empty()) {
+        if (autoInventoryState_ == 1 && autoInventoryTimer_ >= 0.8f && world_.run.tankRunCapturePath_.empty()) {
             RequestCapture("inventory");
             autoInventoryState_ = 2;
         }
-        if (autoInventoryState_ == 2 && autoInventoryTimer_ >= 1.0f) {
+        if (autoInventoryState_ == 2 && autoInventoryTimer_ >= 1.6f) {
             autoInventoryFrozen_ = elapsed_ == autoInventoryElapsed_;
             CloseInventory();
             autoInventoryState_ = 3;
@@ -1110,6 +1436,64 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                             loaded.heroes.heroes.back().abilities[3].rate == config_.heroes.heroes.back().abilities[3].rate &&
                             loaded.heroes.heroes.back().abilities[2].radius == config_.heroes.heroes.back().abilities[2].radius;
             }
+            // 無限の場の値（計画書 p8・p9）の読み戻しと、切って保存しても前のファイルの値が残らないか（H4 で見つけた不具合）。
+            if (roundTrip) {
+                auto same = [](float a, float b) {
+                    return std::abs(a - b) < 0.001f;
+                };
+                roundTrip = loaded.growth.enabled == config_.growth.enabled && loaded.growth.points.size() == config_.growth.points.size() &&
+                            same(loaded.growth.hpPerMinute, config_.growth.hpPerMinute) && same(loaded.spawnForward, config_.spawnForward) &&
+                            same(loaded.separation.radiusScale, config_.separation.radiusScale) &&
+                            loaded.heroes.single == config_.heroes.single && loaded.heroes.mainOfferPity == config_.heroes.mainOfferPity &&
+                            same(loaded.heroes.subWeaponPower, config_.heroes.subWeaponPower) && same(loaded.hud.blastShake, config_.hud.blastShake) &&
+                            std::equal(loaded.timeline.begin(), loaded.timeline.end(), config_.timeline.begin(), config_.timeline.end(), [&](const auto& a, const auto& b) { return same(a.gap, b.gap) && same(a.warn, b.warn); }) &&
+                            loaded.glow.effects.enabled == config_.glow.effects.enabled && loaded.glow.effects.topMost == config_.glow.effects.topMost &&
+                            same(loaded.glow.effects.edgeSpeed, config_.glow.effects.edgeSpeed) && same(loaded.glow.effects.edgeVary, config_.glow.effects.edgeVary) &&
+                            same(loaded.glow.effects.edgeHold, config_.glow.effects.edgeHold) && same(loaded.glow.effects.edgeShift, config_.glow.effects.edgeShift) &&
+                            same(loaded.glow.effects.edgeBright, config_.glow.effects.edgeBright) && same(loaded.glow.effects.edgeDrag, config_.glow.effects.edgeDrag) &&
+                            loaded.glow.effects.edgeBlink == config_.glow.effects.edgeBlink && loaded.glow.effects.calmBlink == config_.glow.effects.calmBlink &&
+                            same(loaded.glow.effects.soft, config_.glow.effects.soft) && same(loaded.glow.effects.overlap, config_.glow.effects.overlap) &&
+                            same(loaded.glow.effects.glow, config_.glow.effects.glow) && same(loaded.glow.effects.birth, config_.glow.effects.birth) &&
+                            same(loaded.glow.effects.flash, config_.glow.effects.flash) && loaded.glow.effects.edges == config_.glow.effects.edges &&
+                            same(loaded.glow.effects.plate, config_.glow.effects.plate) && same(loaded.glow.effects.crowd, config_.glow.effects.crowd) &&
+                            same(loaded.glow.effects.debris, config_.glow.effects.debris) &&
+                            same(loaded.glow.effects.clearRadius, config_.glow.effects.clearRadius) &&
+                            loaded.glow.needle.enabled == config_.glow.needle.enabled && same(loaded.glow.needle.line, config_.glow.needle.line) &&
+                            same(loaded.glow.needle.tail, config_.glow.needle.tail) && same(loaded.glow.needle.bloom, config_.glow.needle.bloom) &&
+                            same(loaded.glow.neon.enemyGrid, config_.glow.neon.enemyGrid) && loaded.glow.tank.enabled == config_.glow.tank.enabled &&
+                            same(loaded.glow.tank.line, config_.glow.tank.line) && same(loaded.glow.tank.nearGlow, config_.glow.tank.nearGlow) &&
+                            same(loaded.glow.tank.turn, config_.glow.tank.turn) && same(loaded.glow.tank.color[1], config_.glow.tank.color[1]) &&
+                            loaded.glow.neon.temporal == config_.glow.neon.temporal &&
+                            loaded.glow.neon.flatBody == config_.glow.neon.flatBody && same(loaded.glow.neon.enemyLine, config_.glow.neon.enemyLine) &&
+                            same(loaded.glow.neon.nebula, config_.glow.neon.nebula) && same(loaded.glow.neon.colorShift, config_.glow.neon.colorShift) &&
+                            same(loaded.glow.neon.persistence, config_.glow.neon.persistence) && same(loaded.glow.neon.scanline, config_.glow.neon.scanline) &&
+                            same(loaded.glow.neon.nearGlow, config_.glow.neon.nearGlow) &&
+                            same(loaded.glow.neon.nearGlowRadius, config_.glow.neon.nearGlowRadius) &&
+                            loaded.glow.neon.enabled == config_.glow.neon.enabled && same(loaded.glow.neon.bloom, config_.glow.neon.bloom) &&
+                            loaded.damageNumbers.enemyHpBars == config_.damageNumbers.enemyHpBars &&
+                            same(loaded.damageNumbers.critScale, config_.damageNumbers.critScale) &&
+                            same(loaded.damageNumbers.scale, config_.damageNumbers.scale) && same(loaded.damageNumbers.alpha, config_.damageNumbers.alpha) &&
+                            same(loaded.damageNumbers.bigScale, config_.damageNumbers.bigScale) &&
+                            same(loaded.damageNumbers.nearRadius, config_.damageNumbers.nearRadius) &&
+                            loaded.hud.compact == config_.hud.compact && loaded.hud.hurtNumbers == config_.hud.hurtNumbers &&
+                            loaded.hud.levelUpScreen == config_.hud.levelUpScreen &&
+                            loaded.hud.levelUpEffect == config_.hud.levelUpEffect && same(loaded.hud.levelUpSlow, config_.hud.levelUpSlow) &&
+                            same(loaded.hud.hurtEdge, config_.hud.hurtEdge) && loaded.timeline.size() == config_.timeline.size();
+                survivor::SpawnConfig off = ConfigForSaving();
+                off.growth.enabled = off.glow.neon.enabled = off.hud.compact = off.hud.hurtNumbers = off.hud.levelUpScreen = off.hud.levelUpEffect = false;
+                off.spawnForward = off.spawnSide = off.spawnBack = 0.0f;
+                off.separation = {};
+                off.heroes.healDropHeal = 0.0f;
+                off.heroes.fillerHeal = off.heroes.fillerPower = 0.0f;
+                off.heroes.fillerMaxHp = 0;
+                off.timeline.clear();
+                survivor::SpawnConfig offLoaded;
+                roundTrip = roundTrip && survivor::SaveSpawnConfig(path, off, error) && survivor::LoadSpawnConfig(path, offLoaded, error) &&
+                            !offLoaded.growth.enabled && !offLoaded.glow.neon.enabled && !offLoaded.hud.compact && !offLoaded.hud.hurtNumbers && !offLoaded.hud.levelUpScreen && !offLoaded.hud.levelUpEffect &&
+                            offLoaded.spawnForward + offLoaded.spawnSide + offLoaded.spawnBack == 0.0f &&
+                            same(offLoaded.separation.radiusScale, 1.0f) && same(offLoaded.separation.strength, 0.5f) &&
+                            offLoaded.heroes.healDropHeal == 0.0f && offLoaded.heroes.fillerHeal == 0.0f && offLoaded.timeline.empty();
+            }
         }
         // 拠点：結果画面で持ち帰ってセーブした物を読み直し、同じになるかを見る。
         CommitRunToBase();
@@ -1183,6 +1567,7 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"stillShots\":" << player.GetStillShots() << ",\"trait\":\"" << survivor::TraitKey(trait_) << "\",\"coolPerSecond\":" << player.GetHeat().GetConfig().coolPerSecond
             << ",\"coolPerSecondWhileFiring\":" << player.GetHeat().GetConfig().coolPerSecondWhileFiring
             << ",\"heatMax\":" << player.GetHeat().GetMaxHeat() << ",\"shieldMax\":" << player.GetShieldMax() << ",\"shieldCheck\":[" << autoShieldLog_.str() << "]"
+            << ",\"shake\":" << ShakeRecord().dump() << ",\"build\":" << BuildRecord().dump()
             << ",\"threatStage\":" << threatStage_ << ",\"rings\":" << ringsSpawned_ << ",\"rivalSpawnedAt\":" << rivalSpawnedAt_
             << ",\"rivalDefeatedAt\":" << rivalDefeatedAt_ << ",\"removals\":" << removals_ << ",\"maxLoad\":" << maxLoad_
             << ",\"loadAtEnd\":" << survivor::LoadOf(config_.parts, partLevels_) << ",\"capacityAtEnd\":" << Capacity()
@@ -1220,7 +1605,10 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
             << ",\"heroLevelUps\":" << heroLevelUpLog_.size() << ",\"skillTiers\":[" << heroSkillTiers_[0] << "," << heroSkillTiers_[1] << ","
             << heroSkillTiers_[2] << "],\"steadyShots\":" << steadyShots_ << ",\"battleStacksMax\":" << battleStacksMax_
             << ",\"burstShotsPerVolleyMax\":" << burstShotsPerVolleyMax_ << ",\"fillers\":" << fillersTaken_ << ",\"fillerMaxHp\":" << fillerMaxHp_
-            << ",\"fillerPower\":" << fillerPower_ << ",\"crits\":" << player.GetSurvivorCrits()
+            << ",\"fillerPower\":" << fillerPower_ << ",\"crits\":" << player.GetSurvivorCrits() << ",\"critNumbers\":" << damageNumbers_.GetCriticalCount() << ",\"hurtNumbers\":["
+            << playerNumbers_.GetSpawnedCount(SurvivorPlayerNumbers::Kind::Hurt) << ","
+            << playerNumbers_.GetSpawnedCount(SurvivorPlayerNumbers::Kind::Heal) << ","
+            << playerNumbers_.GetSpawnedCount(SurvivorPlayerNumbers::Kind::Revive) << "],\"hpLost\":" << player.GetSurvivorHpLost() << ",\"levelUpBursts\":" << levelUpBursts_ << ",\"levelUpPushed\":" << levelUpPushed_
             << ",\"guardBlocks\":" << player.GetSurvivorGuardBlocks() << ",\"revivesUsed\":" << player.GetSurvivorRevivesUsed()
             << ",\"expBonus\":" << expBonus_ << ",\"growthSpawned\":" << growthSpawned_ << ",\"growthAliveMax\":" << growthAliveMax_
             << ",\"surges\":" << surgesStarted_ << ",\"enemyHpScaleEnd\":" << EnemyHpScale() << ",\"enemySpeedScaleEnd\":" << EnemySpeedScale() << ",\"healsDropped\":" << healsDropped_ << ",\"healsBigDropped\":" << healsBigDropped_ << ",\"healsCollected\":" << healsCollected_
@@ -1239,7 +1627,9 @@ void SurvivorRunController::UpdateSectorAutoTest(float dt)
                    return tiers.str();
                }() << "],\"mortarBlasts\":" << mortarBlasts_ << ",\"droneShots\":" << droneShots_ << ",\"flameDamage\":" << flameDamage_
             << ",\"pulses\":" << pulses_ << ",\"orbitDamage\":" << orbitDamage_
-            << ",\"orbitBulletsCleared\":" << orbitBulletsCleared_ << ",\"turretShots\":" << turretShots_ << ",\"mineBlasts\":" << mineBlasts_ << ",\"timelineEvents\":" << timelineEvents_ << ",\"midBossKills\":" << midBossKills_ << ",\"burstShots\":" << burstShots_ << ",\"burstVolleys\":" << burstVolleys_
+            << ",\"orbitBulletsCleared\":" << orbitBulletsCleared_ << ",\"turretShots\":" << turretShots_ << ",\"mineBlasts\":" << mineBlasts_ << ",\"timelineEvents\":" << timelineEvents_ << ",\"spawnSectors\":[" << spawnSectors_[0] << "," << spawnSectors_[1] << "," << spawnSectors_[2] << "," << spawnSectors_[3]
+            << "],\"separationDeepPairsAvg\":" << (separationCalls_ > 0 ? static_cast<double>(separationDeepPairs_) / static_cast<double>(separationCalls_) : 0.0)
+            << ",\"separationDeepPairsMax\":" << separationDeepPairsMax_ << ",\"midBossKills\":" << midBossKills_ << ",\"burstShots\":" << burstShots_ << ",\"burstVolleys\":" << burstVolleys_
             << ",\"sprintSpeed\":" << autoMoveDistance_[1] / (std::max)(0.001f, autoMoveSeconds_[1]) << ",\"ultimateCharge\":" << ultimateCharge_
             << ",\"ultimateFullAt\":" << ultimateFullAt_ << ",\"ultimateFills\":" << ultimateFills_ << ",\"rocketBlasts\":" << rocketBlasts_
             << ",\"rocketKills\":" << rocketKills_ << ",\"healed\":" << healedByZone_ << ",\"healInsideSeconds\":" << healZoneInsideSeconds_

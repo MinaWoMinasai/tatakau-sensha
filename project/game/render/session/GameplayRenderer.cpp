@@ -80,6 +80,9 @@ void GameplayRenderer::DrawPostEffect3D()
     stagesurface::Settings surface = world_.presentation.stageSurface_;
     surface.enabled = surface.enabled && world_.run.UsesPrototypeRules();
     stagesurface::Sanitize(surface);
+    // 床の明かり（自機のまわりの光）も、ランの見た目で弱められる（計画書 p9 の H1）。
+    surface.floorLocalIntensity *= world_.presentation.runNeonLook_.floorLight;
+    surface.floorLightIntensity *= world_.presentation.runNeonLook_.floorLight;
     if (world_.resources.player_ && world_.resources.player_->IsDead()) {
         surface.floorLocalIntensity = 0.0f;
     }

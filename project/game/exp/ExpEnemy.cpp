@@ -1273,6 +1273,10 @@ void ExpEnemy::OnCollision(Collider* other)
             melee = bullet->GetSpecialKind() == Bullet::SpecialKind::SlashWave;
         }
         damage = ResolveShieldDamage(damage, source, melee);
+        // 会心の弾（計画書 p9 の H2）：ダメージの数字を会心の見た目にする。
+        if (const auto* bullet = dynamic_cast<const Bullet*>(other); bullet && bullet->IsCritical()) {
+            nextHitCritical_ = true;
+        }
     }
     ApplyDamage(damage, !killedByEnemy, true);
     // 燃やす弾（拡散連射の覚醒）：当たった敵に火を付ける。燃えている間に当たると、時間を戻し、強い方の威力にする。
@@ -1353,6 +1357,7 @@ void ExpEnemy::ApplyKnockback(const myEngine::Vector3& direction, float power)
 bool ExpEnemy::ApplyDamage(uint32_t amount, bool playerOwned, bool reportOrdinaryEnemyKill)
 {
     if (isDead_ || amount == 0) {
+        nextHitCritical_ = false;
         return false;
     }
     hp_ -= static_cast<int>((std::min)(amount, static_cast<uint32_t>((std::max)(0, hp_))));
@@ -1360,6 +1365,7 @@ bool ExpEnemy::ApplyDamage(uint32_t amount, bool playerOwned, bool reportOrdinar
     if (playerOwned && !isRunResource_ && playerDamageCallback_) {
         playerDamageCallback_(*this, amount);
     }
+    nextHitCritical_ = false;
     if (hp_ <= 0) {
         // 通知先からの再入や同じフレームの後続ダメージに備え、撃破通知より先に死亡を確定する。
         isDead_ = true;

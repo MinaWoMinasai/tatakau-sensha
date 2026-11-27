@@ -112,6 +112,11 @@ void SurvivorRunController::SyncSlotWeapons()
 
 void SurvivorRunController::OpenBaseScreen()
 {
+    // 1台だけの版（計画書 p11 の D1）は、機体を選ぶ画面を出さずに始める。
+    if (HeroMode() && config_.heroes.single) {
+        StartSortie();
+        return;
+    }
     baseScreenOpen_ = true;
     // 機体の遊び方：機体を選ぶ・解放する画面（K6）。
     if (HeroMode()) {

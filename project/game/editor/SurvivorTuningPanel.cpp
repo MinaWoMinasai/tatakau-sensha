@@ -659,7 +659,164 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
     const float perSecond = snapshot.growthCount / (std::max)(0.05f, snapshot.growthInterval);
     ImGui::Text("敵 %d / 上限 %.0f    %.2f秒ごとに %.1f体（毎秒 %.1f体）", snapshot.alive, snapshot.growthMaxAlive, snapshot.growthInterval,
                 snapshot.growthCount, perSecond);
-    ImGui::Text("敵の HP ×%.2f    敵の速さ ×%.2f（これから湧く敵）    Lv %d", snapshot.enemyHpScale, snapshot.enemySpeedScale, snapshot.level);
+    ImGui::Text("敵の HP ×%.2f    敵の速さ ×%.2f（これから湧く敵）", snapshot.enemyHpScale, snapshot.enemySpeedScale);
+    ImGui::Text("Lv %d    このランのレベルアップ %d 回（選ぶのを待っている %d）", snapshot.level, snapshot.levelUps, snapshot.pendingLevelUps);
+
+    // ネオン管の見た目（計画書 p9 の H1）
+    if (ImGui::TreeNodeEx("光り方（ネオン管）", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto& look = config.glow.neon;
+        changed |= ImGui::Checkbox("ネオン管の見た目を使う（切ると前の光り方）", &look.enabled);
+        ImGui::TextDisabled("敵の輪郭");
+        changed |= ImGui::SliderFloat("芯の白さ（0 で色の付いた芯）", &look.enemyCoreWhite, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("芯の明るさ", &look.enemyCoreIntensity, 0.0f, 6.0f, "%.2f");
+        changed |= ImGui::SliderFloat("にじみの明るさ", &look.enemyHaloIntensity, 0.0f, 3.0f, "%.2f");
+        changed |= ImGui::SliderFloat("にじみの幅", &look.enemyHaloWidth, 1.0f, 6.0f, "%.2f");
+        changed |= ImGui::SliderFloat("敵の色の明るさ", &look.enemyColor, 0.2f, 2.0f, "×%.2f");
+        changed |= ImGui::Checkbox("敵の中を黒い平面にする（陰影と反射なし）", &look.flatBody);
+        changed |= ImGui::SliderFloat("敵の線の太さ", &look.enemyLine, 0.2f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("近いにじみの強さ（0 で無し）", &look.nearGlow, 0.0f, 2.0f, "%.2f");
+        changed |= ImGui::SliderFloat("近いにじみの広さ", &look.nearGlowRadius, 0.1f, 1.5f, "%.2f");
+        ImGui::TextDisabled("背景（暗いほど光が際立つ）");
+        changed |= ImGui::SliderFloat("雲", &look.nebula, 0.0f, 1.5f, "×%.2f");
+        ImGui::TextDisabled("画面のブラウン管の効果（無限の場だけ）");
+        changed |= ImGui::SliderFloat("残像（0 で無し）", &look.persistence, 0.0f, 1.3f, "×%.2f");
+        changed |= ImGui::SliderFloat("走査線", &look.scanline, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::Checkbox("前のコマと混ぜてなじませる（TAA。動く線が少し重なる）", &look.temporal);
+        changed |= ImGui::SliderFloat("画面の端の色ずれ", &look.colorShift, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("床の格子", &look.worldGrid, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機のまわりの格子", &look.localGrid, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("敵のまわりの格子（上の値にさらに掛ける。0 で無し）", &look.enemyGrid, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("壁の線", &look.walls, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("床の明かり", &look.floorLight, 0.0f, 1.5f, "×%.2f");
+        ImGui::TextDisabled("ブルーム");
+        changed |= ImGui::SliderFloat("強さ（1 が上限）", &look.bloom, 0.0f, 1.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("敵が多いときの強さ", &look.crowdBloom, 0.2f, 1.0f, "×%.2f");
+        changed |= ImGui::DragFloat("「多い」とする敵の数", &look.crowdCount, 1.0f, 1.0f, 400.0f, "%.0f体");
+        ImGui::TreePop();
+    }
+
+    // 自機の履帯戦車（計画書 p10 の16章の M1）
+    if (ImGui::TreeNodeEx("自機（履帯戦車）", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto& tank = config.glow.tank;
+        changed |= ImGui::Checkbox("履帯戦車で描く（切ると前の自機）", &tank.enabled);
+        changed |= ImGui::SliderFloat("線の太さ（敵の線に対して）", &tank.line, 0.3f, 2.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機の色の明るさ", &tank.brightness, 0.2f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機の近いにじみ（敵に対して）", &tank.nearGlow, 0.0f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機の大きさ（見た目だけ）", &tank.scale, 0.5f, 1.6f, "×%.2f");
+        changed |= ImGui::SliderFloat("車体が回る速さ", &tank.turn, 2.0f, 30.0f, "%.0f");
+        changed |= ImGui::SliderFloat("履帯の光の流れ", &tank.flow, 0.0f, 2.0f, "×%.2f");
+        changed |= ImGui::ColorEdit3("自機の色", tank.color);
+        ImGui::TreePop();
+    }
+
+    // 自機の弾（計画書 p10 の16章の M2）
+    if (ImGui::TreeNodeEx("自機の弾（細い針）", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto& needle = config.glow.needle;
+        changed |= ImGui::Checkbox("細い針で描く（切ると前の弾。次に撃つ弾から）", &needle.enabled);
+        changed |= ImGui::SliderFloat("針の太さ（敵の線に対して）", &needle.line, 0.3f, 2.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("先の長さ（後ろ）", &needle.back, 0.1f, 2.0f, "%.2f");
+        changed |= ImGui::SliderFloat("先の長さ（前）", &needle.front, 0.05f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("尾の長さ", &needle.tail, 0.0f, 4.0f, "%.2f");
+        changed |= ImGui::SliderFloat("尾の明るさ", &needle.tailAlpha, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("弾の色の明るさ", &needle.brightness, 0.2f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("弾の近いにじみ（敵に対して）", &needle.nearGlow, 0.0f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("弾のブルーム", &needle.bloom, 0.0f, 1.0f, "×%.2f");
+        ImGui::TreePop();
+    }
+
+    // 爆発・破片・副武器（計画書 p10 の16章の M3）
+    if (ImGui::TreeNodeEx("爆発・破片・副武器（管の線）", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto& effects = config.glow.effects;
+        changed |= ImGui::Checkbox("管の線で描く（切ると前の演出）", &effects.enabled);
+        changed |= ImGui::SliderFloat("演出の線の太さ", &effects.line, 0.3f, 3.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("演出の明るさ", &effects.brightness, 0.2f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("破片の数", &effects.debris, 0.0f, 1.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("火花の数", &effects.sparks, 0.0f, 1.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("倒したときの輪の大きさ", &effects.ring, 0.0f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機のまわりを薄くする半径", &effects.clearRadius, 0.0f, 8.0f, "%.1f");
+        changed |= ImGui::SliderFloat("そこで残す濃さ", &effects.clearAlpha, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("演出の近いにじみ（敵に対して）", &effects.glow, 0.0f, 6.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("生まれた瞬間の明るさ", &effects.birth, 1.0f, 6.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("撃破の閃光", &effects.flash, 0.0f, 3.0f, "%.2f");
+        changed |= ImGui::Checkbox("倒すと管の辺が割れて飛ぶ", &effects.edges);
+        changed |= ImGui::SliderFloat("辺の飛ぶ速さ", &effects.edgeSpeed, 3.0f, 16.0f, "%.1f");
+        changed |= ImGui::SliderFloat("辺の速さ・向きのばらつき", &effects.edgeVary, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("辺の減速", &effects.edgeDrag, 0.0f, 8.0f, "%.1f");
+        changed |= ImGui::SliderFloat("辺が光っている秒", &effects.edgeHold, 0.15f, 1.0f, "%.2f");
+        changed |= ImGui::SliderInt("ちかちかの回数", &effects.edgeBlink, 0, 4);
+        changed |= ImGui::SliderFloat("ちかちかの間（秒）", &effects.edgeGap, 0.03f, 0.14f, "%.3f");
+        changed |= ImGui::SliderFloat("消える時刻のずれ（秒）", &effects.edgeShift, 0.0f, 0.5f, "%.2f");
+        changed |= ImGui::SliderFloat("辺の明るさ", &effects.edgeBright, 0.5f, 2.0f, "×%.2f");
+        changed |= ImGui::Checkbox("点滅を弱める（ちかちかさせず、薄くして消す）", &effects.calmBlink);
+        changed |= ImGui::SliderFloat("輪・欠け・火花の明るさ", &effects.soft, 0.0f, 1.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("欠け・火花の寿命", &effects.softLife, 0.2f, 1.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("重なった撃破の割り引き", &effects.overlap, 0.0f, 2.0f, "%.2f");
+        changed |= ImGui::SliderFloat("敵が多いときの破片と火花", &effects.crowd, 0.0f, 1.0f, "×%.2f");
+        changed |= ImGui::Checkbox("自機を光の上にもう一度重ねる", &effects.topMost);
+        changed |= ImGui::SliderFloat("自機の黒い面の濃さ", &effects.plate, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("自機の黒い面の縁のぼかし", &effects.plateFeather, 0.0f, 0.6f, "%.2f");
+        ImGui::TreePop();
+    }
+
+    // 文字を減らした HUD（計画書 p9 の H4）
+    if (ImGui::TreeNodeEx("HUD（自機の下のゲージ）", ImGuiTreeNodeFlags_DefaultOpen)) {
+        changed |= ImGui::Checkbox("文字を減らした HUD を使う（切ると前の HUD）", &config.hud.compact);
+        changed |= ImGui::SliderFloat("ゲージの大きさ", &config.hud.scale, 0.5f, 2.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機からの縦の間", &config.hud.offset, -120.0f, 120.0f, "%.0f");
+        changed |= ImGui::Checkbox("新しい強化の画面を使う（切ると前の画面。次に開いたときから）", &config.hud.levelUpScreen);
+        changed |= ImGui::Checkbox("レベルアップの瞬間の演出（輪・ゆっくり・札が吸い込まれる）", &config.hud.levelUpEffect);
+        changed |= ImGui::SliderFloat("画面が開くまでのゆっくりの秒", &config.hud.levelUpSlow, 0.0f, 1.0f, "%.2f");
+        ImGui::TextDisabled("被弾と回復");
+        changed |= ImGui::Checkbox("自機の上に数字で出す（切ると「ダメージ」などの文字）", &config.hud.hurtNumbers);
+        changed |= ImGui::SliderFloat("被弾・回復の数字の大きさ", &config.hud.hurtScale, 0.5f, 2.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("画面の縁の赤（0 で無し）", &config.hud.hurtEdge, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("被弾の揺れ", &config.hud.hurtShake, 0.0f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("主武器の爆発の揺れ（光と画面の脈打ちはそのまま）", &config.hud.blastShake, 0.0f, 2.0f, "×%.2f");
+        ImGui::TreePop();
+    }
+
+    // 数字と HP バー（計画書 p9 の H2）
+    if (ImGui::TreeNodeEx("数字と HP バー", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto& numbers = config.damageNumbers;
+        changed |= ImGui::SliderFloat("数字の大きさ", &numbers.scale, 0.3f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("ふつうの数字の濃さ", &numbers.alpha, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::SliderFloat("大きな数字の大きさ", &numbers.bigScale, 0.5f, 2.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("自機のまわりで薄くする半径", &numbers.nearRadius, 0.0f, 10.0f, "%.1f");
+        changed |= ImGui::SliderFloat("自機のまわりで残す濃さ", &numbers.nearAlpha, 0.0f, 1.0f, "%.2f");
+        changed |= ImGui::Checkbox("小さい敵の HP バーを出す（中ボス・大きい敵はいつも出す）", &numbers.enemyHpBars);
+        changed |= ImGui::Checkbox("ダメージの数字を出す", &numbers.enabled);
+        changed |= ImGui::SliderFloat("数字の大きさ", &numbers.scale, 0.3f, 2.5f, "×%.2f");
+        changed |= ImGui::SliderFloat("会心の数字の大きさ（金色・「!」付き）", &numbers.critScale, 0.5f, 4.0f, "×%.2f");
+        changed |= ImGui::SliderFloat("同じ敵への命中をまとめる秒（0 でまとめない）", &numbers.mergeSeconds, 0.0f, 0.5f, "%.2f");
+        changed |= ImGui::SliderFloat("数字が出ている秒", &numbers.lifeSeconds, 0.2f, 2.0f, "%.2f");
+        ImGui::TreePop();
+    }
+
+    // 敵の押し合い（計画書 p8 の G3）：塊を、隙間のある面にする。
+    ImGui::SeparatorText("敵の押し合い（塊を面にする）");
+    changed |= ImGui::SliderFloat("押し合う半径（当たりの半径の倍）", &config.separation.radiusScale, 0.5f, 3.0f, "×%.2f");
+    ImGui::TextDisabled("1.0 が前の値。見た目の大きさは当たりの約2倍。大きいほど離れて並ぶ");
+    changed |= ImGui::SliderFloat("押し戻す強さ（1回で重なりの何割）", &config.separation.strength, 0.0f, 1.0f, "%.2f");
+    ImGui::TextDisabled("弱いほどくっつきながら層になる。1.0 は弾けて散らばる");
+    changed |= ImGui::SliderFloat("1回で動かす上限（半径の倍。0 は上限なし）", &config.separation.maxPush, 0.0f, 1.0f, "%.2f");
+
+    // 湧く向き（計画書 p8 の G3）
+    ImGui::SeparatorText("湧く向き（自機の進む向きが基準）");
+    changed |= ImGui::SliderFloat("前（±45度）", &config.spawnForward, 0.0f, 10.0f, "%.1f");
+    changed |= ImGui::SliderFloat("横（左右）", &config.spawnSide, 0.0f, 10.0f, "%.1f");
+    changed |= ImGui::SliderFloat("後ろ", &config.spawnBack, 0.0f, 10.0f, "%.1f");
+    {
+        const float sum = config.spawnForward + config.spawnSide + config.spawnBack;
+        if (sum > 0.0f) {
+            ImGui::TextDisabled("前 %.0f%%  横 %.0f%%  後ろ %.0f%%（止まっているときは、縁から均等）", config.spawnForward / sum * 100.0f,
+                                config.spawnSide / sum * 100.0f, config.spawnBack / sum * 100.0f);
+        } else {
+            ImGui::TextDisabled("全部0：縁から均等（前の湧き方）");
+        }
+        const auto& sectors = snapshot.spawnSectors;
+        ImGui::TextDisabled("このランで湧いた向き：前 %d  横 %d  後ろ %d  向きなし %d（今の自機の速さ %.1f）", sectors[0], sectors[1], sectors[2],
+                            sectors[3], snapshot.moveSpeed);
+    }
 
     // 速さ：自機の歩きと、図形ごとの寄る速さ。自機より速いかを横に出す。
     ImGui::SeparatorText("速さ（毎秒。ワールド単位）");
@@ -885,6 +1042,11 @@ bool DrawEndless(SpawnConfig& config, const TuningSnapshot& snapshot, bool& time
         }
         ImGui::TextUnformatted(text.str().c_str());
     }
+
+    // 強化の出方と副武器（計画書 p11 の B2b）
+    ImGui::SeparatorText("強化の札と副武器");
+    changed |= ImGui::SliderInt("主武器の札を必ず出す間（回に1回、0 で無し）", &config.heroes.mainOfferPity, 0, 8);
+    changed |= ImGui::SliderFloat("副武器の威力", &config.heroes.subWeaponPower, 0.5f, 5.0f, "×%.2f");
 
     // スパナ
     if (config.heroes.healDropHeal > 0.0f || config.heroes.healDropChance > 0.0f) {

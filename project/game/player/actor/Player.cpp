@@ -110,7 +110,7 @@ void Player::RotateToMouse(myEngine::Camera* viewProjection)
     if (input_ && input_->IsGamepadActive()) {
         // ツインスティックの照準: 右スティックで砲身の向きを決め、離すと最後の向きを保つ。
         // 置いたままのマウスで照準が引っ張られないよう、OSのカーソルは無視する。
-        // 自動で撃つとき（HoloCure と同じ）は、右スティックを離している間は動いている方を向く。
+        // 自動で撃つとき（押さなくても撃ち続ける形）は、右スティックを離している間は動いている方を向く。
         myEngine::Vector2 aim{};
         if (input_->TryGetGamepadAim(aim)) {
             dir_ = myEngine::Normalize(myEngine::Vector3{aim.x, aim.y, 0.0f});
@@ -154,13 +154,9 @@ void Player::RotateToMouse(myEngine::Camera* viewProjection)
         return;
     }
     // --- 1. マウス座標取得 ---
-    POINT mousePosition;
-    GetCursorPos(&mousePosition);
-    HWND hwnd = myEngine::WinApp::GetInstance()->GetHwnd();
-    ScreenToClient(hwnd, &mousePosition);
-    float logicalMouseX = static_cast<float>(mousePosition.x);
-    float logicalMouseY = static_cast<float>(mousePosition.y);
-    myEngine::WinApp::GetInstance()->ClientToLogical(logicalMouseX, logicalMouseY);
+    const myEngine::Vector2 logicalMouse = myEngine::Input::GetInstance()->GetMousePosition();
+    const float logicalMouseX = logicalMouse.x;
+    const float logicalMouseY = logicalMouse.y;
 
     // --- 2. 逆変換用の行列を準備 ---
     myEngine::Matrix4x4 matViewport =
@@ -853,10 +849,12 @@ void Player::TakeDamage(uint32_t amount, float invincibleTime)
         appliedDamage -= static_cast<uint32_t>((std::min)(incoming, std::ceil(absorbed)));
     }
     // 符号付きHPへ変換する前に残HPで制限し、極端な開発用ダメージでも整数変換を安全にする。
+    const int hpBefore = hp_;
     hp_ -= static_cast<int>((std::min)(appliedDamage, static_cast<uint32_t>((std::max)(0, hp_))));
     if (hp_ < 0) {
         hp_ = 0;
     }
+    survivorHpLost_ += static_cast<uint64_t>((std::max)(0, hpBefore - hp_));
 
     // 傷（H7）：受けたダメージの一部は、治すまで HP の上限から引かれる（最大HP-1 まで）。
     if (rules) {

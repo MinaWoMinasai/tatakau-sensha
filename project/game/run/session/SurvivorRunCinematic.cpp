@@ -1,6 +1,7 @@
 #include "game/run/session/SurvivorRunController.h"
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
+#include "game/settings/UserSettings.h"
 #include "game/render/settings/ArenaCameraProfile.h"
 #include <algorithm>
 #include <cmath>
@@ -172,7 +173,7 @@ void SurvivorRunController::ApplyCinematicCamera()
     const auto& presentation = world_.presentation;
     if (presentation.cameraShakeTimer_ > 0.0f && presentation.cameraShakeDuration_ > 0.0f) {
         const float t = (std::clamp)(presentation.cameraShakeTimer_ / presentation.cameraShakeDuration_, 0.0f, 1.0f);
-        const float power = presentation.cameraShakePower_ * t * t;
+        const float power = presentation.cameraShakePower_ * t * t * usersettings::ShakeScale();
         eye.x += myEngine::Rand(-power, power);
         eye.y += myEngine::Rand(-power, power);
     }

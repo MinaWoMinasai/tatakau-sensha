@@ -38,6 +38,8 @@ GameWorld::~GameWorld()
     ExpEnemy::SetPlayerDefeatCallback(nullptr);
     ExpEnemy::SetPlayerExpDropCallback(nullptr);
     ExpEnemy::SetPlayerDamageCallback(nullptr);
+    // 無限の場の HUD が隠した開発用の窓（計画書 p9 の H4）を戻す。
+    myEngine::Object3dCommon::GetInstance()->SetDebugUiEnabled(true);
     Enemy::SetDamageCallback(nullptr);
     ExpEnemy::SetShapeNeonRenderMode(0);
 }

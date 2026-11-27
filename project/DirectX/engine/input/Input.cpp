@@ -74,6 +74,18 @@ void Input::BeforeFrameData()
         }
     }
 
+#if MYENGINE_DEVELOPER_TOOLS
+    if (testFrame_.enabled) {
+        memcpy(key_, testFrame_.keys.data(), sizeof(key_));
+        for (int i = 0; i < 256; ++i) {
+            frameKeyPress_[i] = testFrame_.presses[i];
+        }
+        ZeroMemory(&mouseState_, sizeof(mouseState_));
+        mouseState_.lX = testFrame_.mouseMoved ? 10 : 0;
+        mouseState_.rgbButtons[0] = testFrame_.leftButton ? 0x80 : 0;
+    }
+#endif
+
     // キーボード・マウスを触ったかは、ゲームパッドの合成より前の実機の状態で判定する。
     bool keyboardMouseActivity = std::abs(mouseState_.lX) + std::abs(mouseState_.lY) > 4;
     for (int i = 0; i < 4 && !keyboardMouseActivity; ++i) {
@@ -99,6 +111,13 @@ void Input::BeforeFrameData()
     } else {
         --gamepadPollCountdown_;
     }
+
+#if MYENGINE_DEVELOPER_TOOLS
+    if (testFrame_.enabled) {
+        gamepadConnected_ = testFrame_.padConnected;
+        currentGamepadState_.Gamepad = testFrame_.pad;
+    }
+#endif
 
     const XINPUT_GAMEPAD& pad = currentGamepadState_.Gamepad;
     const XINPUT_GAMEPAD& previousPad = previousGamepadState_.Gamepad;
@@ -437,6 +456,7 @@ void Input::OnFocusChanged(bool active)
             mouse_->Acquire();
         }
     } else {
+        ++focusLostCount_;
         if (keyboard_) {
             keyboard_->Unacquire();
         }
@@ -553,6 +573,11 @@ Vector2 Input::GetMousePosition() const
 #if MYENGINE_DEVELOPER_TOOLS && !defined(NDEBUG)
     if (validationFrame_) {
         return validationMousePosition_;
+    }
+#endif
+#if MYENGINE_DEVELOPER_TOOLS
+    if (testFrame_.enabled) {
+        return testFrame_.mouse;
     }
 #endif
     POINT point;

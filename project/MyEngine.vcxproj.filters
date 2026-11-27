@@ -103,6 +103,9 @@
     <Filter Include="game\session\state">
       <UniqueIdentifier>{1d8ba5ea-0416-9a28-8e6f-d7377ed8f6fd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="game\settings">
+      <UniqueIdentifier>{758e4f37-1d8e-a0db-fd3b-bc7c669f4c34}</UniqueIdentifier>
+    </Filter>
     <Filter Include="game\ui">
       <UniqueIdentifier>{72fd3a12-1449-f8f7-6cc1-45cff530983d}</UniqueIdentifier>
     </Filter>
@@ -163,6 +166,9 @@
       <Filter>game\collision</Filter>
     </ClCompile>
     <ClCompile Include="game\debug\GameplayScenarioSession.cpp">
+      <Filter>game\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="game\debug\MenuFlow.cpp">
       <Filter>game\debug</Filter>
     </ClCompile>
     <ClCompile Include="game\debug\NeonDissolvePreviewController.cpp">
@@ -417,10 +423,19 @@
     <ClCompile Include="game\run\session\SurvivorRunHero.cpp">
       <Filter>game\run\session</Filter>
     </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunLevelUpScreen.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
     <ClCompile Include="game\run\session\SurvivorRunLoadout.cpp">
       <Filter>game\run\session</Filter>
     </ClCompile>
     <ClCompile Include="game\run\session\SurvivorRunLoot.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunMenus.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunMortalTest.cpp">
       <Filter>game\run\session</Filter>
     </ClCompile>
     <ClCompile Include="game\run\session\SurvivorRunRest.cpp">
@@ -436,6 +451,9 @@
       <Filter>game\run\session</Filter>
     </ClCompile>
     <ClCompile Include="game\run\session\SurvivorRunSpawns.cpp">
+      <Filter>game\run\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\run\session\SurvivorRunTutorial.cpp">
       <Filter>game\run\session</Filter>
     </ClCompile>
     <ClCompile Include="game\run\session\SurvivorRunUnlock.cpp">
@@ -471,6 +489,9 @@
     <ClCompile Include="game\session\SessionBootstrap.cpp">
       <Filter>game\session</Filter>
     </ClCompile>
+    <ClCompile Include="game\settings\UserSettings.cpp">
+      <Filter>game\settings</Filter>
+    </ClCompile>
     <ClCompile Include="game\ui\NeonProgressBar.cpp">
       <Filter>game\ui</Filter>
     </ClCompile>
@@ -483,7 +504,16 @@
     <ClCompile Include="game\ui\session\GameplayHud.cpp">
       <Filter>game\ui\session</Filter>
     </ClCompile>
+    <ClCompile Include="game\ui\session\NeonMenuKit.cpp">
+      <Filter>game\ui\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SettingsScreen.cpp">
+      <Filter>game\ui\session</Filter>
+    </ClCompile>
     <ClCompile Include="game\ui\session\SurvivorChoiceHud.cpp">
+      <Filter>game\ui\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorCompactHud.cpp">
       <Filter>game\ui\session</Filter>
     </ClCompile>
     <ClCompile Include="game\ui\session\SurvivorDamageNumbers.cpp">
@@ -492,7 +522,19 @@
     <ClCompile Include="game\ui\session\SurvivorItemScreen.cpp">
       <Filter>game\ui\session</Filter>
     </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorLevelUpScreen.cpp">
+      <Filter>game\ui\session</Filter>
+    </ClCompile>
     <ClCompile Include="game\ui\session\SurvivorLoadoutHud.cpp">
+      <Filter>game\ui\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorPlayerNumbers.cpp">
+      <Filter>game\ui\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorQuadBatch.cpp">
+      <Filter>game\ui\session</Filter>
+    </ClCompile>
+    <ClCompile Include="game\ui\session\SurvivorUpgradePreview.cpp">
       <Filter>game\ui\session</Filter>
     </ClCompile>
     <ClCompile Include="game\ui\session\SurvivorWeaponHud.cpp">
@@ -594,6 +636,9 @@
       <Filter>game\debug</Filter>
     </ClInclude>
     <ClInclude Include="game\debug\GameplayScenarioSession.h">
+      <Filter>game\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="game\debug\MenuFlow.h">
       <Filter>game\debug</Filter>
     </ClInclude>
     <ClInclude Include="game\debug\NeonDissolvePreviewController.h">
@@ -875,10 +920,16 @@
     <ClInclude Include="game\render\session\GameplayRenderer.h">
       <Filter>game\render\session</Filter>
     </ClInclude>
+    <ClInclude Include="game\render\session\PlayerTankShape.h">
+      <Filter>game\render\session</Filter>
+    </ClInclude>
     <ClInclude Include="game\render\session\ResourceNeonRenderer.h">
       <Filter>game\render\session</Filter>
     </ClInclude>
     <ClInclude Include="game\render\session\StageNeonRenderer.h">
+      <Filter>game\render\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\render\session\TubeEffects.h">
       <Filter>game\render\session</Filter>
     </ClInclude>
     <ClInclude Include="game\render\settings\RunVisualSettings.h">
@@ -966,6 +1017,9 @@
       <Filter>game\run</Filter>
     </ClInclude>
     <ClInclude Include="game\run\SurvivorSubWeapons.h">
+      <Filter>game\run</Filter>
+    </ClInclude>
+    <ClInclude Include="game\run\SurvivorUpgradeEffects.h">
       <Filter>game\run</Filter>
     </ClInclude>
     <ClInclude Include="game\run\SurvivorWeapons.h">
@@ -1082,6 +1136,9 @@
     <ClInclude Include="game\session\TitleDemoStatus.h">
       <Filter>game\session</Filter>
     </ClInclude>
+    <ClInclude Include="game\settings\UserSettings.h">
+      <Filter>game\settings</Filter>
+    </ClInclude>
     <ClInclude Include="game\ui\ColorMath.h">
       <Filter>game\ui</Filter>
     </ClInclude>
@@ -1097,7 +1154,16 @@
     <ClInclude Include="game\ui\session\GameplayHud.h">
       <Filter>game\ui\session</Filter>
     </ClInclude>
+    <ClInclude Include="game\ui\session\NeonMenuKit.h">
+      <Filter>game\ui\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SettingsScreen.h">
+      <Filter>game\ui\session</Filter>
+    </ClInclude>
     <ClInclude Include="game\ui\session\SurvivorChoiceHud.h">
+      <Filter>game\ui\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorCompactHud.h">
       <Filter>game\ui\session</Filter>
     </ClInclude>
     <ClInclude Include="game\ui\session\SurvivorDamageNumbers.h">
@@ -1106,7 +1172,19 @@
     <ClInclude Include="game\ui\session\SurvivorItemScreen.h">
       <Filter>game\ui\session</Filter>
     </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorLevelUpScreen.h">
+      <Filter>game\ui\session</Filter>
+    </ClInclude>
     <ClInclude Include="game\ui\session\SurvivorLoadoutHud.h">
+      <Filter>game\ui\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorPlayerNumbers.h">
+      <Filter>game\ui\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorQuadBatch.h">
+      <Filter>game\ui\session</Filter>
+    </ClInclude>
+    <ClInclude Include="game\ui\session\SurvivorUpgradePreview.h">
       <Filter>game\ui\session</Filter>
     </ClInclude>
     <ClInclude Include="game\ui\session\SurvivorWeaponHud.h">
