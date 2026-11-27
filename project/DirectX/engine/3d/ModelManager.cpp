@@ -5,6 +5,8 @@
 #include "TextureManager.h"
 #include "Utf8Path.h"
 #include <filesystem>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 namespace myEngine {
 
@@ -118,6 +120,39 @@ void ModelManager::CreateModelFromData(const std::string& modelName, const Model
     auto model = std::make_unique<Model>();
     model->InitializeFromModelData(dxCommon_, data);
     models.emplace(modelName, std::move(model));
+}
+
+int ModelManager::LoadPrimitivePresets(const std::string& filePath, std::string& error)
+{
+    error.clear();
+    std::ifstream input(Utf8ToPath(ResourcePaths::GameRoot()) / Utf8ToPath(filePath));
+    if (!input) {
+        return 0;
+    }
+    const nlohmann::json data = nlohmann::json::parse(input, nullptr, false);
+    if (data.is_discarded() || !data.is_object() || !data.contains("presets") || !data.at("presets").is_array()) {
+        error = "基本の形のプリセットが読めない: " + filePath;
+        return 0;
+    }
+    int registered = 0;
+    for (const auto& item : data.at("presets")) {
+        const std::string name = item.is_object() ? item.value("name", std::string()) : std::string();
+        PrimitiveShape shape{};
+        if (name.empty() || !ParsePrimitiveShape(item.value("shape", std::string()), shape)) {
+            error += (error.empty() ? "" : "\n") + std::string("名前か形が読めないプリセットを飛ばした: ") + item.dump();
+            continue;
+        }
+        PrimitiveParams params;
+        if (item.contains("size") && item.at("size").is_array() && item.at("size").size() == 3) {
+            params.size = {item.at("size")[0].get<float>(), item.at("size")[1].get<float>(), item.at("size")[2].get<float>()};
+        }
+        params.radius = item.value("radius", params.radius);
+        params.segments = item.value("segments", params.segments);
+        params.rings = item.value("rings", params.rings);
+        CreateModelFromData(name, Model::CreatePrimitive(shape, params));
+        ++registered;
+    }
+    return registered;
 }
 
 Model* ModelManager::FindModel(const std::string& filePath)

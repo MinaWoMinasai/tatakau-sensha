@@ -4,6 +4,31 @@
 
 namespace myEngine {
 
+/// @brief 手続き生成する基本の形。
+enum class PrimitiveShape {
+    Plane,          // XZ 平面の四角（両面）
+    Grid,           // XZ 平面の格子（segments × rings に分ける）
+    Box,            // 箱（両面）
+    FacetedCrystal, // 上下がとがった多角柱の結晶（segments 面、5〜16）
+    Cylinder,       // 円柱（segments 分割）
+    UvSphere,       // 緯度・経度で分けた球（rings × segments）
+};
+
+/// @brief 基本の形の寸法。形ごとに使う値だけを読む。
+struct PrimitiveParams {
+    /// @brief 幅（x）・高さ（y）・奥行き（z）。Plane・Grid は x と z、Box は全部、FacetedCrystal・Cylinder は y を高さに使う。
+    Vector3 size{1.0f, 1.0f, 1.0f};
+    /// @brief 半径。FacetedCrystal・Cylinder・UvSphere で使う。
+    float radius = 0.5f;
+    /// @brief 横の分割数。Grid の x、FacetedCrystal の面の数、Cylinder・UvSphere の周の分割。0 なら形の既定値（結晶 8・円柱 64・ほか 1）。
+    uint32_t segments = 0;
+    /// @brief 縦の分割数。Grid の z、UvSphere の緯度の分割。0 なら形の既定値（球 16・ほか 1）。
+    uint32_t rings = 0;
+};
+
+/// @brief 形の名前（"plane"・"grid"・"box"・"facetedCrystal"・"cylinder"・"uvSphere"）を読む。知らない名前なら false。
+bool ParsePrimitiveShape(const std::string& name, PrimitiveShape& shape);
+
 /// @brief 頂点・マテリアル・テクスチャを保持し、静的モデルを描画する。
 class Model {
 public:
@@ -30,18 +55,8 @@ public:
     static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
     /// @brief Assimpファイルを読み込む。
     static ModelData LoadAssimpFile(const std::string& directoryPath, const std::string& filename);
-    /// @brief 平面を生成する。
-    static ModelData CreatePlane(float width, float depth);
-    /// @brief 格子を生成する。
-    static ModelData CreateGrid(float width, float depth, uint32_t xSegments, uint32_t zSegments);
-    /// @brief 箱を生成する。
-    static ModelData CreateBox(const Vector3& size);
-    /// @brief Faceted結晶を生成する。
-    static ModelData CreateFacetedCrystal(float radius, float height, uint32_t sides = 8);
-    /// @brief Cylinderを生成する。
-    static ModelData CreateCylinder(float radius, float height, uint32_t segments = 64);
-    /// @brief UV球を生成する。
-    static ModelData CreateUvSphere(float radius, uint32_t latitudeSegments, uint32_t longitudeSegments);
+    /// @brief 基本の形を生成する（既定の材質付き）。名前で共有するときは ModelManager::CreateModelFromData に渡す。
+    static ModelData CreatePrimitive(PrimitiveShape shape, const PrimitiveParams& params);
 
     /// @brief モデルデータを返す。
     const ModelData& GetModelData() const

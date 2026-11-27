@@ -43,8 +43,6 @@ public:
     /// @brief 性能調整編集画面へのレベルファイルを保存する。
     bool SaveBalanceEditorToLevelFile(const std::string& filePath);
 
-    /// @brief 性能調整AIHandoffを書き込む。
-
 private:
     GameWorld& world_;
 };
