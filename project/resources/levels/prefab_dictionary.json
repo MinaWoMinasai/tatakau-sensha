@@ -1,12 +1,12 @@
 {
   "toolName": "Level Editor",
-  "purpose": "AIやBlenderスクリプトが、アリーナ型ボス戦のlevel.jsonを編集しやすくするための辞書です。",
+  "purpose": "アリーナ型ボス戦のlevel.jsonを、手やBlenderスクリプトで編集しやすくするための辞書です。",
   "editorConcept": {
     "displayName": "Level Editor",
-    "description": "ステージを作るだけではなく、ボス戦の湧き、危険地帯、フェーズ変化、成長導線をAIと一緒に編集するためのレベルエディター。",
+    "description": "ステージを作るだけではなく、ボス戦の湧き、危険地帯、フェーズ変化、成長導線をまとめて編集するためのレベルエディター。",
     "recommendedWorkflow": [
       "BlenderでPlayerSpawn、BossSpawn、Obstacle、SpawnAreaなどの位置や範囲を置く",
-      "Level EditorのJSONをAIに調整させる",
+      "Level EditorのJSONで、湧き・フェーズ・バランスの値を調整する",
       "ゲーム側で即読み込み、戦闘テンポと難易度を確認する",
       "使いづらいルールやprefabはこの辞書に追記する"
     ]
@@ -129,7 +129,7 @@
           "prefab": "DamageBlock",
           "description": "赤い危険ブロック。cubeDamage.objを使う。",
           "customProperties": {
-            "intent": "string: AIや人間向けの配置意図"
+            "intent": "string: 配置の意図のメモ"
           }
         }
       ],
@@ -167,7 +167,7 @@
       "startHpRate": "number: 0.0-1.0。ボスHP率がこの値以下になったら発動",
       "message": "string: ログ用メッセージ",
       "objects": "array: 発動時に適用するLevelObject配列",
-      "customProperties": "object: AI向けメモや将来拡張用"
+      "customProperties": "object: メモや将来の拡張用"
     },
     "supportedCustomProperties": {
       "bossAttack": {
@@ -194,7 +194,7 @@
     ]
   },
   "balanceFields": {
-    "defaultRandomSpawnEnabled": "bool: 従来のランダムスポーンを使うか。AI調整を重視するならfalseもあり",
+    "defaultRandomSpawnEnabled": "bool: 従来のランダムスポーンを使うか。配置したスポーンだけで調整するならfalse",
     "player": {
       "maxHp": "number: プレイヤー最大HP。現在のサンプルは1000",
       "maxHpUpgradeAmount": "number: Max Health強化1回あたりの増加量",
@@ -216,7 +216,7 @@
       "damage": "number: 通常時のボス弾ダメージ",
       "randomSpread": "bool: trueならランダム拡散"
     },
-    "notes": "string: AIや人間向けの調整メモ"
+    "notes": "string: 調整のメモ"
   },
   "runtimeBalanceNotes": {
     "playerHp": "number: 現在の基準値は1000。balance.player.maxHpで調整",
