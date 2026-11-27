@@ -79,6 +79,8 @@ public:
     struct ScreenPulseEvent {
         Vector3 position{};
         float strength = 1.0f;
+        /// @brief カメラのゆれの倍率（光と画面のゆがみには掛けない）。
+        float shake = 1.0f;
     };
 
     /// @brief ネオン三角形の発生位置・色・動作を表す。
@@ -225,7 +227,9 @@ public:
     /// @brief 命中演出を発生させる。
     void EmitHitEffect(const Vector3& position);
     /// @brief ネオン死亡演出を発生させる。
-    void EmitNeonDeathEffect(const Vector3& position, const Vector4& primaryColor, const Vector4& secondaryColor, float strength = 1.0f);
+    /// @param shakeScale 強い光のときに起きるカメラのゆれの倍率（光と画面のゆがみはそのまま）。
+    void EmitNeonDeathEffect(const Vector3& position, const Vector4& primaryColor, const Vector4& secondaryColor, float strength = 1.0f,
+                             float shakeScale = 1.0f);
     /// @brief ネオン衝撃演出を発生させる。
     void EmitNeonImpactEffect(const Vector3& position, const Vector3& impactNormal, const Vector4& color, uint32_t count = 10);
     /// @brief ネオン移動演出を発生させる。
@@ -325,6 +329,7 @@ private:
         Vector4 secondaryColor{};
         float strength = 1.0f;
         float timer = 0.28f;
+        float shake = 1.0f;
     };
 
     DirectXCommon* dxCommon_ = nullptr;

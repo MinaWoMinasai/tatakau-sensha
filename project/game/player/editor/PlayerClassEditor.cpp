@@ -571,7 +571,7 @@ void PlayerClassEditor::DrawPlayerClassEditor()
             if (ImGui::Button("円弧ファン配置を生成")) {
                 generateArcLayout();
             }
-            ImGui::SeparatorText("diep.io風プリセット");
+            ImGui::SeparatorText("能力値のプリセット");
             if (ImGui::Button("単砲")) {
                 generateFixedAngleLayout({0.0f}, 0.72f, {1.25f, 0.24f, 0.24f}, false, false);
             }

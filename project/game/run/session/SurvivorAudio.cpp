@@ -1,4 +1,5 @@
 #include "game/run/session/SurvivorAudio.h"
+#include "game/settings/UserSettings.h"
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
@@ -106,7 +107,7 @@ bool SurvivorAudio::Play(const std::string& cue)
     // 連続で鳴らすときは、高さを少しずつ揺らして同じ音に聞こえにくくする（ゲームの乱数は使わない）。
     static constexpr float kSteps[] = {0.0f, -1.0f, 0.8f, -0.5f, 0.4f};
     const float pitch = entry.pitch * (1.0f + entry.pitchJitter * kSteps[variant_++ % 5]);
-    const float volume = muted_ ? 0.0f : (std::clamp)(entry.volume * config_.effectsVolume, 0.0f, 1.0f);
+    const float volume = muted_ ? 0.0f : (std::clamp)(entry.volume * config_.effectsVolume * usersettings::EffectsScale(), 0.0f, 1.0f);
     myEngine::Audio::GetInstance()->TryPlayAudio(key->second, false, volume, pitch);
     cooldown = entry.cooldown;
     ++playCounts_[cue];
@@ -163,7 +164,7 @@ void SurvivorAudio::Update(float dt, bool ducked)
         track.gain = track.gain < target ? (std::min)(target, track.gain + step) : (std::max)(target, track.gain - step);
         audio->SetVolume(track.voice, track.gain);
     };
-    approach(current_, current_.target * (ducked ? config_.duckRatio : 1.0f));
+    approach(current_, (std::min)(1.0f, current_.target * (ducked ? config_.duckRatio : 1.0f) * usersettings::MusicScale()));
     approach(previous_, 0.0f);
     if (previous_.voice.IsValid() && previous_.gain <= 0.0f) {
         audio->StopAudio(previous_.voice);

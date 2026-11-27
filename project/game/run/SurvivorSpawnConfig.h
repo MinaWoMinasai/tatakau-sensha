@@ -42,6 +42,18 @@ struct SpawnConfig {
     float maxSpawnsPerSecond = 10.0f;
     /// @brief 湧く場所を、自機のまわりの輪ではなく、画面のすぐ外（上下左右の縁）からにするか（計画書 p7 の E5）。
     bool ringScreenEdge = false;
+    /// @brief 湧く向き（計画書 p8 の G3）：画面の縁から湧くとき、自機の進む向きを基準に、前（±45度）・横（左右）・後ろ に振り分ける割合。
+    /// 合計0なら今まで通り（縁の長さどおり）。自機が止まっているときも今まで通り。
+    float spawnForward = 0.0f;
+    float spawnSide = 0.0f;
+    float spawnBack = 0.0f;
+    /// @brief 敵どうしの押し合い（計画書 p8 の G3）。半径は当たりの半径 × radiusScale（見た目の大きさに合わせる）、
+    /// 1回の更新で重なりの strength 倍を押し戻す。maxPush が0より大きければ、1回で動かすのは（広げた）半径の maxPush 倍まで。
+    struct SeparationConfig {
+        float radiusScale = 1.0f;
+        float strength = 0.5f;
+        float maxPush = 0.0f;
+    } separation;
     /// @brief 図形（四角・三角・五角）が自機へ寄ってくる加速度と最高速度（ワールド単位/秒）。最高速度0なら寄ってこない（今まで通り）。
     std::array<std::pair<float, float>, 3> shapeChase{};
 
@@ -50,7 +62,7 @@ struct SpawnConfig {
     float shapeOvertimePerMinute = 24.0f;
     std::vector<ShapeWeights> shapeWeights{ShapeWeights{}};
 
-    /// @brief 湧きを足し続ける形（計画書 p8 の G1。HoloCure に寄せる）。enabled なら、図形を「生存数の目標まで」湧かせるのではなく、
+    /// @brief 湧きを足し続ける形（計画書 p8 の G1）。enabled なら、図形を「生存数の目標まで」湧かせるのではなく、
     /// interval 秒ごとに count 体ずつ足し続ける（生きている図形が maxAlive に届いている間は待つ）。倒しきれないと溜まっていく。
     /// 点の間は直線でつなぎ、最後の点より後は最後の値のまま。敵の HP は 経過分ごとに hpPerMinute 倍（指数）、
     /// 寄る速さは 1 + speedPerMinute × 経過分（speedMax まで。湧いたときの値で決まる）。
@@ -224,7 +236,38 @@ struct SpawnConfig {
         float scale = 1.0f;
         float bigRatio = 2.5f;
         float mergeSeconds = 0.15f;
+        /// @brief 会心の数字の大きさ（ふつうの数字に対する倍。計画書 p9 の H2）と、小さい敵の HP バーを出すか（中ボス・大きい敵はいつも出す）。
+        float critScale = 1.5f;
+        bool enemyHpBars = true;
+        /// @brief ふつうの数字の濃さ、大きな数字の大きさ（倍）、自機のまわりで薄くする半径（ワールド単位、0 で無し）と、そこで残す濃さ
+        /// （計画書 p10 の18章。会心は半分より薄くしない）。
+        float alpha = 1.0f;
+        float bigScale = 1.35f;
+        float nearRadius = 0.0f;
+        float nearAlpha = 0.0f;
     } damageNumbers;
+
+    /// @brief 文字を減らした HUD（計画書 p9 の H4。機体の遊び方だけ）：自機の下に HP・経験値・Lv・Q、上の真ん中に残り時間とボスの印。
+    /// compact が false なら前の HUD（左上の文字と、自機のまわりの弧）。scale は大きさ、offset は自機からバーまでの縦の間（1280×720 の座標）。
+    struct HudConfig {
+        bool compact = false;
+        float scale = 1.0f;
+        float offset = 52.0f;
+        /// @brief 被弾・回復・立ち直りを、自機の上の数字で出す（計画書 p9 の H3）。「ダメージ」「修理」などの文字は出さない。
+        /// hurtScale は数字の大きさ、hurtEdge は縁の赤の強さ（0 で無し）、hurtShake は被弾の揺れの倍率。
+        /// @brief 強化の画面（計画書 p9 の L1）：右に縦3段の札、左に動くプレビュー、左下に持ち物。false なら前の画面。
+        bool levelUpScreen = false;
+        /// @brief レベルアップの瞬間の演出（計画書 p9 の L2）：光の輪が広がって敵を押し返し、levelUpSlow 秒ゆっくりになってから画面が開く。
+        /// 選んだ札は自機へ吸い込まれる。「レベル N」と選んだ物の名前の文字は出さない。
+        bool levelUpEffect = false;
+        float levelUpSlow = 0.3f;
+        bool hurtNumbers = false;
+        float hurtScale = 1.0f;
+        float hurtEdge = 0.3f;
+        float hurtShake = 1.0f;
+        /// @brief 主武器の当たった所の爆発と印の起爆（よく起きる爆発）のカメラのゆれの倍率（計画書 p11 の B3）。1 で今まで。光と画面の脈打ちには掛けない。
+        float blastShake = 1.0f;
+    } hud;
 
     /// @brief 排熱砲（Q）。熱が minHeat 未満なら使えない。威力の倍率は 熱 × damagePerHeat × 効果の強さ（Lv）。使うと cooldown 秒待つ。
     struct HeatVent {
@@ -347,6 +390,10 @@ struct SpawnConfig {
         float intervalScale = 1.0f;
         float countScale = 1.0f;
         int maxAliveAdd = 0;
+        /// @brief kind "ring"（計画書 p11 の B2b）：gap 度の幅の切れ目を1つ、自機の進む側でない方に空ける（0 なら空けない。切れ目に入る敵は並べない）。
+        /// warn 秒前から、赤い点の輪で切れ目の位置も知らせる（0 なら知らせない）。
+        float gap = 0.0f;
+        float warn = 0.0f;
         std::string text;
     };
     std::vector<TimelineEvent> timeline;
@@ -503,6 +550,21 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         if (ring.contains("screenEdge") && ring.at("screenEdge").is_boolean()) {
             config.ringScreenEdge = ring.at("screenEdge").get<bool>();
         }
+        number(ring, "forward", config.spawnForward);
+        number(ring, "side", config.spawnSide);
+        number(ring, "back", config.spawnBack);
+        config.spawnForward = (std::max)(0.0f, config.spawnForward);
+        config.spawnSide = (std::max)(0.0f, config.spawnSide);
+        config.spawnBack = (std::max)(0.0f, config.spawnBack);
+    }
+    if (data.contains("separation") && data.at("separation").is_object()) {
+        const auto& separation = data.at("separation");
+        number(separation, "radiusScale", config.separation.radiusScale);
+        number(separation, "strength", config.separation.strength);
+        number(separation, "maxPush", config.separation.maxPush);
+        config.separation.radiusScale = (std::clamp)(config.separation.radiusScale, 0.1f, 5.0f);
+        config.separation.strength = (std::clamp)(config.separation.strength, 0.0f, 1.0f);
+        config.separation.maxPush = (std::clamp)(config.separation.maxPush, 0.0f, 2.0f);
     }
     if (data.contains("shapes") && data.at("shapes").contains("chase") && data.at("shapes").at("chase").is_object()) {
         static constexpr std::array<const char*, 3> kChaseKeys{"square", "triangle", "pentagon"};
@@ -696,7 +758,49 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(numbers, "scale", config.damageNumbers.scale);
         number(numbers, "bigRatio", config.damageNumbers.bigRatio);
         number(numbers, "mergeSeconds", config.damageNumbers.mergeSeconds);
+        number(numbers, "critScale", config.damageNumbers.critScale);
+        number(numbers, "alpha", config.damageNumbers.alpha);
+        number(numbers, "bigScale", config.damageNumbers.bigScale);
+        number(numbers, "nearRadius", config.damageNumbers.nearRadius);
+        number(numbers, "nearAlpha", config.damageNumbers.nearAlpha);
+        config.damageNumbers.alpha = (std::clamp)(config.damageNumbers.alpha, 0.0f, 1.0f);
+        config.damageNumbers.bigScale = (std::clamp)(config.damageNumbers.bigScale, 0.5f, 4.0f);
+        config.damageNumbers.nearRadius = (std::clamp)(config.damageNumbers.nearRadius, 0.0f, 20.0f);
+        config.damageNumbers.nearAlpha = (std::clamp)(config.damageNumbers.nearAlpha, 0.0f, 1.0f);
+        if (numbers.contains("enemyHpBars") && numbers.at("enemyHpBars").is_boolean()) {
+            config.damageNumbers.enemyHpBars = numbers.at("enemyHpBars").get<bool>();
+        }
         config.damageNumbers.maxActive = (std::clamp)(config.damageNumbers.maxActive, 1, 80);
+        config.damageNumbers.critScale = (std::clamp)(config.damageNumbers.critScale, 0.5f, 4.0f);
+    }
+    if (data.contains("hud") && data.at("hud").is_object()) {
+        const auto& hud = data.at("hud");
+        if (hud.contains("compact") && hud.at("compact").is_boolean()) {
+            config.hud.compact = hud.at("compact").get<bool>();
+        }
+        number(hud, "scale", config.hud.scale);
+        number(hud, "offset", config.hud.offset);
+        if (hud.contains("hurtNumbers") && hud.at("hurtNumbers").is_boolean()) {
+            config.hud.hurtNumbers = hud.at("hurtNumbers").get<bool>();
+        }
+        if (hud.contains("levelUpScreen") && hud.at("levelUpScreen").is_boolean()) {
+            config.hud.levelUpScreen = hud.at("levelUpScreen").get<bool>();
+        }
+        if (hud.contains("levelUpEffect") && hud.at("levelUpEffect").is_boolean()) {
+            config.hud.levelUpEffect = hud.at("levelUpEffect").get<bool>();
+        }
+        number(hud, "levelUpSlow", config.hud.levelUpSlow);
+        config.hud.levelUpSlow = (std::clamp)(config.hud.levelUpSlow, 0.0f, 2.0f);
+        number(hud, "hurtScale", config.hud.hurtScale);
+        number(hud, "hurtEdge", config.hud.hurtEdge);
+        number(hud, "hurtShake", config.hud.hurtShake);
+        number(hud, "blastShake", config.hud.blastShake);
+        config.hud.blastShake = (std::clamp)(config.hud.blastShake, 0.0f, 3.0f);
+        config.hud.hurtScale = (std::clamp)(config.hud.hurtScale, 0.4f, 3.0f);
+        config.hud.hurtEdge = (std::clamp)(config.hud.hurtEdge, 0.0f, 1.0f);
+        config.hud.hurtShake = (std::clamp)(config.hud.hurtShake, 0.0f, 3.0f);
+        config.hud.scale = (std::clamp)(config.hud.scale, 0.4f, 3.0f);
+        config.hud.offset = (std::clamp)(config.hud.offset, -200.0f, 200.0f);
     }
     if (data.contains("fusions")) {
         const auto& fusions = data.at("fusions");
@@ -906,6 +1010,9 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         if (heroes.contains("moveScale") && heroes.at("moveScale").is_number()) {
             config.heroes.moveScale = (std::clamp)(heroes.at("moveScale").get<float>(), 0.2f, 2.0f);
         }
+        if (heroes.contains("single") && heroes.at("single").is_boolean()) {
+            config.heroes.single = heroes.at("single").get<bool>();
+        }
         if (heroes.contains("autoFire") && heroes.at("autoFire").is_boolean()) {
             config.heroes.autoFire = heroes.at("autoFire").get<bool>();
         }
@@ -933,6 +1040,10 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(heroes, "healDropHeal", config.heroes.healDropHeal);
         number(heroes, "healDropLife", config.heroes.healDropLife);
         number(heroes, "healDropMax", config.heroes.healDropMax);
+        number(heroes, "mainOfferPity", config.heroes.mainOfferPity);
+        number(heroes, "subWeaponPower", config.heroes.subWeaponPower);
+        config.heroes.mainOfferPity = (std::clamp)(config.heroes.mainOfferPity, 0, 20);
+        config.heroes.subWeaponPower = (std::clamp)(config.heroes.subWeaponPower, 0.1f, 10.0f);
         config.heroes.perkMaxTier = (std::clamp)(config.heroes.perkMaxTier, 1, 9);
         config.heroes.subWeaponSlots = (std::clamp)(config.heroes.subWeaponSlots, 0, 12);
         config.heroes.perkSlots = (std::clamp)(config.heroes.perkSlots, 0, 12);
@@ -1046,6 +1157,10 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
             number(item, "intervalScale", event.intervalScale);
             number(item, "countScale", event.countScale);
             number(item, "maxAliveAdd", event.maxAliveAdd);
+            number(item, "gap", event.gap);
+            number(item, "warn", event.warn);
+            event.gap = (std::clamp)(event.gap, 0.0f, 300.0f);
+            event.warn = (std::clamp)(event.warn, 0.0f, 10.0f);
             for (auto [key, target] : {std::pair<const char*, std::string*>{"kind", &event.kind}, {"shape", &event.shape}, {"side", &event.side},
                                        {"text", &event.text}}) {
                 if (item.contains(key) && item.at(key).is_string()) {
@@ -1206,6 +1321,160 @@ inline bool LoadSpawnConfig(const std::string& path, SpawnConfig& config, std::s
         number(glow, "collectFlashRadius", out.collectFlashRadius);
         out.trailBloomScatter = (std::clamp)(out.trailBloomScatter, 0.0f, 0.9f);
         out.trailBloomRadius = (std::clamp)(out.trailBloomRadius, 0.25f, 2.0f);
+        if (glow.contains("neon") && glow.at("neon").is_object()) {
+            const auto& neon = glow.at("neon");
+            auto& look = out.neon;
+            if (neon.contains("enabled") && neon.at("enabled").is_boolean()) {
+                look.enabled = neon.at("enabled").get<bool>();
+            }
+            if (neon.contains("flatBody") && neon.at("flatBody").is_boolean()) {
+                look.flatBody = neon.at("flatBody").get<bool>();
+            }
+            number(neon, "enemyLine", look.enemyLine);
+            number(neon, "nebula", look.nebula);
+            number(neon, "colorShift", look.colorShift);
+            number(neon, "persistence", look.persistence);
+            number(neon, "scanline", look.scanline);
+            number(neon, "enemyGrid", look.enemyGrid);
+            look.enemyGrid = (std::clamp)(look.enemyGrid, 0.0f, 3.0f);
+            if (neon.contains("temporal") && neon.at("temporal").is_boolean()) {
+                look.temporal = neon.at("temporal").get<bool>();
+            }
+            number(neon, "nearGlow", look.nearGlow);
+            number(neon, "nearGlowRadius", look.nearGlowRadius);
+            look.persistence = (std::clamp)(look.persistence, 0.0f, 1.3f);
+            look.scanline = (std::clamp)(look.scanline, 0.0f, 3.0f);
+            look.nearGlow = (std::clamp)(look.nearGlow, 0.0f, 4.0f);
+            look.nearGlowRadius = (std::clamp)(look.nearGlowRadius, 0.05f, 2.0f);
+            look.enemyLine = (std::clamp)(look.enemyLine, 0.1f, 3.0f);
+            look.nebula = (std::clamp)(look.nebula, 0.0f, 3.0f);
+            look.colorShift = (std::clamp)(look.colorShift, 0.0f, 3.0f);
+            number(neon, "enemyCoreWhite", look.enemyCoreWhite);
+            number(neon, "enemyCoreIntensity", look.enemyCoreIntensity);
+            number(neon, "enemyHaloIntensity", look.enemyHaloIntensity);
+            number(neon, "enemyHaloWidth", look.enemyHaloWidth);
+            number(neon, "enemyColor", look.enemyColor);
+            number(neon, "worldGrid", look.worldGrid);
+            number(neon, "localGrid", look.localGrid);
+            number(neon, "walls", look.walls);
+            number(neon, "floorLight", look.floorLight);
+            number(neon, "bloom", look.bloom);
+            number(neon, "crowdBloom", look.crowdBloom);
+            number(neon, "crowdCount", look.crowdCount);
+            look.enemyCoreWhite = (std::clamp)(look.enemyCoreWhite, 0.0f, 1.0f);
+            look.crowdCount = (std::max)(1.0f, look.crowdCount);
+        }
+        if (glow.contains("effects") && glow.at("effects").is_object()) {
+            const auto& effects = glow.at("effects");
+            auto& look = out.effects;
+            if (effects.contains("enabled") && effects.at("enabled").is_boolean()) {
+                look.enabled = effects.at("enabled").get<bool>();
+            }
+            if (effects.contains("topMost") && effects.at("topMost").is_boolean()) {
+                look.topMost = effects.at("topMost").get<bool>();
+            }
+            number(effects, "line", look.line);
+            number(effects, "brightness", look.brightness);
+            number(effects, "debris", look.debris);
+            number(effects, "sparks", look.sparks);
+            number(effects, "ring", look.ring);
+            number(effects, "clearRadius", look.clearRadius);
+            number(effects, "clearAlpha", look.clearAlpha);
+            number(effects, "glow", look.glow);
+            number(effects, "edgeSpeed", look.edgeSpeed);
+            look.edgeSpeed = (std::clamp)(look.edgeSpeed, 0.0f, 40.0f);
+            number(effects, "edgeVary", look.edgeVary);
+            look.edgeVary = (std::clamp)(look.edgeVary, 0.0f, 1.0f);
+            number(effects, "edgeHold", look.edgeHold);
+            look.edgeHold = (std::clamp)(look.edgeHold, 0.1f, 2.0f);
+            number(effects, "edgeGap", look.edgeGap);
+            look.edgeGap = (std::clamp)(look.edgeGap, 0.02f, 0.5f);
+            number(effects, "edgeShift", look.edgeShift);
+            look.edgeShift = (std::clamp)(look.edgeShift, 0.0f, 1.0f);
+            number(effects, "edgeBright", look.edgeBright);
+            look.edgeBright = (std::clamp)(look.edgeBright, 0.0f, 4.0f);
+            number(effects, "edgeDrag", look.edgeDrag);
+            look.edgeDrag = (std::clamp)(look.edgeDrag, 0.0f, 12.0f);
+            number(effects, "edgeLong", look.edgeLong);
+            look.edgeLong = (std::clamp)(look.edgeLong, 1.0f, 3.0f);
+            number(effects, "soft", look.soft);
+            look.soft = (std::clamp)(look.soft, 0.0f, 1.5f);
+            number(effects, "softLife", look.softLife);
+            look.softLife = (std::clamp)(look.softLife, 0.1f, 2.0f);
+            number(effects, "overlap", look.overlap);
+            look.overlap = (std::clamp)(look.overlap, 0.0f, 4.0f);
+            number(effects, "edgeBlink", look.edgeBlink);
+            look.edgeBlink = (std::clamp)(look.edgeBlink, 0, 4);
+            if (effects.contains("calmBlink") && effects.at("calmBlink").is_boolean()) {
+                look.calmBlink = effects.at("calmBlink").get<bool>();
+            }
+            number(effects, "birth", look.birth);
+            number(effects, "flash", look.flash);
+            number(effects, "crowd", look.crowd);
+            number(effects, "plate", look.plate);
+            number(effects, "plateFeather", look.plateFeather);
+            if (effects.contains("edges") && effects.at("edges").is_boolean()) {
+                look.edges = effects.at("edges").get<bool>();
+            }
+            look.glow = (std::clamp)(look.glow, 0.0f, 8.0f);
+            look.birth = (std::clamp)(look.birth, 1.0f, 6.0f);
+            look.flash = (std::clamp)(look.flash, 0.0f, 4.0f);
+            look.crowd = (std::clamp)(look.crowd, 0.0f, 1.0f);
+            look.plate = (std::clamp)(look.plate, 0.0f, 1.0f);
+            look.plateFeather = (std::clamp)(look.plateFeather, 0.0f, 1.0f);
+            look.line = (std::clamp)(look.line, 0.1f, 4.0f);
+            look.brightness = (std::clamp)(look.brightness, 0.0f, 4.0f);
+            look.debris = (std::clamp)(look.debris, 0.0f, 1.0f);
+            look.sparks = (std::clamp)(look.sparks, 0.0f, 1.0f);
+            look.ring = (std::clamp)(look.ring, 0.0f, 2.0f);
+            look.clearRadius = (std::clamp)(look.clearRadius, 0.0f, 12.0f);
+            look.clearAlpha = (std::clamp)(look.clearAlpha, 0.0f, 1.0f);
+        }
+        if (glow.contains("needle") && glow.at("needle").is_object()) {
+            const auto& needle = glow.at("needle");
+            auto& look = out.needle;
+            if (needle.contains("enabled") && needle.at("enabled").is_boolean()) {
+                look.enabled = needle.at("enabled").get<bool>();
+            }
+            number(needle, "line", look.line);
+            number(needle, "back", look.back);
+            number(needle, "front", look.front);
+            number(needle, "tail", look.tail);
+            number(needle, "tailAlpha", look.tailAlpha);
+            number(needle, "brightness", look.brightness);
+            number(needle, "nearGlow", look.nearGlow);
+            number(needle, "bloom", look.bloom);
+            look.line = (std::clamp)(look.line, 0.1f, 4.0f);
+            look.back = (std::clamp)(look.back, 0.0f, 4.0f);
+            look.front = (std::clamp)(look.front, 0.05f, 2.0f);
+            look.tail = (std::clamp)(look.tail, 0.0f, 6.0f);
+            look.tailAlpha = (std::clamp)(look.tailAlpha, 0.0f, 1.0f);
+            look.brightness = (std::clamp)(look.brightness, 0.0f, 4.0f);
+            look.nearGlow = (std::clamp)(look.nearGlow, 0.0f, 4.0f);
+            look.bloom = (std::clamp)(look.bloom, 0.0f, 2.0f);
+        }
+        if (glow.contains("tank") && glow.at("tank").is_object()) {
+            const auto& tank = glow.at("tank");
+            auto& look = out.tank;
+            if (tank.contains("enabled") && tank.at("enabled").is_boolean()) {
+                look.enabled = tank.at("enabled").get<bool>();
+            }
+            number(tank, "line", look.line);
+            number(tank, "brightness", look.brightness);
+            number(tank, "nearGlow", look.nearGlow);
+            number(tank, "scale", look.scale);
+            number(tank, "turn", look.turn);
+            number(tank, "flow", look.flow);
+            number(tank, "red", look.color[0]);
+            number(tank, "green", look.color[1]);
+            number(tank, "blue", look.color[2]);
+            look.line = (std::clamp)(look.line, 0.1f, 4.0f);
+            look.brightness = (std::clamp)(look.brightness, 0.0f, 4.0f);
+            look.nearGlow = (std::clamp)(look.nearGlow, 0.0f, 4.0f);
+            look.scale = (std::clamp)(look.scale, 0.3f, 3.0f);
+            look.turn = (std::clamp)(look.turn, 0.5f, 60.0f);
+            look.flow = (std::clamp)(look.flow, 0.0f, 4.0f);
+        }
     }
     if (data.contains("elites") && data.at("elites").is_object()) {
         const auto& elites = data.at("elites");
@@ -1401,6 +1670,20 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     ring["maxDistance"] = round(config.ringMaxDistance);
     ring["maxPerSecond"] = round(config.maxSpawnsPerSecond);
     ring["screenEdge"] = config.ringScreenEdge;
+    // 前のファイルに書き足す作りなので、既定値に戻した項目も、前の値が残っていれば書く（残ると次の読み込みで戻ってしまう）。
+    if (config.spawnForward + config.spawnSide + config.spawnBack > 0.0f || ring.contains("forward") || ring.contains("side") ||
+        ring.contains("back")) {
+        ring["forward"] = round(config.spawnForward);
+        ring["side"] = round(config.spawnSide);
+        ring["back"] = round(config.spawnBack);
+    }
+    if (config.separation.radiusScale != 1.0f || config.separation.strength != 0.5f || config.separation.maxPush > 0.0f ||
+        data.contains("separation")) {
+        auto& separation = section("separation");
+        separation["radiusScale"] = round(config.separation.radiusScale);
+        separation["strength"] = round(config.separation.strength);
+        separation["maxPush"] = round(config.separation.maxPush);
+    }
     auto& shapes = section("shapes");
     if (config.shapeChase[0].second > 0.0f || config.shapeChase[1].second > 0.0f || config.shapeChase[2].second > 0.0f) {
         static constexpr std::array<const char*, 3> kChaseKeys{"square", "triangle", "pentagon"};
@@ -1413,9 +1696,9 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
         shapes["targetAlive"].push_back({round(seconds), round(alive)});
     }
     shapes["overtimePerMinute"] = round(config.shapeOvertimePerMinute);
-    if (config.growth.enabled) {
+    if (config.growth.enabled || shapes.contains("growth")) {
         auto& growth = shapes["growth"];
-        growth["enabled"] = true;
+        growth["enabled"] = config.growth.enabled;
         growth["points"] = nlohmann::json::array();
         for (const auto& point : config.growth.points) {
             growth["points"].push_back({round(point.at), round(point.interval), round(point.count), round(point.maxAlive)});
@@ -1464,6 +1747,26 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     numbers["scale"] = round(config.damageNumbers.scale);
     numbers["bigRatio"] = round(config.damageNumbers.bigRatio);
     numbers["mergeSeconds"] = round(config.damageNumbers.mergeSeconds);
+    numbers["critScale"] = round(config.damageNumbers.critScale);
+    numbers["alpha"] = round(config.damageNumbers.alpha);
+    numbers["bigScale"] = round(config.damageNumbers.bigScale);
+    numbers["nearRadius"] = round(config.damageNumbers.nearRadius);
+    numbers["nearAlpha"] = round(config.damageNumbers.nearAlpha);
+    numbers["enemyHpBars"] = config.damageNumbers.enemyHpBars;
+    if (config.hud.compact || config.hud.hurtNumbers || config.hud.levelUpScreen || config.hud.levelUpEffect || data.contains("hud")) {
+        auto& hud = section("hud");
+        hud["compact"] = config.hud.compact;
+        hud["scale"] = round(config.hud.scale);
+        hud["offset"] = round(config.hud.offset);
+        hud["levelUpScreen"] = config.hud.levelUpScreen;
+        hud["levelUpEffect"] = config.hud.levelUpEffect;
+        hud["levelUpSlow"] = round(config.hud.levelUpSlow);
+        hud["hurtNumbers"] = config.hud.hurtNumbers;
+        hud["hurtScale"] = round(config.hud.hurtScale);
+        hud["hurtEdge"] = round(config.hud.hurtEdge);
+        hud["hurtShake"] = round(config.hud.hurtShake);
+        hud["blastShake"] = round(config.hud.blastShake);
+    }
     auto& fusions = section("fusions");
     fusions["thunderExtraTargets"] = config.fusions.thunderExtraTargets;
     fusions["thunderRadiusScale"] = round(config.fusions.thunderRadiusScale);
@@ -1584,6 +1887,9 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     heroes["enabled"] = config.heroes.enabled;
     heroes["start"] = config.heroes.start;
     heroes["moveScale"] = round(config.heroes.moveScale);
+    if (config.heroes.single || heroes.contains("single")) {
+        heroes["single"] = config.heroes.single;
+    }
     heroes["autoFire"] = config.heroes.autoFire;
     heroes["levelUps"] = config.heroes.levelUps;
     if (config.heroes.walkSpeed > 0.0f) {
@@ -1603,16 +1909,23 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     if (config.heroes.perkSlots > 0) {
         heroes["perkSlots"] = config.heroes.perkSlots;
     }
-    if (config.heroes.fillerHeal > 0.0f || config.heroes.fillerMaxHp > 0 || config.heroes.fillerPower > 0.0f) {
+    if (config.heroes.fillerHeal > 0.0f || config.heroes.fillerMaxHp > 0 || config.heroes.fillerPower > 0.0f ||
+        heroes.contains("fillerHeal")) {
         heroes["fillerHeal"] = round(config.heroes.fillerHeal);
         heroes["fillerMaxHp"] = config.heroes.fillerMaxHp;
         heroes["fillerPower"] = round(config.heroes.fillerPower);
     }
-    if (config.heroes.healDropHeal > 0.0f) {
+    if (config.heroes.healDropHeal > 0.0f || heroes.contains("healDropHeal")) {
         heroes["healDropChance"] = round(config.heroes.healDropChance);
         heroes["healDropHeal"] = round(config.heroes.healDropHeal);
         heroes["healDropLife"] = round(config.heroes.healDropLife);
         heroes["healDropMax"] = config.heroes.healDropMax;
+    }
+    if (config.heroes.mainOfferPity > 0 || heroes.contains("mainOfferPity")) {
+        heroes["mainOfferPity"] = config.heroes.mainOfferPity;
+    }
+    if (config.heroes.subWeaponPower != 1.0f || heroes.contains("subWeaponPower")) {
+        heroes["subWeaponPower"] = round(config.heroes.subWeaponPower);
     }
     for (const auto& hero : config.heroes.heroes) {
         auto& item = heroes[hero.key];
@@ -1695,7 +2008,7 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     stages["swarmScale"] = round(config.stages.swarmScale);
     stages["bossMaterials"] = config.stages.bossMaterials;
     stages["tier"] = config.stages.tier;
-    if (!config.timeline.empty()) {
+    if (!config.timeline.empty() || data.contains("timeline")) {
         auto& timeline = data["timeline"];
         timeline = nlohmann::json::array();
         for (const SpawnConfig::TimelineEvent& event : config.timeline) {
@@ -1708,6 +2021,10 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
                 surge["intervalScale"] = round(event.intervalScale);
                 surge["countScale"] = round(event.countScale);
                 surge["maxAliveAdd"] = event.maxAliveAdd;
+            }
+            if (event.gap > 0.0f) {
+                timeline.back()["gap"] = round(event.gap);
+                timeline.back()["warn"] = round(event.warn);
             }
         }
     }
@@ -1795,6 +2112,96 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     glow["lootTrailWidth"] = round(config.glow.lootTrailWidth);
     glow["collectFlashSeconds"] = round(config.glow.collectFlashSeconds);
     glow["collectFlashRadius"] = round(config.glow.collectFlashRadius);
+    if (config.glow.neon.enabled || glow.contains("neon")) {
+        const auto& look = config.glow.neon;
+        auto& neon = glow["neon"];
+        neon["enabled"] = look.enabled;
+        neon["enemyCoreWhite"] = round(look.enemyCoreWhite);
+        neon["enemyCoreIntensity"] = round(look.enemyCoreIntensity);
+        neon["enemyHaloIntensity"] = round(look.enemyHaloIntensity);
+        neon["enemyHaloWidth"] = round(look.enemyHaloWidth);
+        neon["enemyColor"] = round(look.enemyColor);
+        neon["flatBody"] = look.flatBody;
+        neon["enemyLine"] = round(look.enemyLine);
+        neon["nebula"] = round(look.nebula);
+        neon["colorShift"] = round(look.colorShift);
+        neon["persistence"] = round(look.persistence);
+        neon["scanline"] = round(look.scanline);
+        neon["enemyGrid"] = round(look.enemyGrid);
+        neon["temporal"] = look.temporal;
+        neon["nearGlow"] = round(look.nearGlow);
+        neon["nearGlowRadius"] = round(look.nearGlowRadius);
+        // 線を隠していた前の塗り（p9 の H1）の値は、前のファイルに残っていれば消す。
+        neon.erase("darkFill");
+        neon.erase("fillScale");
+        neon["worldGrid"] = round(look.worldGrid);
+        neon["localGrid"] = round(look.localGrid);
+        neon["walls"] = round(look.walls);
+        neon["floorLight"] = round(look.floorLight);
+        neon["bloom"] = round(look.bloom);
+        neon["crowdBloom"] = round(look.crowdBloom);
+        neon["crowdCount"] = round(look.crowdCount);
+    }
+    if (config.glow.effects.enabled || glow.contains("effects")) {
+        const auto& look = config.glow.effects;
+        auto& effects = glow["effects"];
+        effects["enabled"] = look.enabled;
+        effects["line"] = round(look.line);
+        effects["brightness"] = round(look.brightness);
+        effects["debris"] = round(look.debris);
+        effects["sparks"] = round(look.sparks);
+        effects["ring"] = round(look.ring);
+        effects["clearRadius"] = round(look.clearRadius);
+        effects["clearAlpha"] = round(look.clearAlpha);
+        effects["glow"] = round(look.glow);
+        effects["edgeSpeed"] = round(look.edgeSpeed);
+        effects["edgeVary"] = round(look.edgeVary);
+        effects["edgeHold"] = round(look.edgeHold);
+        effects["edgeGap"] = round(look.edgeGap);
+        effects["edgeShift"] = round(look.edgeShift);
+        effects["edgeBright"] = round(look.edgeBright);
+        effects["edgeDrag"] = round(look.edgeDrag);
+        effects["edgeLong"] = round(look.edgeLong);
+        effects["soft"] = round(look.soft);
+        effects["softLife"] = round(look.softLife);
+        effects["overlap"] = round(look.overlap);
+        effects["edgeBlink"] = look.edgeBlink;
+        effects["calmBlink"] = look.calmBlink;
+        effects["birth"] = round(look.birth);
+        effects["flash"] = round(look.flash);
+        effects["edges"] = look.edges;
+        effects["crowd"] = round(look.crowd);
+        effects["plate"] = round(look.plate);
+        effects["plateFeather"] = round(look.plateFeather);
+        effects["topMost"] = look.topMost;
+    }
+    if (config.glow.needle.enabled || glow.contains("needle")) {
+        const auto& look = config.glow.needle;
+        auto& needle = glow["needle"];
+        needle["enabled"] = look.enabled;
+        needle["line"] = round(look.line);
+        needle["back"] = round(look.back);
+        needle["front"] = round(look.front);
+        needle["tail"] = round(look.tail);
+        needle["tailAlpha"] = round(look.tailAlpha);
+        needle["brightness"] = round(look.brightness);
+        needle["nearGlow"] = round(look.nearGlow);
+        needle["bloom"] = round(look.bloom);
+    }
+    if (config.glow.tank.enabled || glow.contains("tank")) {
+        const auto& look = config.glow.tank;
+        auto& tank = glow["tank"];
+        tank["enabled"] = look.enabled;
+        tank["line"] = round(look.line);
+        tank["brightness"] = round(look.brightness);
+        tank["nearGlow"] = round(look.nearGlow);
+        tank["scale"] = round(look.scale);
+        tank["turn"] = round(look.turn);
+        tank["flow"] = round(look.flow);
+        tank["red"] = round(look.color[0]);
+        tank["green"] = round(look.color[1]);
+        tank["blue"] = round(look.color[2]);
+    }
     auto& elites = section("elites");
     elites["fromStage"] = config.elites.fromStage;
     elites["erraticRatio"] = round(config.elites.erraticRatio);
@@ -1897,11 +2304,11 @@ inline bool SaveSpawnConfig(const std::string& path, const SpawnConfig& config, 
     rival["exp"] = config.rival.exp;
 
     // 上の段は決まった順に、2段目は1行ずつ（comment を先に）書く。それより深いものは1行にまとめる。
-    static constexpr std::array<const char*, 41> kOrder{
-        "schemaVersion", "comment",   "arenaMap", "exitOpenSeconds", "exitRadius",    "spawnRing", "shapes",   "triangleSwarm", "tanks",
+    static constexpr std::array<const char*, 43> kOrder{
+        "schemaVersion", "comment",   "arenaMap", "exitOpenSeconds", "exitRadius",    "spawnRing", "separation", "shapes",   "triangleSwarm", "tanks",
         "threat",        "telegraph", "heavySquare",     "lungePentagon", "rival",     "experience", "load",        "choices",
         "heat",          "shield",    "forms",           "weapons",       "heroes",        "loot",          "crafting",      "stages",        "waves",         "health",        "shop",        "barrier",       "elites",        "audio",         "glow",          "traits",        "relics",    "fusions",    "parts",       "heatVent",
-        "partTuning",    "bigPentagon", "damageNumbers", "timeline"};
+        "partTuning",    "bigPentagon", "damageNumbers", "hud", "timeline"};
     std::vector<std::string> keys(kOrder.begin(), kOrder.end());
     for (const auto& item : data.items()) {
         if (std::find(keys.begin(), keys.end(), item.key()) == keys.end()) {

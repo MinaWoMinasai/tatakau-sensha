@@ -191,7 +191,7 @@ void ExpeditionHeroAbilities::Update(float dt)
     if (bot_) {
         UpdateBot(dt);
     }
-    // 向きはふつうどおりマウスか右スティック。撃つのは押さなくてもずっと（HoloCure と同じ）。ボットは自分で撃つ。
+    // 向きはふつうどおりマウスか右スティック。撃つのは押さなくてもずっと（押さなくても撃ち続ける形）。ボットは自分で撃つ。
     player.SetAutoFire(autoFire_ && !bot_);
     ReadInput();
     UpdateHeroAbilities(dt);
@@ -210,7 +210,7 @@ void ExpeditionHeroAbilities::ReadInput()
         return bot_ ? botPress_[static_cast<size_t>(slot)] : keyTriggered;
     };
     // 左クリック・右クリックを押しているか（押している間の技：吸い付く光線・自分を回復）。
-    // 自動で撃つときは、ずっと押していることにする（モイラ型の吸収ビームも、向いている方の敵へ自動で吸い付く）。
+    // 自動で撃つときは、ずっと押していることにする（吸収型の吸収ビームも、向いている方の敵へ自動で吸い付く）。
     primaryHeld_ = bot_ ? botPrimary_ : heroWorld_.resources.player_->IsAutoFiring() || input.IsPress(input.GetMouseState().rgbButtons[0]);
     secondaryHeld_ = bot_ ? botSecondary_ : input.IsPress(input.GetMouseState().rgbButtons[1]);
     // 右クリック：押している間の技（バリア・自分を回復）は Update と UpdateHeroAbilities で見る。押した瞬間の技（ロケット）はここで使う。

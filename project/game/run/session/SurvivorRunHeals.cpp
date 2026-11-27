@@ -59,10 +59,12 @@ void SurvivorRunController::UpdateHealPickups(float dt)
             const float ratio = config_.heroes.healDropHeal * (it->big ? 1.5f : 1.0f);
             const int amount = (std::max)(1, static_cast<int>(std::round(static_cast<float>(player.GetMaxHp()) * ratio)));
             player.ReduceSurvivorWound(static_cast<float>(amount));
+            const int hpBefore = player.GetHp();
             player.HealRunPlayer(amount);
             healedByPickups_ += amount;
             ++healsCollected_;
-            world_.combatFlow->SetEventCallout("修理 +" + std::to_string(amount), 0.7f);
+            // 数字では、実際に戻った HP を出す（満タンなら +0）。
+            ShowHeal((std::max)(0, player.GetHp() - hpBefore), "修理 +" + std::to_string(amount));
             it = healPickups_.erase(it);
             continue;
         }

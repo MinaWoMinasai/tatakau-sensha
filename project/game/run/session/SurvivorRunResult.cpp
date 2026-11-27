@@ -13,6 +13,11 @@ namespace gameplay {
 
 using namespace survivorrun;
 
+bool SurvivorRunController::UsesResultScreen() const
+{
+    return HeroMode() && config_.heroes.single && autoTest_ == AutoTest::None;
+}
+
 bool SurvivorRunController::IsResultVisible() const
 {
     const auto& flow = world_.combat.combatFlow_;
@@ -66,7 +71,7 @@ std::string SurvivorRunController::DescribeParts(size_t perLine) const
 
 void SurvivorRunController::RefreshResult(int selection)
 {
-    if (!resultText_ || !resultMenu_) {
+    if (!resultText_ || !resultMenu_ || UsesResultScreen()) {
         return;
     }
     const auto& player = *world_.resources.player_;

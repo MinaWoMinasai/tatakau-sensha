@@ -73,11 +73,23 @@ protected:
     {
         return 1.0f;
     }
+    /// @brief 副武器だけの威力の倍率（計画書 p11 の B2b）。
+    virtual float SubWeaponPower() const
+    {
+        return 1.0f;
+    }
+    /// @brief 副武器の威力の倍率（HeroPowerScale も含む）。
+    float SubPowerScale() const
+    {
+        return HeroPowerScale() * SubWeaponPower();
+    }
     /// @brief 大きな弾頭（計画書 p8 の F4）の、弾・爆発・炎・衝撃の輪の大きさの倍率。
     float HeroAreaScale() const
     {
         return 1.0f + (HasPerk(survivor::PerkId::Area) ? PerkValue(survivor::PerkId::Area) : 0.0f);
     }
+    /// @brief 予備の動力で立ち直った知らせを出す。既定は文字のお知らせ（無限の場では自機の上の数字。計画書 p9 の H3）。
+    virtual void ShowHeroRevived();
     /// @brief 自機の移動の速さの土台の倍率（技・パークの倍率はこれに掛ける）。試作では1、遠征では調整ファイルの heroMoveScale。
     virtual float HeroBaseMoveScale() const
     {
@@ -145,7 +157,7 @@ protected:
     int barrageShots_ = 0;
     float barrageSeconds_ = 0.0f;
 
-    // モイラ型（計画書 p4 の K2）：吸い付く光線・吸収ゲージで回復・消える移動・跳ねる球・太い光線。
+    // 吸収型（計画書 p4 の K2）：吸い付く光線・吸収ゲージで回復・消える移動・跳ねる球・太い光線。
     /// @brief 主武器が技の部品（吸い付く光線）か。真なら主武器の弾は撃たない。
     bool HeroBeamPrimary() const
     {
@@ -248,7 +260,7 @@ protected:
     float lanceTimer_ = 0.0f;
     float lanceTick_ = 0.0f;
     float lanceAge_ = 0.0f;
-    // モイラ型の記録：光線・球・太い光線で与えた量、溜めた吸収ゲージ（秒）、自分を回復した量と押していた秒、球が跳ねた回数、
+    // 吸収型の記録：光線・球・太い光線で与えた量、溜めた吸収ゲージ（秒）、自分を回復した量と押していた秒、球が跳ねた回数、
     // 太い光線が一度に当てた一番多い数、光線が吸い付いていた秒。
     uint64_t drainDamage_ = 0;
     uint64_t orbDamage_ = 0;
@@ -272,7 +284,7 @@ protected:
     /// @brief 共通パーク（計画書 p8 の F4）：会心・大きさを自機へ渡し、反応装甲を構え直し、予備の動力を持たせる。
     void UpdateHeroPerks(float dt);
     /// @brief 衛星の球と置いた地雷を積む。QueueHeroVisuals から呼ぶ。
-    void QueueSubWeapons(myEngine::NeonGridRenderer& renderer) const;
+    void QueueSubWeapons(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraForward) const;
     /// @brief 衛星の球の位置（段で数と輪の半径が変わる）。
     size_t OrbitPositions(std::array<myEngine::Vector3, 4>& out) const;
     int SubWeaponTier(survivor::SubWeapon weapon) const

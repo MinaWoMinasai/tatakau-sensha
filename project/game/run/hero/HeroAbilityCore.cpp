@@ -1,6 +1,7 @@
 #include "game/run/hero/HeroAbilityCore.h"
 #include "game/enemy/actor/Enemy.h"
 #include "game/render/neon/NeonGridRenderer.h"
+#include "game/render/session/TubeEffects.h"
 #include "game/session/GameWorld.h"
 #include "game/session/GameplaySystems.h"
 #include <algorithm>
@@ -438,8 +439,14 @@ void HeroAbilityCore::QueueHeroVisuals(myEngine::NeonGridRenderer& renderer, con
     if (!HeroActive()) {
         return;
     }
+    const auto& tube = heroWorld_.presentation.runNeonLook_;
     auto circle = [&](const myEngine::Vector3& center, float radius, float width, const myEngine::Vector4& color, float phase) {
         constexpr int kSides = 40;
+        // 管の線で描くとき（計画書 p10 の16章の M3）：太さをそろえた1本の輪にする。
+        if (tube.tubeEffects) {
+            tubefx::Circle(renderer, tube, center, radius, 0.05f + width * 0.1f, tubefx::Steady(color), phase, kSides, cameraForward, 0.6f);
+            return;
+        }
         for (int n = 0; n < kSides; ++n) {
             const float a = phase + 6.2831853f * static_cast<float>(n) / kSides,
                         b = phase + 6.2831853f * static_cast<float>(n + 1) / kSides;
@@ -511,7 +518,7 @@ void HeroAbilityCore::QueueHeroVisuals(myEngine::NeonGridRenderer& renderer, con
         const myEngine::Vector3 start = self + aim * 1.1f + lift, end = self + aim * lance->radius + lift;
         renderer.QueueContourLine(start, end, width, {1.7f, 0.8f, 2.2f, 0.95f}, cameraForward);
     }
-    QueueSubWeapons(renderer);
+    QueueSubWeapons(renderer, cameraForward);
 }
 
 namespace {
@@ -559,7 +566,10 @@ uint32_t HeroAbilityCore::DealHeroDamage(Collider* target, bool rival, uint32_t 
     if (crit > 1.0f) {
         amount = static_cast<uint32_t>(std::round(static_cast<float>(amount) * crit));
     }
+    // 会心の数字（計画書 p9 の H2）。
+    ExpEnemy::SetNextHitCritical(crit > 1.0f);
     enemy->TakeDirectionalDamage(amount, from);
+    ExpEnemy::SetNextHitCritical(false);
     return amount;
 }
 
@@ -593,8 +603,13 @@ void HeroAbilityCore::UpdateHeroPerks(float dt)
     }
     if (player.ConsumeSurvivorRevived()) {
         TriggerShockwave(player.GetWorldPosition(), 6.0f, HeroDamageUnit(3.0f), 1.2f, true);
-        heroWorld_.combatFlow->SetEventCallout("予備の動力で立ち直った", 1.5f);
+        ShowHeroRevived();
     }
+}
+
+void HeroAbilityCore::ShowHeroRevived()
+{
+    heroWorld_.combatFlow->SetEventCallout("予備の動力で立ち直った", 1.5f);
 }
 
 void HeroAbilityCore::AddAbsorb(float amount)

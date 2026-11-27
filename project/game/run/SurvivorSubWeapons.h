@@ -59,7 +59,7 @@ inline const SubWeaponInfo& GetSubWeaponInfo(SubWeapon weapon)
     return kInfos[static_cast<size_t>(weapon)];
 }
 
-/// @brief 3択の札の名前（tier は今の段）。HoloCure と同じく Lv で数える。
+/// @brief 3択の札の名前（tier は今の段）。Lv で数える。
 inline std::string SubWeaponOfferName(SubWeapon weapon, int tier)
 {
     const SubWeaponInfo& info = GetSubWeaponInfo(weapon);

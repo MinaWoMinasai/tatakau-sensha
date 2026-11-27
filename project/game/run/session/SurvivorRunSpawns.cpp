@@ -183,8 +183,63 @@ ExpEnemy* SurvivorRunController::SpawnChaser(const std::string& prefab, const my
     return enemy;
 }
 
+float SurvivorRunController::PickRingGap(float radius)
+{
+    constexpr float kTurn = 6.2831853f;
+    const myEngine::Vector3 self = world_.resources.player_->GetWorldPosition();
+    std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+    const bool moving = myEngine::Length(playerVelocity_) > 1.0f;
+    const float heading = std::atan2(playerVelocity_.y, playerVelocity_.x);
+    float angle = 0.0f;
+    for (int attempt = 0; attempt < 12; ++attempt) {
+        // 進む向きの左右60度を除いた、残りの240度から選ぶ。止まっているときは、どこでもよい。
+        angle = moving ? heading + kTurn * (1.0f / 6.0f + unit(random_) * 2.0f / 3.0f) : unit(random_) * kTurn;
+        const float x = self.x + std::cos(angle) * radius, y = self.y + std::sin(angle) * radius;
+        if (x > kSpawnMinX && x < kSpawnMaxX && y > kSpawnMinY && y < kSpawnMaxY) {
+            break;
+        }
+    }
+    return angle;
+}
+
+void SurvivorRunController::QueueRingWarning(myEngine::NeonGridRenderer& renderer) const
+{
+    if (ringWarning_.at < 0.0f) {
+        return;
+    }
+    // 自機のまわりの赤い点の輪。切れ目には点が無く、両端に外へ開く短い線を置く。輪は画面に入る大きさにする（湧く輪は画面の外まである）。
+    const myEngine::Vector3 center = world_.resources.player_->GetWorldPosition();
+    const float radius = (std::min)(ringWarning_.radius, arenacamera::HalfViewHeight() - 3.6f);
+    const float left = (std::clamp)((ringWarning_.at - elapsed_) / (std::max)(0.1f, ringWarning_.lead), 0.0f, 1.0f);
+    const float blink = 0.5f + 0.5f * std::sin(elapsed_ * (10.0f + 14.0f * (1.0f - left)));
+    const myEngine::Vector4 color{1.8f, 0.18f, 0.22f, 0.45f + 0.55f * blink};
+    const float half = ringWarning_.gap * 0.5f * 3.1415927f / 180.0f;
+    auto at = [&](float angle, float r) {
+        return center + myEngine::Vector3{std::cos(angle) * r, std::sin(angle) * r, -0.3f};
+    };
+    constexpr int kDots = 44;
+    for (int n = 0; n < kDots; ++n) {
+        const float angle = 6.2831853f * static_cast<float>(n) / kDots;
+        if (std::abs(std::remainder(angle - ringWarning_.angle, 6.2831853f)) <= half) {
+            continue;
+        }
+        renderer.QueueLine(at(angle - 0.012f, radius), at(angle + 0.012f, radius), 0.24f, color);
+    }
+    for (const float side : {-1.0f, 1.0f}) {
+        const float edge = ringWarning_.angle + side * half;
+        renderer.QueueLine(at(edge, radius), at(edge - side * 0.06f, radius + 1.8f), 0.16f, color);
+    }
+}
+
 void SurvivorRunController::UpdateTimeline()
 {
+    // 切れ目のある輪は、warn 秒前に切れ目の向きを決めて知らせる。
+    for (size_t i = timelineNext_; i < config_.timeline.size() && ringWarning_.at < 0.0f; ++i) {
+        const auto& event = config_.timeline[i];
+        if (event.kind == "ring" && event.gap > 0.0f && event.warn > 0.0f && elapsed_ < event.at && elapsed_ >= event.at - event.warn) {
+            ringWarning_ = {event.at, event.warn, PickRingGap(event.radius), event.gap, event.radius};
+        }
+    }
     while (timelineNext_ < config_.timeline.size() && elapsed_ >= config_.timeline[timelineNext_].at) {
         RunTimelineEvent(config_.timeline[timelineNext_++]);
     }
@@ -203,7 +258,7 @@ void SurvivorRunController::UpdateTimeline()
         if (HeroMode() && config_.heroes.levelUps && it->second > 0) {
             heroPendingLevelUps_ += it->second;
             if (!heroLevelUpOpen_) {
-                OpenHeroLevelUp();
+                RequestHeroLevelUp();
             }
         }
         it = midBosses_.erase(it);
@@ -234,8 +289,14 @@ void SurvivorRunController::RunTimelineEvent(const survivor::SpawnConfig::Timeli
         const int count = (std::max)(1, event.count);
         std::uniform_real_distribution<float> turn(0.0f, 6.2831853f);
         const float start = turn(random_);
+        const bool gap = event.gap > 0.0f;
+        const float gapAngle = !gap ? 0.0f : ringWarning_.at >= 0.0f ? ringWarning_.angle : PickRingGap(event.radius);
+        ringWarning_.at = -1.0f;
         for (int i = 0; i < count; ++i) {
             const float angle = start + 6.2831853f * static_cast<float>(i) / static_cast<float>(count);
+            if (gap && std::abs(std::remainder(angle - gapAngle, 6.2831853f)) <= event.gap * 0.5f * 3.1415927f / 180.0f) {
+                continue;
+            }
             SpawnChaser(event.shape, {player.x + std::cos(angle) * event.radius, player.y + std::sin(angle) * event.radius, 0.0f}, event.speed);
         }
     } else if (event.kind == "surge") {
@@ -266,7 +327,7 @@ void SurvivorRunController::RunTimelineEvent(const survivor::SpawnConfig::Timeli
 
 void SurvivorRunController::UpdateSpeedTest(float dt)
 {
-    // ボスは出さない。自動で撃つは最初だけ切る（F で戻せる）。
+    // ボスは出さない。自動で撃つは切る。
     config_.exitOpenSeconds = elapsed_ + 5999.0f;
     if (speedTestClock_ <= 0.0f) {
         heroAutoFire_ = false;
@@ -421,6 +482,39 @@ std::optional<myEngine::Vector3> SurvivorRunController::FindSpawnPosition(float 
     // 画面のすぐ外から（計画書 p7 の E5。設定の spawnRing.screenEdge）：上下左右の縁を、縁の長さに比例して選び、縁に沿ってばらける。
     if (config_.ringScreenEdge) {
         std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+        // 進む向きで振り分ける（計画書 p8 の G3）：前（±45度）・横（左右の±45〜135度）・後ろ。止まっているときや割合0は今まで通り。
+        const float weightSum = config_.spawnForward + config_.spawnSide + config_.spawnBack;
+        const float moveSpeed = myEngine::Length(playerVelocity_);
+        if (weightSum > 0.0f && moveSpeed > 1.0f) {
+            const float heading = std::atan2(playerVelocity_.y, playerVelocity_.x);
+            for (int attempt = 0; attempt < 16; ++attempt) {
+                const float pick = unit(random_) * weightSum;
+                int sector = 2;
+                float offset = 3.1415927f + (unit(random_) - 0.5f) * 1.5707964f;
+                if (pick < config_.spawnForward) {
+                    sector = 0;
+                    offset = (unit(random_) - 0.5f) * 1.5707964f;
+                } else if (pick < config_.spawnForward + config_.spawnSide) {
+                    sector = 1;
+                    offset = (unit(random_) < 0.5f ? 1.0f : -1.0f) * (0.7853982f + unit(random_) * 1.5707964f);
+                }
+                const float a = heading + offset;
+                const float dx = std::cos(a), dy = std::sin(a);
+                // カメラの中心から、その向きに画面の縁まで伸ばし、少し外へ出す。
+                const float toEdge = (std::min)(std::abs(dx) > 0.0001f ? halfWidth / std::abs(dx) : 1.0e6f,
+                                                std::abs(dy) > 0.0001f ? halfHeight / std::abs(dy) : 1.0e6f);
+                const float out = toEdge + 1.0f + unit(random_) * 2.0f;
+                myEngine::Vector3 position{camera.x + dx * out, camera.y + dy * out, 0.0f};
+                position.x = (std::clamp)(position.x, kSpawnMinX, kSpawnMaxX);
+                position.y = (std::clamp)(position.y, kSpawnMinY, kSpawnMaxY);
+                const bool offScreen = std::abs(position.x - camera.x) > halfWidth || std::abs(position.y - camera.y) > halfHeight;
+                if (offScreen && !world_.resources.stage_->IsCollisionWithAnyBlock(position, 1.2f)) {
+                    ++spawnSectors_[static_cast<size_t>(sector)];
+                    return position;
+                }
+            }
+        }
+        ++spawnSectors_[3];
         for (int attempt = 0; attempt < 16; ++attempt) {
             const float along = unit(random_) * (halfWidth + halfHeight) * 2.0f;
             const float sideOut = 1.0f + unit(random_) * 2.0f;
@@ -539,15 +633,32 @@ void SurvivorRunController::SpawnRing(int count)
     }
 }
 
+void SurvivorRunController::UpdateMoveDirection(float dt)
+{
+    const myEngine::Vector3 position = world_.resources.player_->GetWorldPosition();
+    if (hasLastPlayerPosition_) {
+        const myEngine::Vector3 step{(position.x - lastPlayerPosition_.x) / dt, (position.y - lastPlayerPosition_.y) / dt, 0.0f};
+        // 区画の移りや押し返しの跳びは無視する。0.25秒ほどでならす。
+        if (myEngine::Length(step) < 30.0f) {
+            const float blend = 1.0f - std::exp(-dt * 4.0f);
+            playerVelocity_ = playerVelocity_ + (step - playerVelocity_) * blend;
+        }
+    }
+    lastPlayerPosition_ = position;
+    hasLastPlayerPosition_ = true;
+}
+
 void SurvivorRunController::SeparateEnemies()
 {
-    // 重なりの半分ずつを、1回の更新で押し戻す（重いもの＝大きいものほど動きにくい）。壁や柱に入る押し戻しはしない。
-    constexpr float kCell = 3.2f;
-    constexpr float kResolve = 0.5f;
+    // 重なりの strength 倍を、1回の更新で押し戻す（重いもの＝大きいものほど動きにくい）。壁や柱に入る押し戻しはしない。
+    // 半径は当たりの半径 × radiusScale（計画書 p8 の G3：見た目の大きさに合わせて、塊を隙間のある面にする）。
+    const float radiusScale = (std::max)(0.1f, config_.separation.radiusScale);
+    const float kResolve = (std::clamp)(config_.separation.strength, 0.0f, 1.0f);
     auto cellKey = [](int x, int y) {
         return (static_cast<int64_t>(x) << 32) ^ static_cast<int64_t>(static_cast<uint32_t>(y));
     };
     separationItems_.clear();
+    float maxRadius = 0.0f;
     for (ExpEnemy* enemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
         if (!enemy || enemy->IsDead() || enemy->IsRunResource()) {
             continue;
@@ -555,11 +666,17 @@ void SurvivorRunController::SeparateEnemies()
         SeparationItem item;
         item.enemy = enemy;
         item.position = enemy->GetWorldPosition();
-        item.radius = enemy->GetRadius();
+        item.radius = enemy->GetRadius() * radiusScale;
         item.mass = item.radius * item.radius;
-        item.cell = cellKey(static_cast<int>(std::floor(item.position.x / kCell)), static_cast<int>(std::floor(item.position.y / kCell)));
+        maxRadius = (std::max)(maxRadius, item.radius);
         separationItems_.push_back(item);
     }
+    // 升の大きさは、一番大きい敵の直径以上（隣の升までで組を取りこぼさない）。中ボスで広がりすぎないよう上限を置く。
+    const float kCell = (std::clamp)(maxRadius * 2.0f, 3.2f, 12.0f);
+    for (SeparationItem& item : separationItems_) {
+        item.cell = cellKey(static_cast<int>(std::floor(item.position.x / kCell)), static_cast<int>(std::floor(item.position.y / kCell)));
+    }
+    int deepPairs = 0;
     const uint32_t count = static_cast<uint32_t>(separationItems_.size());
     separationOrder_.resize(count);
     for (uint32_t i = 0; i < count; ++i) {
@@ -591,6 +708,8 @@ void SurvivorRunController::SeparateEnemies()
                         continue;
                     }
                     float distance = std::sqrt(distanceSq);
+                    // 押し合いの前の、当たりの半径（広げる前）でも重なっている組を数える（塊の深さの目安）。
+                    deepPairs += distance < limit / radiusScale ? 1 : 0;
                     myEngine::Vector3 normal{1.0f, 0.0f, 0.0f};
                     if (distance > 0.0001f) {
                         normal = {ox / distance, oy / distance, 0.0f};
@@ -608,12 +727,42 @@ void SurvivorRunController::SeparateEnemies()
             }
         }
     }
+    separationDeepPairs_ += static_cast<uint64_t>(deepPairs);
+    separationDeepPairsMax_ = (std::max)(separationDeepPairsMax_, deepPairs);
+    const float maxPush = (std::max)(0.0f, config_.separation.maxPush);
+    // 壁の判定は、使っている壁だけを1回集めて使い回す（敵ごとに全部の升を調べると、敵の多い場面で重い）。
+    separationWalls_.clear();
+    for (const auto& line : world_.resources.stage_->GetBlocks()) {
+        for (const Block& block : line) {
+            if (block.isActive) {
+                separationWalls_.push_back(block.obb);
+            }
+        }
+    }
+    auto hitsWall = [&](const myEngine::Vector3& at, float radius) {
+        for (const myEngine::OBB& wall : separationWalls_) {
+            const float dx = at.x - wall.center.x, dy = at.y - wall.center.y;
+            const float reach = radius + wall.halfExtents.x + wall.halfExtents.y + wall.halfExtents.z;
+            if (dx * dx + dy * dy <= reach * reach && myEngine::CheckSphereVsOBB({at, radius}, wall).hit) {
+                return true;
+            }
+        }
+        return false;
+    };
     for (SeparationItem& item : separationItems_) {
         if (item.push.x == 0.0f && item.push.y == 0.0f) {
             continue;
         }
+        // 1回で動かす量に上限（密集した瞬間に跳んで見えないように）。
+        if (maxPush > 0.0f) {
+            const float length = myEngine::Length(item.push);
+            const float limit = item.radius * maxPush;
+            if (length > limit && length > 0.0f) {
+                item.push = item.push * (limit / length);
+            }
+        }
         const myEngine::Vector3 moved = item.position + item.push;
-        if (!world_.resources.stage_->IsCollisionWithAnyBlock(moved, item.radius)) {
+        if (!hitsWall(moved, item.radius)) {
             item.enemy->SetWorldPosition(moved);
         }
     }

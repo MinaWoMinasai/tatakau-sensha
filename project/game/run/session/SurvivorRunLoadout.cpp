@@ -13,7 +13,8 @@ using namespace survivorrun;
 
 void SurvivorRunController::AddExperience(int amount)
 {
-    if (amount <= 0) {
+    // タイトルの後ろの見本では、レベルを上げない（選ぶ画面が開くため）。
+    if (amount <= 0 || world_.demo.titleDemo_) {
         return;
     }
     expCollected_ += amount;
@@ -41,9 +42,11 @@ void SurvivorRunController::AddExperience(int amount)
             }
             if (gained > 0) {
                 heroPendingLevelUps_ += gained;
-                world_.combatFlow->SetEventCallout("レベル " + std::to_string(level_), 0.8f);
+                if (!LevelUpEffectOn()) {
+                    world_.combatFlow->SetEventCallout("レベル " + std::to_string(level_), 0.8f);
+                }
                 if (!heroLevelUpOpen_) {
-                    OpenHeroLevelUp();
+                    RequestHeroLevelUp();
                 }
             }
         }

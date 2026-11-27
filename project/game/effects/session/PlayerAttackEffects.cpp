@@ -1,4 +1,5 @@
 #include "game/effects/session/PlayerAttackEffects.h"
+#include "game/render/session/TubeEffects.h"
 #include "game/session/GameplaySystems.h"
 #include "game/weapon/CombatTypes.h"
 #include "RuntimeProfiler.h"
@@ -262,6 +263,12 @@ void PlayerAttackEffects::QueuePlayerMines(const myEngine::Vector3& cameraRight,
         const float t = explosion.maxLife > 0.0f ? (std::clamp)(explosion.life / explosion.maxLife, 0.0f, 1.0f) : 0.0f;
         myEngine::Vector4 color = explosion.color;
         color.w *= t;
+        // 管の線で描くとき（計画書 p10 の16章の M3）：広がる1本の輪だけにする。
+        if (world_.presentation.runNeonLook_.tubeEffects) {
+            tubefx::Circle(*world_.resources.neonGridRenderer_, world_.presentation.runNeonLook_, explosion.position,
+                           explosion.radius * (1.05f - t * 0.35f), 0.04f + 0.04f * t, color, 0.0f, 36, cameraForward);
+            continue;
+        }
         queueCircle(explosion.position, explosion.radius * (1.05f - t * 0.35f), 0.10f * (0.6f + t), color);
         myEngine::Vector4 coreColor = {1.0f, 1.0f, 1.0f, color.w * 0.8f};
         queueCircle(explosion.position, explosion.radius * (0.55f + (1.0f - t) * 0.25f), 0.045f, coreColor);

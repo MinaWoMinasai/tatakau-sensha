@@ -1,4 +1,7 @@
 #include "game/session/GameSession.h"
+#include "game/settings/UserSettings.h"
+#include "game/debug/MenuFlow.h"
+#include "game/render/settings/ArenaLookConfig.h"
 #include "game/session/GameplaySystems.h"
 
 namespace gameplay {
@@ -72,6 +75,12 @@ void GameSession::ApplyArenaLookOverrides(IScene::ArenaLookSettings& look) const
     // 何重にも見える。ゲージの外側（自機の描画半径の約2.2倍）までを、残光を出さない円にする。
     // 自機の本体の残像（PlayerNeonAfterimage）は毎フレーム描く形なので、この円の中でも残る。
     const auto& world = *world_;
+    usersettings::ApplyLook(look);
+    // ランごとのネオンの見た目（計画書 p10）：背景の雲と、画面の端の色ずれ。
+    look.nebulaIntensity *= world.presentation.runNeonLook_.nebula;
+    look.chromAbAmount *= world.presentation.runNeonLook_.colorShift;
+    look.phosphorDecay *= world.presentation.runNeonLook_.persistence;
+    look.scanlineIntensity *= world.presentation.runNeonLook_.scanline;
     if (!world.run.IsSurvivorRun() || !world.resources.player_ || world.resources.player_->IsDead() || !world.gameplayHud) {
         return;
     }
@@ -122,6 +131,24 @@ void GameSession::RecordDeveloperPostParameters(const myEngine::BloomParam& para
 void GameSession::RecordDeveloperFrame(myEngine::DirectXCommon& dx)
 {
     world_->gameplayQueries->RecordDeveloperFrame(dx);
+    // 画面の出入りの確認の frames：描いたコマを毎回撮る（読み込みの途中で更新が回っていないコマも撮る）。前のコマの写しはここで書き出す。
+    if (std::string path; world_->arenaRunController && menuflow::TakeFrameShot(path)) {
+        world_->arenaRunController->FinishTankRunCapture();
+        world_->run.tankRunCapturePath_ = path;
+        world_->arenaRunController->CopyTankRunCapture();
+        IScene::ArenaLookSettings look = arenalook::Get();
+        ApplyArenaLookOverrides(look);
+        const auto effect = GetScreenEffectState();
+        menuflow::Note("values phase " + std::to_string(static_cast<int>(world_->combat.phase_)) + " nebula " + std::to_string(look.nebulaIntensity) +
+                       " bloom " + std::to_string(effect.bloomScale) + " temporal " + std::to_string(!effect.suppressTemporal) + " tank " +
+                       std::to_string(world_->presentation.runNeonLook_.playerTank) + " active " + std::to_string(effect.active) + " decay " +
+                       std::to_string(look.phosphorDecay) + " exposure " + std::to_string(effect.param.exposure) + " intensity " +
+                       std::to_string(effect.param.intensity) + " vignette " + std::to_string(effect.param.vignetteIntensity) + " gray " +
+                       std::to_string(effect.param.isGrayscale) + " gauss " + std::to_string(effect.param.gaussianIntensity) + " dt " +
+                       std::to_string(GetFinalDeltaTime()) + " paused " +
+                       std::to_string(world_->run.IsSurvivorRun() && world_->survivorRunController->IsPaused()) + " scale " +
+                       std::to_string(world_->run.IsSurvivorRun() ? world_->survivorRunController->GetTimeScale() : 1.0f));
+    }
     if (world_->run.UsesPrototypeRules()) {
         world_->arenaRunController->CopyTankRunCapture();
     }

@@ -92,6 +92,109 @@ struct GlowConfig {
     /// @brief 拾ったときに広がる光の輪（秒と、最後の半径）。
     float collectFlashSeconds = 0.25f;
     float collectFlashRadius = 1.3f;
+    /// @brief ネオン管の見た目（計画書 p9 の H1 を p10 で直した物。無限の場）：暗い所に、細い芯と、外ほど濃い色のにじみで管を描く。
+    /// enabled のときだけ効く。敵の輪郭は 芯の白さ・芯の明るさ・にじみの明るさ・にじみの幅、色の明るさ（倍）。
+    /// 背景の格子・自機と敵のまわりの格子・壁・床の明かりの明るさ（倍）。
+    /// ブルームの強さ（倍）と、敵が crowdCount 体いるときに crowdBloom 倍まで弱める自動の露出合わせ。
+    struct NeonLook {
+        bool enabled = false;
+        float enemyCoreWhite = 0.45f;
+        float enemyCoreIntensity = 2.8f;
+        float enemyHaloIntensity = 0.5f;
+        float enemyHaloWidth = 2.1f;
+        float enemyColor = 1.0f;
+        /// @brief 敵の中を、陰影も反射も無い黒い平面にする（線より先に描くので、線は隠れない。計画書 p10 の8章）。
+        bool flatBody = false;
+        /// @brief 敵の線の太さ（倍）。背景の雲の濃さ（倍）。画面の端の色ずれ（倍）。
+        float enemyLine = 1.0f;
+        float nebula = 1.0f;
+        float colorShift = 1.0f;
+        /// @brief 画面全体の残像（前のコマの光が残る量）と走査線（倍）。動く敵の線が二重になるので、無限の場では切る（計画書 p10 の13章）。
+        float persistence = 1.0f;
+        float scanline = 1.0f;
+        /// @brief 前のコマと混ぜてなじませる処理（TAA）を使うか。動く敵の線が少しずれて重なるので、無限の場では切る。
+        bool temporal = true;
+        /// @brief 敵の線のまわりの近いにじみ：強さ（0 で無し）と、線の真ん中からの広さ（ワールド単位）。線の太さとは別に決める。
+        float nearGlow = 0.0f;
+        float nearGlowRadius = 0.5f;
+        float worldGrid = 1.0f;
+        float localGrid = 1.0f;
+        /// @brief 敵のまわりの格子（localGrid にさらに掛ける倍。0 で描かない。計画書 p10 の16章の M0）。
+        float enemyGrid = 1.0f;
+        float walls = 1.0f;
+        float floorLight = 1.0f;
+        float bloom = 1.0f;
+        float crowdBloom = 1.0f;
+        float crowdCount = 100.0f;
+    } neon;
+    /// @brief 自機の履帯戦車（計画書 p10 の16章の M1。無限の場）：車体は進む向き、砲塔は狙う向きに回り、履帯の光が速さに合わせて流れる。
+    /// 光り方は敵の管と同じ芯・にじみを使い、線の太さ（倍）・明るさ（倍）・近いにじみ（倍）・大きさ（倍）と、色を決める。
+    /// 形は player_tank_shape.json。neon.enabled のときだけ効く。
+    struct TankLook {
+        bool enabled = false;
+        float line = 1.0f;
+        float brightness = 1.0f;
+        float nearGlow = 0.6f;
+        float scale = 1.0f;
+        /// @brief 車体が進む向きへ回る速さ（毎秒、指数の追いつき）。履帯の光の流れ（倍）。
+        float turn = 10.0f;
+        float flow = 0.55f;
+        float color[3]{0.25f, 1.0f, 0.55f};
+    } tank;
+    /// @brief 自機の弾を細い針で描く（計画書 p10 の16章の M2。無限の場）。芯・にじみは敵の管と同じ。線の太さ（敵の線に対する倍）・
+    /// 先の長さ（中心から後ろ・前）・尾の長さ・尾の明るさ・色の明るさ（倍）・近いにじみ（敵に対する倍）と、軌跡のブルーム（強さと明るさの倍）。
+    struct NeedleLook {
+        bool enabled = false;
+        float line = 1.0f;
+        float back = 0.7f;
+        float front = 0.3f;
+        float tail = 1.5f;
+        float tailAlpha = 0.5f;
+        float brightness = 1.0f;
+        float nearGlow = 0.6f;
+        float bloom = 0.3f;
+    } needle;
+    /// @brief 爆発・破片・副武器を管の線で描く（計画書 p10 の16章の M3。無限の場）：白い玉を出さず、広がる輪と線だけにする。
+    /// 線の太さ・明るさ（倍）、破片と火花の数（割合）、倒したときの輪の大きさ（倍）と、自機のまわりを薄くする半径と残す濃さ。
+    /// topMost は、自機の黒い面と線を光の後にもう一度重ね、まわりの光が中へにじまないようにする。
+    struct EffectLook {
+        bool enabled = false;
+        float line = 1.0f;
+        float brightness = 0.9f;
+        float debris = 0.45f;
+        float sparks = 0.5f;
+        float ring = 0.6f;
+        float clearRadius = 3.2f;
+        float clearAlpha = 0.2f;
+        bool topMost = true;
+        /// @brief 近いにじみ（敵の近いにじみに対する倍）、生まれた瞬間の明るさ（倍、0.1秒で戻る）、撃破の閃光の強さ（0 で無し）、
+        /// 割れた管の辺を飛ばすか、敵が crowdCount 体いるときの破片と火花の数（倍。glow.neon の crowdCount を使う）。
+        float glow = 0.8f;
+        float birth = 2.5f;
+        float flash = 0.5f;
+        bool edges = true;
+        float crowd = 0.5f;
+        /// @brief 撃破の主役の、割れて飛ぶ辺（計画書 p10 の23章）：飛ぶ速さと、速さ・向き・回り方のばらつき（割合）、光っている秒、
+        /// 消える前にちかちかする回数と暗い間の秒、消える時刻の辺ごとのずれ（秒）、明るさ（倍）、減速、大きい敵で光っている秒を伸ばす上限（倍）。
+        /// calmBlink は点滅を弱める（ちかちかせず、0.12秒で薄くなる）。
+        float edgeSpeed = 9.0f;
+        float edgeVary = 0.6f;
+        float edgeHold = 0.42f;
+        int edgeBlink = 2;
+        float edgeGap = 0.07f;
+        float edgeShift = 0.18f;
+        float edgeBright = 1.15f;
+        float edgeDrag = 3.2f;
+        float edgeLong = 1.3f;
+        bool calmBlink = false;
+        /// @brief 脇役（輪・欠け・火花）の明るさ（倍）と、欠け・火花の寿命（倍）。同じ時刻の撃破が重なったときに、生まれた瞬間の強さを割り引く強さ。
+        float soft = 0.7f;
+        float softLife = 0.75f;
+        float overlap = 0.6f;
+        /// @brief 自機の黒い面の濃さ（1 で真っ黒）と、縁をぼかす幅（ワールド単位）。
+        float plate = 0.85f;
+        float plateFeather = 0.16f;
+    } effects;
 };
 
 /// @brief 床に落ちる物1つの中身。id は弾の種類・素材・部品・武器の番号（kind による）。

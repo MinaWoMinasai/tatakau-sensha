@@ -10,13 +10,20 @@
 #include "game/ui/session/SurvivorChoiceHud.h"
 #include "game/ui/session/SurvivorLoadoutHud.h"
 #include "game/ui/session/SurvivorDamageNumbers.h"
+#include "game/ui/session/NeonMenuKit.h"
+#include "game/ui/session/SettingsScreen.h"
+#include "game/ui/session/SurvivorCompactHud.h"
+#include "game/ui/session/SurvivorPlayerNumbers.h"
+#include "game/ui/session/SurvivorLevelUpScreen.h"
 #include "game/ui/session/SurvivorItemScreen.h"
 #include "game/ui/session/SurvivorWeaponHud.h"
 #include <chrono>
+#include <map>
 #include <optional>
 #include <random>
 #include <sstream>
 #include <unordered_map>
+#include <nlohmann/json_fwd.hpp>
 
 namespace gameplay {
 /// @brief 育つ戦車の試作（RunMode::Survivor）の進行を担当し、同じプレイの共有状態を借用する。
@@ -52,6 +59,10 @@ public:
         if (cineMode_ == CineMode::RivalDefeat) {
             return 0.3f;
         }
+        // レベルアップの瞬間（計画書 p9 の L2）。
+        if (levelUpDelay_ > 0.0f) {
+            return 0.2f;
+        }
         return choiceOpen_ && !config_.choicePause ? config_.choiceSlowTimeScale : 1.0f;
     }
 
@@ -66,7 +77,7 @@ public:
     /// @note 止めている間も、スロー演出ではないので画面の色は残す（GameplayQueries・CombatFramePipeline）。
     bool IsPaused() const
     {
-        return IsFormChoiceOpen() || inventoryOpen_ || baseScreenOpen_ || restRoomOpen_ || heroLevelUpOpen_ || (tuningOpen_ && tuningPause_) ||
+        return pauseOpen_ || IsFormChoiceOpen() || inventoryOpen_ || baseScreenOpen_ || restRoomOpen_ || heroLevelUpOpen_ || (tuningOpen_ && tuningPause_) ||
                cineMode_ == CineMode::RivalIntro ||
                cineMode_ == CineMode::Evolve;
     }
@@ -92,6 +103,9 @@ public:
 
     /// @brief 宿敵が倒れたときに CombatFlow から1回呼ばれる。結果画面へは移らず、欠片と宝箱を落として出口を開く。
     void OnRivalDefeated();
+
+    /// @brief 結果の画面を、管の線の新しい形で出すか（計画書 p11 の R4）。入力もこの画面が受ける。
+    bool UsesResultScreen() const;
 
     /// @brief 結果画面の文字を作り直す。CombatFlow::UpdateResultText から呼ぶ。
     /// @param selection 0 なら「もう1回」、1 なら「タイトルへ」を選んでいる。
@@ -228,6 +242,55 @@ private:
 
     /// @brief MYENGINE_SURVIVOR_AUTOTEST=1：区画を最後まで遊び、時間ごとの敵の数と fps を記録して終了する。
     void UpdateSectorAutoTest(float dt);
+    // 倒れる自動確認（計画書 p11 の B2c）。SurvivorRunMortalTest.cpp。
+    struct MortalTest {
+        uint32_t seed = 0;
+        std::mt19937 random;
+        std::chrono::steady_clock::time_point start;
+        // 当たった回数・受けた量（前の更新まで）と、相手ごとの回数と量。
+        uint32_t hits = 0;
+        uint64_t damage = 0;
+        std::map<std::string, std::pair<uint32_t, uint64_t>> by;
+        float firstHitAt = -1.0f;
+        int maxAlive = 0;
+        bool noDamageSeen = false;
+        float nextSample = 30.0f;
+        std::string samples;
+        // 動き：今の移動と向き、次に見たときから始める移動と向き、前に見た敵の位置。
+        float think = 0.0f;
+        myEngine::Vector2 move{}, nextMove{};
+        float aim = 0.0f, wantedAim = 0.0f, nextAim = 0.0f;
+        std::unordered_map<uint64_t, myEngine::Vector2> positions;
+    };
+    MortalTest mortal_;
+    bool autoMortal_ = false;
+    // MYENGINE_SURVIVOR_MORTAL_PICK=nomain：強化で主武器を選ばない。
+    bool autoMortalNoMain_ = false;
+    /// @brief 今の組み立て（主武器の段・副武器・パーク・専用スキル・主武器の札が出た回数）。記録に書く。
+    nlohmann::json BuildRecord() const;
+    /// @brief 画面のゆれ（計画書 p11 の B3）：ゆれが始まった・強まった回数、そのときの強さ（設定の「画面のゆれ」を掛けた後）、ゆれていた秒。
+    nlohmann::json ShakeRecord() const;
+    void CountShake(float dt);
+    struct ShakeCount {
+        float previousTimer = 0.0f;
+        uint32_t count = 0;
+        uint32_t strong = 0;
+        double powerSum = 0.0;
+        float powerMax = 0.0f;
+        float activeSeconds = 0.0f;
+        float seconds = 0.0f;
+    };
+    ShakeCount shakeCount_;
+    float mainMaxedAt_ = -1.0f;
+    /// @brief MYENGINE_SURVIVOR_MORTAL=1 なら、ダメージを受ける自動確認にする。
+    void StartMortalTest(uint32_t seed);
+    void UpdateMortalAutoTest(float dt);
+    void ThinkMortal(const myEngine::Vector3& self);
+    void FinishMortalTest(const char* outcome, double wall);
+    /// @brief 人が遊んだ1回を save/playlog.jsonl に1行足す（outcome は dead・clear・quit）。
+    void AppendPlayLog(const char* outcome);
+    bool playLogWritten_ = false;
+    uint32_t playLogHitsBase_ = 0;
     /// @brief MYENGINE_SURVIVOR_AUTOTEST=tour：部屋の四隅を回って画面を保存し、結果を書いて終了する。
     void UpdateTourAutoTest(float dt);
     /// @brief MYENGINE_SURVIVOR_AUTOTEST=perf：敵を約200体に保ち、散らばった場面と群がった場面の fps を perf.json に書いて終了する。
@@ -273,10 +336,24 @@ private:
     };
     std::vector<SeparationItem> separationItems_;
     std::vector<uint32_t> separationOrder_;
+    std::vector<myEngine::OBB> separationWalls_;
     // 押し離しにかかった時間（200体の fps の確認で記録する）。
     bool separationEnabled_ = true;
     double separationSeconds_ = 0.0;
     uint64_t separationCalls_ = 0;
+    // 押し合いのあと、見た目で深く重なっている組（中心の距離が当たりの半径の和より近い）の数の合計と最大（計画書 p8 の G3。自動確認の記録）。
+    uint64_t separationDeepPairs_ = 0;
+    int separationDeepPairsMax_ = 0;
+    // 自機の進む向き（計画書 p8 の G3。湧く向きの基準）。速さをならして持つ。
+    myEngine::Vector3 lastPlayerPosition_{};
+    myEngine::Vector3 playerVelocity_{};
+    bool hasLastPlayerPosition_ = false;
+    std::array<int, 4> spawnSectors_{}; // 前・横・後ろ・向きなし（止まっている・割合0）
+    /// @brief 自機の位置から、ならした速さを更新する。dt は区画の時間。
+    void UpdateMoveDirection(float dt);
+    /// @brief ネオン管の見た目（計画書 p9 の H1）を、設定と今の敵の数から見た目の状態へ書く。dt はならす時間。
+    void ApplyNeonLook(float dt);
+    float neonCrowd_ = 0.0f;
     // 最小の案内（U3）。それぞれ初めて出てきたときに1回だけ、画面の下に短く出す。
     enum class Hint {
         Move,      // 始め：移動・射撃・ダッシュ
@@ -372,6 +449,140 @@ private:
     SurvivorLoadoutHud loadoutHud_;
     // 敵に当てたときのダメージの数字。
     SurvivorDamageNumbers damageNumbers_;
+    // 文字を減らした HUD（計画書 p9 の H4）。
+    SurvivorCompactHud compactHud_;
+    bool CompactHud() const
+    {
+        return HeroMode() && config_.hud.compact;
+    }
+    void UpdateCompactHud(float dt);
+    // 自機の上の数字（計画書 p9 の H3）。
+    SurvivorPlayerNumbers playerNumbers_;
+    // 止める画面（計画書 p11 の R1）。SurvivorRunMenus.cpp。
+    NeonMenuKit menuKit_;
+    NeonMenu pauseMenu_;
+    SettingsScreen settings_;
+    bool pauseOpen_ = false;
+    float pauseAge_ = 0.0f;
+    uint32_t focusLostSeen_ = 0;
+    myEngine::Vector2 menuMouse_{};
+    /// @brief 今、止める画面を開けるか（戦っている間で、ほかの画面を開いていない）。
+    bool CanOpenPause() const;
+    void OpenPause();
+    void UpdatePause(float dt);
+    /// @brief 止める画面の項目を進める。閉じたら true。
+    bool UpdatePauseMenu(float dt, const MenuInput& in);
+    /// @brief Esc・Start か、窓から離れたときに止める。開いたら true。
+    bool TryOpenPause();
+    /// @brief 止める画面・結果の画面の、持ち物の枠を積む（右上から右寄せ。top は1段目の中心）。
+    void QueueGear(float top, bool oneRow);
+    /// @brief 次の場面へ移る（0 もう1回、1 タイトル）。
+    void LeaveRun(int selection);
+    // 結果の画面（計画書 p11 の R4）。SurvivorRunMenus.cpp。
+    NeonMenu resultList_;
+    bool resultOpen_ = false;
+    float resultAge_ = 0.0f;
+    /// @brief この回より前の、一番長く生きた秒。
+    float resultBest_ = 0.0f;
+    void UpdateResultScreen(float dt);
+    void QueueResultScreen();
+    /// @brief 確認用：自機を倒す。
+    bool menuFlowDie_ = false;
+    // はじめての説明（計画書 p11 の R3）。SurvivorRunTutorial.cpp。
+    /// @brief 今の段（0 動く・1 狙う・2 拾う・3 えらぶ・4 Q。負なら説明ではない）。
+    int tutorialStep_ = -1;
+    int tutorialStage_ = 0;
+    float tutorialTime_ = 0.0f;
+    float tutorialSkip_ = 0.0f;
+    bool tutorialNoDamageBefore_ = false;
+    myEngine::Vector3 tutorialOrigin_{};
+    std::vector<myEngine::Vector3> tutorialDrops_;
+    NeonMenuKit guideKit_;
+    /// @brief 初めての人か、設定で「説明をもう一度」を選んだときに始める。
+    void StartTutorialIfNeeded();
+    void UpdateTutorial(float dt);
+    void NextTutorialStep();
+    void EndTutorial();
+    myEngine::Vector3 TutorialMark() const;
+    /// @brief 操作の絵・進み具合・飛ばす案内を積む。
+    void QueueTutorial();
+    /// @brief 初めての強化の画面に添える、キーの絵を積む。
+    void QueueCardHints();
+    /// @brief タイトルの後ろで、戦車が自動で戦う動き。
+    void UpdateTitleDemoBot();
+    /// @brief 画面の出入りの確認（MenuFlow）に、今の画面を知らせる。
+    void ReportMenuFlow();
+    uint64_t lastHpLost_ = 0;
+    bool autoHurtCaptured_ = false;
+    bool autoHealNumberCaptured_ = false;
+    bool autoReviveCaptured_ = false;
+    bool HurtNumbers() const
+    {
+        return HeroMode() && config_.hud.hurtNumbers;
+    }
+    // 強化の画面（計画書 p9 の L1）。SurvivorRunLevelUpScreen.cpp。
+    SurvivorLevelUpScreen levelUpScreen_;
+    myEngine::Vector2 levelUpMouse_{};
+    size_t autoPreviewNext_ = 0;
+    size_t autoLevelUpShots_ = 0;
+    bool LevelUpScreenOn() const
+    {
+        return HeroMode() && config_.hud.levelUpScreen;
+    }
+    /// @brief 開いている強化の画面か、Tab の持ち物の画面が新しい画面か。
+    bool LevelUpScreenShown() const
+    {
+        return LevelUpScreenOn() && (heroLevelUpOpen_ || inventoryOpen_);
+    }
+    std::vector<SurvivorLevelUpScreen::Group> OwnedGroups() const;
+    void OpenLevelUpView();
+    void OpenInventoryView();
+    /// @brief 入力を渡して画面を進め、決まったら選ぶ。dt は止まっていない時間。
+    void UpdateLevelUpScreen(float dt);
+    // レベルアップの瞬間の演出（計画書 p9 の L2）。画面が開くまでの残りの秒（0以下なら待っていない）と、広がる輪。
+    float levelUpDelay_ = 0.0f;
+    float levelUpBurstAge_ = -1.0f;
+    myEngine::Vector3 levelUpBurstAt_{};
+    int levelUpBursts_ = 0;
+    int levelUpPushed_ = 0;
+    bool autoLevelUpBurstCaptured_ = false;
+    int autoLookDemoState_ = 0;
+    float autoLookDemoAt_ = 0.0f;
+    float autoLookDemoHitAt_ = 0.0f;
+    /// @brief 自機の弾を細い針で描くか（計画書 p10 の16章の M2）。
+    bool NeedleShots() const;
+    /// @brief 針の弾の見た目を、弾の描画へ渡す。
+    void ApplyNeedleLook();
+    /// @brief 自機の履帯戦車の、車体の向きと履帯の流れを進める（計画書 p10 の16章の M1）。
+    void UpdateTankPose(float dt);
+    myEngine::Vector3 tankLastPosition_{};
+    bool tankPoseReady_ = false;
+    float tankHullAngle_ = -1.5707963f;
+    float tankTreadLeft_ = 0.0f;
+    float tankTreadRight_ = 0.0f;
+    float tankSpeed_ = 0.0f;
+    uint64_t autoLookDemoFrames_ = 0;
+    float autoLookDemoHull_ = 0.0f;
+    float autoLookDemoKillAt_ = -1.0f;
+    int autoLookDemoShot_ = 0;
+    myEngine::Vector3 autoLookDemoSelf_{};
+    std::chrono::steady_clock::time_point autoLookDemoClock_{};
+    /// @brief 見た目を測る写真を順に撮る。撮っている間は true（ボットは動かさない）。
+    bool UpdateLookDemo();
+    bool autoLevelUpCloseCaptured_ = false;
+    bool LevelUpEffectOn() const
+    {
+        return LevelUpScreenOn() && config_.hud.levelUpEffect;
+    }
+    /// @brief 強化の画面を開く。演出を使うなら、輪を広げて少しゆっくりにしてから開く。
+    void RequestHeroLevelUp();
+    /// @brief 演出の時間を進め、待ち終わったら画面を開く。dt は止めたり遅くしたりしない時間。
+    void UpdateLevelUpMoment(float dt);
+    void QueueLevelUpBurst(myEngine::NeonGridRenderer& renderer) const;
+    void UpdatePlayerNumbers(float dt);
+    /// @brief 回復の数字を出す。数字を使わない設定では、今まで通り文字 text を出す。
+    void ShowHeal(int amount, const std::string& text);
+    void ShowHeroRevived() override;
     /// @brief 設定からダメージの数字の見た目を渡す（始めと、調整パネルで変えたとき）。
     void ApplyDamageNumberConfig();
     bool removalOpen_ = false;
@@ -784,6 +995,8 @@ private:
             return upgrade == other.upgrade && sub == other.sub && index == other.index && filler == other.filler && skill == other.skill;
         }
     };
+    /// @brief 強化の画面（計画書 p9 の L1）の札。
+    SurvivorLevelUpScreen::Card OfferCard(const ShopOffer& offer) const;
     /// @brief 設定の機体に、技の強化の段とパークを効かせて Hero() を作り直し、主武器・最大HPに入れ直す。heal なら HP を満タンにする。
     void RebuildHero(bool heal);
     /// @brief 設定の heroes.onlyUltimate なら、右クリック・Shift・E の技を空きにする（計画書 p7 の E5。Q と主武器は残す）。
@@ -809,6 +1022,18 @@ private:
     /// @brief 区画の時計が来た出来事を起こし、倒された中ボスのごほうびを渡す。
     void UpdateTimeline();
     void RunTimelineEvent(const survivor::SpawnConfig::TimelineEvent& event);
+    // 包囲の輪の切れ目（計画書 p11 の B2b）：知らせている輪の時刻と、切れ目の向き（無ければ at が負）。
+    struct RingWarning {
+        float at = -1.0f;
+        float lead = 0.0f;
+        float angle = 0.0f;
+        float gap = 0.0f;
+        float radius = 0.0f;
+    };
+    RingWarning ringWarning_;
+    /// @brief 切れ目の向きを、自機の進む側でなく、部屋の中で抜けられる方から選ぶ。
+    float PickRingGap(float radius);
+    void QueueRingWarning(myEngine::NeonGridRenderer& renderer) const;
     /// @brief prefab を position に湧かせ、HP を倍率に合わせ、speed で自機へ寄らせる。湧けたら敵を返す。
     ExpEnemy* SpawnChaser(const std::string& prefab, const myEngine::Vector3& position, float speed);
     // 次に起こす出来事の番号・起こした数。中ボス（敵の id と、倒したときに選べる3択の回数）・倒した数。
@@ -862,6 +1087,10 @@ private:
     std::vector<ShopOffer> heroLevelUpOffers_;
     // 選んだ物の記録（レベル:名前）。
     std::vector<std::string> heroLevelUpLog_;
+    // 主武器の札の出方（計画書 p11 の B2b）：札が出なかった続きの回数（-1 は、まだ1回も開いていない）、主武器の札が出た回数、開いた回数。
+    int mainOfferMissed_ = -1;
+    int mainOffers_ = 0;
+    int levelUpsOpened_ = 0;
     bool autoLevelUpCaptured_ = false;
     bool autoSubWeaponCaptured_ = false;
     /// @brief 並んでいる offer 番目を買う。お金が足りなければ何もしない。買えたら真。
@@ -902,6 +1131,10 @@ private:
     float HeroPowerScale() const override
     {
         return 1.0f + fillerPower_;
+    }
+    float SubWeaponPower() const override
+    {
+        return HeroMode() ? config_.heroes.subWeaponPower : 1.0f;
     }
     /// @brief 波の間のショップの画面を作る。
     void RefreshShop();

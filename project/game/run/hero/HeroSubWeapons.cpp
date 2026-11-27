@@ -1,5 +1,6 @@
 #include "game/enemy/actor/Enemy.h"
 #include "game/render/neon/NeonGridRenderer.h"
+#include "game/render/session/TubeEffects.h"
 #include "game/run/hero/HeroAbilityCore.h"
 #include "game/session/GameWorld.h"
 #include "game/session/GameplaySystems.h"
@@ -136,7 +137,7 @@ void HeroAbilityCore::UpdateSubWeapons(float dt)
         if (tick) {
             orbitTick_ += kOrbitTick;
         }
-        const auto amount = static_cast<uint32_t>((std::max)(1.0f, std::round(HeroDamageUnit(t.damage))));
+        const auto amount = static_cast<uint32_t>((std::max)(1.0f, std::round(HeroDamageUnit(t.damage * SubWeaponPower()))));
         for (ExpEnemy* enemy : heroWorld_.resources.enemyManager_->GetEnemyPtrs()) {
             if (!tick || !enemy || enemy->IsDead() || enemy->IsRunResource()) {
                 continue;
@@ -220,7 +221,7 @@ void HeroAbilityCore::UpdateSubWeapons(float dt)
                 for (size_t i = 0; i < (std::min)(found, static_cast<size_t>(t.targets)); ++i) {
                     Player::SurvivorShot shot;
                     shot.direction = myEngine::Vector3{targets[i].second.x - self.x, targets[i].second.y - self.y, 0.0f};
-                    shot.damageScale = t.damage * HeroPowerScale();
+                    shot.damageScale = t.damage * SubPowerScale();
                     shot.speedScale = 1.6f;
                     shot.size = 0.7f;
                     shot.pierce = t.pierce;
@@ -265,14 +266,14 @@ void HeroAbilityCore::UpdateSubWeapons(float dt)
                 continue;
             }
             const float mineRadius = t.radius * HeroAreaScale();
-            player.TriggerBlastAt(it->position, mineRadius, t.damage * HeroPowerScale(), kMineColor, 0.0f);
+            player.TriggerBlastAt(it->position, mineRadius, t.damage * SubPowerScale(), kMineColor, 0.0f);
             ++mineBlasts_;
             // 覚醒：まわりに小さな爆発が3つ続く。
             if (tier >= survivor::kMaxSubWeaponTier) {
                 for (int i = 0; i < 3; ++i) {
                     const float a = orbitAngle_ + 6.2831853f * static_cast<float>(i) / 3.0f;
                     const myEngine::Vector3 offset{std::cos(a) * mineRadius * 0.9f, std::sin(a) * mineRadius * 0.9f, 0.0f};
-                    player.TriggerBlastAt(it->position + offset, mineRadius * 0.6f, t.damage * 0.5f * HeroPowerScale(), kMineColor, 0.15f + 0.05f * static_cast<float>(i));
+                    player.TriggerBlastAt(it->position + offset, mineRadius * 0.6f, t.damage * 0.5f * SubPowerScale(), kMineColor, 0.15f + 0.05f * static_cast<float>(i));
                 }
             }
             it = mines_.erase(it);
@@ -342,7 +343,7 @@ void HeroAbilityCore::UpdateNewSubWeapons(float dt)
             ++it;
             continue;
         }
-        player.TriggerBlastAt(it->position, it->radius, it->damage * HeroPowerScale(), kMortarColor, 0.0f);
+        player.TriggerBlastAt(it->position, it->radius, it->damage * SubPowerScale(), kMortarColor, 0.0f);
         ++mortarBlasts_;
         it = mortarShells_.erase(it);
     }
@@ -388,7 +389,7 @@ void HeroAbilityCore::UpdateNewSubWeapons(float dt)
                 }
                 Player::SurvivorShot shot;
                 shot.direction = myEngine::Vector3{target.x - from.x, target.y - from.y, 0.0f};
-                shot.damageScale = t.damage * HeroPowerScale();
+                shot.damageScale = t.damage * SubPowerScale();
                 shot.speedScale = 1.5f;
                 shot.size = 0.6f;
                 shot.pierce = t.pierce;
@@ -424,8 +425,8 @@ void HeroAbilityCore::UpdateNewSubWeapons(float dt)
             if (flameTick_ <= 0.0f) {
                 flameTick_ += kFlameTick;
                 const float cosHalf = std::cos(t.halfAngle * 3.14159265f / 180.0f);
-                const auto amount = static_cast<uint32_t>((std::max)(1.0f, std::round(HeroDamageUnit(t.damage))));
-                const float burn = HeroDamageUnit(t.burn);
+                const auto amount = static_cast<uint32_t>((std::max)(1.0f, std::round(HeroDamageUnit(t.damage * SubWeaponPower()))));
+                const float burn = HeroDamageUnit(t.burn * SubWeaponPower());
                 auto inside = [&](const myEngine::Vector3& position, float radius) {
                     const myEngine::Vector3 to{position.x - self.x, position.y - self.y, 0.0f};
                     const float distance = myEngine::Length(to);
@@ -461,15 +462,22 @@ void HeroAbilityCore::UpdateNewSubWeapons(float dt)
         if (pulseTimer_ <= 0.0f) {
             pulseTimer_ += t.interval;
             pulseTimer_ = (std::max)(pulseTimer_, 0.1f);
-            TriggerShockwave(self, t.radius, HeroDamageUnit(t.damage), t.push, tier >= survivor::kMaxSubWeaponTier);
+            TriggerShockwave(self, t.radius, HeroDamageUnit(t.damage * SubWeaponPower()), t.push, tier >= survivor::kMaxSubWeaponTier);
             ++pulses_;
         }
     }
 }
 
-void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer) const
+void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer, const myEngine::Vector3& cameraForward) const
 {
+    // 管の線で描くとき（計画書 p10 の16章の M3）：太さをそろえた1本の線にし、中の白い輪は描かない。
+    const auto& tube = heroWorld_.presentation.runNeonLook_;
+    const bool tubes = tube.tubeEffects;
     auto circle = [&](const myEngine::Vector3& center, float radius, float width, const myEngine::Vector4& color, float phase, int sides) {
+        if (tubes) {
+            tubefx::Circle(renderer, tube, center, radius, 0.05f + width * 0.1f, tubefx::Steady(color), phase, sides, cameraForward, 0.6f);
+            return;
+        }
         for (int n = 0; n < sides; ++n) {
             const float a = phase + 6.2831853f * static_cast<float>(n) / static_cast<float>(sides),
                         b = phase + 6.2831853f * static_cast<float>(n + 1) / static_cast<float>(sides);
@@ -494,7 +502,22 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer) cons
     const float glow = SubWeaponTier(SubWeapon::Orbit) >= 3 ? 1.3f : 1.0f;
     for (size_t i = 0; i < count; ++i) {
         circle(balls[i], kOrbitBall, 0.16f, {0.5f * glow, 1.6f * glow, 2.2f * glow, 0.95f}, orbitAngle_ * 3.0f, 12);
-        circle(balls[i], kOrbitBall * 0.45f, 0.2f, {1.2f, 2.0f, 2.4f, 0.9f}, -orbitAngle_ * 4.0f, 8);
+        if (!tubes) {
+            circle(balls[i], kOrbitBall * 0.45f, 0.2f, {1.2f, 2.0f, 2.4f, 0.9f}, -orbitAngle_ * 4.0f, 8);
+        } else {
+            // 中に、回る向きを指す小さな山形を入れる（ただの輪に見えないように）。
+            const float a = std::atan2(balls[i].y - heroWorld_.resources.player_->GetWorldPosition().y,
+                                       balls[i].x - heroWorld_.resources.player_->GetWorldPosition().x) +
+                            1.57079633f;
+            const myEngine::Vector3 forward{std::cos(a), std::sin(a), 0.0f}, side{-std::sin(a), std::cos(a), 0.0f};
+            const myEngine::Vector3 c = balls[i] + myEngine::Vector3{0.0f, 0.0f, -0.3f};
+            const myEngine::Vector4 color{0.25f * glow, 0.6f * glow, 0.8f * glow, 0.9f};
+            for (int chevron = 0; chevron < 2; ++chevron) {
+                const myEngine::Vector3 tip = c + forward * (0.26f - 0.24f * static_cast<float>(chevron));
+                tubefx::Line(renderer, tube, tip - forward * 0.18f + side * 0.16f, tip, 0.032f, color, cameraForward);
+                tubefx::Line(renderer, tube, tip - forward * 0.18f - side * 0.16f, tip, 0.032f, color, cameraForward);
+            }
+        }
     }
     // 迫撃砲：落ちる所に、赤い輪が縮みながら点滅する。
     for (const MortarShell& shell : mortarShells_) {
@@ -507,8 +530,22 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer) cons
     if (const int tier = SubWeaponTier(SubWeapon::Drone); tier > 0 && dronesPlaced_) {
         for (int i = 0; i < kDrone[static_cast<size_t>(tier - 1)].count; ++i) {
             const myEngine::Vector3& p = dronePositions_[static_cast<size_t>(i)];
+            if (tubes) {
+                // 自機から見て外を向いた矢じり（敵のいる外側へ撃つ機体に見えるように）。
+                const myEngine::Vector3 out = myEngine::NormalizeOr(p - heroWorld_.resources.player_->GetWorldPosition(),
+                                                                    myEngine::Vector3{1.0f, 0.0f, 0.0f}, 0.001f);
+                const myEngine::Vector3 side{-out.y, out.x, 0.0f};
+                const myEngine::Vector3 c = p + myEngine::Vector3{0.0f, 0.0f, -0.3f};
+                const myEngine::Vector3 points[4]{c + out * 0.5f, c - out * 0.3f + side * 0.34f, c - out * 0.08f, c - out * 0.3f - side * 0.34f};
+                for (int edge = 0; edge < 4; ++edge) {
+                    tubefx::Line(renderer, tube, points[edge], points[(edge + 1) % 4], 0.045f, {1.0f, 0.85f, 0.18f, 0.95f}, cameraForward, 0.6f);
+                }
+                continue;
+            }
             circle(p, 0.42f, 0.14f, kDroneColor, droneAngle_ * 4.0f, 3);
-            circle(p, 0.16f, 0.16f, {2.4f, 2.2f, 1.2f, 0.9f}, 0.0f, 6);
+            if (!tubes) {
+                circle(p, 0.16f, 0.16f, {2.4f, 2.2f, 1.2f, 0.9f}, 0.0f, 6);
+            }
         }
     }
     // 火炎放射：扇の中に、ゆらめく橙と黄の炎の筋を何本も出す。
@@ -527,6 +564,15 @@ void HeroAbilityCore::QueueSubWeapons(myEngine::NeonGridRenderer& renderer) cons
                 const myEngine::Vector3 start = self + dir * 0.9f;
                 const bool core = n % 3 == 1;
                 const myEngine::Vector4 color = core ? myEngine::Vector4{2.4f, 1.9f, 0.5f, 0.85f} : myEngine::Vector4{2.4f, 0.75f, 0.15f, 0.7f};
+                if (tubes) {
+                    // 管の線：自機のすぐ前から、1本おきに長さと太さを変えた細い筋を出す。
+                    const bool thin = n % 2 == 1;
+                    const float from = (std::min)(length * 0.5f, 1.15f + 0.2f * wobble);
+                    tubefx::Line(renderer, tube, self + dir * from + myEngine::Vector3{0.0f, 0.0f, -0.3f},
+                                 self + dir * (thin ? length * 0.72f : length) + myEngine::Vector3{0.0f, 0.0f, -0.3f}, thin ? 0.028f : 0.045f,
+                                 {color.x * 0.3f, color.y * 0.3f, color.z * 0.3f, 0.7f}, cameraForward, 0.8f);
+                    continue;
+                }
                 renderer.QueueLine(start + myEngine::Vector3{0.0f, 0.0f, -0.3f}, self + dir * length + myEngine::Vector3{0.0f, 0.0f, -0.3f},
                                    core ? 0.16f : 0.22f, color);
             }

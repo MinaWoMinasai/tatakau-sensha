@@ -129,7 +129,7 @@ private:
 
     bool active_ = false;
     float clock_ = 0.0f;
-    // 自動で撃つ（HoloCure と同じ：押さなくても向いている方へ撃ち続け、向きと移動だけを操作する）。
+    // 自動で撃つ（押さなくても向いている方へ撃ち続け、向きと移動だけを操作する）。
     bool autoFire_ = true;
     /// @brief 選んだときの機体（強化を効かせる前）と、技ごとの強化の段。
     survivor::HeroDefinition baseHero_{};

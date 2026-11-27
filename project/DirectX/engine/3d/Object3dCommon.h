@@ -65,6 +65,12 @@ public:
         isDebugCamera_ = isDebugCamera;
     }
 
+    /// @brief 開発用の窓（light）を出すかを設定する。
+    void SetDebugUiEnabled(bool enabled)
+    {
+        debugUiEnabled_ = enabled;
+    }
+
     /// @brief ライト視点射影を返す。
     Matrix4x4& GetLightViewProjection()
     {

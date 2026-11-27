@@ -2,6 +2,8 @@
 #include "game/editor/SurvivorTuningPanel.h"
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
+#include "game/debug/MenuFlow.h"
+#include "game/settings/UserSettings.h"
 #include "game/player/TankRunModifiers.h"
 #include "game/render/settings/ArenaCameraProfile.h"
 #include "RuntimeProfiler.h"
@@ -145,8 +147,14 @@ void SurvivorRunController::Initialize()
     nextTank_ = config_.tanks.from;
     nextBigPentagon_ = config_.bigPentagon.from;
     timelineNext_ = 0;
+    ringWarning_.at = -1.0f;
     midBosses_.clear();
     healPickups_.clear();
+    hasLastPlayerPosition_ = false;
+    playerVelocity_ = {};
+    spawnSectors_ = {};
+    separationDeepPairs_ = 0;
+    separationDeepPairsMax_ = 0;
 
     myEngine::TextStyle style{};
     style.fontFamily = "Meiryo";
@@ -275,11 +283,24 @@ void SurvivorRunController::Initialize()
 
     // ダメージの数字。命中の通知は衝突処理の途中から来るので、控えるだけにして、更新で位置を決める。
     damageNumbers_.Initialize();
+    compactHud_.Initialize();
+    playerNumbers_.Initialize();
+    menuKit_.Initialize();
+    focusLostSeen_ = world_.resources.input_->GetFocusLostCount();
+    // 強化の画面（計画書 p9 の L1）は板が多いので、使う設定のときだけ作る。
+    if (LevelUpScreenOn()) {
+        levelUpScreen_.Initialize();
+    }
+    lastHpLost_ = world_.resources.player_->GetSurvivorHpLost();
     ApplyDamageNumberConfig();
     // 与えたダメージは、機体の Q のゲージにもなる（H5）。
     ExpEnemy::SetPlayerDamageCallback([this](const ExpEnemy& enemy, uint32_t amount) {
         damageNumbers_.Spawn(enemy.GetCollisionId(), enemy.GetWorldPosition(), amount,
-                             world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio);
+                             world_.resources.player_->GetStats().bulletDamage * config_.damageNumbers.bigRatio, ExpEnemy::IsHitCritical());
+        // 倒れた敵は、管の辺がそのまま割れて飛ぶ（計画書 p10 の20章）。
+        if (enemy.GetHp() <= 0) {
+            world_.combatEffects->SpawnBrokenTube(enemy);
+        }
         AddUltimateCharge(static_cast<float>(amount));
         damageDealt_ += amount;
         // パーク「吸い取る装甲」：与えたダメージの一部で回復する（端数は貯める。衝突処理の途中なので HP を足すだけ）。
@@ -337,6 +358,7 @@ void SurvivorRunController::Initialize()
         world_.resources.player_->SetDebugNoDamage(true);
         std::filesystem::create_directories(kAutoTestDirectory);
         sampleStart_ = std::chrono::steady_clock::now();
+        StartMortalTest(seed);
         // MYENGINE_SURVIVOR_TRAIT=standard：特性の2択で標準を選ぶ（既定は冷却炉）。
         wchar_t traitName[24]{};
         if (GetEnvironmentVariableW(L"MYENGINE_SURVIVOR_TRAIT", traitName, 24) > 0 && std::wstring(traitName) == L"standard") {
@@ -453,7 +475,7 @@ void SurvivorRunController::Initialize()
         // 機体の遊び方（計画書 p4）なら、機体の主武器1つを枠に入れる。そうでなければ拠点の武器3つ。
         // 機体は、前に選んだ機体（環境変数で決めていなければ）。使えない機体なら StartHero が使える機体へ替える。
         LoadHeroSaveFile();
-        if (!heroStartFromEnv_ && !heroSave_.selected.empty()) {
+        if (!heroStartFromEnv_ && !heroSave_.selected.empty() && !config_.heroes.single) {
             config_.heroes.start = heroSave_.selected;
         }
         StartHero();
@@ -469,6 +491,7 @@ void SurvivorRunController::Initialize()
         // 機体の遊び方では、拠点で機体を選ぶ・解放する（K6）。
         if (!world_.demo.titleDemo_ && autoTest_ != AutoTest::Tour && autoTest_ != AutoTest::Perf) {
             OpenBaseScreen();
+            StartTutorialIfNeeded();
         }
         // 出口の案内は、袋の一行の下へずらす。
         if (exitText_) {
@@ -488,16 +511,32 @@ void SurvivorRunController::Update(float dt)
     // 自動で撃つのは、戦っている間に機体の入力を読むとき（UpdateHeroInput）だけ入れる。ショップ・持ち物・ポーズでは撃たない。
     world_.resources.player_->SetAutoFire(false);
     if (world_.combat.phase_ != Phase::kMain) {
+        // 始まりのフェードインの間も、今の見た目と自機の形にしておく（計画書 p11 の B3 の5。前は既定の見た目と前の自機が約1秒出ていた）。
+        ApplyNeonLook(0.0f);
+        UpdateTankPose(0.0f);
         return;
     }
     if (autoTest_ == AutoTest::Tour) {
         UpdateTourAutoTest(dt);
         return;
     }
-    UpdateTuningPanel();
+    if (world_.demo.titleDemo_) {
+        UpdateTitleDemoBot();
+    } else {
+        UpdateTuningPanel();
+    }
     UpdateCinematic(dt);
     SampleFps();
-    if (restRoomOpen_ || heroLevelUpOpen_) {
+    ReportMenuFlow();
+    if (world_.demo.titleDemo_) {
+        // タイトルの後ろでは、入力を読まない。
+    } else if (pauseOpen_) {
+        UpdatePause(dt);
+    } else if (TryOpenPause()) {
+        // 止めた更新では、ほかの操作を受けない。
+    } else if (heroLevelUpOpen_ && LevelUpScreenOn()) {
+        UpdateLevelUpScreen(dt);
+    } else if (restRoomOpen_ || heroLevelUpOpen_) {
         UpdateScreenInput();
     } else if (traitChoiceOpen_) {
         UpdateTraitChoiceInput();
@@ -510,9 +549,15 @@ void SurvivorRunController::Update(float dt)
             // 出撃前の拠点の画面。E（機体の遊び方では Tab。E は技）で持ち物の画面を開け閉めする。開いている間は、武器の操作を受け付けない。
             if (baseScreenOpen_) {
                 UpdateScreenInput();
-            } else if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(HeroMode() ? DIK_TAB : DIK_E)) {
+            } else if (autoTest_ == AutoTest::None && tutorialStep_ < 0 && world_.resources.input_->IsKeyTriggered(HeroMode() ? DIK_TAB : DIK_E)) {
                 // 自動確認の間は、本物のキーボードで開かない（隠した窓でもキーを読むので、Tab を押すと止まっていた）。
                 inventoryOpen_ ? CloseInventory() : OpenInventory();
+            } else if (inventoryOpen_ && LevelUpScreenOn()) {
+                UpdateLevelUpScreen(dt);
+                // Esc（コントローラーは B）でも閉じる。
+                if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(DIK_ESCAPE)) {
+                    CloseInventory();
+                }
             } else if (inventoryOpen_) {
                 UpdateScreenInput();
             } else if (HeroMode()) {
@@ -534,15 +579,23 @@ void SurvivorRunController::Update(float dt)
         choiceOpenSeconds_ += dt;
     }
     // 区画の時計・湧き方・欠片は、3択を止めずに開いている間のスローに合わせて遅くし、選ぶ画面の間と調整パネルで止めた間は止める。
+    if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
+        UpdateLevelUpMoment(dt);
+    }
     const float gameDt = IsPaused() ? 0.0f : dt * GetTimeScale();
     if (world_.combat.combatFlow_.GetState() == GameFlowState::Playing && !cleared_) {
-        elapsed_ += gameDt;
+        // はじめての説明の間は、時間を進めず、敵も湧かせない。
+        const bool guiding = tutorialStep_ >= 0;
+        elapsed_ += guiding ? 0.0f : gameDt;
         if (WeaponMode()) {
             UpdateWeaponTimers(gameDt);
         }
         if (HeroMode()) {
             UpdateHeroAbilities(gameDt);
-            runSeconds_ += gameDt;
+            runSeconds_ += guiding ? 0.0f : gameDt;
+        }
+        if (guiding && gameDt > 0.0f) {
+            UpdateTutorial(gameDt);
         }
         const PlayerHeat& heat = world_.resources.player_->GetHeat();
         if (heat.GetHeat() >= heat.GetMaxHeat() * 0.7f) {
@@ -552,16 +605,20 @@ void SurvivorRunController::Update(float dt)
             myEngine::RuntimeProfiler::CpuScope spawnScope("Survivor Spawns");
             if (speedTest_) {
                 UpdateSpeedTest(gameDt);
-            } else {
+            } else if (!guiding) {
                 UpdateSpawns(gameDt);
-                UpdateTimeline();
+                if (!world_.demo.titleDemo_) {
+                    UpdateTimeline();
+                }
             }
         }
         myEngine::RuntimeProfiler::CpuScope shardScope("Survivor Shards / Q / Separation");
-        AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
+        if (!guiding) {
+            AddExperience(pickups_.Update(gameDt, world_.resources.player_->GetWorldPosition(),
                                       survivor::CollectorMagnetScale(config_.parts, partLevels_) *
                                           (HasPerk(survivor::PerkId::Magnet) ? 1.0f + PerkValue(survivor::PerkId::Magnet) : 1.0f),
                                       survivor::HasChange(partLevels_, survivor::PartId::Collector)));
+        }
         if (WeaponMode()) {
             UpdateLoot(gameDt);
         }
@@ -593,6 +650,15 @@ void SurvivorRunController::Update(float dt)
             QueueHint(Hint::Heat);
         }
         UpdateHints(dt);
+        if (gameDt > 0.0f) {
+            UpdateMoveDirection(gameDt);
+        }
+        ApplyNeonLook(dt);
+        if (world_.resources.bulletManager_) {
+            world_.resources.bulletManager_->SetBlastShake(config_.hud.blastShake);
+        }
+        CountShake(dt);
+        UpdateTankPose(gameDt);
         if (gameDt > 0.0f && separationEnabled_) {
             const auto separationStart = std::chrono::steady_clock::now();
             SeparateEnemies();
@@ -676,9 +742,26 @@ void SurvivorRunController::Update(float dt)
             }
             weaponHud_.Update(dt, state);
         }
-        damageNumbers_.Update(dt, [this](const myEngine::Vector3& world) {
-            return world_.gameplayHud->WorldToScreen(world);
-        });
+        damageNumbers_.Update(
+            dt,
+            [this](const myEngine::Vector3& world) {
+                return world_.gameplayHud->WorldToScreen(world);
+            },
+            world_.resources.player_->GetWorldPosition());
+        UpdateCompactHud(dt);
+        if (tutorialStep_ >= 0) {
+            QueueTutorial();
+            if (heroLevelUpOpen_) {
+                tutorialTime_ += dt;
+                QueueCardHints();
+            }
+        }
+        if (inventoryOpen_ && LevelUpScreenOn()) {
+            menuKit_.Begin();
+            menuKit_.Hints({{{"Esc"}, "B", "もどる"}}, world_.resources.input_->IsGamepadActive(), 1118.0f);
+            menuKit_.End();
+        }
+        UpdatePlayerNumbers(dt);
     }
     hudRefresh_ -= dt;
     if (hudRefresh_ <= 0.0f) {
@@ -690,12 +773,15 @@ void SurvivorRunController::Update(float dt)
     if (IsResultVisible()) {
         if (!runLogWritten_) {
             runLogWritten_ = true;
+            AppendPlayLog(cleared_ ? "clear" : "dead");
             AwardHeroPoints();
             CommitRunToBase();
             WriteRunLog();
             RefreshResult(world_.combat.resultSelection_);
         }
-        if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(DIK_R)) {
+        if (UsesResultScreen()) {
+            UpdateResultScreen(dt);
+        } else if (autoTest_ == AutoTest::None && world_.resources.input_->IsKeyTriggered(DIK_R)) {
             world_.combat.resultSelection_ = 0;
             world_.combatFlow->ConfirmResultSelection();
             return;
@@ -703,11 +789,236 @@ void SurvivorRunController::Update(float dt)
     }
     UpdateAudio(dt);
     myEngine::RuntimeProfiler::CpuScope autoTestScope("Survivor AutoTest");
-    if (autoTest_ == AutoTest::Sector) {
+    if (autoTest_ == AutoTest::Sector && autoMortal_) {
+        UpdateMortalAutoTest(dt);
+    } else if (autoTest_ == AutoTest::Sector) {
         UpdateSectorAutoTest(dt);
     } else if (autoTest_ == AutoTest::Perf) {
         UpdatePerfAutoTest(dt);
     }
+}
+
+void SurvivorRunController::ApplyNeonLook(float dt)
+{
+    auto& out = world_.presentation.runNeonLook_;
+    const auto& look = config_.glow.neon;
+    if (!look.enabled) {
+        out = {};
+    }
+    out.smallEnemyHpBars = config_.damageNumbers.enemyHpBars;
+    // 文字を減らした HUD（計画書 p9 の H4）：弧の代わりに自機の下のバー。開発用の小さな窓は、調整パネルを開いている間だけ出す。
+    out.playerHpArc = !CompactHud();
+    out.playerUltimateArc = !CompactHud();
+    out.playerStaminaArcs = !(CompactHud() && config_.heroes.onlyUltimate);
+    out.hideDevWindows = CompactHud() && !tuningOpen_;
+    out.hurtText = !HurtNumbers();
+    out.hurtShake = HurtNumbers() ? config_.hud.hurtShake : 1.0f;
+    out.playerTank = look.enabled && config_.glow.tank.enabled;
+    // 爆発・破片・副武器（計画書 p10 の16章の M3）。粒子は、立体の粒ではなく線の粒で出す（白い玉は出さない）。
+    const auto& effects = config_.glow.effects;
+    out.tubeEffects = look.enabled && effects.enabled;
+    out.effectLine = effects.line;
+    out.effectBrightness = effects.brightness;
+    // 敵が多いときだけ、破片と火花を減らす。
+    const float thin = 1.0f + (effects.crowd - 1.0f) * neonCrowd_;
+    out.effectDebris = effects.debris * thin;
+    out.effectSparks = effects.sparks * thin;
+    out.effectGlow = effects.glow;
+    out.effectBirth = effects.birth;
+    out.effectFlash = effects.flash;
+    out.effectEdges = effects.edges;
+    out.edgeSpeed = effects.edgeSpeed;
+    out.edgeVary = effects.edgeVary;
+    out.edgeHold = effects.edgeHold;
+    out.edgeGap = effects.edgeGap;
+    out.edgeShift = effects.edgeShift;
+    out.edgeBright = effects.edgeBright;
+    out.edgeDrag = effects.edgeDrag;
+    out.edgeLong = effects.edgeLong;
+    out.edgeBlink = effects.edgeBlink;
+    out.calmBlink = effects.calmBlink || usersettings::Get().calm;
+    out.effectSoft = effects.soft;
+    out.effectSoftLife = effects.softLife;
+    out.effectOverlap = effects.overlap;
+    out.tankPlate = out.tubeEffects ? effects.plate : 1.0f;
+    out.tankPlateFeather = out.tubeEffects ? effects.plateFeather : 0.0f;
+    out.effectRing = effects.ring;
+    out.effectClearRadius = out.tubeEffects ? effects.clearRadius : 0.0f;
+    out.effectClearAlpha = effects.clearAlpha;
+    out.effectClearCenter = world_.resources.player_->GetWorldPosition();
+    out.tankTopMost = out.playerTank && out.tubeEffects && effects.topMost;
+    myEngine::ParticleManager::GetInstance()->SetNeonTriangleEffectMode(
+        out.tubeEffects ? myEngine::ParticleManager::NeonTriangleEffectMode::Outline
+                        : static_cast<myEngine::ParticleManager::NeonTriangleEffectMode>(world_.presentation.neonTriangleEffectMode_));
+    myEngine::Object3dCommon::GetInstance()->SetDebugUiEnabled(!out.hideDevWindows);
+    if (!look.enabled) {
+        return;
+    }
+    out.enemyCoreWhite = look.enemyCoreWhite;
+    out.enemyCoreIntensity = look.enemyCoreIntensity;
+    out.enemyHaloIntensity = look.enemyHaloIntensity;
+    out.enemyHaloWidth = look.enemyHaloWidth;
+    out.enemyColor = look.enemyColor;
+    out.enemyFlatBody = look.flatBody;
+    out.enemyLine = look.enemyLine;
+    out.nebula = look.nebula;
+    out.colorShift = look.colorShift;
+    out.persistence = look.persistence;
+    out.scanline = look.scanline;
+    out.temporal = look.temporal;
+    out.nearGlow = look.nearGlow;
+    out.nearGlowRadius = look.nearGlowRadius;
+    out.worldGrid = look.worldGrid;
+    out.localGrid = look.localGrid;
+    out.enemyGrid = look.enemyGrid;
+    out.walls = look.walls;
+    out.floorLight = look.floorLight;
+    // 自動の露出合わせ：敵が多いほどブルームを弱める（0.5秒ほどでならす）。
+    const float crowd = (std::clamp)(static_cast<float>(CountAlive().total) / (std::max)(1.0f, look.crowdCount), 0.0f, 1.0f);
+    neonCrowd_ += (crowd - neonCrowd_) * (1.0f - std::exp(-(std::max)(0.0f, dt) * 2.0f));
+    out.bloom = (std::max)(0.0f, look.bloom * (1.0f + (look.crowdBloom - 1.0f) * neonCrowd_));
+}
+
+bool SurvivorRunController::NeedleShots() const
+{
+    return config_.weaponsEnabled && config_.glow.neon.enabled && config_.glow.needle.enabled;
+}
+
+void SurvivorRunController::ApplyNeedleLook()
+{
+    if (!world_.resources.neonProjectileRenderer_) {
+        return;
+    }
+    NeonProjectileParams params = world_.resources.neonProjectileRenderer_->GetParams();
+    params.needle = {};
+    if (NeedleShots()) {
+        const auto& neon = config_.glow.neon;
+        const auto& look = config_.glow.needle;
+        auto& out = params.needle;
+        out.enabled = true;
+        out.width = world_.presentation.expEnemyNeonLineWidth_ * neon.enemyLine * look.line;
+        out.back = look.back;
+        out.front = look.front;
+        out.tail = look.tail;
+        out.tailAlpha = look.tailAlpha;
+        out.brightness = look.brightness;
+        out.nearGlow = neon.nearGlow * look.nearGlow;
+        out.nearGlowRadius = neon.nearGlowRadius;
+        out.style = myEngine::ActorNeonContourStyle();
+        out.style.coreWhiteMix = neon.enemyCoreWhite;
+        out.style.coreIntensity = neon.enemyCoreIntensity;
+        out.style.haloIntensity = neon.enemyHaloIntensity;
+        out.style.haloWidthScale = neon.enemyHaloWidth;
+    }
+    world_.resources.neonProjectileRenderer_->SetParams(params);
+}
+
+void SurvivorRunController::UpdateTankPose(float dt)
+{
+    auto& out = world_.presentation.runNeonLook_;
+    if (!out.playerTank) {
+        tankPoseReady_ = false;
+        return;
+    }
+    const auto& look = config_.glow.tank;
+    const myEngine::Vector3 position = world_.resources.player_->GetWorldPosition();
+    if (dt > 0.0f) {
+        const myEngine::Vector3 moved = position - tankLastPosition_;
+        const float distance = std::sqrt(moved.x * moved.x + moved.y * moved.y);
+        // 場に入った直後や瞬間移動（1回で2以上）は、動いたことにしない。
+        if (tankPoseReady_ && distance < 2.0f) {
+            constexpr float kPi = 3.14159265f;
+            constexpr float kTreadSide = 0.78f;
+            // 車体は入力の向きへ回す（敵や反動で押された向きには回らない）。入力が無いときは回さず、履帯も流さない。
+            const bool driving = world_.resources.player_->HasMovementInput();
+            const float speed = driving ? distance / dt : 0.0f;
+            tankSpeed_ += (speed - tankSpeed_) * (1.0f - std::exp(-dt * 14.0f));
+            float turned = 0.0f;
+            if (driving) {
+                const myEngine::Vector3& input = world_.resources.player_->GetMovementInput();
+                const float difference = std::remainder(std::atan2(input.y, input.x) - tankHullAngle_, 2.0f * kPi);
+                turned = difference * (1.0f - std::exp(-dt * look.turn));
+                tankHullAngle_ = std::remainder(tankHullAngle_ + turned, 2.0f * kPi);
+            }
+            // 前へ進んだ分と、その場で回った分（左右の履帯が逆に流れる）。
+            const float forward = driving ? moved.x * std::cos(tankHullAngle_) + moved.y * std::sin(tankHullAngle_) : 0.0f;
+            tankTreadLeft_ = std::fmod(tankTreadLeft_ + (forward - turned * kTreadSide) * look.flow, 1900.0f);
+            tankTreadRight_ = std::fmod(tankTreadRight_ + (forward + turned * kTreadSide) * look.flow, 1900.0f);
+        }
+        tankLastPosition_ = position;
+        tankPoseReady_ = true;
+    }
+    out.tankLine = look.line;
+    out.tankBrightness = look.brightness;
+    out.tankNearGlow = look.nearGlow;
+    out.tankScale = look.scale;
+    out.tankColor = {look.color[0], look.color[1], look.color[2], 1.0f};
+    out.tankHullAngle = tankHullAngle_;
+    out.tankTreadLeft = tankTreadLeft_;
+    out.tankTreadRight = tankTreadRight_;
+    out.tankSpeed = tankSpeed_;
+}
+
+void SurvivorRunController::UpdateCompactHud(float dt)
+{
+    if (!CompactHud()) {
+        return;
+    }
+    const auto& player = *world_.resources.player_;
+    const float maxHp = static_cast<float>((std::max)(1, player.GetMaxHp()));
+    SurvivorCompactHud::State state;
+    state.anchor = world_.gameplayHud->WorldToScreen(player.GetWorldPosition());
+    state.hpRatio = (std::clamp)(static_cast<float>(player.GetHp()) / maxHp, 0.0f, 1.0f);
+    state.woundRatio = (std::clamp)(static_cast<float>(player.GetSurvivorWound()) / maxHp, 0.0f, 1.0f);
+    state.level = level_;
+    state.expRatio = level_ >= config_.maxLevel
+                         ? 1.0f
+                         : static_cast<float>(exp_) / static_cast<float>((std::max)(1, config_.ExpToNextLevel(level_)));
+    state.ultimateRatio = world_.presentation.heroUltimateRatio_;
+    if (IsRivalActive()) {
+        const auto& rival = *world_.resources.enemy_;
+        state.bossRatio = (std::clamp)(static_cast<float>(rival.GetHp()) / static_cast<float>((std::max)(1, rival.GetMaxHp())), 0.0f, 1.0f);
+    } else if (!exitOpen_ && tutorialStep_ < 0) {
+        state.secondsLeft = (std::max)(0.0f, config_.exitOpenSeconds - elapsed_);
+    }
+    state.scale = config_.hud.scale;
+    state.offset = config_.hud.offset;
+    compactHud_.Update(dt, state);
+}
+
+void SurvivorRunController::UpdatePlayerNumbers(float dt)
+{
+    const auto& player = *world_.resources.player_;
+    const uint64_t lost = player.GetSurvivorHpLost();
+    if (HurtNumbers() && lost > lastHpLost_) {
+        const int amount = static_cast<int>(lost - lastHpLost_);
+        playerNumbers_.Spawn(SurvivorPlayerNumbers::Kind::Hurt, amount,
+                             static_cast<float>(amount) / static_cast<float>((std::max)(1, player.GetMaxHp())));
+    }
+    lastHpLost_ = lost;
+    playerNumbers_.SetConfig({config_.hud.hurtScale, config_.hud.hurtEdge});
+    playerNumbers_.Update(dt, world_.gameplayHud->WorldToScreen(player.GetWorldPosition()));
+}
+
+void SurvivorRunController::ShowHeal(int amount, const std::string& text)
+{
+    if (!HurtNumbers()) {
+        world_.combatFlow->SetEventCallout(text, 0.7f);
+        return;
+    }
+    playerNumbers_.Spawn(SurvivorPlayerNumbers::Kind::Heal, amount,
+                         static_cast<float>(amount) / static_cast<float>((std::max)(1, world_.resources.player_->GetMaxHp())));
+}
+
+void SurvivorRunController::ShowHeroRevived()
+{
+    if (!HurtNumbers()) {
+        HeroAbilityCore::ShowHeroRevived();
+        return;
+    }
+    const auto& player = *world_.resources.player_;
+    playerNumbers_.Spawn(SurvivorPlayerNumbers::Kind::Revive, player.GetHp(),
+                         static_cast<float>(player.GetHp()) / static_cast<float>((std::max)(1, player.GetMaxHp())));
 }
 
 void SurvivorRunController::ApplyDamageNumberConfig()
@@ -719,6 +1030,11 @@ void SurvivorRunController::ApplyDamageNumberConfig()
     numbers.scale = config_.damageNumbers.scale;
     numbers.bigRatio = config_.damageNumbers.bigRatio;
     numbers.mergeSeconds = config_.damageNumbers.mergeSeconds;
+    numbers.critScale = config_.damageNumbers.critScale;
+    numbers.alpha = config_.damageNumbers.alpha;
+    numbers.bigScale = config_.damageNumbers.bigScale;
+    numbers.nearRadius = config_.damageNumbers.nearRadius;
+    numbers.nearAlpha = config_.damageNumbers.nearAlpha;
     damageNumbers_.SetConfig(numbers);
 }
 
@@ -735,8 +1051,10 @@ void SurvivorRunController::ConfigurePickups()
     // 弾の軌跡のにじみ：武器の枠を使う遊び方だけ、遠征の締めた値から強める（始めと、調整パネルで変えたとき）。
     if (config_.weaponsEnabled && world_.resources.bulletTrailPostEffect_) {
         myEngine::BloomParam& trail = world_.resources.bulletTrailPostEffect_->GetParam();
-        trail.intensity = config_.glow.trailBloomIntensity;
-        trail.bloomGain = config_.glow.trailBloomGain;
+        // 針の弾は線そのもので光るので、軌跡のにじみを弱める。
+        const float needle = NeedleShots() ? config_.glow.needle.bloom : 1.0f;
+        trail.intensity = config_.glow.trailBloomIntensity * needle;
+        trail.bloomGain = config_.glow.trailBloomGain * needle;
         trail.bloomScatter = (std::clamp)(config_.glow.trailBloomScatter, 0.0f, 0.9f);
         trail.bloomRadius = (std::clamp)(config_.glow.trailBloomRadius, 0.25f, 2.0f);
     }
@@ -747,8 +1065,10 @@ void SurvivorRunController::ConfigurePickups()
         trail.colorCurvePower = config_.glow.trailFadeCurve;
         trail.tailWidthScale = trail.headWidthScale * (std::max)(0.0f, config_.glow.trailTailWidth);
         trail.lifetime = config_.glow.trailSeconds;
+        trail.playerTrails = !NeedleShots();
         world_.resources.bulletManager_->SetTrailSettings(trail);
     }
+    ApplyNeedleLook();
 }
 
 void SurvivorRunController::UpdateTuningPanel()
@@ -780,6 +1100,10 @@ void SurvivorRunController::UpdateTuningPanel()
     snapshot.enemyHpScale = EnemyHpScale();
     snapshot.enemySpeedScale = EnemySpeedScale();
     snapshot.configPath = ConfigPath();
+    snapshot.levelUps = static_cast<int>(heroLevelUpLog_.size());
+    snapshot.pendingLevelUps = heroPendingLevelUps_;
+    snapshot.moveSpeed = myEngine::Length(playerVelocity_);
+    snapshot.spawnSectors = spawnSectors_;
     const survivor::TuningPanelResult result = survivor::DrawTuningPanel(config_, tuningOpen_, tuningPause_, tuningStatus_, snapshot);
     if (result.reloadRequested) {
         survivor::SpawnConfig loaded;
@@ -858,6 +1182,8 @@ void SurvivorRunController::QueueWorldVisuals()
     QueueEliteRings(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
     QueueHeroVisuals(*world_.resources.neonGridRenderer_, myEngine::Cross(cameraRight, cameraUp));
     QueueHealPickups(*world_.resources.neonGridRenderer_);
+    QueueLevelUpBurst(*world_.resources.neonGridRenderer_);
+    QueueRingWarning(*world_.resources.neonGridRenderer_);
     // 予告：輪は自機のまわりに、群れは湧く場所に、赤い破線の円を描く。湧く時刻が近いほど速く点滅する。
     for (const PendingWave& wave : pendingWaves_) {
         const float left = (std::max)(0.0f, wave.at - elapsed_);
@@ -969,6 +1295,10 @@ void SurvivorRunController::DrawUi()
 {
     ++drawnFrames_;
     if (IsResultVisible() && resultPanel_ && resultText_ && resultMenu_) {
+        if (UsesResultScreen()) {
+            menuKit_.Draw();
+            return;
+        }
         myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
         resultPanel_->Draw();
         resultText_->Draw();
@@ -981,7 +1311,19 @@ void SurvivorRunController::DrawUi()
         return;
     }
     myEngine::SpriteCommon::GetInstance()->PreDraw(myEngine::kNormal);
+    if (pauseOpen_) {
+        menuKit_.Draw();
+        return;
+    }
     // 持ち物の画面と拠点の画面を開いている間は、ほかの HUD を描かずにその画面だけを出す（暗幕から透けて読みにくくならないように）。
+    if (LevelUpScreenShown()) {
+        levelUpScreen_.Draw();
+        if ((tutorialStep_ >= 0 && heroLevelUpOpen_ && !levelUpScreen_.IsClosing()) || (inventoryOpen_ && !heroLevelUpOpen_)) {
+            menuKit_.Draw();
+        }
+        DrawCinematic();
+        return;
+    }
     if (inventoryOpen_ || baseScreenOpen_ || restRoomOpen_ || heroLevelUpOpen_) {
         itemScreen_.Draw();
         DrawCinematic();
@@ -993,8 +1335,20 @@ void SurvivorRunController::DrawUi()
         expTrack_->Draw();
         expFill_->Draw();
     }
-    hudText_->Draw();
-    if (WeaponMode()) {
+    // 文字を減らした HUD（計画書 p9 の H4）では、左上の文字と、Q だけの機体の左下の文字を出さない。
+    const bool compact = CompactHud();
+    if (compact) {
+        compactHud_.Draw();
+        if (tutorialStep_ >= 0) {
+            guideKit_.Draw();
+        }
+    } else {
+        hudText_->Draw();
+    }
+    if (HurtNumbers()) {
+        playerNumbers_.Draw();
+    }
+    if (WeaponMode() && !compact) {
         if (lootText_) {
             lootText_->Draw();
         }
@@ -1002,7 +1356,7 @@ void SurvivorRunController::DrawUi()
     if (exitOpen_ && exitText_) {
         exitText_->Draw();
     }
-    if (qText_ && (HeroMode() || survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count)) {
+    if (qText_ && !(compact && config_.heroes.onlyUltimate) && (HeroMode() || survivor::OwnedQSkill(config_.parts, partLevels_) != survivor::PartId::Count)) {
         qText_->Draw();
     }
     // レリックは Q の部品が無くても出す。
@@ -1058,7 +1412,8 @@ void SurvivorRunController::DrawUi()
 void SurvivorRunController::QueueHint(Hint hint)
 {
     const size_t index = static_cast<size_t>(hint);
-    if (hintQueued_[index]) {
+    // 1台だけの版では、文の案内は出さない（はじめての説明で伝える。計画書 p11 の R3）。
+    if (hintQueued_[index] || config_.heroes.single) {
         return;
     }
     hintQueued_[index] = true;

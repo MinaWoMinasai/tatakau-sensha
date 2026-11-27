@@ -788,7 +788,7 @@ void ParticleManager::EmitHitEffect(const Vector3& position)
 }
 
 void ParticleManager::EmitNeonDeathEffect(const Vector3& position, const Vector4& primaryColor, const Vector4& secondaryColor,
-                                          float strength)
+                                          float strength, float shakeScale)
 {
     strength = std::clamp(strength, 0.2f, 2.0f);
     // バーストの前に小さな着火点を1つだけ出す。重なり合っていた巨大な三角形の
@@ -821,7 +821,7 @@ void ParticleManager::EmitNeonDeathEffect(const Vector3& position, const Vector4
         event.isBillboard = true;
         neonTriangleEvents_.push_back(event);
     }
-    pendingDeathBursts_.push_back({position, primaryColor, secondaryColor, strength, 0.045f});
+    pendingDeathBursts_.push_back({position, primaryColor, secondaryColor, strength, 0.045f, (std::max)(0.0f, shakeScale)});
 }
 
 void ParticleManager::EmitNeonDeathBurstNow(const Vector3& position, const Vector4& primaryColor, const Vector4& secondaryColor,
@@ -898,7 +898,7 @@ void ParticleManager::UpdatePendingDeathBursts(float deltaTime)
         if (pending.timer <= 0.0f) {
             EmitNeonDeathBurstNow(pending.position, pending.primaryColor, pending.secondaryColor, pending.strength);
             if (pending.strength >= 0.75f) {
-                screenPulseEvents_.push_back({pending.position, pending.strength});
+                screenPulseEvents_.push_back({pending.position, pending.strength, pending.shake});
             }
         }
     }

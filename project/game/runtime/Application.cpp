@@ -545,9 +545,10 @@ int Application::MainLoop()
                 myEngine::RuntimeProfiler::Get().HandleShortcut((GetKeyState(VK_SHIFT) & 0x8000) != 0);
             }
 #if !(defined(USE_IMGUI) && !defined(NDEBUG))
-            // F12：ブルームをすべてオン・オフする（講評会の Release 用。開発用の構成の F12 は開発用の画面を開く。
-            // 開発用の構成では [B] で同じオフにできる）。
-            if (msg.message == WM_KEYDOWN && msg.wParam == VK_F12 && !(msg.lParam & (1LL << 30))) {
+            // F12：ブルームをすべてオン・オフする（見せるときの比較用。開発用の構成の F12 は開発用の画面を開く。
+            // 開発用の構成では [B] で同じオフにできる）。遊ぶ人には出さないので、MYENGINE_SHOW_EXPEDITION=1 のときだけ効く。
+            if (msg.message == WM_KEYDOWN && msg.wParam == VK_F12 && !(msg.lParam & (1LL << 30)) &&
+                GetEnvironmentVariableW(L"MYENGINE_SHOW_EXPEDITION", nullptr, 0) > 0) {
                 PresentationToggles::ToggleBloom();
             }
 #endif

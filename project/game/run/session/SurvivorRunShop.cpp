@@ -262,6 +262,10 @@ void SurvivorRunController::ApplyOffer(const ShopOffer& offer)
     }
     if (offer.upgrade) {
         upgradeTiers_[static_cast<size_t>(offer.index)] = (std::min)(survivor::MaxUpgradeTier(Hero(), offer.index), UpgradeTier(offer.index) + 1);
+        // 主武器が上がりきった秒（計画書 p11 の B3。遊んだ記録に残す）。
+        if (offer.index == 0 && mainMaxedAt_ < 0.0f && UpgradeTier(0) >= survivor::MaxUpgradeTier(Hero(), 0)) {
+            mainMaxedAt_ = elapsed_;
+        }
     } else {
         int& tier = perks_[static_cast<size_t>(offer.index)];
         tier = (std::min)(PerkMaxTierOf(static_cast<size_t>(offer.index)), tier + 1);
@@ -287,14 +291,25 @@ void SurvivorRunController::OpenHeroLevelUp()
         return OfferAwakens(a) && !OfferAwakens(b);
     });
     heroLevelUpOffers_.clear();
+    // 主武器の札（計画書 p11 の B2b）：最初と、続けて出なかったときは、必ず並べる（上がりきっていれば候補に無い）。
+    const int pity = config_.heroes.mainOfferPity;
+    const auto isMain = [](const ShopOffer& offer) {
+        return offer.upgrade && offer.index == 0;
+    };
+    if (pity > 0 && (mainOfferMissed_ < 0 || mainOfferMissed_ >= pity - 1)) {
+        if (const auto main = std::find_if(pool.begin(), pool.end(), isMain); main != pool.end()) {
+            std::rotate(pool.begin(), main, main + 1);
+        }
+    }
     // [0] 技の強化、[1] パーク、[2] 副武器、[3] 専用スキル（計画書 p8 の F2）。種類ごとに1つまでで、並べた順に3つ。
-    const std::array<int, 4> limits = subWeapons ? std::array<int, 4>{1, 1, 1, 1} : std::array<int, 4>{2, 1, 0, 1};
-    std::array<int, 4> taken{};
+    // [4] 主武器の他の技の強化（Q など）。札の出方を決めるときだけ、主武器と別の種類にする。
+    const std::array<int, 5> limits = subWeapons ? std::array<int, 5>{1, 1, 1, 1, 1} : std::array<int, 5>{2, 1, 0, 1, 1};
+    std::array<int, 5> taken{};
     for (const ShopOffer& offer : pool) {
         if (heroLevelUpOffers_.size() >= 3) {
             break;
         }
-        const size_t kind = offer.upgrade ? 0 : offer.sub ? 2 : offer.skill ? 3 : 1;
+        const size_t kind = offer.upgrade ? (pity > 0 && !isMain(offer) ? 4 : 0) : offer.sub ? 2 : offer.skill ? 3 : 1;
         if (taken[kind] < limits[kind]) {
             heroLevelUpOffers_.push_back(offer);
             ++taken[kind];
@@ -310,7 +325,7 @@ void SurvivorRunController::OpenHeroLevelUp()
             heroLevelUpOffers_.push_back(offer);
         }
     }
-    // 3つに満たなければ、埋め草で足す（計画書 p8 の F1。HoloCure と同じく、全部そろっても選ぶ物は出る）。
+    // 3つに満たなければ、埋め草で足す（計画書 p8 の F1。全部そろっても選ぶ物は出る）。
     const std::array<std::pair<Filler, bool>, 3> kFillers{{{Filler::Heal, config_.heroes.fillerHeal > 0.0f},
                                                            {Filler::MaxHp, config_.heroes.fillerMaxHp > 0},
                                                            {Filler::Power, config_.heroes.fillerPower > 0.0f}}};
@@ -324,6 +339,10 @@ void SurvivorRunController::OpenHeroLevelUp()
             heroLevelUpOffers_.push_back(offer);
         }
     }
+    const bool mainOffered = std::any_of(heroLevelUpOffers_.begin(), heroLevelUpOffers_.end(), isMain);
+    mainOfferMissed_ = mainOffered ? 0 : (std::max)(0, mainOfferMissed_) + 1;
+    mainOffers_ += mainOffered ? 1 : 0;
+    ++levelUpsOpened_;
     heroLevelUpOpen_ = true;
     audio_.Play("ui_click");
     RefreshHeroLevelUp();
@@ -336,7 +355,10 @@ void SurvivorRunController::ChooseHeroLevelUp(size_t index)
     }
     const ShopOffer offer = heroLevelUpOffers_[index];
     heroLevelUpLog_.push_back(std::to_string(level_ - heroPendingLevelUps_ + 1) + ":" + OfferName(offer));
-    world_.combatFlow->SetEventCallout(OfferName(offer), 0.9f);
+    // 演出を使う遊び方では、選んだ札が自機へ吸い込まれるので、名前の文字は出さない（計画書 p9 の L2）。
+    if (!LevelUpEffectOn()) {
+        world_.combatFlow->SetEventCallout(OfferName(offer), 0.9f);
+    }
     ApplyOffer(offer);
     heroPendingLevelUps_ = (std::max)(0, heroPendingLevelUps_ - 1);
     heroLevelUpOpen_ = false;

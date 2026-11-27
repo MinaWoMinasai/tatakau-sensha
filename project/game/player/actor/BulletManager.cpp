@@ -349,7 +349,7 @@ void BulletManager::NotifyPlayerHit(Bullet& bullet, Collider& target, bool kille
         const auto center = target.GetWorldPosition();
         ++(ownBlast ? shooterStats_.bulletBlasts : shooterStats_.impactBlasts);
         BuildEventAt(BuildEventKind::Detonation, center, center, blastRadius);
-        myEngine::ParticleManager::GetInstance()->EmitNeonDeathEffect(center, impactBlastColor_, {1.6f, 1.1f, 0.4f, 0.0f}, 1.1f);
+        myEngine::ParticleManager::GetInstance()->EmitNeonDeathEffect(center, impactBlastColor_, {1.6f, 1.1f, 0.4f, 0.0f}, 1.1f, blastShake_);
         for (auto* candidate : LiveCombatTargets()) {
             if (myEngine::Length(candidate->GetWorldPosition() - center) > blastRadius + candidate->GetRadius() ||
                 !HasClearLink(center, candidate->GetWorldPosition())) {
@@ -406,7 +406,7 @@ void BulletManager::NotifyPlayerHit(Bullet& bullet, Collider& target, bool kille
         BuildEventAt(BuildEventKind::Detonation, center, center, 2.8f);
         // 試作の狙撃（倒したときも起爆）は、よく起きるので、輪に加えて光の粒で爆発を見せる。
         if (markOnKill_) {
-            myEngine::ParticleManager::GetInstance()->EmitNeonDeathEffect(center, {1.8f, 0.35f, 0.30f, 1.0f}, {1.6f, 1.1f, 0.4f, 0.0f}, 1.3f);
+            myEngine::ParticleManager::GetInstance()->EmitNeonDeathEffect(center, {1.8f, 0.35f, 0.30f, 1.0f}, {1.6f, 1.1f, 0.4f, 0.0f}, 1.3f, blastShake_);
         }
         for (auto* candidate : LiveCombatTargets()) {
             if (myEngine::Length(candidate->GetWorldPosition() - center) > 2.8f + candidate->GetRadius() ||

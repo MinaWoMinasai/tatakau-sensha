@@ -5,15 +5,25 @@
   "exitOpenSeconds": 180.0,
   "exitRadius": 3.0,
   "spawnRing": {
+    "comment": "forward・side・back（計画書 p8 の G3）：画面の縁から湧くとき、自機の進む向きを基準に 前（±45度）・横・後ろ に振り分ける割合。全部0（無い）なら縁から均等。止まっているときも均等。",
+    "back": 2.0,
+    "forward": 4.0,
     "maxDistance": 32.0,
     "maxPerSecond": 6.0,
     "minDistance": 24.0,
-    "screenEdge": true
+    "screenEdge": true,
+    "side": 4.0
+  },
+  "separation": {
+    "comment": "敵どうしの押し合い（計画書 p8 の G3）。半径は当たりの半径（0.8 × 大きさ）× radiusScale。見た目は当たりの約2倍あるので広げて、塊を隙間のある面にする。1回の更新で重なりの strength 倍を押し戻し、動かすのは広げた半径の maxPush 倍まで（0 は上限なし）。",
+    "maxPush": 0.5,
+    "radiusScale": 1.8,
+    "strength": 0.4
   },
   "shapes": {
     "comment": "生存数の目標（時間, 数）を直線でつなぐ。最後の点より後は overtimePerMinute ずつ増える。",
     "chase": {"pentagon":[5.0,3.6],"square":[5.5,3.7],"triangle":[7.0,3.8]},
-    "growth": {"comment":"湧きを足し続ける形（計画書 p8 の G1。HoloCure に寄せる）。enabled なら targetAlive は使わず、points の [秒, 足す間隔の秒, 一度に足す数, 生きている図形の上限] を直線でつないだ値で、間隔ごとに図形を足し続ける（上限に届いている間は待つ。倒しきれないと溜まる）。敵の HP は 経過分ごとに hpPerMinute 倍（指数。中ボスや大五角にも効く）、寄る速さは 1 + speedPerMinute × 経過分（speedMax まで。湧いたときに決まる）。時間割の surge で、しばらく間隔と数と上限を変えられる。","enabled":true,"hpPerMinute":1.14,"points":[[0.0,1.0,1.0,70.0],[60.0,0.9,1.0,100.0],[180.0,0.75,2.0,130.0],[300.0,0.65,2.0,145.0],[420.0,0.55,3.0,155.0],[540.0,0.5,3.0,160.0]],"speedMax":1.25,"speedPerMinute":0.01},
+    "growth": {"comment":"湧きを足し続ける形（計画書 p8 の G1）。enabled なら targetAlive は使わず、points の [秒, 足す間隔の秒, 一度に足す数, 生きている図形の上限] を直線でつないだ値で、間隔ごとに図形を足し続ける（上限に届いている間は待つ。倒しきれないと溜まる）。敵の HP は 経過分ごとに hpPerMinute 倍（指数。中ボスや大五角にも効く）、寄る速さは 1 + speedPerMinute × 経過分（speedMax まで。湧いたときに決まる）。時間割の surge で、しばらく間隔と数と上限を変えられる。","enabled":true,"hpPerMinute":1.1,"points":[[0.0,0.8,1.0,60.0],[60.0,0.75,1.0,85.0],[120.0,0.75,1.4,105.0],[180.0,0.7,1.7,120.0],[240.0,0.55,2.2,130.0],[300.0,0.45,2.8,150.0],[420.0,0.38,3.5,165.0],[540.0,0.32,4.0,175.0]],"speedMax":1.25,"speedPerMinute":0.01},
     "overtimePerMinute": 15.0,
     "targetAlive": [[0.0,30.0],[60.0,50.0],[180.0,80.0],[300.0,110.0],[420.0,140.0],[540.0,180.0]],
     "weights": [{"from":0.0,"pentagon":1.0,"square":6.0,"triangle":3.0},{"from":120.0,"pentagon":2.0,"square":5.0,"triangle":3.0}]
@@ -57,7 +67,7 @@
     "comment": "重い四角。大きく（scale 倍）硬く（HP hpScale 倍）、ゆっくり迫る四角。脅威 fromStage 段から interval 秒ごとに count 体。",
     "acceleration": 3.0,
     "count": 2,
-    "fromStage": 2,
+    "fromStage": 3,
     "hpScale": 5.0,
     "interval": 14.0,
     "maxSpeed": 2.6,
@@ -83,7 +93,7 @@
   "experience": {
     "comment": "経験値の欠片とレベル。次のレベルまでの経験値は base + growth × (レベル-1)^power。",
     "collectRadius": 1.2,
-    "levelCurve": {"base":25.0,"growth":30.0,"power":1.7},
+    "levelCurve": {"base":20.0,"growth":14.0,"power":1.5},
     "magnetRadius": 5.0,
     "maxLevel": 45,
     "maxShards": 600,
@@ -146,26 +156,29 @@
     "start": ["cannon","grenade","beam"]
   },
   "heroes": {
-    "comment": "機体（計画書 p4）。enabled が true なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイール・リロード・拠点の画面・お金以外の落とし物を止める）。start は出撃する機体。機体ごとに、name は名前、primary は主武器（weapons のキー。弾は数えず熱だけで撃つ）、primaryHeatScale は主武器の1発の熱の倍率の上書き（0 なら武器の値。撃ち続けられる長さが決まる）、ultimateCharge は Q のゲージが満タンになるまでに要る量（与えたダメージ＋回復した量）。maxHp は最大HP（0 なら自機の値のまま）。unlockCost は解放に要る解放ポイント（0 なら最初から使える）、unlockFirst は最初に解放する機体（まだなら次に解放できるのはその機体だけ。それ以外は2〜3体から選ぶ）。primaryAbility を書くと、主武器は弾ではなく技の部品になる（primary の武器は見た目だけ）。secondary（右クリック）・mobility（Shift）・skill（E）・ultimate（Q）は技の部品で、kind は種類（none・sprint 走る・barrier バリア・rocket 爆発する弾・healZone 回復の場・barrage 自動で狙う弾幕・drainBeam 吸い付く光線・selfHeal 吸収ゲージで自分を回復・phase 無敵ですり抜ける移動・bounceOrb 敵の間を跳ねる球・charge 突進・shockwave 衝撃波・fortress 全周のバリア・lance 太い光線）、name は画面の名前、cooldown は次に使えるまでの秒（Q はゲージ）、duration は効いている秒（selfHeal は吸収ゲージの上限の秒）、power は種類ごとの強さ（sprint・phase は速さの倍率、rocket・barrage は主砲1発に対する威力の倍率、drainBeam・bounceOrb・lance は毎秒の威力の主砲1発に対する倍率、healZone・selfHeal は毎秒の回復の最大HPに対する割合）、radius は半径や長さ（rocket は爆発、healZone は場、barrage は狙う範囲、drainBeam は届く距離、lance は光線の長さ）、rate は弾幕の毎秒の発射数・跳ねる球の速さ、size は光線の太さ・跳ねる球の半径、gain は与えた威力1ごとに溜まる吸収ゲージの秒。charge は duration 秒・速さ power 倍で、触れた敵を rate の強さで押し飛ばし主砲1発の size 倍を与える。shockwave は半径 radius の敵を rate の強さで押し返し主砲1発の power 倍を与える。fortress は duration 秒、半径 radius の全周のバリアで、終わりに半径 radius×1.6 で爆発し主砲1発の power 倍＋止めた弾1つごとに rate 倍を与える。バリアと selfHeal は押している間だけ効く（バリアは設定の barrier とスタミナを使う）。",
+    "comment": "機体（計画書 p4）。enabled が true なら、武器の枠の遊び方の上で機体を使う（枠は主武器1つ、ホイール・リロード・拠点の画面・お金以外の落とし物を止める）。start は出撃する機体。機体ごとに、name は名前、primary は主武器（weapons のキー。弾は数えず熱だけで撃つ）、primaryHeatScale は主武器の1発の熱の倍率の上書き（0 なら武器の値。撃ち続けられる長さが決まる）、ultimateCharge は Q のゲージが満タンになるまでに要る量（与えたダメージ＋回復した量）。maxHp は最大HP（0 なら自機の値のまま）。unlockCost は解放に要る解放ポイント（0 なら最初から使える）、unlockFirst は最初に解放する機体（まだなら次に解放できるのはその機体だけ。それ以外は2〜3体から選ぶ）。primaryAbility を書くと、主武器は弾ではなく技の部品になる（primary の武器は見た目だけ）。secondary（右クリック）・mobility（Shift）・skill（E）・ultimate（Q）は技の部品で、kind は種類（none・sprint 走る・barrier バリア・rocket 爆発する弾・healZone 回復の場・barrage 自動で狙う弾幕・drainBeam 吸い付く光線・selfHeal 吸収ゲージで自分を回復・phase 無敵ですり抜ける移動・bounceOrb 敵の間を跳ねる球・charge 突進・shockwave 衝撃波・fortress 全周のバリア・lance 太い光線）、name は画面の名前、cooldown は次に使えるまでの秒（Q はゲージ）、duration は効いている秒（selfHeal は吸収ゲージの上限の秒）、power は種類ごとの強さ（sprint・phase は速さの倍率、rocket・barrage は主砲1発に対する威力の倍率、drainBeam・bounceOrb・lance は毎秒の威力の主砲1発に対する倍率、healZone・selfHeal は毎秒の回復の最大HPに対する割合）、radius は半径や長さ（rocket は爆発、healZone は場、barrage は狙う範囲、drainBeam は届く距離、lance は光線の長さ）、rate は弾幕の毎秒の発射数・跳ねる球の速さ、size は光線の太さ・跳ねる球の半径、gain は与えた威力1ごとに溜まる吸収ゲージの秒。charge は duration 秒・速さ power 倍で、触れた敵を rate の強さで押し飛ばし主砲1発の size 倍を与える。shockwave は半径 radius の敵を rate の強さで押し返し主砲1発の power 倍を与える。fortress は duration 秒、半径 radius の全周のバリアで、終わりに半径 radius×1.6 で爆発し主砲1発の power 倍＋止めた弾1つごとに rate 倍を与える。バリアと selfHeal は押している間だけ効く（バリアは設定の barrier とスタミナを使う）。mainOfferPity（計画書 p11 の B2b）：主武器の札。最初のレベルアップと、(この値 - 1) 回続けて出なかった次は必ず並べる。Q などは主武器と別の種類として引く。0 で今までどおり。subWeaponPower：副武器7つの威力の倍率（爆発・炎・燃えも）。1 でそのまま。timeline の ring の gap は輪の切れ目の幅（度。進む向きでない側に空く。0 で無し）、warn は出る何秒前に切れ目の位置を見せるか。",
     "autoFire": true,
+    "mainOfferPity": 4,
+    "single": true,
     "enabled": true,
     "fillerHeal": 0.3,
     "fillerMaxHp": 10,
     "fillerPower": 0.05,
-    "healDropChance": 0.004,
+    "healDropChance": 0.012,
     "healDropHeal": 0.2,
     "healDropLife": 45.0,
     "healDropMax": 6,
     "heroSkills": true,
     "levelUps": true,
-    "moira": {"maxHp":90,"mobility":{"cooldown":6.0,"duration":0.8,"gain":0.0,"kind":"phase","name":"消える移動","power":1.6,"radius":0.0,"rate":0.0,"size":0.0},"name":"モイラ型","primary":"beam","primaryAbility":{"cooldown":0.0,"duration":0.0,"gain":0.012,"kind":"drainBeam","name":"吸収ビーム","power":2.6,"radius":8.0,"rate":0.0,"size":0.22},"primaryHeatScale":0.0,"secondary":{"cooldown":0.0,"duration":6.0,"gain":0.0,"kind":"selfHeal","name":"自分を回復","power":0.06,"radius":0.0,"rate":0.0,"size":0.0},"skill":{"cooldown":10.0,"duration":4.0,"gain":0.0,"kind":"bounceOrb","name":"跳ねる球","power":1.4,"radius":12.0,"rate":9.0,"size":1.1},"ultimate":{"cooldown":0.0,"duration":4.0,"gain":0.006,"kind":"lance","name":"太い光線","power":4.0,"radius":20.0,"rate":0.0,"size":1.4},"ultimateCharge":1800.0,"unlockCost":0,"unlockFirst":false},
+    "drainer": {"maxHp":90,"mobility":{"cooldown":6.0,"duration":0.8,"gain":0.0,"kind":"phase","name":"消える移動","power":1.6,"radius":0.0,"rate":0.0,"size":0.0},"name":"吸収型","primary":"beam","primaryAbility":{"cooldown":0.0,"duration":0.0,"gain":0.012,"kind":"drainBeam","name":"吸収ビーム","power":2.6,"radius":8.0,"rate":0.0,"size":0.22},"primaryHeatScale":0.0,"secondary":{"cooldown":0.0,"duration":6.0,"gain":0.0,"kind":"selfHeal","name":"自分を回復","power":0.06,"radius":0.0,"rate":0.0,"size":0.0},"skill":{"cooldown":10.0,"duration":4.0,"gain":0.0,"kind":"bounceOrb","name":"跳ねる球","power":1.4,"radius":12.0,"rate":9.0,"size":1.1},"ultimate":{"cooldown":0.0,"duration":4.0,"gain":0.006,"kind":"lance","name":"太い光線","power":4.0,"radius":20.0,"rate":0.0,"size":1.4},"ultimateCharge":1800.0,"unlockCost":0,"unlockFirst":false},
     "moveScale": 0.42,
     "onlyUltimate": true,
     "perkMaxTier": 5,
     "perkSlots": 4,
-    "standard": {"maxHp":100,"mobility":{"cooldown":8.0,"duration":3.0,"gain":0.0,"kind":"sprint","name":"全力で走る","power":1.5,"radius":0.0,"rate":0.0,"size":0.0},"name":"標準型","primary":"machineGun","primaryAbility":{"cooldown":1.0,"duration":5.0,"gain":0.0,"kind":"burstGun","name":"拡散連射","power":2.2,"radius":8.0,"rate":2.5,"size":1.0},"primaryHeatScale":1.0,"secondary":{"cooldown":6.0,"duration":0.0,"gain":0.0,"kind":"rocket","name":"小型ロケット","power":6.0,"radius":3.0,"rate":0.0,"size":0.0},"skill":{"cooldown":15.0,"duration":5.0,"gain":0.0,"kind":"healZone","name":"回復の場","power":0.04,"radius":4.0,"rate":0.0,"size":0.0},"ultimate":{"cooldown":0.0,"duration":5.0,"gain":0.0,"kind":"barrage","name":"弾幕","power":0.8,"radius":18.0,"rate":14.0,"size":0.0},"ultimateCharge":2000.0,"unlockCost":0,"unlockFirst":false},
+    "standard": {"maxHp":100,"mobility":{"cooldown":8.0,"duration":3.0,"gain":0.0,"kind":"sprint","name":"全力で走る","power":1.5,"radius":0.0,"rate":0.0,"size":0.0},"name":"標準型","primary":"machineGun","primaryAbility":{"cooldown":1.0,"duration":5.0,"gain":0.0,"kind":"burstGun","name":"拡散連射","power":3.5,"radius":8.0,"rate":2.5,"size":1.0},"primaryHeatScale":1.0,"secondary":{"cooldown":6.0,"duration":0.0,"gain":0.0,"kind":"rocket","name":"小型ロケット","power":6.0,"radius":3.0,"rate":0.0,"size":0.0},"skill":{"cooldown":15.0,"duration":5.0,"gain":0.0,"kind":"healZone","name":"回復の場","power":0.04,"radius":4.0,"rate":0.0,"size":0.0},"ultimate":{"cooldown":0.0,"duration":5.0,"gain":0.0,"kind":"barrage","name":"弾幕","power":0.8,"radius":18.0,"rate":14.0,"size":0.0},"ultimateCharge":2000.0,"unlockCost":0,"unlockFirst":false},
     "start": "standard",
     "subWeaponSlots": 4,
+    "subWeaponPower": 2.5,
     "subWeapons": true,
     "tank": {"maxHp":150,"mobility":{"cooldown":7.0,"duration":0.35,"gain":0.0,"kind":"charge","name":"突進","power":3.0,"radius":0.0,"rate":0.7,"size":2.0},"name":"タンク型","primary":"cannon","primaryHeatScale":0.0,"secondary":{"cooldown":0.0,"duration":0.0,"gain":0.0,"kind":"barrier","name":"バリア","power":1.0,"radius":0.0,"rate":0.0,"size":0.0},"skill":{"cooldown":10.0,"duration":0.0,"gain":0.0,"kind":"shockwave","name":"衝撃波","power":3.0,"radius":6.0,"rate":0.8,"size":0.0},"ultimate":{"cooldown":0.0,"duration":6.0,"gain":0.0,"kind":"fortress","name":"大きな盾","power":4.0,"radius":5.0,"rate":0.6,"size":0.0},"ultimateCharge":1800.0,"unlockCost":1500,"unlockFirst":true},
     "walkSpeed": 4.5
@@ -225,7 +238,7 @@
     "woundRatio": 0.3
   },
   "shop": {
-    "comment": "波の間のショップ（計画書 p4 の K4）。offerCount 個がランダムに並ぶ（修理はいつも別のボタン）。引き直しは rerollCost で、引くたびに rerollStep 高くなる（波ごとに戻る）。技の強化（主武器・右クリック・Shift・E・Q）は3段で、値段は upgradePrices（段ごと）。1段目は威力 ×1.25（武器の主武器は ×1.15）、2段目は待ち時間 ×0.8（待ち時間の無い技は効く時間 ×1.25）、3段目で挙動が変わる。perks はパークごとの値段 price と強さ value：lifesteal 与えたダメージの value 倍を回復、killCooldown 倒すたびに技の待ち時間 -value 秒、armor 最大HP +value、speed 移動 +value 倍、magnet 欠片を引き寄せる範囲 +value 倍、ultCharge Q のゲージの溜まり方 +value 倍、coolant（標準型）主武器の熱 ×value、rocketRefund（標準型）爆発で倒すたびにロケットの待ち時間 -value 秒、fieldMedic（標準型）回復の場で回復した量の value 倍だけ傷も治る、beamKill（モイラ）光線で倒すと吸収ゲージ +value 秒、phaseHeal（モイラ）消える移動の終わりに最大HPの value 倍を回復、orbAbsorb（モイラ）跳ねる球の威力でも吸収ゲージが溜まる（光線の value 倍）、chargeShock（タンク）突進の終わりに半径 value の小さな衝撃波、barrierHeal（タンク）バリアで弾を止めるたびに HP +value、quake（タンク）衝撃波で押し返した数だけ衝撃波の待ち時間 -value 秒。計画書 p8 の F4 で足した共通の5つ：crit value の確率で威力2倍（会心）、area 弾・爆発・炎・衝撃の輪の大きさ +value 倍、expGain レベルの経験値 +value 倍、guard (16 - value) 秒ごとに1回当たりを防ぐ（3秒より短くならない）、revive 1回だけ倒れる当たりで HP を最大の value 倍にして立ち直る（段なし）、healDrop 敵がスパナ（heroes.healDropChance）を落とす確率 +value 倍（計画書 p8 の F5）。段のある遊び方では value は1段ぶんの強さ。",
+    "comment": "波の間のショップ（計画書 p4 の K4）。offerCount 個がランダムに並ぶ（修理はいつも別のボタン）。引き直しは rerollCost で、引くたびに rerollStep 高くなる（波ごとに戻る）。技の強化（主武器・右クリック・Shift・E・Q）は3段で、値段は upgradePrices（段ごと）。1段目は威力 ×1.25（武器の主武器は ×1.15）、2段目は待ち時間 ×0.8（待ち時間の無い技は効く時間 ×1.25）、3段目で挙動が変わる。perks はパークごとの値段 price と強さ value：lifesteal 与えたダメージの value 倍を回復、killCooldown 倒すたびに技の待ち時間 -value 秒、armor 最大HP +value、speed 移動 +value 倍、magnet 欠片を引き寄せる範囲 +value 倍、ultCharge Q のゲージの溜まり方 +value 倍、coolant（標準型）主武器の熱 ×value、rocketRefund（標準型）爆発で倒すたびにロケットの待ち時間 -value 秒、fieldMedic（標準型）回復の場で回復した量の value 倍だけ傷も治る、beamKill（吸収型）光線で倒すと吸収ゲージ +value 秒、phaseHeal（吸収型）消える移動の終わりに最大HPの value 倍を回復、orbAbsorb（吸収型）跳ねる球の威力でも吸収ゲージが溜まる（光線の value 倍）、chargeShock（タンク）突進の終わりに半径 value の小さな衝撃波、barrierHeal（タンク）バリアで弾を止めるたびに HP +value、quake（タンク）衝撃波で押し返した数だけ衝撃波の待ち時間 -value 秒。計画書 p8 の F4 で足した共通の5つ：crit value の確率で威力2倍（会心）、area 弾・爆発・炎・衝撃の輪の大きさ +value 倍、expGain レベルの経験値 +value 倍、guard (16 - value) 秒ごとに1回当たりを防ぐ（3秒より短くならない）、revive 1回だけ倒れる当たりで HP を最大の value 倍にして立ち直る（段なし）、healDrop 敵がスパナ（heroes.healDropChance）を落とす確率 +value 倍（計画書 p8 の F5）。段のある遊び方では value は1段ぶんの強さ。",
     "offerCount": 5,
     "perks": {"area":{"price":200,"value":0.08},"armor":{"price":150,"value":15.0},"barrierHeal":{"price":300,"value":1.0},"beamKill":{"price":300,"value":0.5},"chargeShock":{"price":300,"value":3.5},"coolant":{"price":300,"value":0.75},"crit":{"price":200,"value":0.06},"expGain":{"price":150,"value":0.08},"fieldMedic":{"price":300,"value":0.5},"guard":{"price":250,"value":2.0},"healDrop":{"price":150,"value":0.3},"killCooldown":{"price":200,"value":0.25},"lifesteal":{"price":250,"value":0.01},"magnet":{"price":150,"value":0.4},"orbAbsorb":{"price":300,"value":0.5},"phaseHeal":{"price":300,"value":0.08},"quake":{"price":300,"value":0.3},"revive":{"price":400,"value":0.5},"rocketRefund":{"price":300,"value":1.0},"speed":{"price":150,"value":0.04},"ultCharge":{"price":200,"value":0.15}},
     "rerollCost": 50,
@@ -287,13 +300,17 @@
     "musicVolume": 0.5
   },
   "glow": {
-    "comment": "光り方（武器の枠を使う遊び方だけ）。trailBloom* は弾の軌跡のにじみ（強さ・明るさ・広がり 0〜0.9・半径 0.25〜2）。trailTailBrightness は先端に対する尾の明るさ（1 で同じ色合い）、trailFadeCurve は色の薄れ方（大きいほど尾の近くまで先端の色を保つ）、trailTailWidth は先端に対する尾の太さ、trailSeconds は軌跡が残る秒。lootRing* は拾い物を囲む輪の半径と太さ（敵と見分ける印、0 で無し）。lootTrail* は吸い込まれる物の光の尾の秒と太さ。collectFlash* は拾ったところに広がる輪の秒と半径。",
+    "comment": "光り方（武器の枠を使う遊び方だけ）。trailBloom* は弾の軌跡のにじみ（強さ・明るさ・広がり 0〜0.9・半径 0.25〜2）。trailTailBrightness は先端に対する尾の明るさ（1 で同じ色合い）、trailFadeCurve は色の薄れ方（大きいほど尾の近くまで先端の色を保つ）、trailTailWidth は先端に対する尾の太さ、trailSeconds は軌跡が残る秒。lootRing* は拾い物を囲む輪の半径と太さ（敵と見分ける印、0 で無し）。lootTrail* は吸い込まれる物の光の尾の秒と太さ。collectFlash* は拾ったところに広がる輪の秒と半径。neon（計画書 p9 の H1。無限の場）はネオン管の見た目：enabled のときだけ、敵の輪郭の芯の白さ・芯の明るさ・にじみの明るさと幅・色の明るさ、敵の中を陰影の無い黒い平面にするか（flatBody）、敵の線の太さ（enemyLine、倍）、背景の雲（nebula、倍）、画面の端の色ずれ（colorShift、倍）、画面全体の残像（persistence、倍。0 で無し）と走査線（scanline、倍）、前のコマと混ぜてなじませるか（temporal。動く線が二重に見えるので切る）、敵の線のまわりの近いにじみの強さ（nearGlow、0 で無し）と広さ（nearGlowRadius）、敵のまわりの格子（enemyGrid、localGrid にさらに掛ける倍。0 で無し）、（tank は自機の履帯戦車：線・明るさ・近いにじみ・大きさの倍率、車体が回る速さ turn、履帯の流れ flow、色。形は player_tank_shape.json。effects は爆発・破片・副武器の管の線：線の太さ・明るさ・破片と火花の数・倒したときの輪・自機のまわりを薄くする半径と残す濃さ・自機を光の上に重ねるか topMost、近いにじみ glow（敵に対する倍）、生まれた瞬間の明るさ birth、撃破の閃光 flash、管の辺が割れて飛ぶか edges、敵が多いときの数 crowd、自機の黒い面の濃さ plate と縁のぼかし plateFeather。edge* は倒した敵の割れて飛ぶ辺：速さ・ばらつき・光っている秒・ちかちかの回数と間・消える時刻のずれ・明るさ・減速・大きい敵で伸ばす上限。calmBlink で点滅を弱める。soft・softLife は輪・欠け・火花の明るさと寿命、overlap は重なった撃破の割り引き。needle は自機の弾の細い針：太さ・先の後ろと前・尾の長さと明るさ・色の明るさ・近いにじみ・ブルームの倍率）、床の格子・自機と敵のまわりの格子・壁の線・床の明かりの明るさ（倍）、ブルームの強さ（倍）と、敵が crowdCount 体いるときに crowdBloom 倍まで弱める自動の露出合わせ。",
     "collectFlashRadius": 1.3,
     "collectFlashSeconds": 0.25,
     "lootRingRadius": 0.5,
     "lootRingWidth": 0.05,
     "lootTrailSeconds": 0.14,
     "lootTrailWidth": 0.2,
+    "neon": {"enabled":true,"enemyCoreWhite":0.06,"enemyCoreIntensity":1.6,"enemyHaloIntensity":0.6,"enemyHaloWidth":4.3,"enemyColor":0.9,"flatBody":true,"enemyLine":0.6,"nearGlow":0.045,"nearGlowRadius":0.4,"persistence":0.0,"scanline":0.2,"temporal":false,"colorShift":0.0,"nebula":0.22,"worldGrid":0.18,"localGrid":0.08,"enemyGrid":0.0,"walls":0.4,"floorLight":0.1,"bloom":1.0,"crowdBloom":0.9,"crowdCount":100},
+    "effects": {"enabled":true,"line":1.5,"brightness":1.25,"debris":1.0,"sparks":1.0,"ring":1.0,"clearRadius":1.4,"clearAlpha":0.3,"topMost":true,"glow":1.25,"birth":2.5,"flash":0.7,"edges":true,"crowd":0.5,"plate":0.95,"plateFeather":0.1,"edgeSpeed":9.0,"edgeVary":0.6,"edgeHold":0.42,"edgeBlink":2,"edgeGap":0.07,"edgeShift":0.18,"edgeBright":1.15,"edgeDrag":3.2,"edgeLong":1.3,"calmBlink":false,"soft":0.7,"softLife":0.75,"overlap":0.6},
+    "needle": {"enabled":true,"line":1.1,"back":1.5,"front":0.3,"tail":1.5,"tailAlpha":0.9,"brightness":1.25,"nearGlow":1.2,"bloom":0.3},
+    "tank": {"enabled":true,"line":0.9,"brightness":1.0,"nearGlow":0.85,"scale":1.0,"turn":10.0,"flow":0.55,"red":0.25,"green":1.0,"blue":0.55},
     "trailBloomGain": 1.9,
     "trailBloomIntensity": 2.4,
     "trailBloomRadius": 1.5,
@@ -367,20 +384,40 @@
   "bigPentagon": {
     "comment": "五角を大きく硬くしたもの。",
     "exp": 160,
-    "from": 120.0,
+    "from": 200.0,
     "hp": 140,
     "interval": 18.0,
     "maxAlive": 3,
     "scale": 2.2
   },
   "damageNumbers": {
-    "comment": "敵に当てたときのダメージの数字（ネオン風）。同じ敵へ mergeSeconds 秒以内に続けて当てた分は1つにまとめて足す。同時に maxActive 個まで、lifeSeconds 秒で上へ動きながら消える。主砲1発の bigRatio 倍以上は金色で大きく出す。scale は文字の大きさの倍率。",
+    "comment": "敵に当てたときのダメージの数字（ネオン風）。同じ敵へ mergeSeconds 秒以内に続けて当てた分は1つにまとめて足す。同時に maxActive 個まで、lifeSeconds 秒で上へ動きながら消える。主砲1発の bigRatio 倍以上は橙で大きく出す。scale は文字の大きさの倍率。alpha はふつうの数字の濃さ、bigScale は大きな数字の倍率、自機から nearRadius より近い数字は nearAlpha まで薄くする（会心は半分まで）。会心（計画書 p9 の H2）は金色の太い縁で critScale 倍にし、後ろに「!」を付ける（同じ敵の数字とまとめない）。enemyHpBars が false なら小さい敵の HP バーを出さない（中ボス・大きい敵はいつも出す）。",
     "bigRatio": 2.5,
     "enabled": true,
     "lifeSeconds": 0.7,
     "maxActive": 40,
-    "mergeSeconds": 0.15,
+    "alpha": 0.75,
+    "bigScale": 1.15,
+    "critScale": 2.0,
+    "enemyHpBars": false,
+    "mergeSeconds": 0.0,
+    "nearAlpha": 0.3,
+    "nearRadius": 1.4,
+    "scale": 0.65
+  },
+  "hud": {
+    "comment": "文字を減らした HUD（計画書 p9 の H4。機体の遊び方だけ）：自機の下に HP・経験値・Lv・Q、上の真ん中に残り時間とボスの印。compact が false なら前の HUD。scale は大きさ、offset は自機からバーまでの縦の間（1280×720 の座標）。hurtNumbers（計画書 p9 の H3）は、被弾・回復・立ち直りを自機の上の数字で出し、「ダメージ」などの文字を出さない。hurtScale は数字の大きさ、hurtEdge は画面の縁の赤の強さ（0 で無し）、hurtShake は被弾の揺れの倍率。levelUpScreen（計画書 p9 の L1）は強化の画面を、右に縦3段の札・左に動くプレビュー・左下に持ち物の形にする（Tab の持ち物の画面も）。levelUpEffect（計画書 p9 の L2）はレベルアップの瞬間に光の輪で敵を押し返し、levelUpSlow 秒ゆっくりにしてから画面を開き、選んだ札を自機へ吸い込ませる。blastShake（計画書 p11 の B3）：主武器の当たった所の爆発と印の起爆のカメラのゆれの倍率。撃破の光と画面の脈打ちには掛けない。1 で今まで。",
+    "blastShake": 0.5,
+    "compact": true,
+    "hurtEdge": 0.3,
+    "hurtNumbers": true,
+    "hurtScale": 1.0,
+    "hurtShake": 1.0,
+    "levelUpEffect": true,
+    "levelUpScreen": true,
+    "levelUpSlow": 0.3,
+    "offset": 52.0,
     "scale": 1.0
   },
-  "timeline": [{"at":90.0,"count":12,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":4.0,"text":"左右から壁が迫る"},{"at":180.0,"count":20,"exp":0,"hp":0,"kind":"ring","radius":16.0,"rewards":0,"scale":1.0,"shape":"Triangle","side":"leftRight","speed":4.2,"text":"包囲"},{"at":240.0,"count":0,"countScale":1.3,"duration":25.0,"exp":0,"hp":0,"intervalScale":0.5,"kind":"surge","maxAliveAdd":20,"radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":3.0,"text":"大群が来る"},{"at":300.0,"count":0,"exp":300,"hp":1500,"kind":"midBoss","radius":16.0,"rewards":2,"scale":3.2,"shape":"Pentagon","side":"leftRight","speed":2.0,"text":"中ボス出現"},{"at":390.0,"count":16,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"topBottom","speed":4.0,"text":"上下から壁が迫る"},{"at":450.0,"count":0,"countScale":1.3,"duration":30.0,"exp":0,"hp":0,"intervalScale":0.5,"kind":"surge","maxAliveAdd":20,"radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":3.0,"text":"大群が来る"},{"at":480.0,"count":28,"exp":0,"hp":0,"kind":"ring","radius":16.0,"rewards":0,"scale":1.0,"shape":"Triangle","side":"leftRight","speed":4.2,"text":"包囲"},{"at":540.0,"count":18,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":4.0,"text":"左右から壁が迫る"}]
+  "timeline": [{"at":90.0,"count":12,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":4.0,"text":"左右から壁が迫る"},{"at":180.0,"count":20,"exp":0,"gap":80.0,"hp":0,"kind":"ring","radius":16.0,"rewards":0,"scale":1.0,"shape":"Triangle","side":"leftRight","speed":4.2,"text":"包囲","warn":1.5},{"at":240.0,"count":0,"countScale":1.1,"duration":25.0,"exp":0,"hp":0,"intervalScale":0.7,"kind":"surge","maxAliveAdd":20,"radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":3.0,"text":"大群が来る"},{"at":300.0,"count":0,"exp":300,"hp":1500,"kind":"midBoss","radius":16.0,"rewards":2,"scale":3.2,"shape":"Pentagon","side":"leftRight","speed":2.0,"text":"中ボス出現"},{"at":390.0,"count":16,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"topBottom","speed":4.0,"text":"上下から壁が迫る"},{"at":450.0,"count":0,"countScale":1.1,"duration":30.0,"exp":0,"hp":0,"intervalScale":0.7,"kind":"surge","maxAliveAdd":20,"radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":3.0,"text":"大群が来る"},{"at":480.0,"count":28,"exp":0,"gap":80.0,"hp":0,"kind":"ring","radius":16.0,"rewards":0,"scale":1.0,"shape":"Triangle","side":"leftRight","speed":4.2,"text":"包囲","warn":1.5},{"at":540.0,"count":18,"exp":0,"hp":0,"kind":"wall","radius":16.0,"rewards":0,"scale":1.0,"shape":"Square","side":"leftRight","speed":4.0,"text":"左右から壁が迫る"}]
 }

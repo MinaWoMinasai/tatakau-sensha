@@ -83,10 +83,10 @@ inline nlohmann::json DefaultBalance()
 {
     return {{"schemaVersion", 2},
             {"bossMaxHp", 900},
-            // 機体で遊ぶとき（計画書 p5）の自機の移動の速さの倍率。1 で今までと同じ。HoloCure のように敵とほぼ同じ速さにして、
+            // 機体で遊ぶとき（計画書 p5）の自機の移動の速さの倍率。1 で今までと同じ。敵とほぼ同じ速さにして、
             // 振り切れないようにする（移動の技で逃げる意味が出る）。
             {"heroMoveScale", 0.7f},
-            // 機体で遊ぶとき、押さなくても向いている方へ主砲を撃ち続けるか（HoloCure と同じ。遊んでいる間も F キーで切り替えられる）。
+            // 機体で遊ぶとき、押さなくても向いている方へ主砲を撃ち続けるか（遊んでいる間も F キーで切り替えられる）。
             {"heroAutoFire", true},
             {"defaultRandomSpawnEnabled", false},
             {"combatStyles", CombatStylesToJson(DefaultTankCombatStyleBalances())},

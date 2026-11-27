@@ -506,7 +506,7 @@ public:
         return demoInputEnabled_;
     }
 
-    /// @brief 自動で撃つ（遠征の機体、計画書 p6 の HoloCure の感想から）。有効なら、左クリックを押さなくても、向いている方へ主砲を撃ち続ける
+    /// @brief 自動で撃つ（遠征の機体、計画書 p6）。有効なら、左クリックを押さなくても、向いている方へ主砲を撃ち続ける
     /// （撃つ間隔と熱はふつうのまま）。向きはふつうどおりマウスか右スティックで決め、右スティックを離している間は動いている方を向く。
     void SetAutoFire(bool enabled)
     {
@@ -711,6 +711,11 @@ public:
     uint64_t GetSurvivorDamageTaken() const
     {
         return survivorDamageTaken_;
+    }
+    /// @brief 被弾で実際に減った HP の合計（計画書 p9 の H3。シールドや反応装甲で防いだ分は入らない）。
+    uint64_t GetSurvivorHpLost() const
+    {
+        return survivorHpLost_;
     }
     uint64_t GetSurvivorDamageCapped() const
     {
@@ -1005,6 +1010,12 @@ public:
     bool HasMovementInput() const
     {
         return myEngine::Length(inputDir_) > 0.05f;
+    }
+
+    /// @brief 今の移動の入力の向き（入力が無ければ 0）。押し返しや反動は入らない。
+    const myEngine::Vector3& GetMovementInput() const
+    {
+        return inputDir_;
     }
 
     /// @brief 主攻撃の実行フラグを返し、保留フラグを解除する。複数回の実行も1つのtrueにまとめる。
@@ -1372,6 +1383,7 @@ private:
     std::vector<std::pair<uint64_t, float>> survivorRecentSources_;
     std::vector<std::pair<float, uint32_t>> survivorRecentDamage_;
     uint64_t survivorDamageTaken_ = 0;
+    uint64_t survivorHpLost_ = 0;
     uint64_t survivorDamageCapped_ = 0;
     uint32_t survivorHits_ = 0;
     uint32_t survivorSameSourceBlocked_ = 0;

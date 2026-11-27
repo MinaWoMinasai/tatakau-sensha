@@ -119,6 +119,20 @@ public:
     /// @brief カメラの方を向く円を描画待ちに積む。
     void QueueBillboardDisc(const Vector3& center, float radius, const Vector4& color, const Vector3& cameraRight, const Vector3& cameraUp,
                             int segments = 32);
+    /// @brief 中心が明るく、縁で消える楕円の光を描画待ちに積む（線の太さに頼らない近いにじみ・閃光。108頂点）。
+    /// @param axisU 楕円の片方の軸（長さが半径）。@param axisV もう片方の軸。
+    /// @brief 内側の辺（a・b）から外側の辺（outerA・outerB）へ色が変わる四角を描画待ちに積む。
+    void QueueGradientQuad(const Vector3& a, const Vector3& b, const Vector3& outerA, const Vector3& outerB, const Vector4& inner, const Vector4& outer)
+    {
+        PushVertex(a, inner, {0.5f, 0.5f});
+        PushVertex(outerA, outer, {0.5f, 0.5f});
+        PushVertex(b, inner, {0.5f, 0.5f});
+        PushVertex(outerA, outer, {0.5f, 0.5f});
+        PushVertex(outerB, outer, {0.5f, 0.5f});
+        PushVertex(b, inner, {0.5f, 0.5f});
+    }
+    /// @param middle 半分の所の濃さ（中心に対する割合）。大きいほど、中ほどまで広く光る。
+    void QueueSoftEllipse(const Vector3& center, const Vector3& axisU, const Vector3& axisV, const Vector4& color, float middle = 0.3f);
     /// @brief カメラの方を向く塗りつぶした正多角形を描画待ちに積む。
     void QueueBillboardRegularPolygonFill(const Vector3& center, int segments, float radius, float rotationRad, const Vector2& scale,
                                           const Vector4& color, const Vector3& cameraRight, const Vector3& cameraUp);

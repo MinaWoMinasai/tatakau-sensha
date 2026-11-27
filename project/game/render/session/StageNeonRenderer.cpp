@@ -18,6 +18,7 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <unordered_set>
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
@@ -71,13 +72,18 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     };
     // 遠征の熱が高まるほど、格子を赤いネオンへ寄せる。
     const float heat = world_.presentation.heatTint_;
-    auto gridColor = [&](myEngine::Vector4 authored, float width) {
+    auto gridColor = [&](myEngine::Vector4 authored, float width, float brightness = 1.0f) {
         // 遠景や傾いた視点でサブピクセルの線を太くするときも、発光エネルギーを保つ。
         if (width > 0.0f) {
             authored.w *= width / gridWidth(width);
         }
+        // ランの見た目（計画書 p9 の H1）で格子を暗くする。
+        authored.w *= brightness;
         return HeatShift(authored, heat, 0.8f);
     };
+    const float worldGridBrightness = world_.presentation.runNeonLook_.worldGrid;
+    const float localGridBrightness = world_.presentation.runNeonLook_.localGrid;
+    const float enemyGridBrightness = localGridBrightness * world_.presentation.runNeonLook_.enemyGrid;
     if (world_.presentation.showNeonGrid_) {
         const float minX = 0.0f;
         const float minY = 0.0f;
@@ -85,7 +91,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         const float maxY = MapChip::kBlockHeight * static_cast<float>(MapChip::kNumBlockVirtical - 1);
         world_.resources.neonGridRenderer_->QueueWorldGrid(
             minX, maxX, minY, maxY, world_.presentation.worldGridSpacing_, gridWidth(world_.presentation.worldGridLineWidth_),
-            gridColor(world_.presentation.worldGridColor_, world_.presentation.worldGridLineWidth_), gridZ);
+            gridColor(world_.presentation.worldGridColor_, world_.presentation.worldGridLineWidth_, worldGridBrightness), gridZ);
     }
     if (world_.presentation.showActorLocalGrid_) {
         const float fieldMinX = 0.0f;
@@ -96,7 +102,8 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
             world_.resources.neonGridRenderer_->QueueLocalGridClipped(
                 world_.resources.player_->GetWorldPosition(), world_.presentation.actorGridRadius_, world_.presentation.actorGridSpacing_,
                 gridWidth(world_.presentation.actorGridLineWidth_),
-                gridColor(world_.presentation.playerGridColor_, world_.presentation.actorGridLineWidth_), fieldMinX, fieldMaxX, fieldMinY,
+                gridColor(world_.presentation.playerGridColor_, world_.presentation.actorGridLineWidth_, localGridBrightness), fieldMinX,
+                fieldMaxX, fieldMinY,
                 fieldMaxY, localGridZ);
         }
         if ((world_.gameplayQueries->IsRunRivalActive() && !world_.resources.enemy_->IsDead())) {
@@ -108,7 +115,7 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
         }
         int expEnemyLocalGridCount = 0;
         for (ExpEnemy* expEnemy : world_.resources.enemyManager_->GetEnemyPtrs()) {
-            if (expEnemy && !expEnemy->IsDead()) {
+            if (expEnemy && !expEnemy->IsDead() && enemyGridBrightness > 0.0f) {
                 if (world_.presentation.maxExpEnemyLocalGrids_ >= 0 &&
                     expEnemyLocalGridCount >= world_.presentation.maxExpEnemyLocalGrids_) {
                     break;
@@ -121,7 +128,8 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
                 world_.resources.neonGridRenderer_->QueueLocalGridClipped(
                     expEnemy->GetWorldPosition(), world_.presentation.actorGridRadius_ * 0.45f, world_.presentation.actorGridSpacing_,
                     gridWidth(world_.presentation.actorGridLineWidth_ * 0.8f),
-                    gridColor(world_.presentation.expEnemyGridColor_, world_.presentation.actorGridLineWidth_ * 0.8f), fieldMinX, fieldMaxX,
+                    gridColor(world_.presentation.expEnemyGridColor_, world_.presentation.actorGridLineWidth_ * 0.8f, enemyGridBrightness),
+                    fieldMinX, fieldMaxX,
                     fieldMinY, fieldMaxY, localGridZ);
                 ++expEnemyLocalGridCount;
             }
@@ -195,9 +203,16 @@ void StageNeonRenderer::DrawNeonGridPass(bool includeStageBlockOutlines)
     myEngine::Matrix4x4 vp = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
                                  ? world_.resources.debugCamera->GetViewProjectionMatrix()
                                  : world_.resources.camera->GetViewProjectionMatrix();
-    world_.resources.neonGridRenderer_->DrawRange(
-        foregroundStart, world_.resources.neonGridRenderer_->GetVertexCount() - foregroundStart, vp,
-        world_.resources.neonDepthCameraScoped_ && !myEngine::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV());
+    const bool noDepth = world_.resources.neonDepthCameraScoped_ && !myEngine::Object3dCommon::GetInstance()->GetDxCommon()->HasCurrentDSV();
+    world_.resources.neonGridRenderer_->DrawRange(foregroundStart, world_.resources.neonGridRenderer_->GetVertexCount() - foregroundStart, vp,
+                                                  noDepth);
+    // 履帯戦車の自機：敵の線・破片・演出を描き終えてから、その上に黒い面と線を重ねる（自機が埋もれないように）。
+    if (world_.presentation.runNeonLook_.playerTank) {
+        const myEngine::Matrix4x4 view = myEngine::Inverse(myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera()
+                                                               ? world_.resources.debugCamera->GetViewMatrix()
+                                                               : world_.resources.camera->GetViewMatrix());
+        world_.actorNeonRenderer->DrawPlayerTank(myEngine::Normalize({view.m[2][0], view.m[2][1], view.m[2][2]}), vp, noDepth);
+    }
 }
 
 void StageNeonRenderer::DrawStageBlockNeonPass()
@@ -239,7 +254,19 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
     if (surfaceBlocks && surface.wallStyle == 1) {
         // タイルごとに別のBloom付きの枠を付けずに、セルのグリッドをつなげる。
         // 重複を除いた線分の集合で、隣り合う矩形の継ぎ目も消える。
-        std::set<std::array<int, 6>> emitted;
+        // 毎フレーム数百本を調べるので、木ではなく表で持ち、入れ物は使い回す。
+        struct SegmentHash {
+            size_t operator()(const std::array<int, 6>& key) const
+            {
+                uint64_t hash = 1469598103934665603ull;
+                for (const int value : key) {
+                    hash = (hash ^ static_cast<uint32_t>(value)) * 1099511628211ull;
+                }
+                return static_cast<size_t>(hash ^ (hash >> 29));
+            }
+        };
+        static std::unordered_set<std::array<int, 6>, SegmentHash> emitted;
+        emitted.clear();
         for (const auto& wall : world_.resources.stage_->GetSurfaceWalls(surface)) {
             const bool damage = wall.type == MapChipType::kDamageBlock;
             if ((damage && !world_.presentation.showStageDamageBlockNeonOutlines_) ||
@@ -259,6 +286,10 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                                                  : (damage ? world_.presentation.stageDamageBlockNeonColor_
                                                            : world_.presentation.stageBlockNeonColor_),
                                    world_.presentation.heatTint_, 0.7f);
+            // ランの見た目（計画書 p9 の H1）で壁の線を暗くする。
+            color.x *= world_.presentation.runNeonLook_.walls;
+            color.y *= world_.presentation.runNeonLook_.walls;
+            color.z *= world_.presentation.runNeonLook_.walls;
             float pulse = 1.0f;
             if (damage) {
                 pulse = world_.presentation.stageDamageBlockPulseMin_ +
@@ -381,6 +412,9 @@ void StageNeonRenderer::QueueStageBlockNeonOutlines()
                 return myEngine::TransformMatrix(local, transform);
             };
             myEngine::Vector4 blockNeonColor = HeatShift(world_.presentation.stageBlockNeonColor_, world_.presentation.heatTint_, 0.7f);
+            blockNeonColor.x *= world_.presentation.runNeonLook_.walls;
+            blockNeonColor.y *= world_.presentation.runNeonLook_.walls;
+            blockNeonColor.z *= world_.presentation.runNeonLook_.walls;
             if (isDamageBlock) {
                 const float wave = 0.5f + 0.5f * std::sin(world_.presentation.stageDamageBlockPulseTime_ *
                                                           world_.presentation.stageDamageBlockPulseSpeed_);

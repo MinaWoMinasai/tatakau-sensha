@@ -1,4 +1,5 @@
 #include "game/run/session/SurvivorRunController.h"
+#include "game/debug/MenuFlow.h"
 #include "game/run/session/SurvivorRunShared.h"
 #include "game/session/GameplaySystems.h"
 #include <algorithm>
@@ -39,7 +40,8 @@ void SurvivorRunController::LoadHeroSaveFile()
 
 void SurvivorRunController::SaveHeroSaveFile()
 {
-    if (world_.demo.titleDemo_) {
+    // 画面の出入りの確認では、遊んでいる人のセーブを書き換えない。
+    if (world_.demo.titleDemo_ || menuflow::IsActive()) {
         return;
     }
     std::string error;

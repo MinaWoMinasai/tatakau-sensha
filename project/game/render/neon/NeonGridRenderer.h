@@ -147,6 +147,18 @@ public:
         geometry_.QueueBillboardDisc(center, radius, color, cameraRight, cameraUp, segments);
     }
 
+    /// @brief 内側の辺から外側の辺へ色が変わる四角を描画待ちに積む。
+    void QueueGradientQuad(const Vector3& a, const Vector3& b, const Vector3& outerA, const Vector3& outerB, const Vector4& inner, const Vector4& outer)
+    {
+        geometry_.QueueGradientQuad(a, b, outerA, outerB, inner, outer);
+    }
+
+    /// @brief 中心が明るく、縁で消える楕円の光を描画待ちに積む。
+    void QueueSoftEllipse(const Vector3& center, const Vector3& axisU, const Vector3& axisV, const Vector4& color, float middle = 0.3f)
+    {
+        geometry_.QueueSoftEllipse(center, axisU, axisV, color, middle);
+    }
+
     /// @brief カメラの方を向く塗りつぶした正多角形を描画待ちに積む。
     void QueueBillboardRegularPolygonFill(const Vector3& center, int segments, float radius, float rotationRad, const Vector2& scale,
                                           const Vector4& color, const Vector3& cameraRight, const Vector3& cameraUp)

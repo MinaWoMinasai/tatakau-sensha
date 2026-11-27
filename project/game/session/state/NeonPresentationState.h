@@ -297,6 +297,88 @@ struct NeonPresentationState {
 
     int expEnemyNeonRenderMode_ = 0;
 
+    /// @brief ランごとのネオン管の見た目（計画書 p9 の H1。無限の場が毎フレーム決める）。既定値なら今まで通り。
+    /// 経験値の敵の輪郭：芯の白さが負ならアクターと同じ輪郭。色の明るさ（倍）。
+    /// 背景の格子・アクターのまわりの格子・壁の線・床の明かりの明るさ（倍）。画面全体のブルーム（倍）。
+    struct RunNeonLook {
+        float enemyCoreWhite = -1.0f;
+        float enemyCoreIntensity = 2.8f;
+        float enemyHaloIntensity = 0.5f;
+        float enemyHaloWidth = 2.1f;
+        float enemyColor = 1.0f;
+        /// @brief 敵の中を黒い平面にするか、線の太さ・背景の雲・画面の端の色ずれ（倍）（計画書 p10）。
+        bool enemyFlatBody = false;
+        float enemyLine = 1.0f;
+        float nebula = 1.0f;
+        float colorShift = 1.0f;
+        /// @brief 画面の残像と走査線（倍）、前のコマと混ぜるか（TAA）、敵の線の近いにじみの強さと広さ（計画書 p10 の13章）。
+        float persistence = 1.0f;
+        float scanline = 1.0f;
+        bool temporal = true;
+        float nearGlow = 0.0f;
+        float nearGlowRadius = 0.5f;
+        float worldGrid = 1.0f;
+        float localGrid = 1.0f;
+        float enemyGrid = 1.0f;
+        float walls = 1.0f;
+        float floorLight = 1.0f;
+        float bloom = 1.0f;
+        /// @brief 小さい敵の HP バーを出すか（計画書 p9 の H2。中ボス・大きい敵はいつも出す）。
+        bool smallEnemyHpBars = true;
+        /// @brief 自機のまわりの HP と Q の弧を出すか、開発用の窓（BloomAndVignette）を隠すか（計画書 p9 の H4）。
+        bool playerHpArc = true;
+        bool playerUltimateArc = true;
+        bool playerStaminaArcs = true; // バリアと近接のスタミナの弧（Q だけの遊び方では使わない）
+        bool hideDevWindows = false;
+        /// @brief 被弾の「ダメージ」の文字を出すかと、被弾の揺れの倍率（計画書 p9 の H3）。
+        bool hurtText = true;
+        float hurtShake = 1.0f;
+        /// @brief 爆発・破片・副武器を管の線で描くか、その線の太さ・明るさ・破片と火花と輪の割合、自機のまわりを薄くする所（計画書 p10 の16章の M3）。
+        bool tubeEffects = false;
+        float effectLine = 1.0f;
+        float effectBrightness = 0.9f;
+        float effectDebris = 1.0f;
+        float effectSparks = 1.0f;
+        float effectRing = 1.0f;
+        float effectGlow = 0.0f;
+        float effectBirth = 1.0f;
+        float effectFlash = 0.0f;
+        bool effectEdges = false;
+        /// @brief 割れて飛ぶ辺と、脇役の割合（計画書 p10 の23章。意味は SurvivorLoot.h の EffectLook）。
+        float edgeSpeed = 9.0f;
+        float edgeVary = 0.6f;
+        float edgeHold = 0.42f;
+        int edgeBlink = 2;
+        float edgeGap = 0.07f;
+        float edgeShift = 0.18f;
+        float edgeBright = 1.15f;
+        float edgeDrag = 3.2f;
+        float edgeLong = 1.3f;
+        bool calmBlink = false;
+        float effectSoft = 1.0f;
+        float effectSoftLife = 1.0f;
+        float effectOverlap = 0.0f;
+        float tankPlate = 1.0f;
+        float tankPlateFeather = 0.0f;
+        float effectClearRadius = 0.0f;
+        float effectClearAlpha = 1.0f;
+        myEngine::Vector3 effectClearCenter{};
+        /// @brief 自機の戦車を、光を重ねた後にもう一度描くか。
+        bool tankTopMost = false;
+        /// @brief 自機を履帯戦車で描くか、その線・明るさ・近いにじみ・大きさ（倍）と色（計画書 p10 の16章の M1）。
+        bool playerTank = false;
+        float tankLine = 1.0f;
+        float tankBrightness = 1.0f;
+        float tankNearGlow = 0.6f;
+        float tankScale = 1.0f;
+        myEngine::Vector4 tankColor{0.25f, 1.0f, 0.55f, 1.0f};
+        /// @brief 車体の向き（ラジアン）、左右の履帯が進んだ長さ、今の速さ。
+        float tankHullAngle = -1.5707963f;
+        float tankTreadLeft = 0.0f;
+        float tankTreadRight = 0.0f;
+        float tankSpeed = 0.0f;
+    } runNeonLook_;
+
     float expEnemyNeonSquareSize_ = 1.8f;
 
     float expEnemyNeonTriangleRadius_ = 1.05f;
