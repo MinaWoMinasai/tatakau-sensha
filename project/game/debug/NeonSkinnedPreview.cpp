@@ -1324,11 +1324,8 @@ void NeonSkinnedPreview::UpdateShowcaseCamera(float deltaTime)
     const float distance = distances[showcaseFraming_];
     showcaseCamera_.SetTranslate({std::sin(showcaseYaw_) * distance, targets[showcaseFraming_], -std::cos(showcaseYaw_) * distance});
     showcaseCamera_.SetRotate({0, -showcaseYaw_, 0});
-    showcaseCamera_.SetFovY(0.45f);
-    showcaseCamera_.SetNearClip(0.03f);
-    showcaseCamera_.SetFarClip(100.0f);
     const auto viewport = myEngine::Object3dCommon::GetInstance()->GetDxCommon()->GetViewportRect();
-    showcaseCamera_.SetAspectRatio(viewport.Width / (std::max)(1.0f, viewport.Height));
+    showcaseCamera_.SetLens({0.45f, viewport.Width / (std::max)(1.0f, viewport.Height), 0.03f, 100.0f});
     showcaseCamera_.SetProjectionJitter({});
     showcaseCamera_.Update();
 }

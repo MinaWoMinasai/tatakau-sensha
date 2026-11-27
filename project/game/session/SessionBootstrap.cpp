@@ -80,7 +80,9 @@ myEngine::InitializationTask SessionBootstrap::Build()
         }
     }
 
-    world_.resources.camera->SetFovY(arenacamera::kFovY);
+    myEngine::Camera::Lens lens = world_.resources.camera->GetLens();
+    lens.fovY = arenacamera::kFovY;
+    world_.resources.camera->SetLens(lens);
     world_.resources.camera->SetTranslate(myEngine::Vector3(17.0f, 21.0f, arenacamera::CameraZ() * 1.45f));
 
     myEngine::Object3dCommon::GetInstance()->SetDefaultCamera(world_.resources.camera.get());

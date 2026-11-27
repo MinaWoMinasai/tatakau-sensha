@@ -52,7 +52,9 @@ void RegisterRenderComponents(flecs::world& world)
 
 RenderSync::RenderSync(flecs::world& world) : world_(world)
 {
-    camera_.SetAspectRatio(float(WinApp::kClientWidth) / float(WinApp::kClientHeight));
+    Camera::Lens lens = camera_.GetLens();
+    lens.aspectRatio = float(WinApp::kClientWidth) / float(WinApp::kClientHeight);
+    camera_.SetLens(lens);
     camera_.Update();
 }
 
@@ -66,9 +68,7 @@ void RenderSync::UpdateCamera()
             return;
         }
         found = true;
-        camera_.SetFovY(component.fovY);
-        camera_.SetNearClip(component.nearClip);
-        camera_.SetFarClip(component.farClip);
+        camera_.SetLens({component.fovY, camera_.GetLens().aspectRatio, component.nearClip, component.farClip});
         if (const Transform* transform = entity.try_get<Transform>()) {
             camera_.SetRotate(transform->rotate);
             camera_.SetTranslate(transform->translate);

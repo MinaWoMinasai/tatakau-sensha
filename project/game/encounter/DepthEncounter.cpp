@@ -110,9 +110,9 @@ bool DepthEncounter::UpdateNeonDepthCamera(float baseDeltaTime)
     if (!world_.resources.neonDepthCameraScoped_) {
         world_.presentation.bossCinematic_ = {};
         world_.resources.neonDepthSavedCamera_ = {world_.resources.camera->GetTranslate(),        world_.resources.camera->GetRotate(),
-                                                  world_.resources.camera->GetProjectionJitter(), world_.resources.camera->GetFovY(),
-                                                  world_.resources.camera->GetAspectRatio(),      world_.resources.camera->GetNearClip(),
-                                                  world_.resources.camera->GetFarClip()};
+                                                  world_.resources.camera->GetProjectionJitter(), world_.resources.camera->GetLens().fovY,
+                                                  world_.resources.camera->GetLens().aspectRatio, world_.resources.camera->GetLens().nearClip,
+                                                  world_.resources.camera->GetLens().farClip};
         world_.resources.neonDepthCameraScoped_ = true;
         world_.resources.neonDepthSavedDebugCamera_ = myEngine::Object3dCommon::GetInstance()->GetIsDebugCamera();
     }
@@ -146,10 +146,7 @@ bool DepthEncounter::UpdateNeonDepthCamera(float baseDeltaTime)
     world_.resources.neonDepthFloorViewCenter_ = focus;
     world_.resources.camera->SetRotate(frame.rotation);
     world_.resources.camera->SetTranslate(frame.position);
-    world_.resources.camera->SetFovY(profile.fovY);
-    world_.resources.camera->SetAspectRatio(profile.aspect);
-    world_.resources.camera->SetNearClip(profile.nearClip);
-    world_.resources.camera->SetFarClip(profile.farClip);
+    world_.resources.camera->SetLens({profile.fovY, profile.aspect, profile.nearClip, profile.farClip});
     world_.resources.camera->SetProjectionJitter({});
     if (world_.resources.player_) {
         world_.resources.player_->SetNeonDepthAimEnabled(true);
@@ -328,10 +325,8 @@ void DepthEncounter::RestoreNeonDepthCamera()
     }
     world_.resources.camera->SetRotate(world_.resources.neonDepthSavedCamera_.rotation);
     world_.resources.camera->SetTranslate(world_.resources.neonDepthSavedCamera_.position);
-    world_.resources.camera->SetFovY(world_.resources.neonDepthSavedCamera_.fovY);
-    world_.resources.camera->SetAspectRatio(world_.resources.neonDepthSavedCamera_.aspect);
-    world_.resources.camera->SetNearClip(world_.resources.neonDepthSavedCamera_.nearClip);
-    world_.resources.camera->SetFarClip(world_.resources.neonDepthSavedCamera_.farClip);
+    const auto& saved = world_.resources.neonDepthSavedCamera_;
+    world_.resources.camera->SetLens({saved.fovY, saved.aspect, saved.nearClip, saved.farClip});
     world_.resources.camera->SetProjectionJitter(world_.resources.neonDepthSavedCamera_.jitter);
     world_.resources.camera->Update();
     if (world_.resources.player_) {
